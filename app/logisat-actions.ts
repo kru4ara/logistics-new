@@ -3,7 +3,7 @@
 import { supabase } from '../lib/supabaseClient';
 import { revalidatePath } from 'next/cache';
 
-// ТВОИ РЕАЛЬНЫЕ ДАННЫЕ
+// ТВОИ РЕАЛЬНЫЕ ДАННЫЕ ОТ LOGISAT
 const SERVER_URL = 'https://gps2.logisat.pl/atlas';
 const USER_NAME = 'raibuilding';
 const PASSWORD = 'Anatoli_123';
@@ -36,20 +36,19 @@ export async function fetchLogisatData(tripId: string) {
       .single();
 
     if (truckError || !truck || !truck.device_id) {
-      throw new Error('Не найден device_id для этого грузовика. Добавь его в таблицу trucks.');
+      throw new Error('Не найден device_id для этого грузовика. Проверь таблицу trucks.');
     }
 
     const deviceId = truck.device_id;
 
     // 3. Формируем URL для historyextended (метод из документации)
+    // https://gps2.logisat.pl/atlas/raibuilding/historyextended/437195/startTs/endTs
     const url = `${SERVER_URL}/${USER_NAME}/historyextended/${deviceId}/${startTs}/${endTs}`;
 
     console.log(`Отправляем запрос: ${url}`);
 
-    // 4. Выполняем запрос с паролем в параметрах (GET, как в примере)
-    // Так как в примере используется GET с ?password=, мы добавляем его в URL
+    // 4. Выполняем GET-запрос с паролем в параметрах
     const fullUrl = `${url}?password=${PASSWORD}`;
-
     const response = await fetch(fullUrl);
 
     if (!response.ok) {
@@ -58,7 +57,6 @@ export async function fetchLogisatData(tripId: string) {
     }
 
     const data = await response.json();
-    
     console.log('Ответ от Logisat получен');
 
     // 5. Проверяем структуру ответа
@@ -66,14 +64,10 @@ export async function fetchLogisatData(tripId: string) {
       return { success: false, message: 'Нет данных по этому маршруту за выбранный период.' };
     }
 
-    // 6. Берем последнюю точку (самую свежую) для получения итоговых данных
+    // 6. Берем последнюю точку для получения итоговых данных
     const lastPoint = data.positionList[data.positionList.length - 1];
 
-    // Поля из документации:
-    // "totaldistance" - общий пробег в метрах
-    // "totalfuel" - общий расход топлива в миллилитрах
-    // "mileagegps" - пробег по GPS в метрах (альтернатива)
-    
+    // Поля из документации: totaldistance (метры), totalfuel (миллилитры)
     const totalMeters = lastPoint.totaldistance || 0;
     const totalFuelMl = lastPoint.totalfuel || 0;
     
@@ -83,8 +77,7 @@ export async function fetchLogisatData(tripId: string) {
     console.log(`Найдено: ${totalKm} км, ${totalLiters} л топлива`);
 
     // 7. Записываем расходы в Supabase
-    // Цена топлива (в евро) — замени на актуальную!
-    const fuelPricePerLiter = 1.5; 
+    const fuelPricePerLiter = 1.5; // Замени на актуальную цену в евро!
     const fuelCostEur = totalLiters * fuelPricePerLiter;
 
     if (totalLiters > 0) {
