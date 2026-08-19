@@ -1,0 +1,107 @@
+import { supabase } from '../../../lib/supabaseClient';
+import { redirect } from 'next/navigation';
+
+async function createDriver(formData: FormData) {
+  'use server';
+
+  const firstName = formData.get('first_name') as string;
+  const lastName = formData.get('last_name') as string;
+  const phone = formData.get('phone') as string;
+  
+  // Берем дату как есть из календаря
+  const visaExpiry = formData.get('visa_expiry') as string;
+
+  console.log("Отправляю в базу:", { firstName, lastName, phone, visaExpiry });
+
+  const { data, error } = await supabase
+    .from('drivers')
+    .insert([
+      { 
+        first_name: firstName,
+        last_name: lastName,
+        phone: phone,
+        visa_expiry: visaExpiry
+      }
+    ]);
+
+  if (error) {
+    throw new Error(`Ошибка Supabase: ${error.message} (Код: ${error.code})`);
+  }
+
+  console.log("Успешно сохранено, редирект...");
+  redirect('/');
+}
+
+export default function NewDriverPage() {
+  return (
+    <div style={{ padding: '20px', fontFamily: 'sans-serif', maxWidth: '500px' }}>
+      <h1 style={{ fontSize: '24px' }}>Добавить нового водителя</h1>
+      
+      <form action={createDriver} style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '20px' }}>
+        
+        <div>
+          <label htmlFor="first_name" style={{ display: 'block', fontWeight: 'bold' }}>Имя</label>
+          <input 
+            type="text" 
+            id="first_name" 
+            name="first_name" 
+            required 
+            style={{ width: '100%', padding: '8px', marginTop: '5px', borderRadius: '4px', border: '1px solid #ccc' }}
+          />
+        </div>
+
+        <div>
+          <label htmlFor="last_name" style={{ display: 'block', fontWeight: 'bold' }}>Фамилия</label>
+          <input 
+            type="text" 
+            id="last_name" 
+            name="last_name" 
+            required 
+            style={{ width: '100%', padding: '8px', marginTop: '5px', borderRadius: '4px', border: '1px solid #ccc' }}
+          />
+        </div>
+
+        <div>
+          <label htmlFor="phone" style={{ display: 'block', fontWeight: 'bold' }}>Телефон</label>
+          <input 
+            type="text" 
+            id="phone" 
+            name="phone" 
+            style={{ width: '100%', padding: '8px', marginTop: '5px', borderRadius: '4px', border: '1px solid #ccc' }}
+          />
+        </div>
+
+        <div>
+          <label htmlFor="visa_expiry" style={{ display: 'block', fontWeight: 'bold' }}>Срок визы (ГГГГ-ММ-ДД)</label>
+          {/* Мы заставили браузер использовать формат YYYY-MM-DD */}
+          <input 
+            type="date" 
+            id="visa_expiry" 
+            name="visa_expiry" 
+            style={{ width: '100%', padding: '8px', marginTop: '5px', borderRadius: '4px', border: '1px solid #ccc' }}
+          />
+        </div>
+
+        <button 
+          type="submit" 
+          style={{ 
+            marginTop: '10px', 
+            padding: '10px', 
+            backgroundColor: '#0070f3', 
+            color: 'white', 
+            border: 'none', 
+            borderRadius: '4px', 
+            cursor: 'pointer',
+            fontWeight: 'bold'
+          }}
+        >
+          Сохранить водителя
+        </button>
+
+        <a href="/" style={{ marginTop: '10px', color: '#0070f3', textDecoration: 'underline' }}>
+          ← Назад к списку
+        </a>
+      </form>
+    </div>
+  );
+}
