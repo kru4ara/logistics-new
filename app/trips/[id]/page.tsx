@@ -1,23 +1,20 @@
 import { supabase } from '../../../lib/supabaseClient';
 import { addExpense } from '../../trip-actions';
-import { revalidatePath } from 'next/cache';
+import { fetchLogisatData } from '../../logisat-actions';
 
 export default async function TripDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  // Ожидаем параметры (исправление ошибки UUID)
   const { id: tripId } = await params;
   
   if (!tripId) {
     return <div>Ошибка: ID рейса не передан</div>;
   }
 
-  // Загружаем данные рейса + клиента
   const { data: trip, error: tripError } = await supabase
     .from('trips')
     .select('*, clients(name)')
     .eq('id', tripId)
     .single();
 
-  // Загружаем расходы по этому рейсу
   const { data: expenses, error: expError } = await supabase
     .from('trip_expenses')
     .select('*')
@@ -27,7 +24,6 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
     return <div>Ошибка загрузки: {tripError?.message || expError?.message}</div>;
   }
 
-  // Считаем итоги
   const totalExpenses = expenses?.reduce((sum, e) => sum + (e.amount_eur || 0), 0) || 0;
   const profit = (trip.revenue_eur || 0) - totalExpenses;
 
@@ -98,7 +94,6 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
         <h3>+ Добавить расход</h3>
         <form action={addExpense} style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxWidth: '400px' }}>
           <input type="hidden" name="trip_id" value={tripId} />
-          
           <div>
             <label>Категория</label>
             <select name="category" required style={{ width: '100%', padding: '8px' }}>
@@ -111,26 +106,50 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
               <option value="other">Другое</option>
             </select>
           </div>
-
           <div>
             <label>Сумма (€)</label>
             <input type="number" name="amount_eur" step="0.01" required style={{ width: '100%', padding: '8px' }} />
           </div>
-
           <div>
             <label>Описание</label>
             <input type="text" name="description" style={{ width: '100%', padding: '8px' }} />
           </div>
-
           <div>
             <label>Дата</label>
             <input type="date" name="expense_date" style={{ width: '100%', padding: '8px' }} />
           </div>
-
           <button type="submit" style={{ padding: '10px', background: '#0070f3', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
             Добавить расход
           </button>
         </form>
+
+        {/* ===== КНОПКА LOGISAT ===== */}
+        <div style={{ marginTop: '20px', borderTop: '1px dashed #ccc', paddingTop: '20px' }}>
+          <form action={async () => {
+            'use server';
+            await fetchLogisatData(tripId);
+          }}>
+            <button 
+              type="submit"
+              style={{ 
+                padding: '10px 20px', 
+                backgroundColor: '#10b981', 
+                color: 'white', 
+                border: 'none', 
+                borderRadius: '4px', 
+                cursor: 'pointer',
+                fontWeight: 'bold'
+              }}
+            >
+              📡 Загрузить из Logisat
+            </button>
+          </form>
+          <p style={{ fontSize: '12px', color: '#888', marginTop: '8px' }}>
+            Автоматически подтянет километраж и расход топлива.
+          </p>
+        </div>
+        {/* ===== КОНЕЦ КНОПКИ ===== */}
+        
       </div>
     </main>
   );
