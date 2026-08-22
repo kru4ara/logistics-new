@@ -1,6 +1,6 @@
 import { supabase } from '../../../lib/supabaseClient';
 import { addExpense } from '../../trip-actions';
-import { fetchLogisatData } from '../../logisat-actions';
+import { deleteExpense } from '../../expense-actions';
 
 export default async function TripDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: tripId } = await params;
@@ -51,11 +51,12 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
               <th style={{ padding: '10px' }}>Сумма (€)</th>
               <th style={{ padding: '10px' }}>Описание</th>
               <th style={{ padding: '10px' }}>Дата</th>
+              <th style={{ padding: '10px' }}></th>
             </tr>
           </thead>
           <tbody>
             {expenses?.length === 0 ? (
-              <tr><td colSpan={4} style={{ padding: '20px', textAlign: 'center', color: '#888' }}>Пока нет расходов</td></tr>
+              <tr><td colSpan={5} style={{ padding: '20px', textAlign: 'center', color: '#888' }}>Пока нет расходов</td></tr>
             ) : (
               expenses?.map((exp) => (
                 <tr key={exp.id} style={{ borderBottom: '1px solid #eee' }}>
@@ -70,6 +71,27 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
                   <td style={{ padding: '10px', fontWeight: 'bold' }}>{exp.amount_eur} €</td>
                   <td style={{ padding: '10px' }}>{exp.description || '-'}</td>
                   <td style={{ padding: '10px' }}>{exp.expense_date || '-'}</td>
+                  <td style={{ padding: '10px' }}>
+                    <form action={async () => {
+                      'use server';
+                      await deleteExpense(exp.id, tripId);
+                    }}>
+                      <button 
+                        type="submit"
+                        style={{ 
+                          backgroundColor: '#ef4444', 
+                          color: 'white', 
+                          border: 'none', 
+                          borderRadius: '4px', 
+                          padding: '4px 10px',
+                          cursor: 'pointer',
+                          fontSize: '12px'
+                        }}
+                      >
+                        🗑️ Удалить
+                      </button>
+                    </form>
+                  </td>
                 </tr>
               ))
             )}
@@ -94,6 +116,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
         <h3>+ Добавить расход</h3>
         <form action={addExpense} style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxWidth: '400px' }}>
           <input type="hidden" name="trip_id" value={tripId} />
+          
           <div>
             <label>Категория</label>
             <select name="category" required style={{ width: '100%', padding: '8px' }}>
@@ -106,50 +129,26 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
               <option value="other">Другое</option>
             </select>
           </div>
+
           <div>
             <label>Сумма (€)</label>
             <input type="number" name="amount_eur" step="0.01" required style={{ width: '100%', padding: '8px' }} />
           </div>
+
           <div>
             <label>Описание</label>
             <input type="text" name="description" style={{ width: '100%', padding: '8px' }} />
           </div>
+
           <div>
             <label>Дата</label>
             <input type="date" name="expense_date" style={{ width: '100%', padding: '8px' }} />
           </div>
+
           <button type="submit" style={{ padding: '10px', background: '#0070f3', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
             Добавить расход
           </button>
         </form>
-
-        {/* ===== КНОПКА LOGISAT ===== */}
-        <div style={{ marginTop: '20px', borderTop: '1px dashed #ccc', paddingTop: '20px' }}>
-          <form action={async () => {
-            'use server';
-            await fetchLogisatData(tripId);
-          }}>
-            <button 
-              type="submit"
-              style={{ 
-                padding: '10px 20px', 
-                backgroundColor: '#10b981', 
-                color: 'white', 
-                border: 'none', 
-                borderRadius: '4px', 
-                cursor: 'pointer',
-                fontWeight: 'bold'
-              }}
-            >
-              📡 Загрузить из Logisat
-            </button>
-          </form>
-          <p style={{ fontSize: '12px', color: '#888', marginTop: '8px' }}>
-            Автоматически подтянет километраж и расход топлива.
-          </p>
-        </div>
-        {/* ===== КОНЕЦ КНОПКИ ===== */}
-        
       </div>
     </main>
   );
