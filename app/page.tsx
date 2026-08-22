@@ -62,9 +62,12 @@ export default async function Home() {
 
         <div className="flex flex-wrap gap-4">
           <Button asChild variant="default">
-            <a href="/drivers">🚛 Водители</a>
+            <a href="/reminders">⏰ Напоминания</a>
           </Button>
           <Button asChild variant="secondary">
+            <a href="/drivers">🚛 Водители</a>
+          </Button>
+          <Button asChild variant="outline">
             <a href="/trucks">🚚 Машины</a>
           </Button>
           <Button asChild variant="outline">
