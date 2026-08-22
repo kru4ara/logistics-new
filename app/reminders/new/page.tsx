@@ -1,5 +1,6 @@
 import { supabase } from '../../../lib/supabaseClient';
 import { redirect } from 'next/navigation';
+import { revalidatePath } from 'next/cache';
 
 async function createReminder(formData: FormData) {
   'use server';
@@ -25,6 +26,7 @@ async function createReminder(formData: FormData) {
     throw new Error(`Ошибка добавления: ${error.message}`);
   }
 
+  revalidatePath('/reminders');
   redirect('/reminders');
 }
 
