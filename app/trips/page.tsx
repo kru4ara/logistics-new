@@ -2,10 +2,21 @@ import { Suspense } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { TripFilters } from './trip-filters';
 
-export default async function TripsPage() {
-  const { data: trips, error } = await supabase
-    .from('trips')
-    .select('*, clients(name)');
+export default async function TripsPage({
+  searchParams,
+}: {
+  searchParams: { status?: string };
+}) {
+  const statusFilter = searchParams?.status || '';
+
+  // Найди рейсы с фильтром по статусу
+  let query = supabase.from('trips').select('*, clients(name)');
+
+  if (statusFilter) {
+    query = query.eq('status', statusFilter);
+  }
+
+  const { data: trips, error } = await query;
 
   if (error) {
     return <div>Ошибка загрузки рейсов: {error.message}</div>;
