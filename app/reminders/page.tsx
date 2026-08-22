@@ -81,6 +81,7 @@ export default async function RemindersPage() {
               <th style={{ padding: '10px' }}>Дата</th>
               <th style={{ padding: '10px' }}>Осталось дней</th>
               <th style={{ padding: '10px' }}>Статус</th>
+              <th style={{ padding: '10px' }}>Уведомление</th>
             </tr>
           </thead>
           <tbody>
@@ -118,6 +119,27 @@ export default async function RemindersPage() {
                       {daysLeft !== null && daysLeft < 0 ? '⚠️ Истекло' :
                        daysLeft !== null && daysLeft < 30 ? '⚡ Скоро' : '✅ В порядке'}
                     </span>
+                  </td>
+                  <td style={{ padding: '10px' }}>
+                    <form action={async () => {
+                      'use server';
+                      await sendReminderNotification(r.id);
+                    }}>
+                      <button 
+                        type="submit"
+                        style={{ 
+                          backgroundColor: '#229ED9', 
+                          color: 'white', 
+                          border: 'none', 
+                          borderRadius: '4px', 
+                          padding: '4px 10px',
+                          cursor: 'pointer',
+                          fontSize: '12px'
+                        }}
+                      >
+                        📨 Запустить
+                      </button>
+                    </form>
                   </td>
                 </tr>
               );
