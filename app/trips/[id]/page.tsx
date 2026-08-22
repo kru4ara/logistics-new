@@ -113,13 +113,18 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
         </p>
       </div>
         <form action={async () => {
-          'use server';
-           await updateRatesForTrip(tripId);
-          }}>
-            <button type="submit" style={{ padding: '10px', background: '#8B0000', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
-              💱 Обновить курсы
-            </button>
-        </form>
+  'use server';
+  const result = await updateRatesForTrip(tripId);
+  if (result.success) {
+    alert(result.message);
+  } else {
+    alert(result.message);
+  }
+}}>
+  <button type="submit" style={{ padding: '10px', background: '#8B0000', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+    💱 Обновить курсы
+  </button>
+</form>
       <div style={{ marginTop: '30px', padding: '20px', border: '1px solid #ddd', borderRadius: '8px' }}>
         <h3>+ Добавить расход</h3>
         <form action={addExpense} style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxWidth: '400px' }}>
