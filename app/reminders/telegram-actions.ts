@@ -1,6 +1,6 @@
 'use server';
 
-import { supabase } from '../lib/supabaseClient';
+import { supabase } from '../../lib/supabaseClient';
 import { revalidatePath } from 'next/cache';
 
 // Создаём Telegram-бот
