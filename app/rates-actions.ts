@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache';
 
 export async function updateRatesForTrip(tripId: string) {
   try {
-    // 1. Получаем последний сохраненный курс из Supabase
+    // 1. Получаем последний сохраненный курс
     const { data: rates, error: ratesError } = await supabase
       .from('rates')
       .select('*')
@@ -28,15 +28,11 @@ export async function updateRatesForTrip(tripId: string) {
       throw new Error('Рейс не найден');
     }
 
-    // 3. Расчитываем финансовые показатели
-    const revenueEur = trip.revenue_eur;
-    const totalExpensesEur = 0; // Сначала вручную, потом добавим автоматическое подсчет
-
-    // 4. Обновляем данные рейса в базе
+    // 3. Обновляем данные рейса в базе
     const { error: updateError } = await supabase
       .from('trips')
       .update({
-        revenue_eur: revenueEur // Здесь на самом деле ничего не меняется, но мы показываем процесс
+        revenue_eur: trip.revenue_eur
       })
       .eq('id', tripId);
 
