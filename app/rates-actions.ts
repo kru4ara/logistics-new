@@ -14,7 +14,7 @@ export async function updateRatesForTrip(tripId: string) {
       .single();
 
     if (ratesError || !rates) {
-      throw new Error('Курсы не найдены в базе. Проверьте, работает ли скрипт обновления.');
+      throw new Error('Курсы не найдены в базы. Проверьте, работает ли скрипт обновления.');
     }
 
     // 2. Получаем данные рейса
@@ -28,18 +28,15 @@ export async function updateRatesForTrip(tripId: string) {
       throw new Error('Рейс не найден');
     }
 
-    // 3. Расчитываем новые значения в EUR
-    const newRevEur = trip.revenue_eur; // Если выручка уже в EUR, оставляем
-    // Предположим, что расходы в BYN или PLN, пересчитываем в EUR.
-    // В реальном коде нужно брать значения расходов из trip_expenses.
+    // 3. Расчитываем финансовые показатели
+    const revenueEur = trip.revenue_eur;
+    const totalExpensesEur = 0; // Сначала вручную, потом добавим автоматическое подсчет
 
-    // 4. Обновляем данные рейса в базе (запись актуальных курсов)
+    // 4. Обновляем данные рейса в базе
     const { error: updateError } = await supabase
       .from('trips')
       .update({
-        // Здесь можно сохранить курсы в поля, если они есть в таблице trips
-        // Или просто пересчитать прибыль, если она хранится здесь
-        revenue_eur: newRevEur // Пример
+        revenue_eur: revenueEur // Здесь на самом деле ничего не меняется, но мы показываем процесс
       })
       .eq('id', tripId);
 
