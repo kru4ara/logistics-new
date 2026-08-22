@@ -1,14 +1,8 @@
+import { Suspense } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { TripFilters } from './trip-filters';
 
 export default async function TripsPage() {
-  // В Next.js 14 мы используем searchParams в серверных компонентах
-  const searchParams = await new Promise((resolve) => {
-    // Это упрощение, но на самом деле searchParams нужно получать иначе
-    resolve({ status: '' });
-  });
-
-  // В реальном коде, поиск по фильтру происходит через URL
   const { data: trips, error } = await supabase
     .from('trips')
     .select('*, clients(name)');
@@ -16,9 +10,6 @@ export default async function TripsPage() {
   if (error) {
     return <div>Ошибка загрузки рейсов: {error.message}</div>;
   }
-
-  // Если URL содержит фильтр status, добавляем его в запрос
-  // Это будет сделано в следующем шаге через компонент поиска
 
   return (
     <main style={{ padding: '20px', fontFamily: 'sans-serif' }}>
@@ -40,7 +31,9 @@ export default async function TripsPage() {
       </div>
 
       <div style={{ marginTop: '20px', marginBottom: '20px' }}>
-        <TripFilters />
+        <Suspense fallback={<div>Загрузка фильтров...</div>}>
+          <TripFilters />
+        </Suspense>
       </div>
 
       <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '15px' }}>
