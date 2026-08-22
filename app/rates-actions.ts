@@ -14,7 +14,7 @@ export async function updateRatesForTrip(tripId: string) {
       .single();
 
     if (ratesError || !rates) {
-      throw new Error('Курсы не найдены в базы. Проверьте, работает ли скрипт обновления.');
+      throw new Error('Курсы не найдены в базе. Проверьте, работает ли скрипт обновления.');
     }
 
     // 2. Получаем данные рейса
