@@ -22,6 +22,12 @@ export default async function RemindersPage() {
     return <div>Ошибка загрузки: {error.message}</div>;
   }
 
+  // Создаём сконвертированные данные, чтобы избежать ошибок с null
+  const reminderStats = reminders?.map(r => ({
+    ...r,
+    daysLeft: getDaysUntil(r.due_date)
+  })) || [];
+
   return (
     <main className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-6xl mx-auto space-y-8">
@@ -39,7 +45,7 @@ export default async function RemindersPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-red-600">
-                {reminders?.filter(r => getDaysUntil(r.due_date) !== null && getDaysUntil(r.due_date) < 0).length || 0}
+                {reminderStats.filter(r => r.daysLeft !== null && r.daysLeft < 0).length || 0}
               </div>
             </CardContent>
           </Card>
@@ -50,7 +56,7 @@ export default async function RemindersPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-orange-500">
-                {reminders?.filter(r => getDaysUntil(r.due_date) !== null && getDaysUntil(r.due_date) >= 0 && getDaysUntil(r.due_date) < 30).length || 0}
+                {reminderStats.filter(r => r.daysLeft !== null && r.daysLeft >= 0 && r.daysLeft < 30).length || 0}
               </div>
             </CardContent>
           </Card>
@@ -61,7 +67,7 @@ export default async function RemindersPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600">
-                {reminders?.filter(r => getDaysUntil(r.due_date) !== null && getDaysUntil(r.due_date) >= 30).length || 0}
+                {reminderStats.filter(r => r.daysLeft !== null && r.daysLeft >= 30).length || 0}
               </div>
             </CardContent>
           </Card>
@@ -78,8 +84,8 @@ export default async function RemindersPage() {
             </tr>
           </thead>
           <tbody>
-            {reminders?.map((r) => {
-              const daysLeft = getDaysUntil(r.due_date);
+            {reminderStats?.map((r) => {
+              const daysLeft = r.daysLeft;
               return (
                 <tr key={r.id} style={{ borderBottom: '1px solid #eee' }}>
                   <td style={{ padding: '10px' }}>{r.title}</td>
