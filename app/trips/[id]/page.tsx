@@ -1,3 +1,4 @@
+import { updateRatesForTrip } from '../../rates-actions';
 import { supabase } from '../../../lib/supabaseClient';
 import { addExpense } from '../../trip-actions';
 import { deleteExpense } from '../../expense-actions';
