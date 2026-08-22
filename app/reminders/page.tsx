@@ -1,6 +1,7 @@
 import { supabase } from '../../lib/supabaseClient';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { sendReminderNotification } from './telegram-actions';
 
 // Функция, которая подсчитывает дни до даты
 function getDaysUntil(dateString: string | null) {
