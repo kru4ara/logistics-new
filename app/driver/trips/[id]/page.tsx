@@ -1,6 +1,7 @@
-import { addExpense } from '../../../trip-actions';
 import { supabase } from '../../../../lib/supabaseClient';
+import { addExpense } from '../../../trip-actions';
 import { deleteExpense } from '../../../expense-actions';
+import { uploadDocument } from '../../upload-actions';
 
 export default async function DriverTripDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: tripId } = await params;
@@ -39,6 +40,24 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
         <p><strong>Маршрут:</strong> {trip.route || '-'}</p>
         <p><strong>Статус:</strong> {trip.status}</p>
         <p><strong>Выручка:</strong> {trip.revenue_eur ? `${trip.revenue_eur} €` : 'Не указана'}</p>
+      </div>
+
+      <div style={{ marginTop: '25px' }}>
+        <h2>Загрузка документов</h2>
+        <form action={async () => {
+          'use server';
+          const formData = new FormData();
+          // Без реального входа, это иллюстрация
+          const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+          if (fileInput?.files?.[0]) {
+            await uploadDocument(tripId, 'cmr', fileInput.files[0]);
+          }
+        }}>
+          <input type="file" name="file" accept="image/*,application/pdf" style={{ marginBottom: '10px' }} />
+          <button type="submit" style={{ padding: '10px', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+            📸 Загрузить CMR
+          </button>
+        </form>
       </div>
 
       <div style={{ marginTop: '25px' }}>
