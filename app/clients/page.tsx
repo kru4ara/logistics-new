@@ -1,27 +1,42 @@
 import { supabase } from '../../lib/supabaseClient';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { addClient } from '../../client-actions';
 
 export default async function ClientsPage() {
-  const { data: clients, error } = await supabase.from('clients').select('*');
-  if (error) return <div>Ошибка: {error.message}</div>;
+  const { data: clients, error } = await supabase
+    .from('clients')
+    .select('*');
+
+  if (error) {
+    return <div>Ошибка загрузки: {error.message}</div>;
+  }
 
   return (
-    <main style={{ padding: '20px', fontFamily: 'sans-serif' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-        <h1>Клиенты</h1>
-        <a href="/clients/new" style={{ backgroundColor: '#0070f3', color: 'white', padding: '10px 20px', borderRadius: '5px', textDecoration: 'none', fontWeight: 'bold' }}>+ Добавить</a>
-      </div>
-      <table style={{ width: '100%', marginTop: '15px', borderCollapse: 'collapse' }}>
-        <thead><tr style={{ textAlign: 'left', borderBottom: '2px solid #ddd' }}>
-          <th>Название</th><th>Контакт</th><th>Телефон</th><th>Email</th>
-        </tr></thead>
-        <tbody>
-          {clients?.map(c => (
-            <tr key={c.id} style={{ borderBottom: '1px solid #eee' }}>
-              <td>{c.name}</td><td>{c.contact_person || '-'}</td><td>{c.phone || '-'}</td><td>{c.email || '-'}</td>
-            </tr>
+    <main className="min-h-screen bg-gray-50 p-8">
+      <div className="max-w-6xl mx-auto space-y-8">
+        <div className="flex justify-between items-center">
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900">🤝 Клиенты</h1>
+          <Button asChild>
+            <a href="/clients/new">+ Добавить клиента</a>
+          </Button>
+        </div>
+
+        <div className="grid gap-6 md:grid-cols-2">
+          {clients?.map((client) => (
+            <div key={client.id} style={{ background: 'white', padding: '20px', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+              <p><strong>Название:</strong> {client.name}</p>
+              <p><strong>Контактное лицо:</strong> {client.contact_person || '-'}</p>
+              <p><strong>Телефон:</strong> {client.phone || '-'}</p>
+              <p><strong>Email:</strong> {client.email || '-'}</p>
+              <a href={`/clients/${client.id}`} style={{ color: '#0070f3', textDecoration: 'underline' }}>
+                Профиль клиента
+              </a>
+            </div>
           ))}
-        </tbody>
-      </table>
+        </div>
+
+      </div>
     </main>
   );
 }
