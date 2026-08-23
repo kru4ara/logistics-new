@@ -44,14 +44,13 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
 
       <div style={{ marginTop: '25px' }}>
         <h2>Загрузка документов</h2>
-        <form action={async () => {
+        <form action={async (formData: FormData) => {
           'use server';
-          const formData = new FormData();
-          const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-          if (fileInput?.files?.[0]) {
-            await uploadDocument(tripId, 'cmr', fileInput.files[0]);
+          const file = formData.get('file') as File;
+          if (file && file.size > 0) {
+            await uploadDocument(tripId, 'cmr', file);
           }
-        }}>
+        }} encType="multipart/form-data">
           <input type="file" name="file" accept="image/*,application/pdf" style={{ marginBottom: '10px' }} />
           <button type="submit" style={{ padding: '10px', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
             📸 Загрузить CMR
