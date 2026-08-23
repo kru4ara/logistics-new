@@ -1,5 +1,5 @@
-import { Button } from '@/components/ui/button';
 import { supabase } from '../../../lib/supabaseClient';
+import { Button } from '@/components/ui/button';
 
 export default async function ExportPage() {
   const { data: trips } = await supabase
@@ -50,7 +50,7 @@ export default async function ExportPage() {
     <main className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-6xl mx-auto space-y-8">
         <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900">📥 Отчёт для бухгалтера</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900">📥 Отчёт für бухгалтер</h1>
           <Button asChild>
             <a href="/routes">← Назад</a>
           </Button>
@@ -89,7 +89,7 @@ export default async function ExportPage() {
 
         <div style={{ marginTop: '20px' }}>
           <Button asChild>
-            <a href="/routes/export" download onClick={(e) => e.preventDefault()}>📥 Скачать PDF</a>
+            <a href="/routes">← Назад</a>
           </Button>
         </div>
       </div>
