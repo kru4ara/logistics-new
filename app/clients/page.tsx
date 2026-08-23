@@ -1,7 +1,7 @@
-import { supabase } from '../../lib/supabaseClient';
+import { supabase } from '../lib/supabaseClient';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { addClient } from '../../client-actions';
+import { addClient } from '../client-actions';
 
 export default async function ClientsPage() {
   const { data: clients, error } = await supabase
