@@ -50,7 +50,7 @@ export default async function ExportPage() {
     <main className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-6xl mx-auto space-y-8">
         <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900">📥 Отчёт für бухгалтер</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900">📥 Отчёт для бухгалтер</h1>
           <Button asChild>
             <a href="/routes">← Назад</a>
           </Button>
