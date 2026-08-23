@@ -43,7 +43,7 @@ export default async function RoutesPage() {
     return acc;
   }, [] as Array<{ trip_id: string; amount: number }>) || [];
 
-  // Добавляем расходы к маршруту (используя средний расход по маршруту)
+  // Добавляем расходы к маршруту
   const routesWithExpenses = routes.map((route) => {
     const tripIds = trips?.filter(t => t.route === route.route).map(t => t.id) || [];
     const routeExpenses = expensesByTrip.filter(e => tripIds.includes(e.trip_id)).reduce((sum, e) => sum + e.amount, 0);
@@ -70,9 +70,14 @@ export default async function RoutesPage() {
       <div className="max-w-6xl mx-auto space-y-8">
         <div className="flex justify-between items-center">
           <h1 className="text-3xl font-bold tracking-tight text-gray-900">🚛 Маршруты</h1>
-          <Button asChild>
-            <a href="/trips/new">+ Создать рейс</a>
-          </Button>
+          <div className="flex gap-4">
+            <Button asChild>
+              <a href="/trips/new">+ Создать рейс</a>
+            </Button>
+            <Button asChild variant="secondary">
+              <a href="/routes/export">📥 Скачать отчёт</a>
+            </Button>
+          </div>
         </div>
 
         <div className="grid gap-6 md:grid-cols-3">
