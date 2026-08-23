@@ -11,7 +11,14 @@ export default function FileUpload({ tripId }: { tripId: string }) {
     if (!file) return;
     setStatus('В процессе...');
     try {
-      const result = await uploadDocument(tripId, 'cmr', file);
+      // Преобразуем файл в Base64
+      const base64Data = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.readAsDataURL(file);
+      });
+
+      const result = await uploadDocument(tripId, 'cmr', base64Data, file.name);
       setStatus(result.message);
     } catch (error) {
       setStatus('Ошибка: ' + (error as Error).message);
