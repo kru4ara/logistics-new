@@ -2,6 +2,7 @@ import { supabase } from '../../../../lib/supabaseClient';
 import { addExpense } from '../../../trip-actions';
 import { deleteExpense } from '../../../expense-actions';
 import FileUpload from '../../FileUpload';
+import { changeTripStatus } from '../../trip-status-actions';
 
 export default async function DriverTripDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: tripId } = await params;
@@ -147,6 +148,45 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
         }}>
           <strong>Прибыль:</strong> {profit.toFixed(2)} €
         </p>
+      </div>
+
+      <div style={{ marginTop: '25px' }}>
+        <h2>Окно статусов</h2>
+        <form action={async () => {
+          'use server';
+          await changeTripStatus(tripId, 'active');
+        }}>
+          <button type="submit" style={{ padding: '10px', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+            🚛 Запустить рейс
+          </button>
+        </form>
+
+        <form action={async () => {
+          'use server';
+          await changeTripStatus(tripId, 'completed');
+        }}>
+          <button type="submit" style={{ padding: '10px', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+            ✅ Завершить рейс
+          </button>
+        </form>
+
+        <form action={async () => {
+          'use server';
+          await changeTripStatus(tripId, 'invoiced');
+        }}>
+          <button type="submit" style={{ padding: '10px', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+            💰 Выставить счёт
+          </button>
+        </form>
+
+        <form action={async () => {
+          'use server';
+          await changeTripStatus(tripId, 'paid');
+        }}>
+          <button type="submit" style={{ padding: '10px', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+            💶 Оплачен
+          </button>
+        </form>
       </div>
 
       <div style={{ marginTop: '30px', padding: '20px', border: '1px solid #ddd', borderRadius: '8px' }}>
