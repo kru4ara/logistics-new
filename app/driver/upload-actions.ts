@@ -3,31 +3,23 @@
 import { supabase } from '../../lib/supabaseClient';
 import { revalidatePath } from 'next/cache';
 
-// Данный файл передаётся в виде строки (байты), чтобы обойти ограничение Next.js
-export async function uploadDocument(tripId: string, documentType: string, base64Data: string, fileName: string) {
-  try {
-    // 1. Преобразуем Base64 в Uint8Array (бинарные данные)
-    const base64 = base64Data.split(',')[1]; // удаляем префикс data:...
-    const binary = atob(base64);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) {
-      bytes[i] = binary.charCodeAt(i);
-    }
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
-    // 2. Загружаем файл в Supabase Storage
-    const filePath = `trips/${tripId}/${documentType}-${Date.now()}.${fileName.split('.').pop()}`;
+export async function uploadDocument(tripId: string, documentType: string, file: File) {
+  try {
+    // 1. Загружаем файл в Supabase Storage
+    const filePath = `trips/${tripId}/${documentType}-${Date.now()}.${file.name.split('.').pop()}`;
     
     const { error: uploadError } = await supabase.storage
       .from('documents')
-      .upload(filePath, bytes, {
-        contentType: 'application/octet-stream' // или замените на 'image/png' / 'application/pdf'
-      });
+      .upload(filePath, file);
 
     if (uploadError) {
       throw new Error('Ошибка загрузки файла: ' + uploadError.message);
     }
 
-    // 3. Записываем в таблицу trip_documents
+    // 2. Записываем в таблицу trip_documents
     const { error: insertError } = await supabase
       .from('trip_documents')
       .insert([
@@ -35,13 +27,34 @@ export async function uploadDocument(tripId: string, documentType: string, base6
           trip_id: tripId,
           document_type: documentType,
           file_path: filePath,
-          original_name: fileName,
+          original_name: file.name,
           uploaded_at: new Date().toISOString()
         }
       ]);
 
     if (insertError) {
       throw new Error('Ошибка записыва в таблицу: ' + insertError.message);
+    }
+
+    // 3. Уведомление в Telegram
+    if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID) {
+      const payload = {
+        chat_id: TELEGRAM_CHAT_ID,
+        text: `📄 Документ загружен!\n\nРежис: ${tripId}\nТип: ${documentType}\nНазвание: ${file.name}`,
+        parse_mode: 'Markdown'
+      };
+
+      const telegramResponse = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!telegramResponse.ok) {
+        console.error('Ошибка передачи в Telegram: ' + telegramResponse.status);
+      }
     }
 
     revalidatePath(`/driver/trips/${tripId}`);
