@@ -1,3 +1,4 @@
+import { addExpense } from '../../../../trip-actions';
 import { supabase } from '../../../../lib/supabaseClient';
 import { deleteExpense } from '../../../expense-actions';
 
