@@ -5,13 +5,13 @@ import { supabase } from '../../lib/supabaseClient';
 export default async function RoutesPage() {
   const { data: trips, error } = await supabase
     .from('trips')
-    .select('route, revenue_eur, expenses');
+    .select('route, revenue_eur');
 
   if (error) {
     return <div>Ошибка загрузки рейсов: {error.message}</div>;
   }
 
-  // Список отдельных маршрутов
+  // Список маршрутов по выручке
   const routes = trips?.reduce((acc, trip) => {
     if (!trip.route) return acc;
     const existing = acc.find(r => r.route === trip.route);
@@ -25,12 +25,6 @@ export default async function RoutesPage() {
 
   // Общая выручка
   const totalRevenue = routes?.reduce((sum, r) => sum + (r.revenue || 0), 0) || 0;
-
-  // Общая расходы
-  const totalExpenses = 0;
-
-  // Чистая прибыль
-  const profit = totalRevenue - totalExpenses;
 
   // Сортировка по выручке (высокая → низкая)
   const sortedRoutes = routes.sort((a, b) => a.revenue - b.revenue);
