@@ -12,7 +12,7 @@ export default function FileUpload({ tripId }: { tripId: string }) {
     setStatus('В процессе...');
     try {
       // Преобразуем файл в Base64
-      const base64Data = await new Promise<string>(() => {
+      const base64Data = await new Promise<string>((resolve) => {
         const reader = new FileReader();
         reader.onload = () => resolve(reader.result as string);
         reader.readAsDataURL(file);
