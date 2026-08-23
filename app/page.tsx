@@ -77,7 +77,13 @@ export default async function Home() {
             <a href="/trips">📋 Рейсы</a>
           </Button>
           <Button asChild variant="ghost">
-           <a href="/reports">💰 Отчёт о прибыли</a>
+            <a href="/fixed-costs">💰 Фикс. затраты</a>
+          </Button>
+          <Button asChild variant="ghost">
+            <a href="/reports">💰 Отчёт о прибыли</a>
+          </Button>
+          <Button asChild variant="ghost">
+            <a href="/routes">🚛 Маршруты</a>
           </Button>
         </div>
 
