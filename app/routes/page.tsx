@@ -23,6 +23,9 @@ export default async function RoutesPage() {
     return acc;
   }, [] as Array<{ route: string; revenue: number }>) || [];
 
+  // Общая выручка (уменьшается по маршруту)
+  const totalRevenue = routes?.reduce((sum, r) => sum + (r.revenue || 0), 0) || 0;
+
   // Сортировка по выручке (высокая → низкая)
   const sortedRoutes = routes.sort((a, b) => a.revenue - b.revenue);
 
