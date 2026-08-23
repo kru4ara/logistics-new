@@ -1,8 +1,9 @@
-import { supabase } from '../../../lib/supabaseClient';
-import { addExpense } from '../../trip-actions';
-import { deleteExpense } from '../../expense-actions';
+import { supabase } from '../../../../lib/supabaseClient';
+import { addExpense } from '../../../trip-actions';
+import { deleteExpense } from '../../../expense-actions';
+import { uploadDocument } from '../../upload-actions';
 
-export default async function TripDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function DriverTripDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: tripId } = await params;
   
   if (!tripId) {
@@ -31,7 +32,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
     <main style={{ padding: '20px', fontFamily: 'sans-serif', maxWidth: '800px', margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h1 style={{ fontSize: '24px' }}>Рейс #{tripId.slice(0, 8)}</h1>
-        <a href="/trips" style={{ color: '#0070f3' }}>← Все рейсы</a>
+        <a href="/driver" style={{ color: '#0070f3' }}>← Все рейсы</a>
       </div>
 
       <div style={{ background: '#f9f9f9', padding: '15px', borderRadius: '8px', marginTop: '15px' }}>
@@ -39,6 +40,24 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
         <p><strong>Маршрут:</strong> {trip.route || '-'}</p>
         <p><strong>Статус:</strong> {trip.status}</p>
         <p><strong>Выручка:</strong> {trip.revenue_eur ? `${trip.revenue_eur} €` : 'Не указана'}</p>
+      </div>
+
+      <div style={{ marginTop: '25px' }}>
+        <h2>Загрузка документов</h2>
+        <form action={async () => {
+          'use server';
+          const formData = new FormData();
+          // Это простая иллюстрация. Он будет работать при передаче файла реального.
+          const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+          if (fileInput?.files?.[0]) {
+            await uploadDocument(tripId, 'cmr', fileInput.files[0]);
+          }
+        }}>
+          <input type="file" name="file" accept="image/*,application/pdf" style={{ marginBottom: '10px' }} />
+          <button type="submit" style={{ padding: '10px', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+            📸 Загрузить CMR
+          </button>
+        </form>
       </div>
 
       <div style={{ marginTop: '25px' }}>
