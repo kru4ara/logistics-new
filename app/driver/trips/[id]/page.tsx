@@ -21,8 +21,13 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
     .select('*')
     .eq('trip_id', tripId);
 
-  if (tripError || expError) {
-    return <div>Ошибка загрузки: {tripError?.message || expError?.message}</div>;
+  const { data: documents, error: docError } = await supabase
+    .from('trip_documents')
+    .select('*')
+    .eq('trip_id', tripId);
+
+  if (tripError || expError || docError) {
+    return <div>Ошибка загрузки: {tripError?.message || expError?.message || docError?.message}</div>;
   }
 
   const totalExpenses = expenses?.reduce((sum, e) => sum + (e.amount_eur || 0), 0) || 0;
@@ -45,6 +50,32 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
       <div style={{ marginTop: '25px' }}>
         <h2>Загрузка документов</h2>
         <FileUpload tripId={tripId} />
+      </div>
+
+      <div style={{ marginTop: '25px' }}>
+        <h2>Загруженные документы</h2>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ borderBottom: '2px solid #ddd', textAlign: 'left' }}>
+              <th style={{ padding: '10px' }}>Название</th>
+              <th style={{ padding: '10px' }}>Тип</th>
+              <th style={{ padding: '10px' }}>Дата загрузки</th>
+            </tr>
+          </thead>
+          <tbody>
+            {documents?.length === 0 ? (
+              <tr><td colSpan={3} style={{ padding: '20px', textAlign: 'center', color: '#888' }}>Пока нет загруженных документов</td></tr>
+            ) : (
+              documents?.map((doc) => (
+                <tr key={doc.id} style={{ borderBottom: '1px solid #eee' }}>
+                  <td style={{ padding: '10px' }}>{doc.original_name}</td>
+                  <td style={{ padding: '10px' }}>{doc.document_type === 'cmr' ? '📄 CMR' : doc.document_type}</td>
+                  <td style={{ padding: '10px' }}>{doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleDateString() : '-'}</td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
 
       <div style={{ marginTop: '25px' }}>
