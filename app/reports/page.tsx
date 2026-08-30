@@ -2,12 +2,10 @@ import { supabase } from '../../lib/supabaseClient';
 import { Button } from '@/components/ui/button';
 
 export default async function ReportsPage() {
-  // Получаем все рейсы с клиентами
   const { data: trips, error: tripsError } = await supabase
     .from('trips')
     .select('*, clients(name)');
 
-  // Получаем все расходы по рейсам
   const { data: expenses, error: expensesError } = await supabase
     .from('trip_expenses')
     .select('*');
@@ -29,48 +27,6 @@ export default async function ReportsPage() {
   const totalExpenses = expenses?.reduce((sum, e) => sum + (e.amount_eur || 0), 0) || 0;
   const profit = totalRevenue - totalExpenses;
 
-  // Функция для скачивания в Excel
-  function downloadExcel() {
-    // Создаем данные для Excel
-    const rows = trips?.map(trip => {
-      const tripExpenses = expensesByTrip[trip.id] || 0;
-      const tripProfit = (trip.revenue_eur || 0) - tripExpenses;
-      return {
-        'Клиент': trip.clients?.name || 'Не указан',
-        'Маршрут': trip.route || '',
-        'Статус': trip.status,
-        'Фрахт (€)': trip.revenue_eur || 0,
-        'Расходы (€)': tripExpenses,
-        'Прибыль (€)': tripProfit
-      };
-    }) || [];
-
-    // Добавляем итоговую строку
-    rows.push({
-      'Клиент': 'ИТОГО',
-      'Маршрут': '',
-      'Статус': '',
-      'Фрахт (€)': totalRevenue,
-      'Расходы (€)': totalExpenses,
-      'Прибыль (€)': profit
-    });
-
-    // Преобразуем в CSV (для Excel)
-    const headers = Object.keys(rows[0] || {});
-    const csv = [
-      headers.join(','),
-      ...rows.map(row => headers.map(h => row[h] ?? '').join(','))
-    ].join('\n');
-
-    // Создаем ссылку на скачивание
-    const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'report.csv';
-    link.click();
-  }
-
   return (
     <main className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-6xl mx-auto space-y-8">
@@ -79,9 +35,6 @@ export default async function ReportsPage() {
           <div className="flex gap-4">
             <Button asChild variant="outline">
               <a href="/routes">← Маршруты</a>
-            </Button>
-            <Button onClick={downloadExcel} variant="default">
-              📥 Скачать Excel
             </Button>
           </div>
         </div>
