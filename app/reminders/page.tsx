@@ -1,17 +1,6 @@
 import { supabase } from '../../lib/supabaseClient';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { sendReminderNotification } from './telegram-actions';
-
-// Функция, которая подсчитывает дни до даты
-function getDaysUntil(dateString: string | null) {
-  if (!dateString) return null;
-  const today = new Date();
-  const targetDate = new Date(dateString);
-  const diffTime = targetDate.getTime() - today.getTime();
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  return diffDays;
-}
 
 export default async function RemindersPage() {
   const { data: reminders, error } = await supabase
@@ -23,11 +12,15 @@ export default async function RemindersPage() {
     return <div>Ошибка загрузки: {error.message}</div>;
   }
 
-  // Создаём сконвертированные данные, чтобы избежать ошибок с null
-  const reminderStats = reminders?.map(r => ({
-    ...r,
-    daysLeft: getDaysUntil(r.due_date)
-  })) || [];
+  // Функция, которая подсчитывает дни до даты
+  function getDaysUntil(dateString: string | null) {
+    if (!dateString) return null;
+    const today = new Date();
+    const targetDate = new Date(dateString);
+    const diffTime = targetDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  }
 
   return (
     <main className="min-h-screen bg-gray-50 p-8">
@@ -46,7 +39,7 @@ export default async function RemindersPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-red-600">
-                {reminderStats.filter(r => r.daysLeft !== null && r.daysLeft < 0).length || 0}
+                {reminders?.filter(r => getDaysUntil(r.due_date) !== null && getDaysUntil(r.due_date) < 0).length || 0}
               </div>
             </CardContent>
           </Card>
@@ -57,7 +50,7 @@ export default async function RemindersPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-orange-500">
-                {reminderStats.filter(r => r.daysLeft !== null && r.daysLeft >= 0 && r.daysLeft < 30).length || 0}
+                {reminders?.filter(r => getDaysUntil(r.due_date) !== null && getDaysUntil(r.due_date) >= 0 && getDaysUntil(r.due_date) < 30).length || 0}
               </div>
             </CardContent>
           </Card>
@@ -68,7 +61,7 @@ export default async function RemindersPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600">
-                {reminderStats.filter(r => r.daysLeft !== null && r.daysLeft >= 30).length || 0}
+                {reminders?.filter(r => getDaysUntil(r.due_date) !== null && getDaysUntil(r.due_date) >= 30).length || 0}
               </div>
             </CardContent>
           </Card>
@@ -81,13 +74,11 @@ export default async function RemindersPage() {
               <th style={{ padding: '10px' }}>Категория</th>
               <th style={{ padding: '10px' }}>Дата</th>
               <th style={{ padding: '10px' }}>Осталось дней</th>
-              <th style={{ padding: '10px' }}>Статус</th>
-              <th style={{ padding: '10px' }}>Уведомление</th>
             </tr>
           </thead>
           <tbody>
-            {reminderStats?.map((r) => {
-              const daysLeft = r.daysLeft;
+            {reminders?.map((r) => {
+              const daysLeft = getDaysUntil(r.due_date);
               return (
                 <tr key={r.id} style={{ borderBottom: '1px solid #eee' }}>
                   <td style={{ padding: '10px' }}>{r.title}</td>
@@ -108,39 +99,6 @@ export default async function RemindersPage() {
                         {daysLeft} дн.
                       </span>
                     ) : '-'}
-                  </td>
-                  <td style={{ padding: '10px' }}>
-                    <span style={{ 
-                      padding: '4px 8px', 
-                      borderRadius: '4px', 
-                      backgroundColor: 
-                        daysLeft !== null && daysLeft < 0 ? '#fee2e2' :
-                        daysLeft !== null && daysLeft < 30 ? '#ffedd5' : '#dcfce7'
-                    }}>
-                      {daysLeft !== null && daysLeft < 0 ? '⚠️ Истекло' :
-                       daysLeft !== null && daysLeft < 30 ? '⚡ Скоро' : '✅ В порядке'}
-                    </span>
-                  </td>
-                  <td style={{ padding: '10px' }}>
-                    <form action={async () => {
-                      'use server';
-                      await sendReminderNotification(r.id);
-                    }}>
-                      <button 
-                        type="submit"
-                        style={{ 
-                          backgroundColor: '#229ED9', 
-                          color: 'white', 
-                          border: 'none', 
-                          borderRadius: '4px', 
-                          padding: '4px 10px',
-                          cursor: 'pointer',
-                          fontSize: '12px'
-                        }}
-                      >
-                        📨 Запустить
-                      </button>
-                    </form>
                   </td>
                 </tr>
               );
