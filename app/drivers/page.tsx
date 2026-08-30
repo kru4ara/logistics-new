@@ -31,6 +31,9 @@ export default async function DriversPage() {
               <p><strong>Срок паспорта:</strong> {driver.passport_expiry || '-'}</p>
               <p><strong>Срок прав:</strong> {driver.license_expiry || '-'}</p>
               <p><strong>Срок карты тахографа:</strong> {driver.tachograph_card_expiry || '-'}</p>
+              <a href={`/drivers/${driver.id}`} style={{ color: '#0070f3', textDecoration: 'underline' }}>
+                Профиль водителя
+              </a>
             </div>
           ))}
         </div>
