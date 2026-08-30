@@ -1,5 +1,5 @@
 import { supabase } from '../../../lib/supabaseClient';
-import { addExpense } from '../../trip-actions';
+import { addExpense } from '../../expense-actions';
 import { deleteExpense } from '../../expense-actions';
 import FileUpload from '../../driver/FileUpload';
 import TripStatusButtons from '../../driver/TripStatusButtons';
