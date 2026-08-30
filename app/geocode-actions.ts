@@ -46,5 +46,4 @@ export async function addTripWithAddress(formData: FormData) {
   }
 
   revalidatePath('/trips');
-  return { lat, lng };
 }
