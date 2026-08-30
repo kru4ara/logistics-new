@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '../../lib/supabaseClient';
+import DownloadButton from './DownloadButton';
 
 export default async function RoutesPage() {
   const { data: trips, error } = await supabase
@@ -71,9 +72,12 @@ export default async function RoutesPage() {
       <div className="max-w-6xl mx-auto space-y-8">
         <div className="flex justify-between items-center">
           <h1 className="text-3xl font-bold tracking-tight text-gray-900">🚛 Маршруты</h1>
-          <Button asChild>
-            <a href="/trips/new">+ Создать рейс</a>
-          </Button>
+          <div className="flex gap-4">
+            <Button asChild>
+              <a href="/trips/new">+ Создать рейс</a>
+            </Button>
+            <DownloadButton data={sortedRoutes} />
+          </div>
         </div>
 
         <div className="grid gap-6 md:grid-cols-3">
