@@ -1,95 +1,60 @@
 import { supabase } from '../../lib/supabaseClient';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import DownloadButton from './DownloadButton';
 
-export default async function TripsPage({ searchParams }: { searchParams: { status?: string } }) {
-  const statusFilter = searchParams?.status || '';
-
-  // Найди рейсы с фильтром по статусу
-  let query = supabase.from('trips').select('*, clients(name)');
-
-  if (statusFilter) {
-    query = query.eq('status', statusFilter);
-  }
-
-  const { data: trips, error } = await query;
+export default async function TripsPage() {
+  const { data: trips, error } = await supabase
+    .from('trips')
+    .select('*, clients(name)');
 
   if (error) {
     return <div>Ошибка загрузки рейсов: {error.message}</div>;
   }
+
+  // Группируем расходы по рейсам
+  const { data: expenses, error: expensesError } = await supabase
+    .from('trip_expenses')
+    .select('trip_id, amount_eur');
+
+  if (expensesError) {
+    return <div>Ошибка загрузки расходов: {expensesError.message}</div>;
+  }
+
+  const expensesByTrip = expenses?.reduce((acc, e) => {
+    if (!e.trip_id) return acc;
+    if (!acc[e.trip_id]) acc[e.trip_id] = 0;
+    acc[e.trip_id] += e.amount_eur || 0;
+    return acc;
+  }, {} as Record<string, number>) || {};
+
+  // Добавляем расходы в каждый рейс
+  const tripsWithExpenses = trips?.map((trip) => ({
+    ...trip,
+    expenses: expensesByTrip[trip.id] || 0
+  })) || [];
 
   return (
     <main className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-6xl mx-auto space-y-8">
         <div className="flex justify-between items-center">
           <h1 className="text-3xl font-bold tracking-tight text-gray-900">📋 Рейсы</h1>
-          <Button asChild>
-            <a href="/trips/new">+ Создать рейс</a>
-          </Button>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          <a
-            href="/trips"
-            style={{
-              padding: '8px 16px',
-              borderRadius: '20px',
-              fontWeight: 'bold',
-              backgroundColor: statusFilter === '' ? '#3b82f6' : '#e5e7eb',
-              color: statusFilter === '' ? 'white' : '#374151',
-              textDecoration: 'none'
-            }}
-          >
-            Все
-          </a>
-          <a
-            href="/trips?status=completed"
-            style={{
-              padding: '8px 16px',
-              borderRadius: '20px',
-              fontWeight: 'bold',
-              backgroundColor: statusFilter === 'completed' ? '#3b82f6' : '#e5e7eb',
-              color: statusFilter === 'completed' ? 'white' : '#374151',
-              textDecoration: 'none'
-            }}
-          >
-            Завершённые
-          </a>
-          <a
-            href="/trips?status=invoiced"
-            style={{
-              padding: '8px 16px',
-              borderRadius: '20px',
-              fontWeight: 'bold',
-              backgroundColor: statusFilter === 'invoiced' ? '#3b82f6' : '#e5e7eb',
-              color: statusFilter === 'invoiced' ? 'white' : '#374151',
-              textDecoration: 'none'
-            }}
-          >
-            Выставленные счета
-          </a>
-          <a
-            href="/trips?status=paid"
-            style={{
-              padding: '8px 16px',
-              borderRadius: '20px',
-              fontWeight: 'bold',
-              backgroundColor: statusFilter === 'paid' ? '#3b82f6' : '#e5e7eb',
-              color: statusFilter === 'paid' ? 'white' : '#374151',
-              textDecoration: 'none'
-            }}
-          >
-            Оплаченные
-          </a>
+          <div className="flex gap-4">
+            <Button asChild>
+              <a href="/trips/new">+ Создать рейс</a>
+            </Button>
+            <DownloadButton data={tripsWithExpenses} />
+          </div>
         </div>
 
         <div className="grid gap-6 md:grid-cols-2">
-          {trips?.map((trip) => (
+          {tripsWithExpenses?.map((trip) => (
             <div key={trip.id} style={{ background: 'white', padding: '20px', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
               <p><strong>Клиент:</strong> {trip.clients?.name || 'Не указан'}</p>
               <p><strong>Маршрут:</strong> {trip.route || '-'}</p>
               <p><strong>Статус:</strong> {trip.status}</p>
-              <p><strong>Выручка:</strong> {trip.revenue_eur ? `${trip.revenue_eur} €` : 'Не указана'}</p>
+              <p><strong>Фрахт:</strong> {trip.revenue_eur ? `${trip.revenue_eur} €` : '-'}</p>
+              <p><strong>Расходы:</strong> {trip.expenses.toFixed(2)} €</p>
+              <p><strong>Прибыль:</strong> {(trip.revenue_eur || 0) - trip.expenses > 0 ? '✅' : '⛔'}</p>
               <a href={`/trips/${trip.id}`} style={{ color: '#0070f3', textDecoration: 'underline' }}>
                 Профиль рейса
               </a>
