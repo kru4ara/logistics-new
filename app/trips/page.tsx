@@ -1,95 +1,41 @@
-import { Suspense } from 'react';
 import { supabase } from '../../lib/supabaseClient';
-import { TripFilters } from './trip-filters';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
-export default async function TripsPage({
-  searchParams,
-}: {
-  searchParams: { status?: string };
-}) {
-  const statusFilter = searchParams?.status || '';
-
-  // Найди рейсы с фильтром по статусу
-  let query = supabase.from('trips').select('*, clients(name)');
-
-  if (statusFilter) {
-    query = query.eq('status', statusFilter);
-  }
-
-  const { data: trips, error } = await query;
+export default async function TripsPage() {
+  const { data: trips, error } = await supabase
+    .from('trips')
+    .select('*, clients(name)');
 
   if (error) {
     return <div>Ошибка загрузки рейсов: {error.message}</div>;
   }
 
   return (
-    <main style={{ padding: '20px', fontFamily: 'sans-serif' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h1 style={{ fontSize: '24px' }}>Список рейсов</h1>
-        <a 
-          href="/trips/new" 
-          style={{ 
-            backgroundColor: '#0070f3', 
-            color: 'white', 
-            padding: '10px 20px', 
-            borderRadius: '5px', 
-            textDecoration: 'none', 
-            fontWeight: 'bold' 
-          }}
-        >
-          + Создать рейс
-        </a>
-      </div>
+    <main className="min-h-screen bg-gray-50 p-8">
+      <div className="max-w-6xl mx-auto space-y-8">
+        <div className="flex justify-between items-center">
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900">📋 Рейсы</h1>
+          <Button asChild>
+            <a href="/trips/new">+ Создать рейс</a>
+          </Button>
+        </div>
 
-      <div style={{ marginTop: '20px', marginBottom: '20px' }}>
-        <Suspense fallback={<div>Загрузка фильтров...</div>}>
-          <TripFilters />
-        </Suspense>
-      </div>
-
-      <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '15px' }}>
-        <thead>
-          <tr style={{ textAlign: 'left', borderBottom: '2px solid #ddd' }}>
-            <th style={{ padding: '10px' }}>Клиент</th>
-            <th style={{ padding: '10px' }}>Маршрут</th>
-            <th style={{ padding: '10px' }}>Статус</th>
-            <th style={{ padding: '10px' }}>Выручка (€)</th>
-            <th style={{ padding: '10px' }}>Дата старта</th>
-          </tr>
-        </thead>
-        <tbody>
+        <div className="grid gap-6 md:grid-cols-2">
           {trips?.map((trip) => (
-            <tr key={trip.id} style={{ borderBottom: '1px solid #eee' }}>
-              <td style={{ padding: '10px' }}>
-                <a href={`/trips/${trip.id}`} style={{ color: '#0070f3', textDecoration: 'underline' }}>
-                  {trip.clients?.name || 'Не указан'}
-                </a>
-              </td>
-              <td style={{ padding: '10px' }}>{trip.route || '-'}</td>
-              <td style={{ padding: '10px' }}>
-                <span style={{ 
-                  padding: '4px 8px', 
-                  borderRadius: '4px', 
-                  backgroundColor: 
-                    trip.status === 'planned' ? '#f0f0f0' :
-                    trip.status === 'active' ? '#dbeafe' :
-                    trip.status === 'completed' ? '#dcfce7' :
-                    trip.status === 'invoiced' ? '#fef9c3' :
-                    trip.status === 'paid' ? '#d1fae5' : '#f0f0f0'
-                }}>
-                  {trip.status === 'planned' ? 'Планируется' :
-                   trip.status === 'active' ? 'В пути' :
-                   trip.status === 'completed' ? 'Завершён' :
-                   trip.status === 'invoiced' ? 'Выставлен счёт' :
-                   trip.status === 'paid' ? 'Оплачен' : trip.status}
-                </span>
-              </td>
-              <td style={{ padding: '10px' }}>{trip.revenue_eur ? `${trip.revenue_eur} €` : '-'}</td>
-              <td style={{ padding: '10px' }}>{trip.start_date ? new Date(trip.start_date).toLocaleDateString() : '-'}</td>
-            </tr>
+            <div key={trip.id} style={{ background: 'white', padding: '20px', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+              <p><strong>Клиент:</strong> {trip.clients?.name || 'Не указан'}</p>
+              <p><strong>Маршрут:</strong> {trip.route || '-'}</p>
+              <p><strong>Статус:</strong> {trip.status}</p>
+              <p><strong>Выручка:</strong> {trip.revenue_eur ? `${trip.revenue_eur} €` : 'Не указана'}</p>
+              <a href={`/trips/${trip.id}`} style={{ color: '#0070f3', textDecoration: 'underline' }}>
+                Профиль рейса
+              </a>
+            </div>
           ))}
-        </tbody>
-      </table>
+        </div>
+
+      </div>
     </main>
   );
 }
