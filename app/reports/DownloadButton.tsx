@@ -1,6 +1,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
+import * as XLSX from 'xlsx';
 
 export default function DownloadButton({ data }: { data: any[] }) {
   function handleDownload() {
@@ -32,20 +33,11 @@ export default function DownloadButton({ data }: { data: any[] }) {
       'Прибыль (€)': profit
     });
 
-    // Преобразуем в CSV (для Excel)
-    const headers = Object.keys(rows[0] || {});
-    const csv = [
-      headers.join(','),
-      ...rows.map(row => headers.map(h => (row as any)[h] ?? '').join(','))
-    ].join('\n');
-
-    // Создаем ссылку на скачивание
-    const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'report.csv';
-    link.click();
+    // Создаем настоящий Excel-файл (XLSX)
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Отчет');
+    XLSX.writeFile(workbook, 'report.xlsx');
   }
 
   return (
