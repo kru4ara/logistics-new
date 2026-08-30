@@ -7,7 +7,7 @@ import 'leaflet/dist/leaflet.css';
 export default async function Home() {
   const { data: trips } = await supabase
     .from('trips')
-    .select('revenue_eur, start_date, status, route, start_location');
+    .select('id, revenue_eur, start_date, status, route, start_location');
 
   const { data: expenses } = await supabase
     .from('trip_expenses')
