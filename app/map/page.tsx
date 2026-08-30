@@ -26,7 +26,7 @@ export default function MapPage() {
     async function loadTrips() {
       const { data } = await supabase
         .from('trips')
-        .select('id, route, revenue_eur, status, start_location');
+        .select('id, route, revenue_eur, status, start_lat, start_lng');
       setTrips(data || []);
     }
     loadTrips();
@@ -47,7 +47,7 @@ export default function MapPage() {
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
             {trips?.map((trip) => (
-              <Marker key={trip.id} position={[52.2297, 21.0122]}>
+              <Marker key={trip.id} position={[trip.start_lat || 52.2297, trip.start_lng || 21.0122]}>
                 <Popup>
                   <strong>Маршрут:</strong> {trip.route || '-'}<br />
                   <strong>Статус:</strong> {trip.status}<br />
