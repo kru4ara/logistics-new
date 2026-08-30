@@ -60,7 +60,6 @@ export default async function Home() {
           </Card>
         </div>
 
-        {/* ВОЗВРАЩАЕМ КНОПКИ НАВИГАЦИИ */}
         <div className="flex flex-wrap gap-4">
           <Button asChild variant="default">
             <a href="/driver">🚛 Водитель</a>
