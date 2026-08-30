@@ -2,10 +2,17 @@ import { supabase } from '../../lib/supabaseClient';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
-export default async function TripsPage() {
-  const { data: trips, error } = await supabase
-    .from('trips')
-    .select('*, clients(name)');
+export default async function TripsPage({ searchParams }: { searchParams: { status?: string } }) {
+  const statusFilter = searchParams?.status || '';
+
+  // Найди рейсы с фильтром по статусу
+  let query = supabase.from('trips').select('*, clients(name)');
+
+  if (statusFilter) {
+    query = query.eq('status', statusFilter);
+  }
+
+  const { data: trips, error } = await query;
 
   if (error) {
     return <div>Ошибка загрузки рейсов: {error.message}</div>;
@@ -19,6 +26,61 @@ export default async function TripsPage() {
           <Button asChild>
             <a href="/trips/new">+ Создать рейс</a>
           </Button>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <a
+            href="/trips"
+            style={{
+              padding: '8px 16px',
+              borderRadius: '20px',
+              fontWeight: 'bold',
+              backgroundColor: statusFilter === '' ? '#3b82f6' : '#e5e7eb',
+              color: statusFilter === '' ? 'white' : '#374151',
+              textDecoration: 'none'
+            }}
+          >
+            Все
+          </a>
+          <a
+            href="/trips?status=completed"
+            style={{
+              padding: '8px 16px',
+              borderRadius: '20px',
+              fontWeight: 'bold',
+              backgroundColor: statusFilter === 'completed' ? '#3b82f6' : '#e5e7eb',
+              color: statusFilter === 'completed' ? 'white' : '#374151',
+              textDecoration: 'none'
+            }}
+          >
+            Завершённые
+          </a>
+          <a
+            href="/trips?status=invoiced"
+            style={{
+              padding: '8px 16px',
+              borderRadius: '20px',
+              fontWeight: 'bold',
+              backgroundColor: statusFilter === 'invoiced' ? '#3b82f6' : '#e5e7eb',
+              color: statusFilter === 'invoiced' ? 'white' : '#374151',
+              textDecoration: 'none'
+            }}
+          >
+            Выставленные счета
+          </a>
+          <a
+            href="/trips?status=paid"
+            style={{
+              padding: '8px 16px',
+              borderRadius: '20px',
+              fontWeight: 'bold',
+              backgroundColor: statusFilter === 'paid' ? '#3b82f6' : '#e5e7eb',
+              color: statusFilter === 'paid' ? 'white' : '#374151',
+              textDecoration: 'none'
+            }}
+          >
+            Оплаченные
+          </a>
         </div>
 
         <div className="grid gap-6 md:grid-cols-2">
