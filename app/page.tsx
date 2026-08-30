@@ -34,7 +34,7 @@ export default async function Home() {
         <div className="grid gap-6 md:grid-cols-4">
           <Card className="bg-white shadow-sm border-0">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500">Выручка</CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-500">Фрахт</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600">
