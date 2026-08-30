@@ -109,7 +109,7 @@ export default async function Home() {
         </div>
 
         <div style={{ height: '400px', borderRadius: '12px', overflow: 'hidden', border: '1px solid #e5e7eb' }}>
-          <Map trips={trips} />
+          <Map trips={trips || []} />
         </div>
 
       </div>
