@@ -7,8 +7,35 @@ async function createFixedCost(formData: FormData) {
 
   const monthKey = formData.get('month_key') as string;
   const category = formData.get('category') as string;
-  const amountPln = parseFloat(formData.get('amount_pln') as string) || 0;
+  const amount = parseFloat(formData.get('amount') as string) || 0;
+  const currency = formData.get('currency') as string;
   const amountEur = parseFloat(formData.get('amount_eur') as string) || 0;
+
+  // Если валюта не EUR, автоматически пересчитываем
+  let amountEurFinal = amountEur;
+  if (currency === 'PLN') {
+    const { data: rate } = await supabase
+      .from('rates')
+      .select('pln_to_eur')
+      .order('rate_date', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (rate?.pln_to_eur) {
+      amountEurFinal = amount * rate.pln_to_eur;
+    }
+  } else if (currency === 'BYN') {
+    const { data: rate } = await supabase
+      .from('rates')
+      .select('byn_to_eur')
+      .order('rate_date', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (rate?.byn_to_eur) {
+      amountEurFinal = amount * rate.byn_to_eur;
+    }
+  }
 
   const { error } = await supabase
     .from('fixed_costs')
@@ -16,8 +43,9 @@ async function createFixedCost(formData: FormData) {
       {
         month_key: monthKey,
         category: category,
-        amount_pln: amountPln,
-        amount_eur: amountEur
+        amount_pln: currency === 'PLN' ? amount : null,
+        amount_eur: amountEurFinal,
+        currency: currency
       }
     ]);
 
@@ -59,23 +87,24 @@ export default function NewFixedCostPage() {
         </div>
 
         <div>
-          <label htmlFor="amount_pln" style={{ display: 'block', fontWeight: 'bold' }}>Сумма (PLN)</label>
-          <input 
-            type="number" 
-            id="amount_pln" 
-            name="amount_pln" 
-            step="0.01"
-            placeholder="0.00"
+          <label htmlFor="currency" style={{ display: 'block', fontWeight: 'bold' }}>Валюта</label>
+          <select 
+            id="currency" 
+            name="currency" 
             style={{ width: '100%', padding: '8px', marginTop: '5px', borderRadius: '4px', border: '1px solid #ccc' }}
-          />
+          >
+            <option value="EUR">EUR</option>
+            <option value="PLN">PLN</option>
+            <option value="BYN">BYN</option>
+          </select>
         </div>
 
         <div>
-          <label htmlFor="amount_eur" style={{ display: 'block', fontWeight: 'bold' }}>Сумма (EUR)</label>
+          <label htmlFor="amount" style={{ display: 'block', fontWeight: 'bold' }}>Сумма</label>
           <input 
             type="number" 
-            id="amount_eur" 
-            name="amount_eur" 
+            id="amount" 
+            name="amount" 
             step="0.01"
             placeholder="0.00"
             style={{ width: '100%', padding: '8px', marginTop: '5px', borderRadius: '4px', border: '1px solid #ccc' }}
