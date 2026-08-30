@@ -1,5 +1,6 @@
 import { supabase } from '../../../lib/supabaseClient';
 import { redirect } from 'next/navigation';
+import { revalidatePath } from 'next/cache';
 
 async function createClient(formData: FormData) {
   'use server';
@@ -24,6 +25,7 @@ async function createClient(formData: FormData) {
     throw new Error(`Ошибка добавления: ${error.message}`);
   }
 
+  revalidatePath('/clients');
   redirect('/clients');
 }
 
