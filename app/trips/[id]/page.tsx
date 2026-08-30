@@ -2,6 +2,7 @@ import { supabase } from '../../../lib/supabaseClient';
 import { addExpense } from '../../trip-actions';
 import { deleteExpense } from '../../expense-actions';
 import FileUpload from '../../driver/FileUpload';
+import TripStatusButtons from '../../driver/TripStatusButtons';
 
 export default async function TripDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: tripId } = await params;
@@ -147,6 +148,11 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
         }}>
           <strong>Прибыль:</strong> {profit.toFixed(2)} €
         </p>
+      </div>
+
+      <div style={{ marginTop: '25px' }}>
+        <h2>Окно статусов</h2>
+        <TripStatusButtons tripId={tripId} currentStatus={trip.status} />
       </div>
 
       <div style={{ marginTop: '30px', padding: '20px', border: '1px solid #ddd', borderRadius: '8px' }}>
