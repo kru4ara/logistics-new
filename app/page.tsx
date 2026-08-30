@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 export default async function Home() {
   const { data: trips } = await supabase
     .from('trips')
-    .select('revenue_eur, start_date');
+    .select('*, clients(name)');
 
   const { data: expenses } = await supabase
     .from('trip_expenses')
@@ -20,29 +20,6 @@ export default async function Home() {
 
   // Считаем среднюю прибыль за рейс
   const averageProfitPerTrip = totalTrips > 0 ? profit / totalTrips : 0;
-
-  // Считаем показатели за текущий месяц
-  const now = new Date();
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-
-  const monthTrips = trips?.filter(t => {
-    if (!t.start_date) return false;
-    const tripDate = new Date(t.start_date);
-    return tripDate >= startOfMonth && tripDate <= endOfMonth;
-  }) || [];
-
-  const monthRevenue = monthTrips?.reduce((sum, t) => sum + (t.revenue_eur || 0), 0) || 0;
-
-  const monthExpenses = expenses?.filter(e => {
-    if (!e.expense_date) return false;
-    const expDate = new Date(e.expense_date);
-    return expDate >= startOfMonth && expDate <= endOfMonth;
-  }) || [];
-
-  const monthExpensesTotal = monthExpenses?.reduce((sum, e) => sum + (e.amount_eur || 0), 0) || 0;
-
-  const monthProfit = monthRevenue - monthExpensesTotal;
 
   return (
     <main className="min-h-screen bg-gray-50 p-8">
@@ -100,39 +77,18 @@ export default async function Home() {
           </Card>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-3">
-          <Card className="bg-white shadow-sm border-0">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500">Прибыль за текущий месяц</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">
-                {monthProfit.toFixed(2)} €
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-white shadow-sm border-0">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500">Рейсы за текущий месяц</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-blue-600">
-                {monthTrips.length}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-white shadow-sm border-0">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500">Фрахт за текущий месяц</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">
-                {monthRevenue.toFixed(2)} €
-              </div>
-            </CardContent>
-          </Card>
+        <div className="grid gap-6 md:grid-cols-2">
+          {trips?.map((trip) => (
+            <div key={trip.id} style={{ background: 'white', padding: '20px', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+              <p><strong>Клиент:</strong> {trip.clients?.name || 'Не указан'}</p>
+              <p><strong>Маршрут:</strong> {trip.route || '-'}</p>
+              <p><strong>Статус:</strong> {trip.status}</p>
+              <p><strong>Выручка:</strong> {trip.revenue_eur ? `${trip.revenue_eur} €` : 'Не указана'}</p>
+              <a href={`/trips/${trip.id}`} style={{ color: '#0070f3', textDecoration: 'underline' }}>
+                Профиль рейса
+              </a>
+            </div>
+          ))}
         </div>
 
         <div className="flex flex-wrap gap-4">
