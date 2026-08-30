@@ -6,7 +6,6 @@ export default async function DriversPage() {
   const { data: drivers, error } = await supabase
     .from('drivers')
     .select('*');
-
   if (error) {
     return <div>Ошибка загрузки: {error.message}</div>;
   }
