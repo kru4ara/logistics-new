@@ -1,5 +1,6 @@
 import { supabase } from '../../lib/supabaseClient';
 import { Button } from '@/components/ui/button';
+import DownloadButton from './DownloadButton';
 
 export default async function ReportsPage() {
   const { data: trips, error: tripsError } = await supabase
@@ -27,6 +28,12 @@ export default async function ReportsPage() {
   const totalExpenses = expenses?.reduce((sum, e) => sum + (e.amount_eur || 0), 0) || 0;
   const profit = totalRevenue - totalExpenses;
 
+  // Добавляем расходы в каждый рейс для скачивания
+  const tripsWithExpenses = trips?.map((trip) => ({
+    ...trip,
+    expenses: expensesByTrip[trip.id] || 0
+  })) || [];
+
   return (
     <main className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-6xl mx-auto space-y-8">
@@ -36,6 +43,7 @@ export default async function ReportsPage() {
             <Button asChild variant="outline">
               <a href="/routes">← Маршруты</a>
             </Button>
+            <DownloadButton data={tripsWithExpenses} />
           </div>
         </div>
 
