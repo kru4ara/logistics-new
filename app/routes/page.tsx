@@ -5,18 +5,10 @@ import { supabase } from '../../lib/supabaseClient';
 export default async function RoutesPage() {
   const { data: trips, error } = await supabase
     .from('trips')
-    .select('route, revenue_eur, id');
+    .select('route, revenue_eur');
 
   if (error) {
     return <div>Ошибка загрузки рейсов: {error.message}</div>;
-  }
-
-  const { data: expenses, error: expensesError } = await supabase
-    .from('trip_expenses')
-    .select('trip_id, amount_eur');
-
-  if (expensesError) {
-    return <div>Ошибка загрузки расходов: {expensesError.message}</div>;
   }
 
   // Список маршрутов по выручке
@@ -25,59 +17,33 @@ export default async function RoutesPage() {
     const existing = acc.find(r => r.route === trip.route);
     if (existing) {
       existing.revenue += trip.revenue_eur || 0;
+      existing.count += 1;
     } else {
-      acc.push({ route: trip.route, revenue: trip.revenue_eur || 0, expenses: 0 });
+      acc.push({ route: trip.route, revenue: trip.revenue_eur || 0, count: 1 });
     }
     return acc;
-  }, [] as Array<{ route: string; revenue: number; expenses: number }>) || [];
-
-  // Группируем расходы по trip_id
-  const expensesByTrip = expenses?.reduce((acc, e) => {
-    if (!e.trip_id) return acc;
-    const existing = acc.find(item => item.trip_id === e.trip_id);
-    if (existing) {
-      existing.amount += e.amount_eur || 0;
-    } else {
-      acc.push({ trip_id: e.trip_id, amount: e.amount_eur || 0 });
-    }
-    return acc;
-  }, [] as Array<{ trip_id: string; amount: number }>) || [];
-
-  // Добавляем расходы к маршруту
-  const routesWithExpenses = routes.map((route) => {
-    const tripIds = trips?.filter(t => t.route === route.route).map(t => t.id) || [];
-    const routeExpenses = expensesByTrip.filter(e => tripIds.includes(e.trip_id)).reduce((sum, e) => sum + e.amount, 0);
-    return {
-      ...route,
-      expenses: routeExpenses
-    };
-  });
+  }, [] as Array<{ route: string; revenue: number; count: number }>) || [];
 
   // Общая выручка
-  const totalRevenue = routesWithExpenses?.reduce((sum, r) => sum + (r.revenue || 0), 0) || 0;
+  const totalRevenue = routes?.reduce((sum, r) => sum + (r.revenue || 0), 0) || 0;
 
   // Общая расходы
-  const totalExpenses = routesWithExpenses?.reduce((sum, r) => sum + (r.expenses || 0), 0) || 0;
+  const totalExpenses = 0;
 
   // Чистая прибыль
   const profit = totalRevenue - totalExpenses;
 
   // Сортировка по выручке (высокая → низкая)
-  const sortedRoutes = routesWithExpenses.sort((a, b) => a.revenue - b.revenue);
+  const sortedRoutes = routes.sort((a, b) => a.revenue - b.revenue);
 
   return (
     <main className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-6xl mx-auto space-y-8">
         <div className="flex justify-between items-center">
           <h1 className="text-3xl font-bold tracking-tight text-gray-900">🚛 Маршруты</h1>
-          <div className="flex gap-4">
-            <Button asChild>
-              <a href="/trips/new">+ Создать рейс</a>
-            </Button>
-            <Button asChild variant="secondary">
-              <a href="/routes/export">📥 Скачать отчёт</a>
-            </Button>
-          </div>
+          <Button asChild>
+            <a href="/trips/new">+ Создать рейс</a>
+          </Button>
         </div>
 
         <div className="grid gap-6 md:grid-cols-3">
@@ -122,8 +88,7 @@ export default async function RoutesPage() {
               <tr style={{ textAlign: 'left', borderBottom: '2px solid #ddd' }}>
                 <th style={{ padding: '10px' }}>Маршрут</th>
                 <th style={{ padding: '10px' }}>Выручка (€)</th>
-                <th style={{ padding: '10px' }}>Расходы (€)</th>
-                <th style={{ padding: '10px' }}>Прибыль (€)</th>
+                <th style={{ padding: '10px' }}>Количество рейсов</th>
               </tr>
             </thead>
             <tbody>
@@ -131,12 +96,7 @@ export default async function RoutesPage() {
                 <tr key={r.route} style={{ borderBottom: '1px solid #eee' }}>
                   <td style={{ padding: '10px' }}>{r.route}</td>
                   <td style={{ padding: '10px' }}>{r.revenue.toFixed(2)} €</td>
-                  <td style={{ padding: '10px' }}>{r.expenses.toFixed(2)} €</td>
-                  <td style={{ padding: '10px' }}>
-                    <span style={{ color: (r.revenue - r.expenses) >= 0 ? 'green' : 'red', fontWeight: 'bold' }}>
-                      {(r.revenue - r.expenses).toFixed(2)} €
-                    </span>
-                  </td>
+                  <td style={{ padding: '10px' }}>{r.count}</td>
                 </tr>
               ))}
             </tbody>
