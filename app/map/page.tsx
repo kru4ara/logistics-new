@@ -1,9 +1,23 @@
 'use client';
 
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
+import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabaseClient';
+
+// Динамически импортируем карту только на клиенте
+const MapContainer = dynamic(() => import('react-leaflet').then(mod => mod.MapContainer), {
+  ssr: false,
+  loading: () => <div style={{ height: '100%', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Загрузка карты...</div>
+});
+const TileLayer = dynamic(() => import('react-leaflet').then(mod => mod.TileLayer), {
+  ssr: false
+});
+const Marker = dynamic(() => import('react-leaflet').then(mod => mod.Marker), {
+  ssr: false
+});
+const Popup = dynamic(() => import('react-leaflet').then(mod => mod.Popup), {
+  ssr: false
+});
 
 export default function MapPage() {
   const [trips, setTrips] = useState<any[]>([]);
