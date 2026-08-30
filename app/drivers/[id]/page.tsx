@@ -1,5 +1,6 @@
 import { supabase } from '../../../lib/supabaseClient';
 import { createReminderFromDriver } from '../../driver/reminders-actions';
+import { sendDriverNotification } from '../../driver/telegram-actions';
 
 export default async function DriverDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: driverId } = await params;
@@ -47,6 +48,17 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
         <p><strong>Срок паспорта:</strong> {driver.passport_expiry || '-'}</p>
         <p><strong>Срок прав:</strong> {driver.license_expiry || '-'}</p>
         <p><strong>Срок карты тахографа:</strong> {driver.tachograph_card_expiry || '-'}</p>
+      </div>
+
+      <div style={{ marginTop: '25px' }}>
+        <form action={async () => {
+          'use server';
+          await sendDriverNotification(driverId, `${driver.first_name} ${driver.last_name}`, driver.visa_expiry || 'Срок не указан');
+        }}>
+          <button type="submit" style={{ padding: '10px', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+            📲 Сдать уведомление
+          </button>
+        </form>
       </div>
 
       <div style={{ marginTop: '25px' }}>
