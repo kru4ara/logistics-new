@@ -8,11 +8,9 @@ export async function deleteClient(clientId: string) {
     .from('clients')
     .delete()
     .eq('id', clientId);
-
   if (error) {
     throw new Error(`Ошибка удаления клиента: ${error.message}`);
   }
-
   revalidatePath('/clients');
 }
 
@@ -21,10 +19,8 @@ export async function deleteDriver(driverId: string) {
     .from('drivers')
     .delete()
     .eq('id', driverId);
-
   if (error) {
     throw new Error(`Ошибка удаления водителя: ${error.message}`);
   }
-
   revalidatePath('/drivers');
 }
