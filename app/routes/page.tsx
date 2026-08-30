@@ -5,10 +5,18 @@ import { supabase } from '../../lib/supabaseClient';
 export default async function RoutesPage() {
   const { data: trips, error } = await supabase
     .from('trips')
-    .select('route, revenue_eur');
+    .select('route, revenue_eur, id');
 
   if (error) {
     return <div>Ошибка загрузки рейсов: {error.message}</div>;
+  }
+
+  const { data: expenses, error: expensesError } = await supabase
+    .from('trip_expenses')
+    .select('trip_id, amount_eur');
+
+  if (expensesError) {
+    return <div>Ошибка загрузки расходов: {expensesError.message}</div>;
   }
 
   // Список маршрутов по выручке
@@ -24,17 +32,39 @@ export default async function RoutesPage() {
     return acc;
   }, [] as Array<{ route: string; revenue: number; count: number }>) || [];
 
+  // Группируем расходы по trip_id
+  const expensesByTrip = expenses?.reduce((acc, e) => {
+    if (!e.trip_id) return acc;
+    const existing = acc.find(item => item.trip_id === e.trip_id);
+    if (existing) {
+      existing.amount += e.amount_eur || 0;
+    } else {
+      acc.push({ trip_id: e.trip_id, amount: e.amount_eur || 0 });
+    }
+    return acc;
+  }, [] as Array<{ trip_id: string; amount: number }>) || [];
+
+  // Добавляем расходы к маршруту
+  const routesWithExpenses = routes.map((route) => {
+    const tripIds = trips?.filter(t => t.route === route.route).map(t => t.id) || [];
+    const routeExpenses = expensesByTrip.filter(e => tripIds.includes(e.trip_id)).reduce((sum, e) => sum + e.amount, 0);
+    return {
+      ...route,
+      expenses: routeExpenses
+    };
+  });
+
   // Общая выручка
-  const totalRevenue = routes?.reduce((sum, r) => sum + (r.revenue || 0), 0) || 0;
+  const totalRevenue = routesWithExpenses?.reduce((sum, r) => sum + (r.revenue || 0), 0) || 0;
 
   // Общая расходы
-  const totalExpenses = 0;
+  const totalExpenses = routesWithExpenses?.reduce((sum, r) => sum + (r.expenses || 0), 0) || 0;
 
   // Чистая прибыль
   const profit = totalRevenue - totalExpenses;
 
   // Сортировка по выручке (высокая → низкая)
-  const sortedRoutes = routes.sort((a, b) => a.revenue - b.revenue);
+  const sortedRoutes = routesWithExpenses.sort((a, b) => a.revenue - b.revenue);
 
   return (
     <main className="min-h-screen bg-gray-50 p-8">
@@ -88,6 +118,7 @@ export default async function RoutesPage() {
               <tr style={{ textAlign: 'left', borderBottom: '2px solid #ddd' }}>
                 <th style={{ padding: '10px' }}>Маршрут</th>
                 <th style={{ padding: '10px' }}>Выручка (€)</th>
+                <th style={{ padding: '10px' }}>Расходы (€)</th>
                 <th style={{ padding: '10px' }}>Количество рейсов</th>
               </tr>
             </thead>
@@ -96,6 +127,7 @@ export default async function RoutesPage() {
                 <tr key={r.route} style={{ borderBottom: '1px solid #eee' }}>
                   <td style={{ padding: '10px' }}>{r.route}</td>
                   <td style={{ padding: '10px' }}>{r.revenue.toFixed(2)} €</td>
+                  <td style={{ padding: '10px' }}>{r.expenses.toFixed(2)} €</td>
                   <td style={{ padding: '10px' }}>{r.count}</td>
                 </tr>
               ))}
