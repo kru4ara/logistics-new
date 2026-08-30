@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabaseClient';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import LogoutButton from './LogoutButton';
 
 export default async function Home() {
   const { data: trips } = await supabase
@@ -20,9 +21,12 @@ export default async function Home() {
       <div className="max-w-6xl mx-auto space-y-8">
         <div className="flex justify-between items-center">
           <h1 className="text-3xl font-bold tracking-tight text-gray-900">🚛 Панель управления</h1>
-          <Button asChild>
-            <a href="/trips/new">+ Создать рейс</a>
-          </Button>
+          <div className="flex gap-4">
+            <Button asChild>
+              <a href="/trips/new">+ Создать рейс</a>
+            </Button>
+            <LogoutButton />
+          </div>
         </div>
 
         <div className="grid gap-6 md:grid-cols-3">
