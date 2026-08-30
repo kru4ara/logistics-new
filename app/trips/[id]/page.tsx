@@ -87,6 +87,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
             <tr style={{ borderBottom: '2px solid #ddd', textAlign: 'left' }}>
               <th style={{ padding: '10px' }}>Категория</th>
               <th style={{ padding: '10px' }}>Сумма (€)</th>
+              <th style={{ padding: '10px' }}>Валюта</th>
               <th style={{ padding: '10px' }}>Описание</th>
               <th style={{ padding: '10px' }}>Дата</th>
               <th style={{ padding: '10px' }}></th>
@@ -94,7 +95,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
           </thead>
           <tbody>
             {expenses?.length === 0 ? (
-              <tr><td colSpan={5} style={{ padding: '20px', textAlign: 'center', color: '#888' }}>Пока нет расходов</td></tr>
+              <tr><td colSpan={6} style={{ padding: '20px', textAlign: 'center', color: '#888' }}>Пока нет расходов</td></tr>
             ) : (
               expenses?.map((exp) => (
                 <tr key={exp.id} style={{ borderBottom: '1px solid #eee' }}>
@@ -107,6 +108,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
                      exp.category === 'contractor' ? '🚛 Подрядчик' : exp.category}
                   </td>
                   <td style={{ padding: '10px', fontWeight: 'bold' }}>{exp.amount_eur} €</td>
+                  <td style={{ padding: '10px' }}>{exp.currency || 'EUR'}</td>
                   <td style={{ padding: '10px' }}>{exp.description || '-'}</td>
                   <td style={{ padding: '10px' }}>{exp.expense_date || '-'}</td>
                   <td style={{ padding: '10px' }}>
@@ -150,11 +152,6 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
         </p>
       </div>
 
-      <div style={{ marginTop: '25px' }}>
-        <h2>Окно статусов</h2>
-        <TripStatusButtons tripId={tripId} currentStatus={trip.status} />
-      </div>
-
       <div style={{ marginTop: '30px', padding: '20px', border: '1px solid #ddd', borderRadius: '8px' }}>
         <h3>+ Добавить расход</h3>
         <form action={addExpense} style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxWidth: '400px' }}>
@@ -174,8 +171,17 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
           </div>
 
           <div>
-            <label>Сумма (€)</label>
-            <input type="number" name="amount_eur" step="0.01" required style={{ width: '100%', padding: '8px' }} />
+            <label>Валюта</label>
+            <select name="currency" style={{ width: '100%', padding: '8px' }}>
+              <option value="EUR">EUR</option>
+              <option value="PLN">PLN</option>
+              <option value="BYN">BYN</option>
+            </select>
+          </div>
+
+          <div>
+            <label>Сумма</label>
+            <input type="number" name="amount" step="0.01" required style={{ width: '100%', padding: '8px' }} />
           </div>
 
           <div>
