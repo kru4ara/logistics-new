@@ -1,7 +1,6 @@
 import { supabase } from '../../lib/supabaseClient';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { addClient } from '../client-actions';
 
 export default async function ClientsPage() {
   const { data: clients, error } = await supabase
@@ -29,9 +28,19 @@ export default async function ClientsPage() {
               <p><strong>Контактное лицо:</strong> {client.contact_person || '-'}</p>
               <p><strong>Телефон:</strong> {client.phone || '-'}</p>
               <p><strong>Email:</strong> {client.email || '-'}</p>
-              <a href={`/clients/${client.id}`} style={{ color: '#0070f3', textDecoration: 'underline' }}>
-                Профиль клиента
-              </a>
+              <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                <a href={`/clients/${client.id}`} style={{ color: '#0070f3', textDecoration: 'underline' }}>
+                  Профиль
+                </a>
+                <form action={async () => {
+                  'use server';
+                  await supabase.from('clients').delete().eq('id', client.id);
+                }}>
+                  <button type="submit" style={{ padding: '4px 10px', backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+                    🗑️ Удалить
+                  </button>
+                </form>
+              </div>
             </div>
           ))}
         </div>
