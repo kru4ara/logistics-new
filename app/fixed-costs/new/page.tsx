@@ -21,7 +21,7 @@ async function createFixedCost(formData: FormData) {
     ]);
 
   if (error) {
-    throw new Error(`Ошибка добавления: ${error.message} (Код: ${error.code})`);
+    throw new Error(`Ошибка добавления: ${error.message}`);
   }
 
   redirect('/fixed-costs');
@@ -30,10 +30,9 @@ async function createFixedCost(formData: FormData) {
 export default function NewFixedCostPage() {
   return (
     <div style={{ padding: '20px', fontFamily: 'sans-serif', maxWidth: '500px' }}>
-      <h1 style={{ fontSize: '24px' }}>Добавить фиксированный расход</h1>
+      <h1 style={{ fontSize: '24px' }}>Добавить фиксированную затрату</h1>
       
       <form action={createFixedCost} style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '20px' }}>
-        
         <div>
           <label htmlFor="month_key" style={{ display: 'block', fontWeight: 'bold' }}>Месяц (ГГГГ-ММ)</label>
           <input 
@@ -51,7 +50,7 @@ export default function NewFixedCostPage() {
             type="text" 
             id="category" 
             name="category" 
-            placeholder="Например: Страховка, Бухгалтерия, Logisat"
+            placeholder="Например: Страховка, Бухгалтерия"
             required
             style={{ width: '100%', padding: '8px', marginTop: '5px', borderRadius: '4px', border: '1px solid #ccc' }}
           />
@@ -94,7 +93,7 @@ export default function NewFixedCostPage() {
             fontWeight: 'bold'
           }}
         >
-          Сохранить расход
+          Сохранить затрату
         </button>
 
         <a href="/fixed-costs" style={{ marginTop: '10px', color: '#0070f3', textDecoration: 'underline' }}>
