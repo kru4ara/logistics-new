@@ -1,7 +1,13 @@
 import { supabase } from '../lib/supabaseClient';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import Map from './Map';
+import dynamic from 'next/dynamic';
+
+// Динамически импортируем карту только на клиенте (чтобы избежать ошибки window is not defined)
+const Map = dynamic(() => import('./Map'), {
+  ssr: false,
+  loading: () => <div style={{ height: '100%', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Загрузка карты...</div>
+});
 
 export default async function Home() {
   const { data: trips } = await supabase
