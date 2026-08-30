@@ -1,5 +1,6 @@
 import { supabase } from '../../../lib/supabaseClient';
 import { redirect } from 'next/navigation';
+import { revalidatePath } from 'next/cache';
 
 async function createDriver(formData: FormData) {
   'use server';
@@ -30,6 +31,7 @@ async function createDriver(formData: FormData) {
     throw new Error(`Ошибка добавления: ${error.message}`);
   }
 
+  revalidatePath('/drivers');
   redirect('/drivers');
 }
 
