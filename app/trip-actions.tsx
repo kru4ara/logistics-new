@@ -6,13 +6,13 @@ import { revalidatePath } from 'next/cache';
 export async function addExpense(formData: FormData) {
   const tripId = formData.get('trip_id') as string;
   const category = formData.get('category') as string;
-  const amount = parseFloat(formData.get('amount') as string) || 0;
+  const originalAmount = parseFloat(formData.get('amount') as string) || 0;
   const currency = formData.get('currency') as string;
   const description = formData.get('description') as string;
   const expenseDate = formData.get('expense_date') as string;
 
   // Если валюта не EUR, пересчитываем в EUR по текущему курсу
-  let amountEur = amount;
+  let amountEur = originalAmount;
   if (currency === 'PLN') {
     const { data: rate } = await supabase
       .from('rates')
@@ -20,9 +20,8 @@ export async function addExpense(formData: FormData) {
       .order('rate_date', { ascending: false })
       .limit(1)
       .single();
-
     if (rate?.pln_to_eur) {
-      amountEur = amount * rate.pln_to_eur;
+      amountEur = originalAmount * rate.pln_to_eur;
     }
   } else if (currency === 'BYN') {
     const { data: rate } = await supabase
@@ -31,9 +30,8 @@ export async function addExpense(formData: FormData) {
       .order('rate_date', { ascending: false })
       .limit(1)
       .single();
-
     if (rate?.byn_to_eur) {
-      amountEur = amount * rate.byn_to_eur;
+      amountEur = originalAmount * rate.byn_to_eur;
     }
   }
 
@@ -44,6 +42,7 @@ export async function addExpense(formData: FormData) {
         trip_id: tripId,
         category: category,
         amount_eur: amountEur,
+        original_amount: originalAmount,
         currency: currency,
         description: description,
         expense_date: expenseDate || null
@@ -52,6 +51,19 @@ export async function addExpense(formData: FormData) {
 
   if (error) {
     throw new Error(`Ошибка добавления: ${error.message}`);
+  }
+
+  revalidatePath(`/trips/${tripId}`);
+}
+
+export async function deleteExpense(expenseId: string, tripId: string) {
+  const { error } = await supabase
+    .from('trip_expenses')
+    .delete()
+    .eq('id', expenseId);
+
+  if (error) {
+    throw new Error(`Ошибка удаления: ${error.message}`);
   }
 
   revalidatePath(`/trips/${tripId}`);
