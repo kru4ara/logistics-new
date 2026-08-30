@@ -15,6 +15,12 @@ export default async function Home() {
   const totalExpenses = expenses?.reduce((sum, e) => sum + (e.amount_eur || 0), 0) || 0;
   const profit = totalRevenue - totalExpenses;
 
+  // Считаем количество рейсов
+  const totalTrips = trips?.length || 0;
+
+  // Считаем среднюю прибыль за рейс
+  const averageProfitPerTrip = totalTrips > 0 ? profit / totalTrips : 0;
+
   return (
     <main className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-6xl mx-auto space-y-8">
@@ -25,7 +31,7 @@ export default async function Home() {
           </Button>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-4">
           <Card className="bg-white shadow-sm border-0">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-gray-500">Выручка</CardTitle>
@@ -55,6 +61,17 @@ export default async function Home() {
             <CardContent>
               <div className={`text-2xl font-bold ${profit >= 0 ? 'text-green-600' : 'text-red-500'}`}>
                 {profit.toFixed(2)} €
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white shadow-sm border-0">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-gray-500">Средняя прибыль за рейс</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-blue-600">
+                {averageProfitPerTrip.toFixed(2)} €
               </div>
             </CardContent>
           </Card>
