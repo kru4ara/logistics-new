@@ -1,51 +1,36 @@
 'use server';
 
 import { supabase } from '../lib/supabaseClient';
-import { revalidatePath } from 'next/cache';
 
-export async function updateRatesForTrip(tripId: string) {
+export async function updateRates() {
+  // Получаем курс PLN → EUR
   try {
-    // 1. Получаем последний сохраненный курс
-    const { data: rates, error: ratesError } = await supabase
+    const plnResponse = await fetch('https://api.exchangerate.host/convert?from=PLN&to=EUR');
+    const plnData = await plnResponse.json();
+    const plnToEur = plnData.result;
+
+    // Получаем курс BYN → EUR
+    const bynResponse = await fetch('https://api.exchangerate.host/convert?from=BYN&to=EUR');
+    const bynData = await bynResponse.json();
+    const bynToEur = bynData.result;
+
+    // Записываем в таблицу rates (сегодняшняя дата)
+    const today = new Date().toISOString().split('T')[0];
+
+    const { error } = await supabase
       .from('rates')
-      .select('*')
-      .order('rate_date', { ascending: false })
-      .limit(1)
-      .single();
+      .insert([
+        {
+          rate_date: today,
+          pln_to_eur: plnToEur,
+          byn_to_eur: bynToEur
+        }
+      ]);
 
-    if (ratesError || !rates) {
-      throw new Error('Курсы не найдены в базе. Проверьте, работает ли скрипт обновления.');
+    if (error) {
+      console.error('Ошибка записывания курсов:', error);
     }
-
-    // 2. Получаем данные рейса
-    const { data: trip, error: tripError } = await supabase
-      .from('trips')
-      .select('*')
-      .eq('id', tripId)
-      .single();
-
-    if (tripError || !trip) {
-      throw new Error('Рейс не найден');
-    }
-
-    // 3. Обновляем данные рейса в базе
-    const { error: updateError } = await supabase
-      .from('trips')
-      .update({
-        revenue_eur: trip.revenue_eur
-      })
-      .eq('id', tripId);
-
-    if (updateError) {
-      throw new Error('Ошибка обновления данных рейса');
-    }
-
-    revalidatePath(`/trips/${tripId}`);
-
-    return { success: true, message: 'Курсы обновлены и применены!' };
-
   } catch (error) {
-    console.error('Ошибка обновления курсов:', error);
-    return { success: false, message: 'Ошибка: ' + (error as Error).message };
+    console.error('Ошибка получения курсов:', error);
   }
 }
