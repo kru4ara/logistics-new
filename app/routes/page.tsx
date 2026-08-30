@@ -79,7 +79,7 @@ export default async function RoutesPage() {
         <div className="grid gap-6 md:grid-cols-3">
           <Card className="bg-white shadow-sm border-0">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500">Выручка</CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-500">Фрахт</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600">
@@ -112,12 +112,12 @@ export default async function RoutesPage() {
         </div>
 
         <div>
-          <h2 style={{ fontSize: '20px', fontWeight: 'bold' }}>Выручка по маршрутам</h2>
+          <h2 style={{ fontSize: '20px', fontWeight: 'bold' }}>Фрахт по маршрутам</h2>
           <table style={{ width: '100%', marginTop: '15px' }}>
             <thead>
               <tr style={{ textAlign: 'left', borderBottom: '2px solid #ddd' }}>
                 <th style={{ padding: '10px' }}>Маршрут</th>
-                <th style={{ padding: '10px' }}>Выручка (€)</th>
+                <th style={{ padding: '10px' }}>Фрахт (€)</th>
                 <th style={{ padding: '10px' }}>Расходы (€)</th>
                 <th style={{ padding: '10px' }}>Количество рейсов</th>
               </tr>
