@@ -9,29 +9,34 @@ export async function addTripWithAddress(formData: FormData) {
   const route = formData.get('route') as string;
   const startDate = formData.get('start_date') as string;
   const revenueEur = parseFloat(formData.get('revenue_eur') as string) || 0;
-  const startFuelLevel = parseFloat(formData.get('start_fuel_level') as string) || 0;
+  const truckId = formData.get('truck_id') as string;
 
-  // 1. Получаем все существующие номера рейсов
-  const { data: existingTrips, error: fetchError } = await supabase
-    .from('trips')
-    .select('trip_number');
+  // Автоматически рассчитываем остаток топлива от предыдущего рейса этой машины
+  let startFuelLevel = 0;
+  if (truckId) {
+    // Находим последний рейс для этого грузовика
+    const { data: prevTrip } = await supabase
+      .from('trips')
+      .select('id, start_fuel_level, actual_liters')
+      .eq('truck_id', truckId)
+      .order('trip_number', { ascending: false })
+      .limit(1)
+      .single();
 
-  if (fetchError) {
-    console.error('Ошибка получения номеров:', fetchError.message);
-    throw new Error(`Ошибка получения номеров: ${fetchError.message}`);
+    if (prevTrip) {
+      // Считаем все заправки этого рейса (литры в расходах с категорией "fuel")
+      const { data: fuelExpenses } = await supabase
+        .from('trip_expenses')
+        .select('liters')
+        .eq('trip_id', prevTrip.id)
+        .eq('category', 'fuel');
+
+      const totalRefuel = fuelExpenses?.reduce((sum, e) => sum + (e.liters || 0), 0) || 0;
+      const consumed = prevTrip.actual_liters || 0;
+      startFuelLevel = (prevTrip.start_fuel_level || 0) + totalRefuel - consumed;
+    }
   }
 
-  const existingNumbers = new Set<number>(
-    existingTrips?.map(t => t.trip_number).filter((n): n is number => n != null) || []
-  );
-
-  // 2. Находим минимальный свободный номер, начиная с 1
-  let nextNumber = 1;
-  while (existingNumbers.has(nextNumber)) {
-    nextNumber++;
-  }
-
-  // 3. Вставляем рейс с найденным номером
   const { error } = await supabase
     .from('trips')
     .insert([
@@ -40,14 +45,13 @@ export async function addTripWithAddress(formData: FormData) {
         route: route,
         start_date: startDate,
         revenue_eur: revenueEur,
+        truck_id: truckId || null,
         start_fuel_level: startFuelLevel,
-        trip_number: nextNumber,
         status: 'planned'
       }
     ]);
 
   if (error) {
-    console.error('Ошибка создания рейса:', error.message);
     throw new Error(`Ошибка создания рейса: ${error.message}`);
   }
 
