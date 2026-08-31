@@ -12,7 +12,7 @@ export default function DeleteButton({ driverId }: { driverId: string }) {
       if (error) {
         console.error('Ошибка удаления водителя:', error.message);
       }
-      // Просто обновляем страницу после удаления
+      // После удаления, einfach die Seite neu laden
       window.location.reload();
     });
   }
