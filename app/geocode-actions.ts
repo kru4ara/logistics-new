@@ -11,6 +11,32 @@ export async function addTripWithAddress(formData: FormData) {
   const revenueEur = parseFloat(formData.get('revenue_eur') as string) || 0;
   const startFuelLevel = parseFloat(formData.get('start_fuel_level') as string) || 0;
 
+  // 1. Читаем текущий счётчик
+  const { data: counterData, error: counterError } = await supabase
+    .from('trip_counter')
+    .select('last_number')
+    .eq('id', 1)
+    .single();
+
+  if (counterError) {
+    throw new Error(`Ошибка получения счётчика: ${counterError.message}`);
+  }
+
+  const currentLastNumber = counterData?.last_number || 0;
+
+  // 2. Увеличиваем на 1 и сохраняем
+  const nextNumber = currentLastNumber + 1;
+
+  const { error: updateCounterError } = await supabase
+    .from('trip_counter')
+    .update({ last_number: nextNumber })
+    .eq('id', 1);
+
+  if (updateCounterError) {
+    throw new Error(`Ошибка обновления счётчика: ${updateCounterError.message}`);
+  }
+
+  // 3. Вставляем рейс с присвоенным номером
   const { error } = await supabase
     .from('trips')
     .insert([
@@ -19,7 +45,8 @@ export async function addTripWithAddress(formData: FormData) {
         route: route,
         start_date: startDate,
         revenue_eur: revenueEur,
-        start_fuel_level: startFuelLevel, // ← добавляем остаток
+        start_fuel_level: startFuelLevel,
+        trip_number: nextNumber,
         status: 'planned'
       }
     ]);
