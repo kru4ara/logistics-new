@@ -14,41 +14,28 @@ export async function addExpense(formData: FormData) {
   const description = formData.get('description') as string;
   const expenseDate = formData.get('expense_date') as string;
 
+  // Если дата не указана, используем сегодняшнюю
+  const dateForRate = expenseDate || new Date().toISOString().split('T')[0];
   let amountEur = originalAmount;
 
-  async function getRateOnDate(rateColumn: 'pln_to_eur' | 'byn_to_eur') {
-    if (expenseDate) {
-      const { data } = await supabase
-        .from('rates')
-        .select(rateColumn)
-        .lte('rate_date', expenseDate)
-        .order('rate_date', { ascending: false })
-        .limit(1)
-        .single();
-      if (data && data[rateColumn] !== null && data[rateColumn] !== undefined) {
-        return data[rateColumn] as number;
-      }
-    }
-
-    const { data: latest } = await supabase
+  if (currency === 'PLN') {
+    const { data: rate } = await supabase
       .from('rates')
-      .select(rateColumn)
+      .select('pln_to_eur')
+      .lte('rate_date', dateForRate)
       .order('rate_date', { ascending: false })
       .limit(1)
       .single();
-    if (latest && latest[rateColumn] !== null && latest[rateColumn] !== undefined) {
-      return latest[rateColumn] as number;
-    }
-
-    return null;
-  }
-
-  if (currency === 'PLN') {
-    const rate = await getRateOnDate('pln_to_eur');
-    amountEur = originalAmount * (rate ?? 0.23);
+    amountEur = originalAmount * (rate?.pln_to_eur ?? 0.23);
   } else if (currency === 'BYN') {
-    const rate = await getRateOnDate('byn_to_eur');
-    amountEur = originalAmount * (rate ?? 0.30);
+    const { data: rate } = await supabase
+      .from('rates')
+      .select('byn_to_eur')
+      .lte('rate_date', dateForRate)
+      .order('rate_date', { ascending: false })
+      .limit(1)
+      .single();
+    amountEur = originalAmount * (rate?.byn_to_eur ?? 0.30);
   }
 
   const { error } = await supabase
