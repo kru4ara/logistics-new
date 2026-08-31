@@ -10,11 +10,13 @@ export async function addTripWithAddress(formData: FormData) {
   const startDate = formData.get('start_date') as string;
   const revenueEur = parseFloat(formData.get('revenue_eur') as string) || 0;
   const truckId = formData.get('truck_id') as string;
+  
+  // 1. Берем остаток, который ввел пользователь (для первого рейса)
+  const manualStartFuel = parseFloat(formData.get('start_fuel_level') as string) || 0;
+  let startFuelLevel = manualStartFuel;
 
-  // Автоматически рассчитываем остаток топлива от предыдущего рейса этой машины
-  let startFuelLevel = 0;
+  // 2. Если есть машина, пытаемся найти предыдущий рейс
   if (truckId) {
-    // Находим последний рейс для этого грузовика
     const { data: prevTrip } = await supabase
       .from('trips')
       .select('id, start_fuel_level, actual_liters')
@@ -23,8 +25,8 @@ export async function addTripWithAddress(formData: FormData) {
       .limit(1)
       .single();
 
+    // Если предыдущий рейс есть — рассчитываем остаток из него
     if (prevTrip) {
-      // Считаем все заправки этого рейса (литры в расходах с категорией "fuel")
       const { data: fuelExpenses } = await supabase
         .from('trip_expenses')
         .select('liters')
@@ -35,6 +37,7 @@ export async function addTripWithAddress(formData: FormData) {
       const consumed = prevTrip.actual_liters || 0;
       startFuelLevel = (prevTrip.start_fuel_level || 0) + totalRefuel - consumed;
     }
+    // Если предыдущего рейса нет — останется manualStartFuel (введенное вручную)
   }
 
   const { error } = await supabase
