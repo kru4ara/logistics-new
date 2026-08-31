@@ -2,6 +2,7 @@ import { supabase } from '../../../lib/supabaseClient';
 import { addExpense, deleteExpense } from '../../trip-actions';
 import FileUpload from '../../driver/FileUpload';
 import TripStatusButtons from '../../driver/TripStatusButtons';
+import { saveTelemetry } from '../../telemetry-actions';
 
 export default async function TripDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: tripId } = await params;
@@ -45,6 +46,33 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
         <p><strong>Маршрут:</strong> {trip.route || '-'}</p>
         <p><strong>Статус:</strong> {trip.status}</p>
         <p><strong>Выручка:</strong> {trip.revenue_eur ? `${trip.revenue_eur} €` : 'Не указана'}</p>
+      </div>
+
+      <div style={{ marginTop: '25px', padding: '20px', border: '1px solid #ddd', borderRadius: '8px' }}>
+        <h3>📊 Данные телеметрии (вручную)</h3>
+        <form action={async (formData: FormData) => {
+          'use server';
+          const km = parseFloat(formData.get('km') as string) || 0;
+          const liters = parseFloat(formData.get('liters') as string) || 0;
+          await saveTelemetry(tripId, km, liters);
+        }} style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <div>
+            <label>Пробег (км)</label>
+            <input type="number" name="km" step="0.01" placeholder={trip.actual_km || '0'} style={{ padding: '8px', width: '120px' }} />
+          </div>
+          <div>
+            <label>Топливо (л)</label>
+            <input type="number" name="liters" step="0.01" placeholder={trip.actual_liters || '0'} style={{ padding: '8px', width: '120px' }} />
+          </div>
+          <button type="submit" style={{ padding: '8px 16px', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', marginTop: '24px' }}>
+            Сохранить
+          </button>
+        </form>
+        {trip.actual_km && (
+          <p style={{ marginTop: '10px' }}>
+            <strong>Текущие данные:</strong> {trip.actual_km} км / {trip.actual_liters} л
+          </p>
+        )}
       </div>
 
       <div style={{ marginTop: '25px' }}>
