@@ -10,7 +10,6 @@ export async function addTripWithAddress(formData: FormData) {
   const revenueEur = parseFloat(formData.get('revenue_eur') as string) || 0;
   const loadingAddress = formData.get('loading_address') as string;
   const warehouseName = formData.get('warehouse_name') as string;
-  const startFuelLevel = parseFloat(formData.get('start_fuel_level') as string) || 0;
 
   let lat = 0;
   let lng = 0;
@@ -40,13 +39,12 @@ export async function addTripWithAddress(formData: FormData) {
         warehouse_name: warehouseName,
         start_lat: lat,
         start_lng: lng,
-        start_fuel_level: startFuelLevel,
         status: 'planned'
       }
     ]);
 
   if (error) {
-    console.error('Ошибка создания рейса:', error);
+    console.error("Ошибка при создании рейса:", error.message);
     throw new Error(`Ошибка создания рейса: ${error.message}`);
   }
 
