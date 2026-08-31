@@ -12,7 +12,7 @@ export default function DeleteButton({ clientId }: { clientId: string }) {
       if (error) {
         console.error('Ошибка удаления клиента:', error.message);
       }
-      // Просто обновляем страницу после удаления
+      // После удаления, einfach die Seite neu laden
       window.location.reload();
     });
   }
