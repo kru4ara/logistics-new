@@ -15,12 +15,16 @@ export async function addTripWithAddress(formData: FormData) {
   let lat = 0;
   let lng = 0;
   if (loadingAddress) {
-    const query = encodeURIComponent(loadingAddress);
-    const response = await fetch(`https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1`);
-    const data = await response.json();
-    if (data && data.length > 0) {
-      lat = parseFloat(data[0].lat);
-      lng = parseFloat(data[0].lon);
+    try {
+      const query = encodeURIComponent(loadingAddress);
+      const response = await fetch(`https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1`);
+      const data = await response.json();
+      if (data && data.length > 0) {
+        lat = parseFloat(data[0].lat);
+        lng = parseFloat(data[0].lon);
+      }
+    } catch (e) {
+      console.error('Ошибка геокодирования:', e);
     }
   }
 
@@ -42,6 +46,7 @@ export async function addTripWithAddress(formData: FormData) {
     ]);
 
   if (error) {
+    console.error('Ошибка создания рейса:', error);
     throw new Error(`Ошибка создания рейса: ${error.message}`);
   }
 
