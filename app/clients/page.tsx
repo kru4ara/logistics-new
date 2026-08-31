@@ -1,5 +1,6 @@
 import { supabase } from '../../lib/supabaseClient';
 import { Button } from '@/components/ui/button';
+import DeleteButton from './DeleteButton';
 
 export default async function ClientsPage() {
   const { data: clients, error } = await supabase
@@ -28,27 +29,4 @@ export default async function ClientsPage() {
               <p><strong>Телефон:</strong> {client.phone || '-'}</p>
               <p><strong>Email:</strong> {client.email || '-'}</p>
               <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                <a href={`/clients/${client.id}`} style={{ color: '#0070f3', textDecoration: 'underline' }}>
-                  Профиль
-                </a>
-                <form action={async () => {
-                  'use server';
-                  const { error: deleteError } = await supabase.from('clients').delete().eq('id', client.id);
-                  if (deleteError) {
-                    console.error('Ошибка удаления клиента:', deleteError.message);
-                    return;
-                  }
-                }}>
-                  <button type="submit" style={{ padding: '4px 10px', backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
-                    🗑️ Удалить
-                  </button>
-                </form>
-              </div>
-            </div>
-          ))}
-        </div>
-
-      </div>
-    </main>
-  );
-}
+                <a href={`/cl
