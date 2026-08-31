@@ -2,14 +2,13 @@
 
 import { supabase } from '../lib/supabaseClient';
 import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
 
 export async function addTripWithAddress(formData: FormData) {
   const clientId = formData.get('client_id') as string;
   const route = formData.get('route') as string;
   const startDate = formData.get('start_date') as string;
   const revenueEur = parseFloat(formData.get('revenue_eur') as string) || 0;
-  const loadingAddress = formData.get('loading_address') as string;
-  const warehouseName = formData.get('warehouse_name') as string;
 
   const { error } = await supabase
     .from('trips')
@@ -19,8 +18,6 @@ export async function addTripWithAddress(formData: FormData) {
         route: route,
         start_date: startDate,
         revenue_eur: revenueEur,
-        loading_address: loadingAddress,
-        warehouse_name: warehouseName,
         status: 'planned'
       }
     ]);
@@ -30,4 +27,5 @@ export async function addTripWithAddress(formData: FormData) {
   }
 
   revalidatePath('/trips');
+  redirect('/trips');
 }
