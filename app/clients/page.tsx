@@ -1,6 +1,5 @@
 import { supabase } from '../../lib/supabaseClient';
 import { Button } from '@/components/ui/button';
-import DeleteButton from './DeleteButton';
 
 export default async function ClientsPage() {
   const { data: clients, error } = await supabase
@@ -29,4 +28,29 @@ export default async function ClientsPage() {
               <p><strong>Телефон:</strong> {client.phone || '-'}</p>
               <p><strong>Email:</strong> {client.email || '-'}</p>
               <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                <a href={`/cl
+                <a href={`/clients/${client.id}`} style={{ color: '#0070f3', textDecoration: 'underline' }}>
+                  Профиль
+                </a>
+                <a
+                  href={`/clients/delete/${client.id}`}
+                  style={{
+                    padding: '4px 10px',
+                    backgroundColor: '#ef4444',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    textDecoration: 'none',
+                    cursor: 'pointer'
+                  }}
+                >
+                  🗑️ Удалить
+                </a>
+              </div>
+            </div>
+          ))}
+        </div>
+
+      </div>
+    </main>
+  );
+}
