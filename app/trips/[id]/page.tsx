@@ -37,7 +37,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
   return (
     <main style={{ padding: '20px', fontFamily: 'sans-serif', maxWidth: '800px', margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h1 style={{ fontSize: '24px' }}>Рейс #{tripId.slice(0, 8)}</h1>
+        <h1 style={{ fontSize: '24px' }}>Рейс #{trip.trip_number || tripId.slice(0, 8)}</h1>
         <div style={{ display: 'flex', gap: '10px' }}>
           <a href={`/trips/${tripId}/edit`} style={{ color: '#0070f3', textDecoration: 'underline' }}>✏️ Редактировать</a>
           <form action={deleteTrip.bind(null, tripId)}>
