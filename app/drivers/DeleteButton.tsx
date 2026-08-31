@@ -1,21 +1,32 @@
 'use client';
 
-import { supabase } from '../../lib/supabaseClient';
-import { revalidatePath } from 'next/cache';
+import { useTransition } from 'react';
+import { deleteDriver } from '../../delete-actions';
 
 export default function DeleteButton({ driverId }: { driverId: string }) {
+  const [isPending, startTransition] = useTransition();
+
+  function handleDelete() {
+    startTransition(async () => {
+      await deleteDriver(driverId);
+    });
+  }
+
   return (
-    <form action={async () => {
-      'use server';
-      const { error } = await supabase.from('drivers').delete().eq('id', driverId);
-      if (error) {
-        console.error('Ошибка удаления водителя:', error.message);
-      }
-      revalidatePath('/drivers');
-    }}>
-      <button type="submit" style={{ padding: '4px 10px', backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
-        🗑️ Удалить
-      </button>
-    </form>
+    <button
+      onClick={handleDelete}
+      style={{
+        padding: '4px 10px',
+        backgroundColor: '#ef4444',
+        color: 'white',
+        border: 'none',
+        borderRadius: '4px',
+        cursor: 'pointer',
+        opacity: isPending ? 0.5 : 1
+      }}
+      disabled={isPending}
+    >
+      🗑️ Удалить
+    </button>
   );
 }
