@@ -11,34 +11,39 @@ export async function addTripWithAddress(formData: FormData) {
   const revenueEur = parseFloat(formData.get('revenue_eur') as string) || 0;
   const startFuelLevel = parseFloat(formData.get('start_fuel_level') as string) || 0;
 
-  // 1. Получаем текущий счётчик
+  // 1. Получаем текущий счётчик (maybeSingle, чтобы не падать, если строки нет)
   const { data: counterData, error: counterError } = await supabase
     .from('trip_counter')
     .select('last_number')
     .eq('id', 1)
-    .single();
+    .maybeSingle();
 
   if (counterError) {
-    console.error('Ошибка счётчика:', counterError.message);
     throw new Error(`Ошибка счётчика: ${counterError.message}`);
   }
 
-  const currentNumber = counterData?.last_number ?? 0;
+  // 2. Если строки нет — создаём её
+  let currentNumber = counterData?.last_number ?? 0;
+  if (!counterData) {
+    const { error: insertCounterError } = await supabase
+      .from('trip_counter')
+      .insert({ id: 1, last_number: 0 });
+    if (insertCounterError) {
+      throw new Error(`Ошибка создания счётчика: ${insertCounterError.message}`);
+    }
+  }
 
-  // 2. Увеличиваем счётчик
+  // 3. Увеличиваем счётчик
   const nextNumber = currentNumber + 1;
-
   const { error: updateCounterError } = await supabase
     .from('trip_counter')
     .update({ last_number: nextNumber })
     .eq('id', 1);
-
   if (updateCounterError) {
-    console.error('Ошибка обновления счётчика:', updateCounterError.message);
     throw new Error(`Ошибка обновления счётчика: ${updateCounterError.message}`);
   }
 
-  // 3. Создаём рейс с новым номером
+  // 4. Создаём рейс с новым номером
   const { error } = await supabase
     .from('trips')
     .insert([
@@ -54,7 +59,6 @@ export async function addTripWithAddress(formData: FormData) {
     ]);
 
   if (error) {
-    console.error('Ошибка создания рейса:', error.message);
     throw new Error(`Ошибка создания рейса: ${error.message}`);
   }
 
