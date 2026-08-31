@@ -68,10 +68,17 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
             Сохранить
           </button>
         </form>
-        {trip.actual_km && (
-          <p style={{ marginTop: '10px' }}>
-            <strong>Текущие данные:</strong> {trip.actual_km} км / {trip.actual_liters} л
-          </p>
+        {trip.actual_km && trip.actual_km > 0 && (
+          <div style={{ marginTop: '10px' }}>
+            <p>
+              <strong>Текущие данные:</strong> {trip.actual_km} км / {trip.actual_liters} л
+            </p>
+            {trip.actual_liters && (
+              <p style={{ color: '#10b981', fontWeight: 'bold', fontSize: '18px', marginTop: '5px' }}>
+                Средний расход: {((trip.actual_liters / trip.actual_km) * 100).toFixed(1)} л/100 км
+              </p>
+            )}
+          </div>
         )}
       </div>
 
