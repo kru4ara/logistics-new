@@ -1,6 +1,5 @@
 import { supabase } from '../../lib/supabaseClient';
 import { Button } from '@/components/ui/button';
-import { deleteClient } from '../delete-actions';
 
 export default async function ClientsPage() {
   const { data: clients, error } = await supabase
@@ -34,7 +33,11 @@ export default async function ClientsPage() {
                 </a>
                 <form action={async () => {
                   'use server';
-                  await deleteClient(client.id);
+                  const { error: deleteError } = await supabase.from('clients').delete().eq('id', client.id);
+                  if (deleteError) {
+                    console.error('Ошибка удаления клиента:', deleteError.message);
+                    return;
+                  }
                 }}>
                   <button type="submit" style={{ padding: '4px 10px', backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
                     🗑️ Удалить
