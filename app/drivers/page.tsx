@@ -1,6 +1,6 @@
 import { supabase } from '../../lib/supabaseClient';
 import { Button } from '@/components/ui/button';
-import { deleteDriver } from '../../delete';
+import { deleteDriver } from '../delete';
 
 export default async function DriversPage() {
   const { data: drivers, error } = await supabase
