@@ -1,6 +1,5 @@
 import { supabase } from '../../lib/supabaseClient';
 import { Button } from '@/components/ui/button';
-import { deleteDriver } from '../../delete-actions';
 
 export default async function DriversPage() {
   const { data: drivers, error } = await supabase
@@ -37,7 +36,7 @@ export default async function DriversPage() {
                 </a>
                 <form action={async () => {
                   'use server';
-                  await deleteDriver(driver.id);
+                  await supabase.from('drivers').delete().eq('id', driver.id);
                 }}>
                   <button type="submit" style={{ padding: '4px 10px', backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
                     🗑️ Удалить
