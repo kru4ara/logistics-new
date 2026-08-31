@@ -1,5 +1,5 @@
 import { supabase } from '../../../lib/supabaseClient';
-import { addExpense, deleteExpense } from '../../trip-actions';
+import { addExpense, deleteExpense, deleteTrip } from '../../trip-actions';
 import FileUpload from '../../driver/FileUpload';
 import TripStatusButtons from '../../driver/TripStatusButtons';
 import { saveTelemetry } from '../../telemetry-actions';
@@ -31,7 +31,6 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
   const totalExpenses = expenses?.reduce((sum, e) => sum + (e.amount_eur || 0), 0) || 0;
   const profit = (trip.revenue_eur || 0) - totalExpenses;
 
-  // Расчет остатка топлива
   const refuelLiters = expenses?.filter(e => e.category === 'fuel' && e.liters).reduce((sum, e) => sum + e.liters, 0) || 0;
   const fuelLeft = (trip.start_fuel_level || 0) + refuelLiters - (trip.actual_liters || 0);
 
@@ -39,7 +38,14 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
     <main style={{ padding: '20px', fontFamily: 'sans-serif', maxWidth: '800px', margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h1 style={{ fontSize: '24px' }}>Рейс #{tripId.slice(0, 8)}</h1>
-        <a href="/trips" style={{ color: '#0070f3' }}>← Все рейсы</a>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <a href={`/trips/${tripId}/edit`} style={{ color: '#0070f3', textDecoration: 'underline' }}>✏️ Редактировать</a>
+          <form action={deleteTrip.bind(null, tripId)}>
+            <button type="submit" style={{ padding: '4px 10px', backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+              🗑️ Удалить
+            </button>
+          </form>
+        </div>
       </div>
 
       <div style={{ background: '#f9f9f9', padding: '15px', borderRadius: '8px', marginTop: '15px' }}>
