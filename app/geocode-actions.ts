@@ -11,22 +11,6 @@ export async function addTripWithAddress(formData: FormData) {
   const loadingAddress = formData.get('loading_address') as string;
   const warehouseName = formData.get('warehouse_name') as string;
 
-  let lat = 0;
-  let lng = 0;
-  if (loadingAddress) {
-    try {
-      const query = encodeURIComponent(loadingAddress);
-      const response = await fetch(`https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1`);
-      const data = await response.json();
-      if (data && data.length > 0) {
-        lat = parseFloat(data[0].lat);
-        lng = parseFloat(data[0].lon);
-      }
-    } catch (e) {
-      console.error('Ошибка геокодирования:', e);
-    }
-  }
-
   const { error } = await supabase
     .from('trips')
     .insert([
@@ -37,14 +21,11 @@ export async function addTripWithAddress(formData: FormData) {
         revenue_eur: revenueEur,
         loading_address: loadingAddress,
         warehouse_name: warehouseName,
-        start_lat: lat,
-        start_lng: lng,
         status: 'planned'
       }
     ]);
 
   if (error) {
-    console.error("Ошибка при создании рейса:", error.message);
     throw new Error(`Ошибка создания рейса: ${error.message}`);
   }
 
