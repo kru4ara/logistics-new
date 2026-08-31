@@ -11,7 +11,7 @@ export async function addTripWithAddress(formData: FormData) {
   const revenueEur = parseFloat(formData.get('revenue_eur') as string) || 0;
   const startFuelLevel = parseFloat(formData.get('start_fuel_level') as string) || 0;
 
-  // 1. Читаем текущий счётчик
+  // 1. Получаем текущий счётчик
   const { data: counterData, error: counterError } = await supabase
     .from('trip_counter')
     .select('last_number')
@@ -19,13 +19,14 @@ export async function addTripWithAddress(formData: FormData) {
     .single();
 
   if (counterError) {
-    throw new Error(`Ошибка получения счётчика: ${counterError.message}`);
+    console.error('Ошибка счётчика:', counterError.message);
+    throw new Error(`Ошибка счётчика: ${counterError.message}`);
   }
 
-  const currentLastNumber = counterData?.last_number || 0;
+  const currentNumber = counterData?.last_number ?? 0;
 
-  // 2. Увеличиваем на 1 и сохраняем
-  const nextNumber = currentLastNumber + 1;
+  // 2. Увеличиваем счётчик
+  const nextNumber = currentNumber + 1;
 
   const { error: updateCounterError } = await supabase
     .from('trip_counter')
@@ -33,10 +34,11 @@ export async function addTripWithAddress(formData: FormData) {
     .eq('id', 1);
 
   if (updateCounterError) {
+    console.error('Ошибка обновления счётчика:', updateCounterError.message);
     throw new Error(`Ошибка обновления счётчика: ${updateCounterError.message}`);
   }
 
-  // 3. Вставляем рейс с присвоенным номером
+  // 3. Создаём рейс с новым номером
   const { error } = await supabase
     .from('trips')
     .insert([
@@ -52,6 +54,7 @@ export async function addTripWithAddress(formData: FormData) {
     ]);
 
   if (error) {
+    console.error('Ошибка создания рейса:', error.message);
     throw new Error(`Ошибка создания рейса: ${error.message}`);
   }
 
