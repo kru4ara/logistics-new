@@ -6,6 +6,7 @@ export default async function ClientsPage() {
   const { data: clients, error } = await supabase
     .from('clients')
     .select('*');
+
   if (error) {
     return <div>Ошибка загрузки: {error.message}</div>;
   }
