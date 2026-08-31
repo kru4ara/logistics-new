@@ -116,23 +116,26 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
         </table>
       </div>
 
-      <div style={{ marginTop: '25px' }}>
+           <div style={{ marginTop: '25px' }}>
         <h2>Расходы по рейсу</h2>
+        
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead><tr style={{ borderBottom: '2px solid #ddd', textAlign: 'left' }}>
-            <th style={{ padding: '10px' }}>Категория</th>
-            <th style={{ padding: '10px' }}>Сумма (€)</th>
-            <th style={{ padding: '10px' }}>Валюта</th>
-            <th style={{ padding: '10px' }}>Литры</th>
-            <th style={{ padding: '10px' }}>Описание</th>
-            <th style={{ padding: '10px' }}>Дата</th>
-            <th style={{ padding: '10px' }}></th>
-          </tr></thead>
+          <thead>
+            <tr style={{ borderBottom: '2px solid #ddd', textAlign: 'left' }}>
+              <th style={{ padding: '10px' }}>Категория</th>
+              <th style={{ padding: '10px' }}>Сумма (€)</th>
+              <th style={{ padding: '10px' }}>Оплачено (валюта)</th>
+              <th style={{ padding: '10px' }}>Литры</th>
+              <th style={{ padding: '10px' }}>Описание</th>
+              <th style={{ padding: '10px' }}>Дата</th>
+              <th style={{ padding: '10px' }}></th>
+            </tr>
+          </thead>
           <tbody>
             {expenses?.length === 0 ? (
               <tr><td colSpan={7} style={{ padding: '20px', textAlign: 'center', color: '#888' }}>Пока нет расходов</td></tr>
             ) : (
-              expenses?.map(exp => (
+              expenses?.map((exp) => (
                 <tr key={exp.id} style={{ borderBottom: '1px solid #eee' }}>
                   <td style={{ padding: '10px' }}>
                     {exp.category === 'fuel' ? '⛽ Топливо' :
@@ -143,7 +146,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
                      exp.category === 'contractor' ? '🚛 Подрядчик' : exp.category}
                   </td>
                   <td style={{ padding: '10px', fontWeight: 'bold' }}>{exp.amount_eur} €</td>
-                  <td style={{ padding: '10px' }}>{exp.currency || 'EUR'}</td>
+                  <td style={{ padding: '10px' }}>{exp.original_amount} {exp.currency}</td>
                   <td style={{ padding: '10px' }}>{exp.liters || '-'}</td>
                   <td style={{ padding: '10px' }}>{exp.description || '-'}</td>
                   <td style={{ padding: '10px' }}>{exp.expense_date || '-'}</td>
@@ -152,7 +155,20 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
                       'use server';
                       await deleteExpense(exp.id, tripId);
                     }}>
-                      <button type="submit" style={{ padding: '4px 10px', backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>🗑️ Удалить</button>
+                      <button 
+                        type="submit"
+                        style={{ 
+                          backgroundColor: '#ef4444', 
+                          color: 'white', 
+                          border: 'none', 
+                          borderRadius: '4px', 
+                          padding: '4px 10px',
+                          cursor: 'pointer',
+                          fontSize: '12px'
+                        }}
+                      >
+                        🗑️ Удалить
+                      </button>
                     </form>
                   </td>
                 </tr>
