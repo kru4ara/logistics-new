@@ -27,5 +27,6 @@ export async function addTripWithAddress(formData: FormData) {
   }
 
   revalidatePath('/trips');
+  revalidatePath('/', 'layout'); // Обновляем главную
   redirect('/trips');
 }
