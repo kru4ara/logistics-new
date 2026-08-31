@@ -35,6 +35,10 @@ export default async function NewTripPage() {
           <label>Фрахт (€)</label>
           <input type="number" name="revenue_eur" step="0.01" style={{ width: '100%', padding: '8px' }} />
         </div>
+        <div>
+          <label>Остаток топлива (л) — если первый рейс</label>
+          <input type="number" name="start_fuel_level" step="0.01" placeholder="Например, 200" style={{ width: '100%', padding: '8px' }} />
+        </div>
         <button type="submit" style={{ padding: '10px', background: '#0070f3', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Создать рейс</button>
         <a href="/trips" style={{ color: '#0070f3' }}>← Назад к списку</a>
       </form>
