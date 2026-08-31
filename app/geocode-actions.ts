@@ -4,12 +4,18 @@ import { supabase } from '../lib/supabaseClient';
 import { revalidatePath } from 'next/cache';
 
 export async function addTripWithAddress(formData: FormData) {
+  const startFuelLevel = parseFloat(formData.get('start_fuel_level') as string) || 0;
   const clientId = formData.get('client_id') as string;
   const route = formData.get('route') as string;
   const startDate = formData.get('start_date') as string;
   const revenueEur = parseFloat(formData.get('revenue_eur') as string) || 0;
   const loadingAddress = formData.get('loading_address') as string;
   const warehouseName = formData.get('warehouse_name') as string;
+
+  await supabase.from('trips').insert({
+    // ...
+    start_fuel_level: startFuelLevel,
+  });
 
   // Получаем координаты через Nominatim (бесплатно)
   let lat = 0;
