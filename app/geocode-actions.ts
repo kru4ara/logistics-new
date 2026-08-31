@@ -9,6 +9,7 @@ export async function addTripWithAddress(formData: FormData) {
   const route = formData.get('route') as string;
   const startDate = formData.get('start_date') as string;
   const revenueEur = parseFloat(formData.get('revenue_eur') as string) || 0;
+  const startFuelLevel = parseFloat(formData.get('start_fuel_level') as string) || 0;
 
   const { error } = await supabase
     .from('trips')
@@ -18,6 +19,7 @@ export async function addTripWithAddress(formData: FormData) {
         route: route,
         start_date: startDate,
         revenue_eur: revenueEur,
+        start_fuel_level: startFuelLevel, // ← добавляем остаток
         status: 'planned'
       }
     ]);
@@ -27,6 +29,5 @@ export async function addTripWithAddress(formData: FormData) {
   }
 
   revalidatePath('/trips');
-  revalidatePath('/', 'layout'); // Обновляем главную
   redirect('/trips');
 }
