@@ -12,7 +12,7 @@ export default async function TripsPage() {
     return <div>Ошибка загрузки рейсов: {error.message}</div>;
   }
 
-  // Группируем расходы по рейсам
+  // Группируем расходы по рейсам (суммируем amount_eur)
   const { data: expenses, error: expensesError } = await supabase
     .from('trip_expenses')
     .select('trip_id, amount_eur');
