@@ -2,7 +2,6 @@
 
 import { useTransition } from 'react';
 import { supabase } from '../../lib/supabaseClient';
-import { revalidatePath } from 'next/cache';
 
 export default function DeleteButton({ clientId }: { clientId: string }) {
   const [isPending, startTransition] = useTransition();
@@ -13,7 +12,8 @@ export default function DeleteButton({ clientId }: { clientId: string }) {
       if (error) {
         console.error('Ошибка удаления клиента:', error.message);
       }
-      revalidatePath('/clients');
+      // Просто обновляем страницу после удаления
+      window.location.reload();
     });
   }
 
