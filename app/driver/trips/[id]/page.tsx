@@ -78,7 +78,7 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
         </table>
       </div>
 
-      <div style={{ marginTop: '25px' }}>
+            <div style={{ marginTop: '25px' }}>
         <h2>Расходы по рейсу</h2>
         
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -86,7 +86,8 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
             <tr style={{ borderBottom: '2px solid #ddd', textAlign: 'left' }}>
               <th style={{ padding: '10px' }}>Категория</th>
               <th style={{ padding: '10px' }}>Сумма (€)</th>
-              <th style={{ padding: '10px' }}>Валюта</th>
+              <th style={{ padding: '10px' }}>Оплачено (валюта)</th>
+              <th style={{ padding: '10px' }}>Литры</th>
               <th style={{ padding: '10px' }}>Описание</th>
               <th style={{ padding: '10px' }}>Дата</th>
               <th style={{ padding: '10px' }}></th>
@@ -94,7 +95,7 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
           </thead>
           <tbody>
             {expenses?.length === 0 ? (
-              <tr><td colSpan={6} style={{ padding: '20px', textAlign: 'center', color: '#888' }}>Пока нет расходов</td></tr>
+              <tr><td colSpan={7} style={{ padding: '20px', textAlign: 'center', color: '#888' }}>Пока нет расходов</td></tr>
             ) : (
               expenses?.map((exp) => (
                 <tr key={exp.id} style={{ borderBottom: '1px solid #eee' }}>
@@ -107,7 +108,8 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
                      exp.category === 'contractor' ? '🚛 Подрядчик' : exp.category}
                   </td>
                   <td style={{ padding: '10px', fontWeight: 'bold' }}>{exp.amount_eur} €</td>
-                  <td style={{ padding: '10px' }}>{exp.currency || 'EUR'}</td>
+                  <td style={{ padding: '10px' }}>{exp.original_amount} {exp.currency}</td>
+                  <td style={{ padding: '10px' }}>{exp.liters || '-'}</td>
                   <td style={{ padding: '10px' }}>{exp.description || '-'}</td>
                   <td style={{ padding: '10px' }}>{exp.expense_date || '-'}</td>
                   <td style={{ padding: '10px' }}>
