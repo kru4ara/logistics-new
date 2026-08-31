@@ -11,39 +11,27 @@ export async function addTripWithAddress(formData: FormData) {
   const revenueEur = parseFloat(formData.get('revenue_eur') as string) || 0;
   const startFuelLevel = parseFloat(formData.get('start_fuel_level') as string) || 0;
 
-  // 1. Получаем текущий счётчик (maybeSingle, чтобы не падать, если строки нет)
-  const { data: counterData, error: counterError } = await supabase
-    .from('trip_counter')
-    .select('last_number')
-    .eq('id', 1)
-    .maybeSingle();
+  // 1. Получаем все существующие номера рейсов
+  const { data: existingTrips, error: fetchError } = await supabase
+    .from('trips')
+    .select('trip_number');
 
-  if (counterError) {
-    throw new Error(`Ошибка счётчика: ${counterError.message}`);
+  if (fetchError) {
+    console.error('Ошибка получения номеров:', fetchError.message);
+    throw new Error(`Ошибка получения номеров: ${fetchError.message}`);
   }
 
-  // 2. Если строки нет — создаём её
-  let currentNumber = counterData?.last_number ?? 0;
-  if (!counterData) {
-    const { error: insertCounterError } = await supabase
-      .from('trip_counter')
-      .insert({ id: 1, last_number: 0 });
-    if (insertCounterError) {
-      throw new Error(`Ошибка создания счётчика: ${insertCounterError.message}`);
-    }
+  const existingNumbers = new Set<number>(
+    existingTrips?.map(t => t.trip_number).filter((n): n is number => n != null) || []
+  );
+
+  // 2. Находим минимальный свободный номер, начиная с 1
+  let nextNumber = 1;
+  while (existingNumbers.has(nextNumber)) {
+    nextNumber++;
   }
 
-  // 3. Увеличиваем счётчик
-  const nextNumber = currentNumber + 1;
-  const { error: updateCounterError } = await supabase
-    .from('trip_counter')
-    .update({ last_number: nextNumber })
-    .eq('id', 1);
-  if (updateCounterError) {
-    throw new Error(`Ошибка обновления счётчика: ${updateCounterError.message}`);
-  }
-
-  // 4. Создаём рейс с новым номером
+  // 3. Вставляем рейс с найденным номером
   const { error } = await supabase
     .from('trips')
     .insert([
@@ -59,6 +47,7 @@ export async function addTripWithAddress(formData: FormData) {
     ]);
 
   if (error) {
+    console.error('Ошибка создания рейса:', error.message);
     throw new Error(`Ошибка создания рейса: ${error.message}`);
   }
 
