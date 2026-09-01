@@ -2,7 +2,7 @@ import { supabase } from '../../../../lib/supabaseClient';
 import { addExpense, deleteExpense } from '../../../trip-actions';
 import FileUpload from '../../FileUpload';
 import TripStatusButtons from '../../TripStatusButtons';
-import { saveTelemetry } from '../../../../telemetry-actions';
+import { saveTelemetry } from '../../../telemetry-actions';
 
 export default async function DriverTripDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: tripId } = await params;
