@@ -51,12 +51,40 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
         </div>
       </div>
 
-      <div style={{ background: '#f9f9f9', padding: '15px', borderRadius: '8px', marginTop: '15px' }}>
+           <div style={{ background: '#f9f9f9', padding: '15px', borderRadius: '8px', marginTop: '15px' }}>
         <p><strong>Клиент:</strong> {trip.clients?.name || 'Не указан'}</p>
         <p><strong>Маршрут:</strong> {trip.route || '-'}</p>
         <p><strong>Статус:</strong> {trip.status}</p>
         <p><strong>Фрахт:</strong> {trip.revenue_eur ? `${trip.revenue_eur} €` : 'Не указана'}</p>
         <p><strong>Остаток топлива на начало:</strong> {trip.start_fuel_level || 0} л</p>
+        
+        {/* Данные заявки */}
+        {trip.client_request_number && (
+          <p><strong>Номер заявки:</strong> {trip.client_request_number}</p>
+        )}
+        {trip.client_request_date && (
+          <p><strong>Дата заявки:</strong> {trip.client_request_date}</p>
+        )}
+
+        {/* Отправитель */}
+        {trip.sender_city && (
+          <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid #ddd' }}>
+            <h4 style={{ margin: '0 0 5px' }}>📍 Отправитель</h4>
+            <p><strong>Компания:</strong> {trip.sender_name || '-'}</p>
+            <p><strong>Адрес:</strong> {trip.sender_postal_code}, {trip.sender_city}, {trip.sender_address}, {trip.sender_country}</p>
+            <p><strong>Погрузочный номер:</strong> {trip.sender_loading_number || '-'}</p>
+          </div>
+        )}
+
+        {/* Получатель */}
+        {trip.receiver_city && (
+          <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid #ddd' }}>
+            <h4 style={{ margin: '0 0 5px' }}>🏁 Получатель</h4>
+            <p><strong>Компания:</strong> {trip.receiver_name || '-'}</p>
+            <p><strong>Адрес:</strong> {trip.receiver_postal_code}, {trip.receiver_city}, {trip.receiver_address}, {trip.receiver_country}</p>
+            <p><strong>Погрузочный номер:</strong> {trip.receiver_loading_number || '-'}</p>
+          </div>
+        )}
       </div>
 
       {/* Кнопки статусов для офиса - ВСЕ 4 */}
