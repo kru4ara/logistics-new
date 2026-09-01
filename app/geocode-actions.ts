@@ -4,74 +4,77 @@ import { supabase } from '../lib/supabaseClient';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 
-// Функция для нахождения минимального свободного номера
-async function getNextTripNumber(): Promise<number> {
-  // Загружаем все номера рейсов из таблицы
-  const { data: trips } = await supabase
-    .from('trips')
-    .select('trip_number')
-    .order('trip_number', { ascending: true });
-
-  const existingNumbers = new Set<number>();
-  trips?.forEach((t) => {
-    if (t.trip_number) existingNumbers.add(t.trip_number);
-  });
-
-  // Ищем первый пропуск в последовательности
-  let candidate = 1;
-  while (existingNumbers.has(candidate)) {
-    candidate++;
-  }
-
-  return candidate;
-}
-
 export async function addTripWithAddress(formData: FormData) {
+  // Основные данные
   const clientId = formData.get('client_id') as string;
-  const route = formData.get('route') as string;
+  const truckId = formData.get('truck_id') as string;
   const startDate = formData.get('start_date') as string;
   const revenueEur = parseFloat(formData.get('revenue_eur') as string) || 0;
-  const truckId = formData.get('truck_id') as string;
-  const manualStartFuel = parseFloat(formData.get('start_fuel_level') as string) || 0;
-  let startFuelLevel = manualStartFuel;
+  const startFuelLevel = parseFloat(formData.get('start_fuel_level') as string) || 0;
 
-  // 1. Получаем следующий свободный номер
-  const tripNumber = await getNextTripNumber();
+  // Данные заявки
+  const clientRequestNumber = formData.get('client_request_number') as string;
+  const clientRequestDate = formData.get('client_request_date') as string;
 
-  // 2. Расчёт остатка топлива (если есть предыдущий рейс этой машины)
-  if (truckId) {
-    const { data: prevTrip } = await supabase
-      .from('trips')
-      .select('id, start_fuel_level, actual_liters')
-      .eq('truck_id', truckId)
-      .order('trip_number', { ascending: false })
-      .limit(1)
-      .single();
+  // Отправитель
+  const senderCountry = formData.get('sender_country') as string;
+  const senderName = formData.get('sender_name') as string;
+  const senderPostalCode = formData.get('sender_postal_code') as string;
+  const senderCity = formData.get('sender_city') as string;
+  const senderAddress = formData.get('sender_address') as string;
+  const senderLoadingNumber = formData.get('sender_loading_number') as string;
 
-    if (prevTrip) {
-      const { data: fuelExpenses } = await supabase
-        .from('trip_expenses')
-        .select('liters')
-        .eq('trip_id', prevTrip.id)
-        .eq('category', 'fuel');
-      const totalRefuel = fuelExpenses?.reduce((sum, e) => sum + (e.liters || 0), 0) || 0;
-      const consumed = prevTrip.actual_liters || 0;
-      startFuelLevel = (prevTrip.start_fuel_level || 0) + totalRefuel - consumed;
-    }
-  }
+  // Получатель
+  const receiverCountry = formData.get('receiver_country') as string;
+  const receiverName = formData.get('receiver_name') as string;
+  const receiverPostalCode = formData.get('receiver_postal_code') as string;
+  const receiverCity = formData.get('receiver_city') as string;
+  const receiverAddress = formData.get('receiver_address') as string;
+  const receiverLoadingNumber = formData.get('receiver_loading_number') as string;
 
-  // 3. Вставляем рейс с этим номером
+  // Автоматический маршрут
+  const route = `${senderCity || ''}, ${senderCountry || ''} → ${receiverCity || ''}, ${receiverCountry || ''}`;
+
+  // Счётчик для номера рейса (как раньше)
+  const { data: counterData, error: counterError } = await supabase
+    .from('trip_counter')
+    .select('last_number')
+    .eq('id', 1)
+    .single();
+  if (counterError) throw new Error(`Ошибка счётчика: ${counterError.message}`);
+  const nextNumber = (counterData?.last_number ?? 0) + 1;
+  const { error: updateCounterError } = await supabase
+    .from('trip_counter')
+    .update({ last_number: nextNumber })
+    .eq('id', 1);
+  if (updateCounterError) throw new Error(`Ошибка обновления счётчика: ${updateCounterError.message}`);
+
+  // Вставляем рейс со всеми данными
   const { error } = await supabase
     .from('trips')
     .insert([
       {
         client_id: clientId || null,
-        route: route,
+        truck_id: truckId || null,
         start_date: startDate,
         revenue_eur: revenueEur,
-        truck_id: truckId || null,
         start_fuel_level: startFuelLevel,
-        trip_number: tripNumber,
+        client_request_number: clientRequestNumber || null,
+        client_request_date: clientRequestDate || null,
+        sender_country: senderCountry || null,
+        sender_name: senderName || null,
+        sender_postal_code: senderPostalCode || null,
+        sender_city: senderCity || null,
+        sender_address: senderAddress || null,
+        sender_loading_number: senderLoadingNumber || null,
+        receiver_country: receiverCountry || null,
+        receiver_name: receiverName || null,
+        receiver_postal_code: receiverPostalCode || null,
+        receiver_city: receiverCity || null,
+        receiver_address: receiverAddress || null,
+        receiver_loading_number: receiverLoadingNumber || null,
+        route: route || null,
+        trip_number: nextNumber,
         status: 'planned'
       }
     ]);
