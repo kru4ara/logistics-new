@@ -3,9 +3,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default async function Home() {
+  // Берем только 4 последних рейса (сортировка по номеру, убывание)
   const { data: trips } = await supabase
     .from('trips')
-    .select('*, clients(name)');
+    .select('*, clients(name)')
+    .order('trip_number', { ascending: false })
+    .limit(4);
 
   const { data: expenses } = await supabase
     .from('trip_expenses')
@@ -31,10 +34,11 @@ export default async function Home() {
           </Button>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-4">
+        {/* Карточки со статистикой */}
+        <div className="grid gap-6 md:grid-cols-3">
           <Card className="bg-white shadow-sm border-0">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500">Фрахт</CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-500">Фрахт</CardTitle> {/* Заменили Выручка */}
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600">
@@ -64,26 +68,17 @@ export default async function Home() {
               </div>
             </CardContent>
           </Card>
-
-          <Card className="bg-white shadow-sm border-0">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500">Средняя прибыль за рейс</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-blue-600">
-                {averageProfitPerTrip.toFixed(2)} €
-              </div>
-            </CardContent>
-          </Card>
         </div>
 
+        {/* Список последних 4 рейсов */}
         <div className="grid gap-6 md:grid-cols-2">
           {trips?.map((trip) => (
             <div key={trip.id} style={{ background: 'white', padding: '20px', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+              <p><strong>№ рейса:</strong> {trip.trip_number || '—'}</p>
               <p><strong>Клиент:</strong> {trip.clients?.name || 'Не указан'}</p>
               <p><strong>Маршрут:</strong> {trip.route || '-'}</p>
               <p><strong>Статус:</strong> {trip.status}</p>
-              <p><strong>Выручка:</strong> {trip.revenue_eur ? `${trip.revenue_eur} €` : 'Не указана'}</p>
+              <p><strong>Фрахт:</strong> {trip.revenue_eur ? `${trip.revenue_eur} €` : '-'}</p>
               <a href={`/trips/${trip.id}`} style={{ color: '#0070f3', textDecoration: 'underline' }}>
                 Профиль рейса
               </a>
