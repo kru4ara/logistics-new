@@ -6,7 +6,6 @@ import { redirect } from 'next/navigation';
 
 // Добавление расхода
 export async function addExpense(formData: FormData) {
-  // ... (код остаётся прежним, если он уже есть)
   const tripId = formData.get('trip_id') as string;
   const category = formData.get('category') as string;
   const originalAmount = parseFloat(formData.get('amount') as string) || 0;
@@ -15,13 +14,15 @@ export async function addExpense(formData: FormData) {
   const description = formData.get('description') as string;
   const expenseDate = formData.get('expense_date') as string;
 
+  // Если дата не указана, используем сегодняшнюю
+  const dateForRate = expenseDate || new Date().toISOString().split('T')[0];
   let amountEur = originalAmount;
 
   if (currency === 'PLN') {
     const { data: rate } = await supabase
       .from('rates')
       .select('pln_to_eur')
-      .lte('rate_date', expenseDate || new Date().toISOString().split('T')[0])
+      .lte('rate_date', dateForRate)
       .order('rate_date', { ascending: false })
       .limit(1)
       .single();
@@ -30,7 +31,7 @@ export async function addExpense(formData: FormData) {
     const { data: rate } = await supabase
       .from('rates')
       .select('byn_to_eur')
-      .lte('rate_date', expenseDate || new Date().toISOString().split('T')[0])
+      .lte('rate_date', dateForRate)
       .order('rate_date', { ascending: false })
       .limit(1)
       .single();
@@ -68,22 +69,27 @@ export async function deleteExpense(expenseId: string, tripId: string) {
   revalidatePath('/trips');
 }
 
-// Редактирование рейса (ОБНОВЛЕНО!)
+// Редактирование рейса (с новыми полями)
 export async function updateTrip(tripId: string, formData: FormData) {
   const clientId = formData.get('client_id') as string;
   const truckId = formData.get('truck_id') as string;
   const startDate = formData.get('start_date') as string;
   const revenueEur = parseFloat(formData.get('revenue_eur') as string) || 0;
-  
-  // Новые поля
+  const startFuelLevel = parseFloat(formData.get('start_fuel_level') as string) || 0; // Остаток топлива
+
+  // Данные заявки
   const clientRequestNumber = formData.get('client_request_number') as string;
   const clientRequestDate = formData.get('client_request_date') as string;
+
+  // Отправитель
   const senderCountry = formData.get('sender_country') as string;
   const senderName = formData.get('sender_name') as string;
   const senderPostalCode = formData.get('sender_postal_code') as string;
   const senderCity = formData.get('sender_city') as string;
   const senderAddress = formData.get('sender_address') as string;
   const senderLoadingNumber = formData.get('sender_loading_number') as string;
+
+  // Получатель
   const receiverCountry = formData.get('receiver_country') as string;
   const receiverName = formData.get('receiver_name') as string;
   const receiverPostalCode = formData.get('receiver_postal_code') as string;
@@ -91,9 +97,8 @@ export async function updateTrip(tripId: string, formData: FormData) {
   const receiverAddress = formData.get('receiver_address') as string;
   const receiverLoadingNumber = formData.get('receiver_loading_number') as string;
 
-  // Автоматический маршрут
-  const route = formData.get('route') as string; // Если заполняют вручную
-  // или const route = `${senderCity}, ${senderCountry} → ${receiverCity}, ${receiverCountry}`;
+  // Маршрут (если вручную не заполнен — собираем из городов)
+  const route = formData.get('route') as string || `${senderCity || ''}, ${senderCountry || ''} → ${receiverCity || ''}, ${receiverCountry || ''}`;
 
   const { error } = await supabase
     .from('trips')
@@ -102,6 +107,7 @@ export async function updateTrip(tripId: string, formData: FormData) {
       truck_id: truckId || null,
       start_date: startDate,
       revenue_eur: revenueEur,
+      start_fuel_level: startFuelLevel,
       client_request_number: clientRequestNumber || null,
       client_request_date: clientRequestDate || null,
       sender_country: senderCountry || null,
