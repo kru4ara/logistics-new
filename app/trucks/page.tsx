@@ -1,4 +1,5 @@
 import { supabase } from '../../lib/supabaseClient';
+import { Button } from '@/components/ui/button';
 
 export default async function TrucksPage() {
   const { data: trucks, error } = await supabase
@@ -6,59 +7,45 @@ export default async function TrucksPage() {
     .select('*');
 
   if (error) {
-    return <div>Ошибка: {error.message}</div>;
+    return <div>Ошибка загрузки: {error.message}</div>;
   }
 
-  // Функция для подсчёта дней до даты
-  function getDaysUntil(dateString: string | null) {
-    if (!dateString) return null;
-    const today = new Date();
-    const targetDate = new Date(dateString);
-    const diffTime = targetDate.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
-  }
+  // Получаем последний рейс для каждого грузовика
+  const { data: latestTrips } = await supabase
+    .from('trips')
+    .select('truck_id, actual_liters, start_fuel_level')
+    .order('created_at', { ascending: false });
+
+  // Группируем по truck_id (берем последний рейс)
+  const fuelMap: Record<string, number> = {};
+  latestTrips?.forEach(trip => {
+    if (!fuelMap[trip.truck_id] && trip.truck_id) {
+      // Вычисляем остаток: старт + заправки - расход (упрощенно пока без заправок, т.к. они в расходах)
+      fuelMap[trip.truck_id] = (trip.start_fuel_level || 0) - (trip.actual_liters || 0);
+    }
+  });
 
   return (
-    <main style={{ padding: '20px', fontFamily: 'sans-serif' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h1 style={{ fontSize: '24px' }}>Список машин</h1>
-        <a href="/trucks/new" style={{ backgroundColor: '#0070f3', color: 'white', padding: '10px 20px', borderRadius: '5px', textDecoration: 'none', fontWeight: 'bold' }}>+ Добавить машину</a>
-      </div>
+    <main className="min-h-screen bg-gray-50 p-8">
+      <div className="max-w-6xl mx-auto space-y-8">
+        <div className="flex justify-between items-center">
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900">🚚 Машины</h1>
+          <Button asChild>
+            <a href="/trucks/new">+ Добавить машину</a>
+          </Button>
+        </div>
 
-      <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '15px' }}>
-        <thead>
-          <tr style={{ textAlign: 'left', borderBottom: '2px solid #ddd' }}>
-            <th>Регистрация</th>
-            <th>Тип</th>
-            <th>Страховка до</th>
-            <th>Техосмотр до</th>
-            <th>Осталось дней</th>
-          </tr>
-        </thead>
-        <tbody>
-          {trucks?.map((truck) => {
-            const daysLeft = getDaysUntil(truck.insurance_expiry);
-            return (
-              <tr key={truck.id} style={{ borderBottom: '1px solid #eee' }}>
-                <td style={{ padding: '10px' }}>{truck.registration_number}</td>
-                <td style={{ padding: '10px' }}>
-                  {truck.type === 'tractor' ? 'Тягач' : truck.type === 'trailer' ? 'Прицеп' : truck.type}
-                </td>
-                <td style={{ padding: '10px' }}>{truck.insurance_expiry || '-'}</td>
-                <td style={{ padding: '10px' }}>{truck.tech_inspection_expiry || '-'}</td>
-                <td style={{ padding: '10px' }}>
-                  {daysLeft !== null ? (
-                    <span style={{ color: daysLeft < 30 ? 'red' : 'green', fontWeight: 'bold' }}>
-                      {daysLeft} дн.
-                    </span>
-                  ) : '-'}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+        <div className="grid gap-6 md:grid-cols-2">
+          {trucks?.map((truck) => (
+            <div key={truck.id} style={{ background: 'white', padding: '20px', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+              <p><strong>Госномер:</strong> {truck.registration_number}</p>
+              <p><strong>Тип:</strong> {truck.type === 'tractor' ? 'Тягач' : truck.type === 'trailer' ? 'Прицеп' : truck.type}</p>
+              <p><strong>Остаток в баке:</strong> {fuelMap[truck.id] ? `${fuelMap[truck.id].toFixed(1)} л` : 'Нет данных'}</p>
+            </div>
+          ))}
+        </div>
+
+      </div>
     </main>
   );
 }
