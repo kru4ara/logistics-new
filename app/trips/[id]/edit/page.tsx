@@ -32,6 +32,11 @@ export default async function EditTripPage({ params }: { params: Promise<{ id: s
             {trucks?.map(t => <option key={t.id} value={t.id}>{t.registration_number}</option>)}
           </select>
         </div>
+        {/* ДОБАВЛЯЕМ ПОЛЕ ОСТАТКА ТОПЛИВА */}
+        <div>
+          <label>Остаток топлива на начало (л)</label>
+          <input type="number" name="start_fuel_level" step="0.01" defaultValue={trip.start_fuel_level || 0} style={{ width: '100%', padding: '8px' }} />
+        </div>
         <div>
           <label>Дата старта</label>
           <input type="date" name="start_date" defaultValue={trip.start_date?.split('T')[0] || ''} required style={{ width: '100%', padding: '8px' }} />
