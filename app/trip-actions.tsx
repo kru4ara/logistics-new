@@ -54,7 +54,9 @@ export async function addExpense(formData: FormData) {
     ]);
 
   if (error) throw new Error(`Ошибка добавления: ${error.message}`);
+  
   revalidatePath(`/trips/${tripId}`);
+  revalidatePath('/trips'); // <--- Добавили эту строку, чтобы обновлялся список рейсов
 }
 
 // Удаление расхода
@@ -65,6 +67,7 @@ export async function deleteExpense(expenseId: string, tripId: string) {
     .eq('id', expenseId);
   if (error) throw new Error(`Ошибка удаления: ${error.message}`);
   revalidatePath(`/trips/${tripId}`);
+  revalidatePath('/trips'); // <--- Добавили, чтобы обновлялся список при удалении
 }
 
 // Редактирование рейса
