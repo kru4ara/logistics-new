@@ -6,7 +6,10 @@ import { saveTelemetry } from '../../telemetry-actions';
 
 export default async function TripDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: tripId } = await params;
-  if (!tripId) return <div>Ошибка: ID рейса не передан</div>;
+  
+  if (!tripId) {
+    return <div>Ошибка: ID рейса не передан</div>;
+  }
 
   const { data: trip, error: tripError } = await supabase
     .from('trips')
@@ -37,7 +40,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
   return (
     <main style={{ padding: '20px', fontFamily: 'sans-serif', maxWidth: '800px', margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h1 style={{ fontSize: '24px' }}>Рейс #{trip.trip_number || tripId.slice(0, 8)}</h1>
+        <h1 style={{ fontSize: '24px' }}>Рейс №{trip.trip_number || '—'}</h1>
         <div style={{ display: 'flex', gap: '10px' }}>
           <a href={`/trips/${tripId}/edit`} style={{ color: '#0070f3', textDecoration: 'underline' }}>✏️ Редактировать</a>
           <form action={deleteTrip.bind(null, tripId)}>
@@ -52,12 +55,18 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
         <p><strong>Клиент:</strong> {trip.clients?.name || 'Не указан'}</p>
         <p><strong>Маршрут:</strong> {trip.route || '-'}</p>
         <p><strong>Статус:</strong> {trip.status}</p>
-        <p><strong>Выручка:</strong> {trip.revenue_eur ? `${trip.revenue_eur} €` : 'Не указана'}</p>
+        <p><strong>Фрахт:</strong> {trip.revenue_eur ? `${trip.revenue_eur} €` : 'Не указана'}</p>
         <p><strong>Остаток топлива на начало:</strong> {trip.start_fuel_level || 0} л</p>
       </div>
 
+      {/* Кнопки статусов для офиса - ВСЕ 4 */}
+      <div style={{ marginTop: '25px' }}>
+        <TripStatusButtons tripId={tripId} currentStatus={trip.status} showAdminStatuses={true} />
+      </div>
+
+      {/* Данные телеметрии для офиса */}
       <div style={{ marginTop: '25px', padding: '20px', border: '1px solid #ddd', borderRadius: '8px' }}>
-        <h3>📊 Данные телеметрии (вручную)</h3>
+        <h3>📊 Данные телеметрии</h3>
         <form action={async (formData: FormData) => {
           'use server';
           const km = parseFloat(formData.get('km') as string) || 0;
@@ -87,24 +96,28 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
         )}
       </div>
 
+      {/* Загрузка документов */}
       <div style={{ marginTop: '25px' }}>
         <h2>Загрузка документов</h2>
         <FileUpload tripId={tripId} />
       </div>
 
+      {/* Загруженные документы */}
       <div style={{ marginTop: '25px' }}>
         <h2>Загруженные документы</h2>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead><tr style={{ borderBottom: '2px solid #ddd', textAlign: 'left' }}>
-            <th style={{ padding: '10px' }}>Название</th>
-            <th style={{ padding: '10px' }}>Тип</th>
-            <th style={{ padding: '10px' }}>Дата загрузки</th>
-          </tr></thead>
+          <thead>
+            <tr style={{ borderBottom: '2px solid #ddd', textAlign: 'left' }}>
+              <th style={{ padding: '10px' }}>Название</th>
+              <th style={{ padding: '10px' }}>Тип</th>
+              <th style={{ padding: '10px' }}>Дата загрузки</th>
+            </tr>
+          </thead>
           <tbody>
             {documents?.length === 0 ? (
               <tr><td colSpan={3} style={{ padding: '20px', textAlign: 'center', color: '#888' }}>Пока нет загруженных документов</td></tr>
             ) : (
-              documents?.map(doc => (
+              documents?.map((doc) => (
                 <tr key={doc.id} style={{ borderBottom: '1px solid #eee' }}>
                   <td style={{ padding: '10px' }}>{doc.original_name}</td>
                   <td style={{ padding: '10px' }}>{doc.document_type === 'cmr' ? '📄 CMR' : doc.document_type}</td>
@@ -116,15 +129,15 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
         </table>
       </div>
 
-           <div style={{ marginTop: '25px' }}>
+      {/* Расходы */}
+      <div style={{ marginTop: '25px' }}>
         <h2>Расходы по рейсу</h2>
-        
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ borderBottom: '2px solid #ddd', textAlign: 'left' }}>
               <th style={{ padding: '10px' }}>Категория</th>
               <th style={{ padding: '10px' }}>Сумма (€)</th>
-              <th style={{ padding: '10px' }}>Оплачено (валюта)</th>
+              <th style={{ padding: '10px' }}>Валюта</th>
               <th style={{ padding: '10px' }}>Литры</th>
               <th style={{ padding: '10px' }}>Описание</th>
               <th style={{ padding: '10px' }}>Дата</th>
@@ -146,7 +159,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
                      exp.category === 'contractor' ? '🚛 Подрядчик' : exp.category}
                   </td>
                   <td style={{ padding: '10px', fontWeight: 'bold' }}>{exp.amount_eur} €</td>
-                  <td style={{ padding: '10px' }}>{exp.original_amount} {exp.currency}</td>
+                  <td style={{ padding: '10px' }}>{exp.currency || 'EUR'}</td>
                   <td style={{ padding: '10px' }}>{exp.liters || '-'}</td>
                   <td style={{ padding: '10px' }}>{exp.description || '-'}</td>
                   <td style={{ padding: '10px' }}>{exp.expense_date || '-'}</td>
@@ -155,20 +168,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
                       'use server';
                       await deleteExpense(exp.id, tripId);
                     }}>
-                      <button 
-                        type="submit"
-                        style={{ 
-                          backgroundColor: '#ef4444', 
-                          color: 'white', 
-                          border: 'none', 
-                          borderRadius: '4px', 
-                          padding: '4px 10px',
-                          cursor: 'pointer',
-                          fontSize: '12px'
-                        }}
-                      >
-                        🗑️ Удалить
-                      </button>
+                      <button type="submit" style={{ padding: '4px 10px', backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>🗑️ Удалить</button>
                     </form>
                   </td>
                 </tr>
@@ -178,17 +178,20 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
         </table>
       </div>
 
+      {/* Экономика рейса */}
       <div style={{ marginTop: '25px', padding: '15px', background: '#eef2ff', borderRadius: '8px' }}>
         <h3>Экономика рейса</h3>
-        <p><strong>Выручка:</strong> {trip.revenue_eur || 0} €</p>
+        <p><strong>Фрахт:</strong> {trip.revenue_eur || 0} €</p>
         <p><strong>Расходы:</strong> {totalExpenses.toFixed(2)} €</p>
         <p style={{ fontSize: '20px', fontWeight: 'bold', color: profit >= 0 ? 'green' : 'red' }}><strong>Прибыль:</strong> {profit.toFixed(2)} €</p>
       </div>
 
+      {/* Форма добавления расхода */}
       <div style={{ marginTop: '30px', padding: '20px', border: '1px solid #ddd', borderRadius: '8px' }}>
         <h3>+ Добавить расход</h3>
         <form action={addExpense} style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxWidth: '400px' }}>
           <input type="hidden" name="trip_id" value={tripId} />
+          
           <div>
             <label>Категория</label>
             <select name="category" required style={{ width: '100%', padding: '8px' }}>
@@ -201,6 +204,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
               <option value="other">Другое</option>
             </select>
           </div>
+
           <div>
             <label>Валюта</label>
             <select name="currency" style={{ width: '100%', padding: '8px' }}>
@@ -209,22 +213,27 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
               <option value="BYN">BYN</option>
             </select>
           </div>
+
           <div>
             <label>Сумма</label>
             <input type="number" name="amount" step="0.01" required style={{ width: '100%', padding: '8px' }} />
           </div>
+
           <div>
             <label>Литры (для топлива)</label>
             <input type="number" name="liters" step="0.01" placeholder="Например, 150" style={{ width: '100%', padding: '8px' }} />
           </div>
+
           <div>
             <label>Описание</label>
             <input type="text" name="description" style={{ width: '100%', padding: '8px' }} />
           </div>
+
           <div>
             <label>Дата</label>
             <input type="date" name="expense_date" style={{ width: '100%', padding: '8px' }} />
           </div>
+
           <button type="submit" style={{ padding: '10px', background: '#0070f3', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Добавить расход</button>
         </form>
       </div>
