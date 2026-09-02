@@ -1,6 +1,5 @@
 import { supabase } from '../../lib/supabaseClient';
 import { Button } from '@/components/ui/button';
-import { deleteDriver } from '../delete';
 
 export default async function DriversPage() {
   const { data: drivers, error } = await supabase
@@ -31,19 +30,10 @@ export default async function DriversPage() {
               <p><strong>Срок паспорта:</strong> {driver.passport_expiry || '-'}</p>
               <p><strong>Срок прав:</strong> {driver.license_expiry || '-'}</p>
               <p><strong>Срок карты тахографа:</strong> {driver.tachograph_card_expiry || '-'}</p>
-              <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                <a href={`/drivers/${driver.id}`} style={{ color: '#0070f3', textDecoration: 'underline' }}>
-                  Профиль
-                </a>
-                <form action={async () => {
-                  'use server';
-                  await deleteDriver(driver.id);
-                }}>
-                  <button type="submit" style={{ padding: '4px 10px', backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
-                    🗑️ Удалить
-                  </button>
-                </form>
-              </div>
+              {/* Добавляем ссылку на карточку */}
+              <a href={`/drivers/${driver.id}`} style={{ color: '#0070f3', textDecoration: 'underline', marginTop: '10px', display: 'inline-block' }}>
+                Профиль
+              </a>
             </div>
           ))}
         </div>
