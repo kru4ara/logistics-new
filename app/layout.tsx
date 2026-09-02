@@ -1,8 +1,9 @@
-import "./globals.css";
+import './globals.css';
+import Navbar from './components/Navbar';
 
 export const metadata = {
-  title: "Logistics CRM",
-  description: "Управление рейсами и расходами",
+  title: 'Logistics CRM',
+  description: 'Управление рейсами и расходами',
 };
 
 export default function RootLayout({
@@ -12,7 +13,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ru">
-      <body>{children}</body>
+      <body>
+        <Navbar />
+        <main style={{ minHeight: 'calc(100vh - 60px)' }}>
+          {children}
+        </main>
+      </body>
     </html>
   );
 }
