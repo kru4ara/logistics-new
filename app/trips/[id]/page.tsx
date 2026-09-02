@@ -164,7 +164,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
                   <td style={{ padding: '10px' }}>{exp.amount_eur} €</td>
                   <td style={{ padding: '10px' }}>{exp.liters || '-'}</td>
                   <td style={{ padding: '10px' }}>{exp.description || '-'}</td>
-                  <td style={{ padding: '10px' }}>{exp.expense_date || '-'}</td>
+                  <td style={{ padding: '10px' }}>{exp.expense_date ? new Date(exp.expense_date).toLocaleDateString('ru-RU') : '-'}</td>
                   <td style={{ padding: '10px' }}>
                     <form action={async () => {
                       'use server';
