@@ -51,48 +51,20 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
         </div>
       </div>
 
-           <div style={{ background: '#f9f9f9', padding: '15px', borderRadius: '8px', marginTop: '15px' }}>
+      <div style={{ background: '#f9f9f9', padding: '15px', borderRadius: '8px', marginTop: '15px' }}>
         <p><strong>Клиент:</strong> {trip.clients?.name || 'Не указан'}</p>
         <p><strong>Маршрут:</strong> {trip.route || '-'}</p>
         <p><strong>Статус:</strong> {trip.status}</p>
         <p><strong>Фрахт:</strong> {trip.revenue_eur ? `${trip.revenue_eur} €` : 'Не указана'}</p>
         <p><strong>Остаток топлива на начало:</strong> {trip.start_fuel_level || 0} л</p>
-        
-        {/* Данные заявки */}
-        {trip.client_request_number && (
-          <p><strong>Номер заявки:</strong> {trip.client_request_number}</p>
-        )}
-        {trip.client_request_date && (
-          <p><strong>Дата заявки:</strong> {trip.client_request_date}</p>
-        )}
-
-        {/* Отправитель */}
-        {trip.sender_city && (
-          <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid #ddd' }}>
-            <h4 style={{ margin: '0 0 5px' }}>📍 Отправитель</h4>
-            <p><strong>Компания:</strong> {trip.sender_name || '-'}</p>
-            <p><strong>Адрес:</strong> {trip.sender_postal_code}, {trip.sender_city}, {trip.sender_address}, {trip.sender_country}</p>
-            <p><strong>Погрузочный номер:</strong> {trip.sender_loading_number || '-'}</p>
-          </div>
-        )}
-
-        {/* Получатель */}
-        {trip.receiver_city && (
-          <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid #ddd' }}>
-            <h4 style={{ margin: '0 0 5px' }}>🏁 Получатель</h4>
-            <p><strong>Компания:</strong> {trip.receiver_name || '-'}</p>
-            <p><strong>Адрес:</strong> {trip.receiver_postal_code}, {trip.receiver_city}, {trip.receiver_address}, {trip.receiver_country}</p>
-            <p><strong>Погрузочный номер:</strong> {trip.receiver_loading_number || '-'}</p>
-          </div>
-        )}
       </div>
 
-      {/* Кнопки статусов для офиса - ВСЕ 4 */}
+      {/* Кнопки статусов */}
       <div style={{ marginTop: '25px' }}>
         <TripStatusButtons tripId={tripId} currentStatus={trip.status} showAdminStatuses={true} />
       </div>
 
-      {/* Данные телеметрии для офиса */}
+      {/* Данные телеметрии */}
       <div style={{ marginTop: '25px', padding: '20px', border: '1px solid #ddd', borderRadius: '8px' }}>
         <h3>📊 Данные телеметрии</h3>
         <form action={async (formData: FormData) => {
@@ -157,15 +129,15 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
         </table>
       </div>
 
-      {/* Расходы */}
+      {/* Расходы по рейсу */}
       <div style={{ marginTop: '25px' }}>
         <h2>Расходы по рейсу</h2>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ borderBottom: '2px solid #ddd', textAlign: 'left' }}>
               <th style={{ padding: '10px' }}>Категория</th>
+              <th style={{ padding: '10px' }}>Оплачено (валюта)</th>
               <th style={{ padding: '10px' }}>Сумма (€)</th>
-              <th style={{ padding: '10px' }}>Валюта</th>
               <th style={{ padding: '10px' }}>Литры</th>
               <th style={{ padding: '10px' }}>Описание</th>
               <th style={{ padding: '10px' }}>Дата</th>
@@ -186,8 +158,10 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
                      exp.category === 'salary' ? '💶 ЗП водителя' :
                      exp.category === 'contractor' ? '🚛 Подрядчик' : exp.category}
                   </td>
-                  <td style={{ padding: '10px', fontWeight: 'bold' }}>{exp.amount_eur} €</td>
-                  <td style={{ padding: '10px' }}>{exp.currency || 'EUR'}</td>
+                  <td style={{ padding: '10px', fontWeight: 'bold' }}>
+                    {exp.original_amount} {exp.currency}
+                  </td>
+                  <td style={{ padding: '10px' }}>{exp.amount_eur} €</td>
                   <td style={{ padding: '10px' }}>{exp.liters || '-'}</td>
                   <td style={{ padding: '10px' }}>{exp.description || '-'}</td>
                   <td style={{ padding: '10px' }}>{exp.expense_date || '-'}</td>
