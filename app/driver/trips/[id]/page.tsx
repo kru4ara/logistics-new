@@ -127,7 +127,7 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
                   <td style={{ padding: '10px' }}>{exp.currency || 'EUR'}</td>
                   <td style={{ padding: '10px' }}>{exp.liters || '-'}</td>
                   <td style={{ padding: '10px' }}>{exp.description || '-'}</td>
-                  <td style={{ padding: '10px' }}>{exp.expense_date || '-'}</td>
+                  <td style={{ padding: '10px' }}>{exp.expense_date ? new Date(exp.expense_date).toLocaleDateString('ru-RU') : '-'}</td>
                   <td style={{ padding: '10px' }}>
                     <form action={async () => {
                       'use server';
