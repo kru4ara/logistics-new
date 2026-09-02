@@ -1,13 +1,10 @@
 import { supabase } from '../../../lib/supabaseClient';
-import { createReminderFromDriver } from '../../driver/reminders-actions';
-import { sendDriverNotification } from '../../driver/telegram-actions';
+import DocumentUpload from '../../components/DocumentUpload';
 
 export default async function DriverDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: driverId } = await params;
   
-  if (!driverId) {
-    return <div>Ошибка: ID водителя не передан</div>;
-  }
+  if (!driverId) return <div>Ошибка: ID водителя не передан</div>;
 
   const { data: driver, error: driverError } = await supabase
     .from('drivers')
@@ -15,57 +12,93 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
     .eq('id', driverId)
     .single();
 
-  if (driverError) {
-    return <div>Ошибка загрузки: {driverError.message}</div>;
+  if (driverError) return <div>Ошибка загрузки: {driverError.message}</div>;
+
+  const { data: documents, error: docError } = await supabase
+    .from('documents')
+    .select('*')
+    .eq('entity_type', 'driver')
+    .eq('entity_id', driverId);
+
+  if (docError) return <div>Ошибка загрузки документов: {docError.message}</div>;
+
+  // Функция для подсчёта дней до даты
+  function getDaysLeft(dateString: string | null) {
+    if (!dateString) return null;
+    const today = new Date();
+    const target = new Date(dateString);
+    const diff = Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    return diff;
   }
 
-  // Выращиваем систему автоматического создания напоминаний
-  if (driver.visa_expiry) {
-    await createReminderFromDriver(driverId, `Виза: ${driver.first_name} ${driver.last_name}`, driver.visa_expiry);
-  }
-  if (driver.passport_expiry) {
-    await createReminderFromDriver(driverId, `Паспорт: ${driver.first_name} ${driver.last_name}`, driver.passport_expiry);
-  }
-  if (driver.license_expiry) {
-    await createReminderFromDriver(driverId, `Права: ${driver.first_name} ${driver.last_name}`, driver.license_expiry);
-  }
-  if (driver.tachograph_card_expiry) {
-    await createReminderFromDriver(driverId, `Карта тахографа: ${driver.first_name} ${driver.last_name}`, driver.tachograph_card_expiry);
-  }
+  // Список документов с индикацией сроков
+  const docsWithStatus = documents?.map(doc => ({
+    ...doc,
+    daysLeft: getDaysLeft(doc.expiry_date)
+  })) || [];
 
   return (
-    <main style={{ padding: '20px', fontFamily: 'sans-serif', maxWidth: '800px', margin: '0 auto' }}>
+    <main style={{ padding: '20px', fontFamily: 'sans-serif', maxWidth: '900px', margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h1 style={{ fontSize: '24px' }}>Карточка водителя</h1>
+        <h1 style={{ fontSize: '24px' }}>Карточка водителя: {driver.first_name} {driver.last_name}</h1>
         <a href="/drivers" style={{ color: '#0070f3' }}>← Все водители</a>
       </div>
 
-      <div style={{ background: '#f9f9f9', padding: '15px', borderRadius: '8px', marginTop: '15px' }}>
-        <p><strong>Имя:</strong> {driver.first_name}</p>
-        <p><strong>Фамилия:</strong> {driver.last_name}</p>
+      {/* Основная информация */}
+      <div style={{ background: '#f9f9f9', padding: '20px', borderRadius: '8px', marginTop: '15px' }}>
+        <h3 style={{ marginTop: 0 }}>Личные данные</h3>
+        <p><strong>Дата рождения:</strong> {driver.date_of_birth || '-'}</p>
+        <p><strong>Адрес:</strong> {driver.address || '-'}</p>
         <p><strong>Телефон:</strong> {driver.phone || '-'}</p>
-        <p><strong>Срок визы:</strong> {driver.visa_expiry || '-'}</p>
-        <p><strong>Срок паспорта:</strong> {driver.passport_expiry || '-'}</p>
-        <p><strong>Срок прав:</strong> {driver.license_expiry || '-'}</p>
-        <p><strong>Срок карты тахографа:</strong> {driver.tachograph_card_expiry || '-'}</p>
+        <p><strong>Паспорт:</strong> {driver.passport_number || '-'} (выдан: {driver.passport_issued_by || '-'})</p>
+        <p><strong>Срок паспорта:</strong> {driver.passport_expiry ? new Date(driver.passport_expiry).toLocaleDateString('ru-RU') : '-'}</p>
+        <p><strong>Водительское удостоверение:</strong> {driver.license_number || '-'} (категории: {driver.license_categories || '-'})</p>
+        <p><strong>Срок прав:</strong> {driver.license_expiry ? new Date(driver.license_expiry).toLocaleDateString('ru-RU') : '-'}</p>
+        <p><strong>Карта водителя:</strong> {driver.tachograph_card_number || '-'}</p>
+        <p><strong>Срок карты:</strong> {driver.tachograph_card_expiry ? new Date(driver.tachograph_card_expiry).toLocaleDateString('ru-RU') : '-'}</p>
+        <p><strong>Код 95 до:</strong> {driver.code_95_expiry ? new Date(driver.code_95_expiry).toLocaleDateString('ru-RU') : '-'}</p>
+        <p><strong>АДР до:</strong> {driver.adr_expiry ? new Date(driver.adr_expiry).toLocaleDateString('ru-RU') : '-'}</p>
       </div>
 
+      {/* Список документов */}
       <div style={{ marginTop: '25px' }}>
-        <form action={async () => {
-          'use server';
-          await sendDriverNotification(driverId, `${driver.first_name} ${driver.last_name}`, driver.visa_expiry || 'Срок не указан');
-        }}>
-          <button type="submit" style={{ padding: '10px', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
-            📲 Сдать уведомление
-          </button>
-        </form>
+        <h2>📁 Документы</h2>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ borderBottom: '2px solid #ddd', textAlign: 'left' }}>
+              <th style={{ padding: '10px' }}>Тип</th>
+              <th style={{ padding: '10px' }}>Срок действия</th>
+              <th style={{ padding: '10px' }}>Осталось дней</th>
+              <th style={{ padding: '10px' }}>Файл</th>
+            </tr>
+          </thead>
+          <tbody>
+            {docsWithStatus.length === 0 ? (
+              <tr><td colSpan={4} style={{ padding: '20px', textAlign: 'center', color: '#888' }}>Пока нет загруженных документов</td></tr>
+            ) : (
+              docsWithStatus.map(doc => (
+                <tr key={doc.id} style={{ borderBottom: '1px solid #eee' }}>
+                  <td style={{ padding: '10px' }}>{doc.document_type}</td>
+                  <td style={{ padding: '10px' }}>{doc.expiry_date ? new Date(doc.expiry_date).toLocaleDateString('ru-RU') : '—'}</td>
+                  <td style={{ padding: '10px' }}>
+                    {doc.daysLeft !== null ? (
+                      <span style={{ color: doc.daysLeft < 0 ? 'red' : doc.daysLeft < 30 ? 'orange' : 'green', fontWeight: 'bold' }}>
+                        {doc.daysLeft} дн.
+                      </span>
+                    ) : '—'}
+                  </td>
+                  <td style={{ padding: '10px' }}>
+                    <a href={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/documents/${doc.file_path}`} target="_blank" style={{ color: '#0070f3' }}>Смотреть</a>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
 
-      <div style={{ marginTop: '25px' }}>
-        <a href="/reminders" style={{ color: '#0070f3', textDecoration: 'underline' }}>
-          → Список напоминаний
-        </a>
-      </div>
+      {/* Загрузка документа */}
+      <DocumentUpload entityType="driver" entityId={driverId} onUploaded={() => {}} />
     </main>
   );
 }
