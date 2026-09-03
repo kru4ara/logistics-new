@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 
-export default function DocumentUpload({ entityType, entityId }: { entityType: string; entityId: string }) {
+export default function DocumentUpload({ entityType, entityId, onUploaded }: { entityType: string; entityId: string; onUploaded: () => void }) {
   const [file, setFile] = useState<File | null>(null);
   const [documentType, setDocumentType] = useState('passport');
   const [expiryDate, setExpiryDate] = useState('');
@@ -12,7 +12,7 @@ export default function DocumentUpload({ entityType, entityId }: { entityType: s
   async function handleUpload() {
     if (!file) return;
     setStatus('Загрузка...');
-
+    
     try {
       // 1. Загружаем файл в Supabase Storage
       const filePath = `${entityType}/${entityId}/${documentType}-${Date.now()}-${file.name}`;
@@ -22,7 +22,7 @@ export default function DocumentUpload({ entityType, entityId }: { entityType: s
 
       if (uploadError) throw new Error(`Ошибка загрузки файла: ${uploadError.message}`);
 
-      // 2. Сохраняем записи в таблицу documents
+      // 2. Сохраняем запись в таблицу documents
       const { error: dbError } = await supabase.from('documents').insert({
         entity_type: entityType,
         entity_id: entityId,
@@ -33,12 +33,11 @@ export default function DocumentUpload({ entityType, entityId }: { entityType: s
 
       if (dbError) throw new Error(`Ошибка сохранения записи: ${dbError.message}`);
 
-      // 3. Обновляем состояние
+      // 3. Обновляем состояние и вызываем onUploaded
       setStatus('Документ загружен!');
       setFile(null);
       setExpiryDate('');
-      // После успешной загрузки обновляем страницу, чтобы документ появился в списке
-      window.location.reload();
+      onUploaded();
     } catch (error) {
       setStatus('Ошибка: ' + (error as Error).message);
     }
