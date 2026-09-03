@@ -2,11 +2,12 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { supabase } from '../../lib/supabaseClient';
 
-const navItems = [
+const adminNavItems = [
   { href: '/', label: '🚛 Главная' },
   { href: '/trips', label: '📋 Рейсы' },
-  { href: '/driver', label: '🚚 Водитель' },
   { href: '/drivers', label: '👤 Водители' },
   { href: '/trucks', label: '🚚 Машины' },
   { href: '/clients', label: '🤝 Клиенты' },
@@ -17,14 +18,36 @@ const navItems = [
   { href: '/fixed-costs', label: '💶 Фикс. затраты' },
 ];
 
+const driverNavItems = [
+  { href: '/driver', label: '🚚 Мои рейсы' },
+];
+
 export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    async function getUser() {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+    }
+    getUser();
+  }, []);
 
   function handleLogout() {
-    localStorage.removeItem('isLoggedIn');
+    supabase.auth.signOut();
     router.push('/login');
   }
+
+  // Если пользователь не вошёл — не показываем Navbar
+  if (!user) return null;
+
+  // Если у пользователя есть запись в drivers — это водитель
+  // (для простоты считаем всех не-admin водителями, пока не настроили роли)
+  const isDriver = !!user && !user.email?.startsWith('office');
+
+  const navItems = isDriver ? driverNavItems : adminNavItems;
 
   return (
     <nav style={{ 
