@@ -22,7 +22,6 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
 
   if (docError) return <div>Ошибка загрузки документов: {docError.message}</div>;
 
-  // Функция для подсчёта дней до даты
   function getDaysLeft(dateString: string | null) {
     if (!dateString) return null;
     const today = new Date();
@@ -31,7 +30,6 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
     return diff;
   }
 
-  // Список документов с индикацией сроков
   const docsWithStatus = documents?.map(doc => ({
     ...doc,
     daysLeft: getDaysLeft(doc.expiry_date)
@@ -44,7 +42,6 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
         <a href="/drivers" style={{ color: '#0070f3' }}>← Все водители</a>
       </div>
 
-      {/* Основная информация */}
       <div style={{ background: '#f9f9f9', padding: '20px', borderRadius: '8px', marginTop: '15px' }}>
         <h3 style={{ marginTop: 0 }}>Личные данные</h3>
         <p><strong>Дата рождения:</strong> {driver.date_of_birth || '-'}</p>
@@ -60,7 +57,6 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
         <p><strong>АДР до:</strong> {driver.adr_expiry ? new Date(driver.adr_expiry).toLocaleDateString('ru-RU') : '-'}</p>
       </div>
 
-      {/* Список документов */}
       <div style={{ marginTop: '25px' }}>
         <h2>📁 Документы</h2>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -97,7 +93,6 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
         </table>
       </div>
 
-      {/* Загрузка документа */}
       <DocumentUpload entityType="driver" entityId={driverId} onUploaded={() => {}} />
     </main>
   );
