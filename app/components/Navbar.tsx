@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { supabase } from '../../lib/supabaseClient';
+import { createBrowserClient } from '@supabase/ssr';
 
 const adminNavItems = [
   { href: '/', label: '🚛 Главная' },
@@ -29,6 +29,10 @@ export default function Navbar() {
 
   useEffect(() => {
     async function getUser() {
+      const supabase = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
     }
@@ -36,17 +40,17 @@ export default function Navbar() {
   }, []);
 
   function handleLogout() {
+    const supabase = createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
     supabase.auth.signOut();
     router.push('/login');
   }
 
-  // Если пользователь не вошёл — не показываем Navbar
   if (!user) return null;
 
-  // Если у пользователя есть запись в drivers — это водитель
-  // (для простоты считаем всех не-admin водителями, пока не настроили роли)
-  const isDriver = !!user && !user.email?.startsWith('office');
-
+  const isDriver = user.email && !user.email.startsWith('office');
   const navItems = isDriver ? driverNavItems : adminNavItems;
 
   return (
