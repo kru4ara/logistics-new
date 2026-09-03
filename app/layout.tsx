@@ -1,4 +1,5 @@
 import './globals.css';
+import Navbar from './components/Navbar';
 
 export const metadata = {
   title: 'Logistics CRM',
@@ -13,7 +14,10 @@ export default function RootLayout({
   return (
     <html lang="ru">
       <body>
-        {children}
+        <Navbar />
+        <main style={{ minHeight: 'calc(100vh - 60px)' }}>
+          {children}
+        </main>
       </body>
     </html>
   );
