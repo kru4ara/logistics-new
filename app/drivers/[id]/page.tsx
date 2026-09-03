@@ -3,7 +3,7 @@ import DocumentUpload from '../../components/DocumentUpload';
 
 export default async function DriverDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: driverId } = await params;
-  
+
   if (!driverId) return <div>Ошибка: ID водителя не передан</div>;
 
   const { data: driver, error: driverError } = await supabase
@@ -39,7 +39,7 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
     <main style={{ padding: '20px', fontFamily: 'sans-serif', maxWidth: '900px', margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h1 style={{ fontSize: '24px' }}>Карточка водителя: {driver.first_name} {driver.last_name}</h1>
-        <a href="/drivers" style={{ color: '#0070f3' }}>← Все водители</a>
+        <a href={`/drivers/${driverId}/edit`} style={{ color: '#0070f3', textDecoration: 'underline' }}>✏️ Редактировать</a>
       </div>
 
       <div style={{ background: '#f9f9f9', padding: '20px', borderRadius: '8px', marginTop: '15px' }}>
@@ -93,7 +93,7 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
         </table>
       </div>
 
-      <DocumentUpload entityType="driver" entityId={driverId} />
+      <DocumentUpload entityType="driver" entityId={driverId} onUploaded={() => {}} />
     </main>
   );
 }
