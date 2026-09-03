@@ -1,23 +1,33 @@
 import { supabase } from '../../lib/supabaseClient';
+import { redirect } from 'next/navigation';
 
 export default async function DriverPage() {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect('/login');
+
+  // Получаем ID водителя по привязанному user_id
+  const { data: driver } = await supabase
+    .from('drivers')
+    .select('id')
+    .eq('user_id', user.id)
+    .single();
+
+  if (!driver) return <div>Ошибка: Профиль водителя не найден</div>;
+
+  // Получаем только рейсы этого водителя
   const { data: trips, error } = await supabase
     .from('trips')
     .select('*, clients(name)')
+    .eq('driver_id', driver.id)
     .order('trip_number', { ascending: false });
 
-  if (error) {
-    return <div>Ошибка загрузки рейсов: {error.message}</div>;
-  }
+  if (error) return <div>Ошибка загрузки рейсов: {error.message}</div>;
 
   return (
     <main className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-6xl mx-auto space-y-8">
         <div className="flex justify-between items-center">
           <h1 className="text-3xl font-bold tracking-tight text-gray-900">🚛 Водитель: Рейсы</h1>
-          <a href="/driver/trips/new" style={{ backgroundColor: '#0070f3', color: 'white', padding: '10px 20px', borderRadius: '5px', textDecoration: 'none', fontWeight: 'bold' }}>
-            + Добавить рейс
-          </a>
         </div>
 
         <div className="grid gap-6 md:grid-cols-2">
