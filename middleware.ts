@@ -1,28 +1,44 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { createServerClient } from '@supabase/ssr';
 
-// Защищённые пути (куда нельзя без входа)
-const protectedRoutes = ['/', '/trips', '/drivers', '/trucks', '/clients', '/routes', '/reports', '/reminders', '/map', '/fixed-costs', '/driver'];
+export async function middleware(request: NextRequest) {
+  let response = NextResponse.next({ request });
 
-export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-  
-  // Если пользователь пытается зайти на защищённую страницу
-  if (protectedRoutes.includes(pathname)) {
-    // Проверяем наличие сессии (cookie Supabase). Её имя обычно начинается с "sb-"
-    const sessionCookie = request.cookies.get('sb-access-token') || request.cookies.get('sb-refresh-token');
-    
-    // Если сессии нет — перенаправляем на логин
-    if (!sessionCookie) {
-      const loginUrl = new URL('/login', request.url);
-      return NextResponse.redirect(loginUrl);
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return request.cookies.get(name)?.value;
+        },
+        set(name: string, value: string, options: any) {
+          request.cookies.set({ name, value, ...options });
+          response = NextResponse.next({ request });
+          response.cookies.set({ name, value, ...options });
+        },
+        remove(name: string, options: any) {
+          request.cookies.set({ name, value: '', ...options });
+          response = NextResponse.next({ request });
+          response.cookies.set({ name, value: '', ...options });
+        },
+      },
     }
+  );
+
+  const { data: { user } } = await supabase.auth.getUser();
+
+  // Если нет пользователя и путь защищён — перенаправляем на логин
+  if (!user && request.nextUrl.pathname !== '/login') {
+    const url = request.nextUrl.clone();
+    url.pathname = '/login';
+    return NextResponse.redirect(url);
   }
 
-  return NextResponse.next();
+  return response;
 }
 
-// Указываем, на какие пути распространяется middleware
 export const config = {
   matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
 };
