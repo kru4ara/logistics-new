@@ -93,7 +93,7 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
         </table>
       </div>
 
-      <DocumentUpload entityType="driver" entityId={driverId} onUploaded={() => {}} />
+      <DocumentUpload entityType="driver" entityId={driverId} />
     </main>
   );
 }
