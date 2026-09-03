@@ -1,20 +1,21 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabaseClient';
 
-export default function DocumentUpload({ entityType, entityId, onUploaded }: { entityType: string; entityId: string; onUploaded: () => void }) {
+export default function DocumentUpload({ entityType, entityId }: { entityType: string; entityId: string }) {
   const [file, setFile] = useState<File | null>(null);
   const [documentType, setDocumentType] = useState('passport');
   const [expiryDate, setExpiryDate] = useState('');
   const [status, setStatus] = useState('');
+  const router = useRouter();
 
   async function handleUpload() {
     if (!file) return;
     setStatus('Загрузка...');
     
     try {
-      // 1. Загружаем файл в Supabase Storage
       const filePath = `${entityType}/${entityId}/${documentType}-${Date.now()}-${file.name}`;
       const { error: uploadError } = await supabase.storage
         .from('documents')
@@ -22,7 +23,6 @@ export default function DocumentUpload({ entityType, entityId, onUploaded }: { e
 
       if (uploadError) throw new Error(`Ошибка загрузки файла: ${uploadError.message}`);
 
-      // 2. Сохраняем запись в таблицу documents
       const { error: dbError } = await supabase.from('documents').insert({
         entity_type: entityType,
         entity_id: entityId,
@@ -33,11 +33,10 @@ export default function DocumentUpload({ entityType, entityId, onUploaded }: { e
 
       if (dbError) throw new Error(`Ошибка сохранения записи: ${dbError.message}`);
 
-      // 3. Обновляем состояние и вызываем onUploaded
       setStatus('Документ загружен!');
       setFile(null);
       setExpiryDate('');
-      onUploaded();
+      router.refresh(); // Обновляем данные на странице
     } catch (error) {
       setStatus('Ошибка: ' + (error as Error).message);
     }
