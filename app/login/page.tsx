@@ -7,27 +7,44 @@ import { supabase } from '../../lib/supabaseClient';
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
   const router = useRouter();
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
+    
+    // Логируем каждый шаг в консоль браузера
+    console.log('1. handleLogin вызвана');
+    console.log('2. Email:', email, '| Password:', password);
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
-
-    if (error) {
-      setError(error.message);
+    if (!email || !password) {
+      console.log('3. Поля пустые');
+      alert('Введите email и пароль');
       return;
     }
 
-    router.push('/');
+    try {
+      console.log('4. Пробуем войти через Supabase...');
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+      console.log('5. Ответ от Supabase:', data, error);
+
+      if (error) {
+        alert('Ошибка входа: ' + error.message);
+        return;
+      }
+
+      console.log('6. Успех! Перенаправляем на главную...');
+      router.push('/');
+    } catch (err) {
+      console.error('7. Поймали ошибку:', err);
+      alert('Ошибка: ' + (err as Error).message);
+    }
   }
 
   return (
-    <main className="min-h-screen bg-gray-50 flex items-center justify-center">
+    <main className="min-h-screen flex items-center justify-center">
       <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-sm">
         <h1 className="text-2xl font-bold mb-6 text-center">🔐 Вход в систему</h1>
         <form onSubmit={handleLogin} className="space-y-4">
@@ -53,7 +70,6 @@ export default function LoginPage() {
               required
             />
           </div>
-          {error && <p className="text-red-500 text-sm">{error}</p>}
           <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700">
             Войти
           </button>
