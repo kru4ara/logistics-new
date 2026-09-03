@@ -89,7 +89,7 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ id
         </table>
       </div>
 
-      <DocumentUpload entityType="truck" entityId={truckId} onUploaded={() => {}} />
+      <DocumentUpload entityType="truck" entityId={truckId} />
     </main>
   );
 }
