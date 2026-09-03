@@ -2,45 +2,29 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '../../lib/supabaseClient';
+import { createClient } from '../../lib/supabaseClient';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
   const router = useRouter();
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
-    
-    // Логируем каждый шаг в консоль браузера
-    console.log('1. handleLogin вызвана');
-    console.log('2. Email:', email, '| Password:', password);
 
-    if (!email || !password) {
-      console.log('3. Поля пустые');
-      alert('Введите email и пароль');
+    const supabase = createClient();
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    if (error) {
+      setError(error.message);
       return;
     }
 
-    try {
-      console.log('4. Пробуем войти через Supabase...');
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-      console.log('5. Ответ от Supabase:', data, error);
-
-      if (error) {
-        alert('Ошибка входа: ' + error.message);
-        return;
-      }
-
-      console.log('6. Успех! Перенаправляем на главную...');
-      router.push('/');
-    } catch (err) {
-      console.error('7. Поймали ошибку:', err);
-      alert('Ошибка: ' + (err as Error).message);
-    }
+    router.push('/');
   }
 
   return (
@@ -70,6 +54,7 @@ export default function LoginPage() {
               required
             />
           </div>
+          {error && <p className="text-red-500 text-sm">{error}</p>}
           <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700">
             Войти
           </button>
