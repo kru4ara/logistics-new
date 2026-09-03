@@ -3,7 +3,7 @@ import DocumentUpload from '../../components/DocumentUpload';
 
 export default async function TruckDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: truckId } = await params;
-  
+
   if (!truckId) return <div>Ошибка: ID машины не передан</div>;
 
   const { data: truck, error: truckError } = await supabase
@@ -39,7 +39,7 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ id
     <main style={{ padding: '20px', fontFamily: 'sans-serif', maxWidth: '900px', margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h1 style={{ fontSize: '24px' }}>Карточка машины: {truck.registration_number}</h1>
-        <a href="/trucks" style={{ color: '#0070f3' }}>← Все машины</a>
+        <a href={`/trucks/${truckId}/edit`} style={{ color: '#0070f3', textDecoration: 'underline' }}>✏️ Редактировать</a>
       </div>
 
       <div style={{ background: '#f9f9f9', padding: '20px', borderRadius: '8px', marginTop: '15px' }}>
@@ -89,7 +89,7 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ id
         </table>
       </div>
 
-      <DocumentUpload entityType="truck" entityId={truckId} />
+      <DocumentUpload entityType="truck" entityId={truckId} onUploaded={() => {}} />
     </main>
   );
 }
