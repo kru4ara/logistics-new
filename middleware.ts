@@ -29,7 +29,6 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser();
 
-  // Если нет пользователя и путь защищён — перенаправляем на логин
   if (!user && request.nextUrl.pathname !== '/login') {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
