@@ -1,31 +1,16 @@
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { createClient } from './lib/supabase-server';
 import { redirect } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default async function Home() {
-  const cookieStore = cookies();
-  
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-      },
-    }
-  );
+  const supabase = await createClient();
 
   const { data: { user } } = await supabase.auth.getUser();
-  
+
   if (!user) {
     redirect('/login');
   }
 
-  // Получаем данные через созданный серверный клиент
+  // Загружаем данные (можно вернуть все твои функции)
   const { data: trips } = await supabase
     .from('trips')
     .select('*, clients(name)')
@@ -50,7 +35,6 @@ export default async function Home() {
           </Button>
         </div>
 
-        {/* Карточки со статистикой */}
         <div className="grid gap-6 md:grid-cols-3">
           <Card className="bg-white shadow-sm border-0">
             <CardHeader className="pb-2">
@@ -86,7 +70,6 @@ export default async function Home() {
           </Card>
         </div>
 
-        {/* Список последних 4 рейсов */}
         <div className="grid gap-6 md:grid-cols-2">
           {trips?.map((trip) => (
             <div key={trip.id} style={{ background: 'white', padding: '20px', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
@@ -101,37 +84,6 @@ export default async function Home() {
             </div>
           ))}
         </div>
-
-        <div className="flex flex-wrap gap-4">
-          <Button asChild variant="default">
-            <a href="/driver">🚛 Водитель</a>
-          </Button>
-          <Button asChild variant="secondary">
-            <a href="/reminders">⏰ Напоминания</a>
-          </Button>
-          <Button asChild variant="outline">
-            <a href="/drivers">🚛 Водители</a>
-          </Button>
-          <Button asChild variant="outline">
-            <a href="/trucks">🚚 Машины</a>
-          </Button>
-          <Button asChild variant="outline">
-            <a href="/clients">🤝 Клиенты</a>
-          </Button>
-          <Button asChild variant="outline">
-            <a href="/trips">📋 Рейсы</a>
-          </Button>
-          <Button asChild variant="ghost">
-            <a href="/fixed-costs">💰 Фикс. затраты</a>
-          </Button>
-          <Button asChild variant="ghost">
-            <a href="/reports">💰 Отчёт о прибыли</a>
-          </Button>
-          <Button asChild variant="ghost">
-            <a href="/routes">🚛 Маршруты</a>
-          </Button>
-        </div>
-
       </div>
     </main>
   );
