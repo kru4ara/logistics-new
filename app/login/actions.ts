@@ -8,13 +8,17 @@ export async function login(formData: FormData) {
   const login = formData.get('login') as string;
   const password = formData.get('password') as string;
 
-  // Проверяем офис
-  const { data: admin } = await supabase
+  // Проверяем офис (используем maybeSingle, чтобы не падать при ошибке)
+  const { data: admin, error: adminError } = await supabase
     .from('users')
     .select('*')
     .eq('login', login)
     .eq('password', password)
-    .single();
+    .maybeSingle();
+
+  if (adminError) {
+    console.error('Ошибка при проверке офиса:', adminError.message);
+  }
 
   if (admin) {
     cookies().set('role', 'admin', { path: '/' });
@@ -22,12 +26,16 @@ export async function login(formData: FormData) {
   }
 
   // Проверяем водителя
-  const { data: driver } = await supabase
+  const { data: driver, error: driverError } = await supabase
     .from('drivers')
     .select('*')
     .eq('last_name', login)
     .eq('password', password)
-    .single();
+    .maybeSingle();
+
+  if (driverError) {
+    console.error('Ошибка при проверке водителя:', driverError.message);
+  }
 
   if (driver) {
     cookies().set('role', 'driver', { path: '/' });
@@ -35,6 +43,6 @@ export async function login(formData: FormData) {
     redirect('/driver');
   }
 
-  // Если не совпало
+  // Если ничего не совпало
   redirect('/login?error=1');
 }
