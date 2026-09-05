@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { createBrowserClient } from '@supabase/ssr';
 
 const adminNavItems = [
   { href: '/', label: '🚛 Главная' },
@@ -25,33 +24,29 @@ const driverNavItems = [
 export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
+  const [role, setRole] = useState<string | null>(null);
+  const [driverId, setDriverId] = useState<string | null>(null);
 
+  // Читаем cookie при загрузке
   useEffect(() => {
-    async function getUser() {
-      const supabase = createBrowserClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      );
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
-    }
-    getUser();
+    const cookies = document.cookie.split('; ');
+    const roleCookie = cookies.find(c => c.startsWith('role='));
+    const driverCookie = cookies.find(c => c.startsWith('driver_id='));
+
+    if (roleCookie) setRole(roleCookie.split('=')[1]);
+    if (driverCookie) setDriverId(driverCookie.split('=')[1]);
   }, []);
 
   function handleLogout() {
-    const supabase = createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
-    supabase.auth.signOut();
+    document.cookie = 'role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    document.cookie = 'driver_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
     router.push('/login');
   }
 
-  if (!user) return null;
+  // Если роль не определена (не залогинен) — не показываем меню
+  if (!role) return null;
 
-  const isDriver = user.email && !user.email.startsWith('office');
-  const navItems = isDriver ? driverNavItems : adminNavItems;
+  const navItems = role === 'driver' ? driverNavItems : adminNavItems;
 
   return (
     <nav style={{ 
