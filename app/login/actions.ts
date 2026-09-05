@@ -2,23 +2,21 @@
 
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { supabase } from '../../lib/supabaseClient';
+import { createClient } from '../../lib/supabase-server';
 
 export async function login(formData: FormData) {
   const login = formData.get('login') as string;
   const password = formData.get('password') as string;
 
-  // Проверяем офис (используем maybeSingle, чтобы не падать при ошибке)
-  const { data: admin, error: adminError } = await supabase
+  const supabase = await createClient();
+
+  // Проверяем офис
+  const { data: admin } = await supabase
     .from('users')
     .select('*')
     .eq('login', login)
     .eq('password', password)
     .maybeSingle();
-
-  if (adminError) {
-    console.error('Ошибка при проверке офиса:', adminError.message);
-  }
 
   if (admin) {
     cookies().set('role', 'admin', { path: '/' });
@@ -26,16 +24,12 @@ export async function login(formData: FormData) {
   }
 
   // Проверяем водителя
-  const { data: driver, error: driverError } = await supabase
+  const { data: driver } = await supabase
     .from('drivers')
     .select('*')
     .eq('last_name', login)
     .eq('password', password)
     .maybeSingle();
-
-  if (driverError) {
-    console.error('Ошибка при проверке водителя:', driverError.message);
-  }
 
   if (driver) {
     cookies().set('role', 'driver', { path: '/' });
@@ -43,6 +37,5 @@ export async function login(formData: FormData) {
     redirect('/driver');
   }
 
-  // Если ничего не совпало
   redirect('/login?error=1');
 }
