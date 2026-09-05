@@ -4,11 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default async function Home() {
-  // Проверяем, кто вошёл
+  // Проверяем, кто вошёл, через браузерный клиент (он работает и на сервере!)
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  // Если это водитель (есть в таблице drivers) — отправляем на /driver
+  // Если это водитель — отправляем на /driver
   const { data: driver } = await supabase
     .from('drivers')
     .select('id')
@@ -38,7 +38,7 @@ export default async function Home() {
     <main className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-6xl mx-auto space-y-8">
         <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900">🚛 Панель управления (Офис)</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900">🚛 Панель управления</h1>
           <Button asChild>
             <a href="/trips/new">+ Создать рейс</a>
           </Button>
