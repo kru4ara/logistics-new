@@ -1,45 +1,28 @@
-import { cookies } from 'next/headers';
-import { redirect } from 'next/navigation';
 import { supabase } from '../lib/supabaseClient';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
-export default function Home() {
-  const cookieStore = cookies();
-  const role = cookieStore.get('role')?.value;
+export default async function Home() {
+  // Просто загружаем данные
+  const { data: trips } = await supabase
+    .from('trips')
+    .select('*, clients(name)')
+    .order('trip_number', { ascending: false })
+    .limit(4);
 
-  // Без входа - на логин
-  if (!role) redirect('/login');
+  const { data: expenses } = await supabase
+    .from('trip_expenses')
+    .select('amount_eur, expense_date');
 
-  // Водитель - в свой раздел
-  if (role === 'driver') redirect('/driver');
-
-  // Офис - показываем все данные
-  async function getData() {
-    const { data: trips } = await supabase
-      .from('trips')
-      .select('*, clients(name)')
-      .order('trip_number', { ascending: false })
-      .limit(4);
-
-    const { data: expenses } = await supabase
-      .from('trip_expenses')
-      .select('amount_eur, expense_date');
-
-    const totalRevenue = trips?.reduce((sum, t) => sum + (t.revenue_eur || 0), 0) || 0;
-    const totalExpenses = expenses?.reduce((sum, e) => sum + (e.amount_eur || 0), 0) || 0;
-    const profit = totalRevenue - totalExpenses;
-
-    return { trips, totalRevenue, totalExpenses, profit };
-  }
-
-  const { trips, totalRevenue, totalExpenses, profit } = await getData();
+  const totalRevenue = trips?.reduce((sum, t) => sum + (t.revenue_eur || 0), 0) || 0;
+  const totalExpenses = expenses?.reduce((sum, e) => sum + (e.amount_eur || 0), 0) || 0;
+  const profit = totalRevenue - totalExpenses;
 
   return (
     <main className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-6xl mx-auto space-y-8">
         <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900">🚛 Панель управления (Офис)</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900">🚛 Панель управления</h1>
           <Button asChild>
             <a href="/trips/new">+ Создать рейс</a>
           </Button>
