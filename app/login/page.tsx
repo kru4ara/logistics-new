@@ -1,11 +1,17 @@
 'use client';
 
-import { useSearchParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { login } from './actions';
 
 export default function LoginPage() {
-  const searchParams = useSearchParams();
-  const error = searchParams.get('error');
+  const [error, setError] = useState<string | null>(null);
+
+  // Читаем ошибку из URL только на клиенте
+  useEffect(() => {
+    if (window.location.search.includes('error')) {
+      setError('Неверный логин или пароль');
+    }
+  }, []);
 
   return (
     <main className="min-h-screen flex items-center justify-center">
@@ -20,7 +26,7 @@ export default function LoginPage() {
             <label className="block text-sm font-medium text-gray-700">Пароль</label>
             <input type="password" name="password" className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2" required />
           </div>
-          {error && <p className="text-red-500 text-sm">Неверный логин или пароль</p>}
+          {error && <p className="text-red-500 text-sm">{error}</p>}
           <button className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700">Войти</button>
         </form>
       </div>
