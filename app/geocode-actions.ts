@@ -5,26 +5,21 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 
 export async function addTripWithAddress(formData: FormData) {
-  // Основные данные
   const clientId = formData.get('client_id') as string;
   const truckId = formData.get('truck_id') as string;
+  const driverId = formData.get('driver_id') as string;
   const startDate = formData.get('start_date') as string;
   const revenueEur = parseFloat(formData.get('revenue_eur') as string) || 0;
   const startFuelLevel = parseFloat(formData.get('start_fuel_level') as string) || 0;
 
-  // Данные заявки
   const clientRequestNumber = formData.get('client_request_number') as string;
   const clientRequestDate = formData.get('client_request_date') as string;
-
-  // Отправитель
   const senderCountry = formData.get('sender_country') as string;
   const senderName = formData.get('sender_name') as string;
   const senderPostalCode = formData.get('sender_postal_code') as string;
   const senderCity = formData.get('sender_city') as string;
   const senderAddress = formData.get('sender_address') as string;
   const senderLoadingNumber = formData.get('sender_loading_number') as string;
-
-  // Получатель
   const receiverCountry = formData.get('receiver_country') as string;
   const receiverName = formData.get('receiver_name') as string;
   const receiverPostalCode = formData.get('receiver_postal_code') as string;
@@ -32,10 +27,9 @@ export async function addTripWithAddress(formData: FormData) {
   const receiverAddress = formData.get('receiver_address') as string;
   const receiverLoadingNumber = formData.get('receiver_loading_number') as string;
 
-  // Автоматический маршрут
   const route = `${senderCity || ''}, ${senderCountry || ''} → ${receiverCity || ''}, ${receiverCountry || ''}`;
 
-  // Счётчик для номера рейса (как раньше)
+  // Счётчик
   const { data: counterData, error: counterError } = await supabase
     .from('trip_counter')
     .select('last_number')
@@ -49,13 +43,13 @@ export async function addTripWithAddress(formData: FormData) {
     .eq('id', 1);
   if (updateCounterError) throw new Error(`Ошибка обновления счётчика: ${updateCounterError.message}`);
 
-  // Вставляем рейс со всеми данными
   const { error } = await supabase
     .from('trips')
     .insert([
       {
         client_id: clientId || null,
         truck_id: truckId || null,
+        driver_id: driverId || null,
         start_date: startDate,
         revenue_eur: revenueEur,
         start_fuel_level: startFuelLevel,
