@@ -11,6 +11,7 @@ export default async function EditTripPage({ params }: { params: Promise<{ id: s
 
   const { data: clients } = await supabase.from('clients').select('id, name');
   const { data: trucks } = await supabase.from('trucks').select('id, registration_number');
+  const { data: drivers } = await supabase.from('drivers').select('id, first_name, last_name');
 
   if (error) return <div>Ошибка загрузки: {error.message}</div>;
 
@@ -32,7 +33,15 @@ export default async function EditTripPage({ params }: { params: Promise<{ id: s
             {trucks?.map(t => <option key={t.id} value={t.id}>{t.registration_number}</option>)}
           </select>
         </div>
-        {/* ДОБАВЛЯЕМ ПОЛЕ ОСТАТКА ТОПЛИВА */}
+        <div>
+          <label>Водитель</label>
+          <select name="driver_id" defaultValue={trip.driver_id || ''} style={{ width: '100%', padding: '8px' }}>
+            <option value="">Выберите водителя...</option>
+            {drivers?.map(d => (
+              <option key={d.id} value={d.id}>{d.first_name} {d.last_name}</option>
+            ))}
+          </select>
+        </div>
         <div>
           <label>Остаток топлива на начало (л)</label>
           <input type="number" name="start_fuel_level" step="0.01" defaultValue={trip.start_fuel_level || 0} style={{ width: '100%', padding: '8px' }} />
@@ -46,7 +55,6 @@ export default async function EditTripPage({ params }: { params: Promise<{ id: s
           <input type="number" name="revenue_eur" step="0.01" defaultValue={trip.revenue_eur || 0} style={{ width: '100%', padding: '8px' }} />
         </div>
 
-        {/* Заявка клиента */}
         <h3 style={{ marginTop: '20px', borderBottom: '1px solid #ccc', paddingBottom: '5px' }}>📄 Заявка клиента</h3>
         <div>
           <label>Номер заявки</label>
@@ -57,7 +65,6 @@ export default async function EditTripPage({ params }: { params: Promise<{ id: s
           <input type="date" name="client_request_date" defaultValue={trip.client_request_date || ''} style={{ width: '100%', padding: '8px' }} />
         </div>
 
-        {/* Отправитель */}
         <h3 style={{ marginTop: '20px', borderBottom: '1px solid #ccc', paddingBottom: '5px' }}>📍 Отправитель</h3>
         <div>
           <label>Страна</label>
@@ -84,7 +91,6 @@ export default async function EditTripPage({ params }: { params: Promise<{ id: s
           <input type="text" name="sender_loading_number" defaultValue={trip.sender_loading_number || ''} style={{ width: '100%', padding: '8px' }} />
         </div>
 
-        {/* Получатель */}
         <h3 style={{ marginTop: '20px', borderBottom: '1px solid #ccc', paddingBottom: '5px' }}>🏁 Получатель</h3>
         <div>
           <label>Страна</label>
