@@ -1,6 +1,8 @@
 import { supabase } from '../../../../lib/supabaseClient';
 import { updateTrip } from '../../../trip-actions';
 
+export const dynamic = 'force-dynamic'; // ← отключаем кэш
+
 export default async function EditTripPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: tripId } = await params;
   const { data: trip, error } = await supabase
