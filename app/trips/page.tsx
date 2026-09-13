@@ -2,6 +2,8 @@ import { supabase } from '../../lib/supabaseClient';
 import { Button } from '@/components/ui/button';
 import DownloadButton from './DownloadButton';
 
+export const dynamic = 'force-dynamic';
+
 export default async function TripsPage() {
   const { data: trips, error } = await supabase
     .from('trips')
