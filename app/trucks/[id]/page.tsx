@@ -1,21 +1,25 @@
-import { cookies } from 'next/headers';
-import { redirect } from 'next/navigation';
-import { supabase } from '../../lib/supabaseClient';
+import { supabase } from '../../../lib/supabaseClient';
+import DocumentUpload from '../../components/DocumentUpload';
 
 export const dynamic = 'force-dynamic';
 
-export default async function TrucksPage() {
-  const role = cookies().get('role')?.value;
-  if (role === 'driver') redirect('/driver');
+export default async function TruckDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id: truckId } = await params;
+  if (!truckId) return <div className="p-8">Ошибка: ID машины не передан</div>;
 
-  const { data: trucks, error } = await supabase
+  const { data: truck, error: truckError } = await supabase
     .from('trucks')
     .select('*')
-    .order('registration_number', { ascending: true });
+    .eq('id', truckId)
+    .single();
 
-  if (error) {
-    return <div className="p-8 text-red-500">Ошибка загрузки: {error.message}</div>;
-  }
+  if (truckError) return <div className="p-8 text-red-500">Ошибка загрузки: {truckError.message}</div>;
+
+  const { data: documents } = await supabase
+    .from('documents')
+    .select('*')
+    .eq('entity_type', 'truck')
+    .eq('entity_id', truckId);
 
   function getDaysUntil(dateString: string | null) {
     if (!dateString) return null;
@@ -24,113 +28,135 @@ export default async function TrucksPage() {
     return Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
   }
 
-  function getMinDays(truck: any) {
-    const dates = [
-      truck.truck_insurance_expiry,
-      truck.tech_inspection_expiry,
-      truck.border_insurance_expiry,
-      truck.tachograph_legalization_expiry,
-    ].filter(Boolean);
-    if (dates.length === 0) return null;
-    const days = dates.map((d) => getDaysUntil(d)).filter((d) => d !== null) as number[];
-    return Math.min(...days);
+  function daysBadge(dateString: string | null) {
+    const days = getDaysUntil(dateString);
+    if (days === null) return { color: 'bg-slate-100 text-slate-500 border-slate-200', label: '—' };
+    if (days < 0) return { color: 'bg-red-50 text-red-700 border-red-200', label: `${days} дн.` };
+    if (days < 30) return { color: 'bg-orange-50 text-orange-700 border-orange-200', label: `${days} дн.` };
+    return { color: 'bg-green-50 text-green-700 border-green-200', label: `${days} дн.` };
   }
+
+  const typeLabel = truck.type === 'tractor' ? 'Тягач' : truck.type === 'trailer' ? 'Прицеп' : truck.type;
+  const typeIcon = truck.type === 'tractor' ? '🚛' : truck.type === 'trailer' ? '🚚' : '🚗';
+
+  const documentFields = [
+    { label: 'Страховка ОС', value: truck.truck_insurance_expiry, icon: '🛡' },
+    { label: 'Техосмотр', value: truck.tech_inspection_expiry, icon: '🔧' },
+    { label: 'Пограничная страховка РБ', value: truck.border_insurance_expiry, icon: '🛂' },
+    { label: 'Легализация тахографа', value: truck.tachograph_legalization_expiry, icon: '💳' },
+  ];
 
   return (
     <main className="min-h-screen bg-slate-50">
-      <div className="max-w-[1600px] mx-auto px-6 py-8 space-y-6">
+      <div className="max-w-[1400px] mx-auto px-6 py-8 space-y-6">
 
-        {/* Заголовок */}
-        <div className="flex flex-wrap justify-between items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900">🚚 Машины</h1>
-            <p className="text-slate-500 mt-1">Всего единиц техники: {trucks?.length || 0}</p>
+        <a href="/trucks" className="inline-flex items-center gap-2 text-slate-600 hover:text-blue-600 transition-colors text-sm font-medium">
+          ← Все машины
+        </a>
+
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-5">
+              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700
+                              flex items-center justify-center text-white text-4xl shrink-0">
+                {typeIcon}
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-slate-900">
+                  {truck.registration_number}
+                </h1>
+                <p className="text-slate-500 mt-1">
+                  {typeLabel}
+                  {truck.trailer_number && ` · Прицеп: ${truck.trailer_number}`}
+                </p>
+              </div>
+            </div>
+
+            <a
+              href={`/trucks/${truckId}/edit`}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white
+                         font-semibold px-5 py-2.5 rounded-xl shadow-md shadow-blue-600/20
+                         transition-all duration-150 active:scale-[0.98]"
+            >
+              ✏️ Редактировать
+            </a>
           </div>
-          <a
-            href="/trucks/new"
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white
-                       font-semibold px-5 py-2.5 rounded-xl shadow-md shadow-blue-600/20
-                       transition-all duration-150 active:scale-[0.98]"
-          >
-            <span>➕</span>
-            <span>Добавить машину</span>
-          </a>
         </div>
 
-        {/* Сетка */}
-        {trucks?.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-slate-100 p-16 text-center">
-            <div className="text-6xl mb-4">🚚</div>
-            <h2 className="text-xl font-bold text-slate-900 mb-2">Машин пока нет</h2>
-            <p className="text-slate-500 mb-6">Добавьте первую единицу техники</p>
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+          <h2 className="text-lg font-bold text-slate-900 mb-4">Технические данные</h2>
+          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
+            <div>
+              <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Тип</div>
+              <div className="text-slate-800 font-medium">{typeLabel}</div>
+            </div>
+            <div>
+              <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Номер прицепа</div>
+              <div className="text-slate-800 font-medium">{truck.trailer_number || '—'}</div>
+            </div>
+            <div>
+              <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Топливная карта</div>
+              <div className="text-slate-800 font-medium">{truck.fuel_card_number || '—'}</div>
+            </div>
           </div>
-        ) : (
-          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-            {trucks?.map((truck) => {
-              const minDays = getMinDays(truck);
-              const statusColor =
-                minDays === null ? 'bg-slate-100 text-slate-600 border-slate-200' :
-                minDays < 0 ? 'bg-red-50 text-red-700 border-red-200' :
-                minDays < 30 ? 'bg-orange-50 text-orange-700 border-orange-200' :
-                'bg-green-50 text-green-700 border-green-200';
-              const statusLabel =
-                minDays === null ? 'Нет данных' :
-                minDays < 0 ? `⚠️ Просрочено (${Math.abs(minDays)} дн.)` :
-                minDays < 30 ? `⚡ ${minDays} дн. до срока` :
-                `✅ OK (${minDays} дн.)`;
+        </div>
 
-              const typeLabel = truck.type === 'tractor' ? 'Тягач' : truck.type === 'trailer' ? 'Прицеп' : truck.type;
-              const typeIcon = truck.type === 'tractor' ? '🚛' : truck.type === 'trailer' ? '🚚' : '🚗';
-
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+          <h2 className="text-lg font-bold text-slate-900 mb-4">📅 Сроки документов</h2>
+          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
+            {documentFields.map((doc) => {
+              const badge = daysBadge(doc.value);
               return (
-                <a
-                  key={truck.id}
-                  href={`/trucks/${truck.id}`}
-                  className="group bg-white rounded-2xl border border-slate-100 shadow-sm
-                             hover:shadow-xl hover:border-blue-200 hover:-translate-y-0.5
-                             transition-all duration-200 overflow-hidden"
-                >
-                  <div className="p-5">
-                    {/* Иконка и госномер */}
-                    <div className="flex items-center gap-4 mb-4">
-                      <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700
-                                      flex items-center justify-center text-white text-2xl shrink-0">
-                        {typeIcon}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="text-lg font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
-                          {truck.registration_number}
-                        </div>
-                        <div className="text-sm text-slate-500">{typeLabel}</div>
-                      </div>
-                    </div>
-
-                    {/* Статус документов */}
-                    <div className={`px-3 py-2 rounded-xl text-xs font-semibold border ${statusColor}`}>
-                      {statusLabel}
-                    </div>
-
-                    {/* Быстрые данные */}
-                    <div className="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-slate-100">
-                      <div>
-                        <div className="text-[10px] uppercase tracking-wide text-slate-400 font-medium">Страховка</div>
-                        <div className="text-sm font-semibold text-slate-800">
-                          {truck.truck_insurance_expiry ? new Date(truck.truck_insurance_expiry).toLocaleDateString('ru-RU') : '—'}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-[10px] uppercase tracking-wide text-slate-400 font-medium">Техосмотр</div>
-                        <div className="text-sm font-semibold text-slate-800">
-                          {truck.tech_inspection_expiry ? new Date(truck.tech_inspection_expiry).toLocaleDateString('ru-RU') : '—'}
-                        </div>
-                      </div>
-                    </div>
+                <div key={doc.label} className="border border-slate-100 rounded-xl p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xl">{doc.icon}</span>
+                    <span className="text-sm font-semibold text-slate-700">{doc.label}</span>
                   </div>
-                </a>
+                  <div className="text-slate-800 font-medium mb-2">
+                    {doc.value ? new Date(doc.value).toLocaleDateString('ru-RU') : '—'}
+                  </div>
+                  <div className={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold border ${badge.color}`}>
+                    {badge.label}
+                  </div>
+                </div>
               );
             })}
           </div>
-        )}
+        </div>
+
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+          <h2 className="text-lg font-bold text-slate-900 mb-4">📁 Загруженные файлы</h2>
+          {documents?.length === 0 ? (
+            <div className="text-slate-400 text-center py-8">Файлы ещё не загружены</div>
+          ) : (
+            <div className="space-y-2">
+              {documents?.map((doc) => (
+                <div key={doc.id} className="flex justify-between items-center border border-slate-100 rounded-xl p-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="text-xl">📄</span>
+                    <div className="min-w-0">
+                      <div className="font-medium text-slate-800 truncate">{doc.document_type}</div>
+                      <div className="text-xs text-slate-400">
+                        {doc.expiry_date ? `до ${new Date(doc.expiry_date).toLocaleDateString('ru-RU')}` : 'без срока'}
+                      </div>
+                    </div>
+                  </div>
+                  <a
+                    href={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/documents/${doc.file_path}`}
+                    target="_blank"
+                    className="text-blue-600 hover:underline font-medium text-sm whitespace-nowrap"
+                  >
+                    Смотреть
+                  </a>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+          <DocumentUpload entityType="truck" entityId={truckId} />
+        </div>
 
       </div>
     </main>
