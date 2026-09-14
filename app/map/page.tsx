@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { supabase } from '../../lib/supabaseClient';
 
-export const dynamic_ = 'force-dynamic';
+export const dynamic = 'force-dynamic';
 
 const MapView = dynamic(() => import('./MapView'), {
   ssr: false,
@@ -49,13 +49,11 @@ export default async function MapPage() {
     <main className="min-h-screen bg-slate-50">
       <div className="max-w-[1600px] mx-auto px-6 py-8 space-y-6">
 
-        {/* Заголовок */}
         <div>
           <h1 className="text-3xl font-bold text-slate-900">🗺 Карта рейсов</h1>
           <p className="text-slate-500 mt-1">На карте отображены точки загрузки активных и завершённых рейсов</p>
         </div>
 
-        {/* Карта */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
           <div className="p-5 border-b border-slate-100 flex justify-between items-center">
             <h2 className="text-lg font-bold text-slate-900">Точки маршрутов</h2>
@@ -68,7 +66,6 @@ export default async function MapPage() {
           </div>
         </div>
 
-        {/* Список рейсов на карте */}
         {trips && trips.length > 0 && (
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
             <div className="p-5 border-b border-slate-100">
