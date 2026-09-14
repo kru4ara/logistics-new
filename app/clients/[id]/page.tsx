@@ -1,11 +1,10 @@
 import { supabase } from '../../../lib/supabaseClient';
 
-export default async function ClientProfilePage({ params }: { params: Promise<{ id: string }> }) {
+export const dynamic = 'force-dynamic';
+
+export default async function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: clientId } = await params;
-  
-  if (!clientId) {
-    return <div>Ошибка: ID клиента не передан</div>;
-  }
+  if (!clientId) return <div className="p-8">Ошибка: ID клиента не передан</div>;
 
   const { data: client, error: clientError } = await supabase
     .from('clients')
@@ -13,59 +12,139 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
     .eq('id', clientId)
     .single();
 
-  const { data: trips, error: tripsError } = await supabase
+  if (clientError) return <div className="p-8 text-red-500">Ошибка загрузки: {clientError.message}</div>;
+
+  const { data: trips } = await supabase
     .from('trips')
     .select('*')
-    .eq('client_id', clientId);
+    .eq('client_id', clientId)
+    .order('trip_number', { ascending: false });
 
-  if (clientError || tripsError) {
-    return <div>Ошибка загрузки: {clientError?.message || tripsError?.message}</div>;
-  }
+  const { data: expenses } = await supabase
+    .from('trip_expenses')
+    .select('trip_id, amount_eur');
+
+  const expensesByTrip = expenses?.reduce((acc, e) => {
+    if (!e.trip_id) return acc;
+    if (!acc[e.trip_id]) acc[e.trip_id] = 0;
+    acc[e.trip_id] += e.amount_eur || 0;
+    return acc;
+  }, {} as Record<string, number>) || {};
+
+  const totalRevenue = trips?.reduce((sum, t) => sum + (t.revenue_eur || 0), 0) || 0;
+  const totalExpenses = trips?.reduce((sum, t) => sum + (expensesByTrip[t.id] || 0), 0) || 0;
+  const profit = totalRevenue - totalExpenses;
+
+  const initials = client.name
+    ?.split(' ')
+    .map((w: string) => w[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+
+  const statusColors: Record<string, string> = {
+    planned: 'bg-slate-100 text-slate-700 border-slate-200',
+    active: 'bg-blue-50 text-blue-700 border-blue-200',
+    completed: 'bg-green-50 text-green-700 border-green-200',
+    invoiced: 'bg-yellow-50 text-yellow-700 border-yellow-200',
+    paid: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  };
+
+  const statusLabels: Record<string, string> = {
+    planned: 'Планируется',
+    active: 'В пути',
+    completed: 'Завершён',
+    invoiced: 'Выставлен счёт',
+    paid: 'Оплачен',
+  };
 
   return (
-    <main style={{ padding: '20px', fontFamily: 'sans-serif', maxWidth: '800px', margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h1 style={{ fontSize: '24px' }}>Профиль клиента</h1>
-        <a href="/clients" style={{ color: '#0070f3' }}>← Все клиенты</a>
-      </div>
+    <main className="min-h-screen bg-slate-50">
+      <div className="max-w-[1400px] mx-auto px-6 py-8 space-y-6">
 
-      <div style={{ background: '#f9f9f9', padding: '15px', borderRadius: '8px', marginTop: '15px' }}>
-        <p><strong>Название:</strong> {client.name}</p>
-        <p><strong>Контактное лицо:</strong> {client.contact_person || '-'}</p>
-        <p><strong>Телефон:</strong> {client.phone || '-'}</p>
-        <p><strong>Email:</strong> {client.email || '-'}</p>
-      </div>
-
-      <div style={{ marginTop: '25px' }}>
-        <h2>Рейсы этого клиента</h2>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ borderBottom: '2px solid #ddd', textAlign: 'left' }}>
-              <th style={{ padding: '10px' }}>Маршрут</th>
-              <th style={{ padding: '10px' }}>Статус</th>
-              <th style={{ padding: '10px' }}>Выручка (€)</th>
-            </tr>
-          </thead>
-          <tbody>
-            {trips?.length === 0 ? (
-              <tr><td colSpan={3} style={{ padding: '20px', textAlign: 'center', color: '#888' }}>Пока нет рейсов</td></tr>
-            ) : (
-              trips?.map((trip) => (
-                <tr key={trip.id} style={{ borderBottom: '1px solid #eee' }}>
-                  <td style={{ padding: '10px' }}>{trip.route || '-'}</td>
-                  <td style={{ padding: '10px' }}>{trip.status}</td>
-                  <td style={{ padding: '10px' }}>{trip.revenue_eur ? `${trip.revenue_eur} €` : '-'}</td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      <div style={{ marginTop: '25px' }}>
-        <a href="/clients/new" style={{ color: '#0070f3', textDecoration: 'underline' }}>
-          ← Добавить клиента
+        {/* Кнопка назад */}
+        <a href="/clients" className="inline-flex items-center gap-2 text-slate-600 hover:text-blue-600 transition-colors text-sm font-medium">
+          ← Все клиенты
         </a>
+
+        {/* Шапка профиля */}
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+          <div className="flex flex-wrap items-center gap-5">
+            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-pink-500 to-pink-700
+                            flex items-center justify-center text-white font-bold text-2xl shrink-0">
+              {initials || '🤝'}
+            </div>
+            <div className="flex-1 min-w-0">
+              <h1 className="text-2xl font-bold text-slate-900">{client.name}</h1>
+              <div className="flex flex-wrap gap-4 mt-2 text-sm text-slate-500">
+                {client.contact_person && <span>👤 {client.contact_person}</span>}
+                {client.phone && <span>📞 {client.phone}</span>}
+                {client.email && <span>✉️ {client.email}</span>}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Финансовая сводка */}
+        <div className="grid gap-5 md:grid-cols-3">
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+            <div className="text-sm font-medium text-slate-500 mb-2">Общий фрахт</div>
+            <div className="text-2xl font-bold text-green-600">{totalRevenue.toFixed(2)} €</div>
+          </div>
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+            <div className="text-sm font-medium text-slate-500 mb-2">Общие расходы</div>
+            <div className="text-2xl font-bold text-red-500">{totalExpenses.toFixed(2)} €</div>
+          </div>
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+            <div className="text-sm font-medium text-slate-500 mb-2">Прибыль</div>
+            <div className={`text-2xl font-bold ${profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+              {profit.toFixed(2)} €
+            </div>
+          </div>
+        </div>
+
+        {/* Список рейсов клиента */}
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+          <h2 className="text-lg font-bold text-slate-900 mb-4">📋 Рейсы клиента ({trips?.length || 0})</h2>
+          {trips?.length === 0 ? (
+            <div className="text-slate-400 text-center py-8">У этого клиента ещё нет рейсов</div>
+          ) : (
+            <div className="space-y-2">
+              {trips?.map((trip) => (
+                <a
+                  key={trip.id}
+                  href={`/trips/${trip.id}`}
+                  className="flex items-center justify-between gap-4 border border-slate-100 rounded-xl p-4
+                             hover:border-blue-200 hover:bg-blue-50/30 transition-all"
+                >
+                  <div className="flex items-center gap-4 min-w-0">
+                    <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center text-lg shrink-0">
+                      🚛
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-semibold text-slate-800">
+                        № {trip.trip_number || '—'} · {trip.route || '—'}
+                      </div>
+                      <div className="text-xs text-slate-400">
+                        {trip.start_date ? new Date(trip.start_date).toLocaleDateString('ru-RU') : '—'}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4 shrink-0">
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border whitespace-nowrap
+                                      ${statusColors[trip.status] || 'bg-slate-100 text-slate-700 border-slate-200'}`}>
+                      {statusLabels[trip.status] || trip.status}
+                    </span>
+                    <span className="text-sm font-bold text-green-600 whitespace-nowrap">
+                      {trip.revenue_eur ? `${trip.revenue_eur} €` : '—'}
+                    </span>
+                  </div>
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
+
       </div>
     </main>
   );
