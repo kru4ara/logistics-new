@@ -24,6 +24,7 @@ export default function LoginPage() {
 
     if (admin) {
       document.cookie = 'role=admin; path=/';
+      document.cookie = 'user_name=' + encodeURIComponent('Офис') + '; path=/';
       router.push('/');
       return;
     }
@@ -39,6 +40,7 @@ export default function LoginPage() {
     if (driver) {
       document.cookie = 'role=driver; path=/';
       document.cookie = 'driver_id=' + driver.id + '; path=/';
+      document.cookie = 'user_name=' + encodeURIComponent(driver.first_name + ' ' + driver.last_name) + '; path=/';
       router.push('/driver');
       return;
     }
@@ -47,31 +49,49 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center">
-      <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-sm">
-        <h1 className="text-2xl font-bold mb-6 text-center">🔐 Вход в систему</h1>
+    <main className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-sm border border-slate-100">
+        <div className="text-center mb-6">
+          <div className="text-4xl mb-2">🔐</div>
+          <h1 className="text-2xl font-bold text-slate-900">Вход в систему</h1>
+          <p className="text-sm text-slate-500 mt-1">Logistics CRM</p>
+        </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700">Логин</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Логин</label>
             <input
               value={login}
               onChange={(e) => setLogin(e.target.value)}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+              placeholder="office или фамилия"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-slate-900
+                         focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
+                         transition-all duration-150"
               required
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700">Пароль</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Пароль</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+              placeholder="••••••••"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-slate-900
+                         focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
+                         transition-all duration-150"
               required
             />
           </div>
-          {error && <p className="text-red-500 text-sm">{error}</p>}
-          <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700">
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg px-3 py-2">
+              {error}
+            </div>
+          )}
+          <button
+            type="submit"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg
+                       transition-all duration-150 shadow-md shadow-blue-600/20 active:scale-[0.98]"
+          >
             Войти
           </button>
         </form>
