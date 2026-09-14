@@ -3,6 +3,7 @@
 import { supabase } from '../lib/supabaseClient';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+import { syncReminders } from './reminder-actions';
 
 export async function updateTruck(truckId: string, formData: FormData) {
   const registrationNumber = formData.get('registration_number') as string;
@@ -29,6 +30,11 @@ export async function updateTruck(truckId: string, formData: FormData) {
     .eq('id', truckId);
 
   if (error) throw new Error(`Ошибка обновления: ${error.message}`);
+
+  // Обновляем напоминания
+  await syncReminders('truck', truckId);
+
   revalidatePath(`/trucks/${truckId}`);
+  revalidatePath('/reminders');
   redirect(`/trucks/${truckId}`);
 }
