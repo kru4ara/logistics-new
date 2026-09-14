@@ -1,6 +1,7 @@
 import { supabase } from '../../../lib/supabaseClient';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
+import { syncReminders } from '../../reminder-actions';
 
 async function createDriver(formData: FormData) {
   'use server';
@@ -20,7 +21,7 @@ async function createDriver(formData: FormData) {
   const code95Expiry = formData.get('code_95_expiry') as string;
   const adrExpiry = formData.get('adr_expiry') as string;
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('drivers')
     .insert([
       {
@@ -40,9 +41,17 @@ async function createDriver(formData: FormData) {
         adr_expiry: adrExpiry || null,
         password: '12345678'
       }
-    ]);
+    ])
+    .select('id')
+    .single();
 
   if (error) throw new Error(`Ошибка добавления: ${error.message}`);
+
+  // Автоматически создаём напоминания для документов
+  if (data?.id) {
+    await syncReminders('driver', data.id);
+  }
+
   revalidatePath('/drivers');
   redirect('/drivers');
 }
@@ -58,20 +67,17 @@ export default function NewDriverPage() {
     <main className="min-h-screen bg-slate-50">
       <div className="max-w-[900px] mx-auto px-6 py-8 space-y-6">
 
-        {/* Назад */}
         <a href="/drivers" className="inline-flex items-center gap-2 text-slate-600 hover:text-blue-600 transition-colors text-sm font-medium">
           ← Все водители
         </a>
 
-        {/* Заголовок */}
         <div>
           <h1 className="text-3xl font-bold text-slate-900">➕ Добавить водителя</h1>
-          <p className="text-slate-500 mt-1">Пароль по умолчанию: <b>12345678</b> (можно изменить позже)</p>
+          <p className="text-slate-500 mt-1">Пароль по умолчанию: <b>12345678</b></p>
         </div>
 
         <form action={createDriver} className="space-y-6">
 
-          {/* Личные данные */}
           <div className={sectionClass}>
             <h2 className={sectionTitleClass}>👤 Личные данные</h2>
             <div className="grid gap-4 md:grid-cols-2">
@@ -98,7 +104,6 @@ export default function NewDriverPage() {
             </div>
           </div>
 
-          {/* Паспорт и виза */}
           <div className={sectionClass}>
             <h2 className={sectionTitleClass}>🛂 Паспорт и виза</h2>
             <div className="grid gap-4 md:grid-cols-2">
@@ -117,7 +122,6 @@ export default function NewDriverPage() {
             </div>
           </div>
 
-          {/* Водительское удостоверение */}
           <div className={sectionClass}>
             <h2 className={sectionTitleClass}>🚗 Водительское удостоверение</h2>
             <div className="grid gap-4 md:grid-cols-2">
@@ -132,7 +136,6 @@ export default function NewDriverPage() {
             </div>
           </div>
 
-          {/* Карта водителя и код 95, АДР */}
           <div className={sectionClass}>
             <h2 className={sectionTitleClass}>💳 Дополнительные документы</h2>
             <div className="grid gap-4 md:grid-cols-2">
@@ -155,7 +158,6 @@ export default function NewDriverPage() {
             </div>
           </div>
 
-          {/* Кнопки */}
           <div className="flex gap-3">
             <button
               type="submit"
