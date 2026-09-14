@@ -1,29 +1,36 @@
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 import { supabase } from '../../lib/supabaseClient';
 import DownloadButton from './DownloadButton';
 
+export const dynamic = 'force-dynamic';
+
 export default async function RoutesPage() {
+  const role = cookies().get('role')?.value;
+  if (role === 'driver') redirect('/driver');
+
   const { data: trips, error } = await supabase
     .from('trips')
     .select('route, revenue_eur, id');
 
   if (error) {
-    return <div>Ошибка загрузки рейсов: {error.message}</div>;
+    return <div className="p-8 text-red-500">Ошибка загрузки рейсов: {error.message}</div>;
   }
 
-  const { data: expenses, error: expensesError } = await supabase
+  const { data: expenses } = await supabase
     .from('trip_expenses')
     .select('trip_id, amount_eur');
 
-  if (expensesError) {
-    return <div>Ошибка загрузки расходов: {expensesError.message}</div>;
-  }
+  const expensesByTrip = expenses?.reduce((acc, e) => {
+    if (!e.trip_id) return acc;
+    if (!acc[e.trip_id]) acc[e.trip_id] = 0;
+    acc[e.trip_id] += e.amount_eur || 0;
+    return acc;
+  }, {} as Record<string, number>) || {};
 
-  // Список маршрутов по выручке
   const routes = trips?.reduce((acc, trip) => {
     if (!trip.route) return acc;
-    const existing = acc.find(r => r.route === trip.route);
+    const existing = acc.find((r) => r.route === trip.route);
     if (existing) {
       existing.revenue += trip.revenue_eur || 0;
       existing.count += 1;
@@ -33,110 +40,120 @@ export default async function RoutesPage() {
     return acc;
   }, [] as Array<{ route: string; revenue: number; count: number }>) || [];
 
-  // Группируем расходы по trip_id
-  const expensesByTrip = expenses?.reduce((acc, e) => {
-    if (!e.trip_id) return acc;
-    const existing = acc.find(item => item.trip_id === e.trip_id);
-    if (existing) {
-      existing.amount += e.amount_eur || 0;
-    } else {
-      acc.push({ trip_id: e.trip_id, amount: e.amount_eur || 0 });
-    }
-    return acc;
-  }, [] as Array<{ trip_id: string; amount: number }>) || [];
-
-  // Добавляем расходы к маршруту
   const routesWithExpenses = routes.map((route) => {
-    const tripIds = trips?.filter(t => t.route === route.route).map(t => t.id) || [];
-    const routeExpenses = expensesByTrip.filter(e => tripIds.includes(e.trip_id)).reduce((sum, e) => sum + e.amount, 0);
-    return {
-      ...route,
-      expenses: routeExpenses
-    };
+    const tripIds = trips?.filter((t) => t.route === route.route).map((t) => t.id) || [];
+    const routeExpenses = expensesByTrip
+      ? Object.entries(expensesByTrip)
+          .filter(([tripId]) => tripIds.includes(tripId))
+          .reduce((sum, [, amount]) => sum + amount, 0)
+      : 0;
+    return { ...route, expenses: routeExpenses };
   });
 
-  // Общая выручка
-  const totalRevenue = routesWithExpenses?.reduce((sum, r) => sum + (r.revenue || 0), 0) || 0;
-
-  // Общая расходы
-  const totalExpenses = routesWithExpenses?.reduce((sum, r) => sum + (r.expenses || 0), 0) || 0;
-
-  // Чистая прибыль
+  const totalRevenue = routesWithExpenses.reduce((sum, r) => sum + r.revenue, 0);
+  const totalExpenses = routesWithExpenses.reduce((sum, r) => sum + r.expenses, 0);
   const profit = totalRevenue - totalExpenses;
 
-  // Сортировка по выручке (высокая → низкая)
-  const sortedRoutes = routesWithExpenses.sort((a, b) => a.revenue - b.revenue);
+  const sortedRoutes = [...routesWithExpenses].sort((a, b) => b.revenue - a.revenue);
 
   return (
-    <main className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-6xl mx-auto space-y-8">
-        <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900">🚛 Маршруты</h1>
-          <div className="flex gap-4">
-            <Button asChild>
-              <a href="/trips/new">+ Создать рейс</a>
-            </Button>
-            <DownloadButton data={sortedRoutes} />
+    <main className="min-h-screen bg-slate-50">
+      <div className="max-w-[1600px] mx-auto px-6 py-8 space-y-6">
+
+        {/* Заголовок */}
+        <div className="flex flex-wrap justify-between items-center gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900">🛣 Маршруты</h1>
+            <p className="text-slate-500 mt-1">Всего маршрутов: {sortedRoutes.length}</p>
+          </div>
+          <DownloadButton data={sortedRoutes} />
+        </div>
+
+        {/* Счётчики */}
+        <div className="grid gap-5 md:grid-cols-3">
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-medium text-slate-500">Фрахт</span>
+              <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center text-xl">💵</div>
+            </div>
+            <div className="text-3xl font-bold text-green-600">{totalRevenue.toFixed(2)} €</div>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-medium text-slate-500">Расходы</span>
+              <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center text-xl">📉</div>
+            </div>
+            <div className="text-3xl font-bold text-red-500">{totalExpenses.toFixed(2)} €</div>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-medium text-slate-500">Прибыль</span>
+              <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-xl">📈</div>
+            </div>
+            <div className={`text-3xl font-bold ${profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+              {profit.toFixed(2)} €
+            </div>
           </div>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-3">
-          <Card className="bg-white shadow-sm border-0">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500">Фрахт</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">
-                {totalRevenue.toFixed(2)} €
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-white shadow-sm border-0">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500">Расходы</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-red-500">
-                {totalExpenses.toFixed(2)} €
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-white shadow-sm border-0">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500">Чистая прибыль</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className={`text-2xl font-bold ${profit >= 0 ? 'text-green-600' : 'text-red-500'}`}>
-                {profit.toFixed(2)} €
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div>
-          <h2 style={{ fontSize: '20px', fontWeight: 'bold' }}>Фрахт по маршрутам</h2>
-          <table style={{ width: '100%', marginTop: '15px' }}>
-            <thead>
-              <tr style={{ textAlign: 'left', borderBottom: '2px solid #ddd' }}>
-                <th style={{ padding: '10px' }}>Маршрут</th>
-                <th style={{ padding: '10px' }}>Фрахт (€)</th>
-                <th style={{ padding: '10px' }}>Расходы (€)</th>
-                <th style={{ padding: '10px' }}>Количество рейсов</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sortedRoutes?.map((r) => (
-                <tr key={r.route} style={{ borderBottom: '1px solid #eee' }}>
-                  <td style={{ padding: '10px' }}>{r.route}</td>
-                  <td style={{ padding: '10px' }}>{r.revenue.toFixed(2)} €</td>
-                  <td style={{ padding: '10px' }}>{r.expenses.toFixed(2)} €</td>
-                  <td style={{ padding: '10px' }}>{r.count}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        {/* Таблица */}
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+          <div className="p-6 border-b border-slate-100">
+            <h2 className="text-lg font-bold text-slate-900">Статистика по маршрутам</h2>
+          </div>
+          {sortedRoutes.length === 0 ? (
+            <div className="p-16 text-center text-slate-400">
+              <div className="text-6xl mb-4">🛣</div>
+              <p>Маршрутов пока нет</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-slate-100 bg-slate-50/50">
+                    <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Маршрут</th>
+                    <th className="text-right px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Фрахт</th>
+                    <th className="text-right px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Расходы</th>
+                    <th className="text-right px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Прибыль</th>
+                    <th className="text-right px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Рейсов</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedRoutes.map((r, i) => {
+                    const rProfit = r.revenue - r.expenses;
+                    return (
+                      <tr key={r.route} className="border-b border-slate-50 hover:bg-blue-50/30 transition-colors">
+                        <td className="px-6 py-4 font-medium text-slate-800">
+                          <span className="inline-flex items-center gap-2">
+                            <span className="w-6 h-6 rounded-full bg-blue-50 text-blue-600 text-xs font-bold flex items-center justify-center">
+                              {i + 1}
+                            </span>
+                            {r.route}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right font-semibold text-green-600">
+                          {r.revenue.toFixed(2)} €
+                        </td>
+                        <td className="px-6 py-4 text-right font-semibold text-red-500">
+                          {r.expenses.toFixed(2)} €
+                        </td>
+                        <td className={`px-6 py-4 text-right font-bold ${rProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                          {rProfit.toFixed(2)} €
+                        </td>
+                        <td className="px-6 py-4 text-right text-slate-600">
+                          <span className="inline-block px-2.5 py-1 rounded-full bg-slate-100 text-xs font-semibold">
+                            {r.count}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
       </div>
