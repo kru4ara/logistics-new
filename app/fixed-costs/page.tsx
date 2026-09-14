@@ -4,6 +4,12 @@ import { supabase } from '../../lib/supabaseClient';
 
 export const dynamic = 'force-dynamic';
 
+type MonthGroup = {
+  month_key: string;
+  items: any[];
+  total: number;
+};
+
 export default async function FixedCostsPage() {
   const role = cookies().get('role')?.value;
   if (role === 'driver') redirect('/driver');
@@ -17,16 +23,18 @@ export default async function FixedCostsPage() {
     return <div className="p-8 text-red-500">Ошибка загрузки: {error.message}</div>;
   }
 
-  // Группируем по месяцу
-  const costsByMonth = costs?.reduce((acc, c) => {
-    if (!c.month_key) return acc;
-    if (!acc[c.month_key]) acc[c.month_key] = { month_key: c.month_key, items: [], total: 0 };
-    acc[c.month_key].items.push(c);
-    acc[c.month_key].total += c.amount_eur || 0;
-    return acc;
-  }, {} as Record<string, { month_key: string; items: any[]; total: number }>) || {};
+  // Группируем по месяцу с явной типизацией
+  const costsByMonth: Record<string, MonthGroup> = {};
+  costs?.forEach((c) => {
+    if (!c.month_key) return;
+    if (!costsByMonth[c.month_key]) {
+      costsByMonth[c.month_key] = { month_key: c.month_key, items: [], total: 0 };
+    }
+    costsByMonth[c.month_key].items.push(c);
+    costsByMonth[c.month_key].total += c.amount_eur || 0;
+  });
 
-  const months = Object.values(costsByMonth);
+  const months: MonthGroup[] = Object.values(costsByMonth);
 
   return (
     <main className="min-h-screen bg-slate-50">
