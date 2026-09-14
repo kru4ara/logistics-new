@@ -1,14 +1,19 @@
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 import { supabase } from '../../../../lib/supabaseClient';
 import { addExpense, deleteExpense } from '../../../trip-actions';
 import FileUpload from '../../FileUpload';
 import TripStatusButtons from '../../TripStatusButtons';
 
+export const dynamic = 'force-dynamic';
+
 export default async function DriverTripDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: tripId } = await params;
-  
-  if (!tripId) {
-    return <div>Ошибка: ID рейса не передан</div>;
-  }
+  if (!tripId) return <div className="p-6">Ошибка: ID рейса не передан</div>;
+
+  const cookieStore = cookies();
+  const role = cookieStore.get('role')?.value;
+  if (role !== 'driver') redirect('/login');
 
   const { data: trip, error: tripError } = await supabase
     .from('trips')
@@ -16,183 +21,280 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
     .eq('id', tripId)
     .single();
 
-  const { data: expenses, error: expError } = await supabase
+  if (tripError) return <div className="p-6 text-red-500">Ошибка: {tripError.message}</div>;
+
+  const { data: expenses } = await supabase
     .from('trip_expenses')
     .select('*')
     .eq('trip_id', tripId);
 
-  const { data: documents, error: docError } = await supabase
+  const { data: documents } = await supabase
     .from('trip_documents')
     .select('*')
     .eq('trip_id', tripId);
 
-  if (tripError || expError || docError) {
-    return <div>Ошибка загрузки: {tripError?.message || expError?.message || docError?.message}</div>;
-  }
-
-  // Расчет остатка топлива (только для отображения, не для ввода)
   const refuelLiters = expenses?.filter(e => e.category === 'fuel' && e.liters).reduce((sum, e) => sum + e.liters, 0) || 0;
   const fuelLeft = (trip.start_fuel_level || 0) + refuelLiters - (trip.actual_liters || 0);
 
+  const statusLabels: Record<string, string> = {
+    planned: 'Планируется',
+    active: 'В пути',
+    completed: 'Завершён',
+    invoiced: 'Выставлен счёт',
+    paid: 'Оплачен',
+  };
+
+  const statusColors: Record<string, string> = {
+    planned: 'bg-slate-100 text-slate-700 border-slate-200',
+    active: 'bg-blue-50 text-blue-700 border-blue-200',
+    completed: 'bg-green-50 text-green-700 border-green-200',
+    invoiced: 'bg-yellow-50 text-yellow-700 border-yellow-200',
+    paid: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  };
+
+  const inputClass = "w-full rounded-lg border border-slate-300 px-3 py-2.5 text-slate-900 " +
+    "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-150";
+  const labelClass = "block text-sm font-medium text-slate-700 mb-1";
+
   return (
-    <main style={{ padding: '20px', fontFamily: 'sans-serif', maxWidth: '800px', margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h1 style={{ fontSize: '24px' }}>Рейс №{trip.trip_number || '—'}</h1>
-        <a href="/driver" style={{ color: '#0070f3' }}>← Все рейсы</a>
-      </div>
+    <main className="min-h-screen bg-slate-50">
+      <div className="max-w-[900px] mx-auto px-4 py-6 space-y-5">
 
-      <div style={{ background: '#f9f9f9', padding: '15px', borderRadius: '8px', marginTop: '15px' }}>
-        <p><strong>Клиент:</strong> {trip.clients?.name || 'Не указан'}</p>
-        <p><strong>Маршрут:</strong> {trip.route || '-'}</p>
-        <p><strong>Статус:</strong> {trip.status}</p>
-        <p><strong>Дата старта:</strong> {trip.start_date ? new Date(trip.start_date).toLocaleDateString() : '-'}</p>
-      </div>
+        {/* Назад */}
+        <a href="/driver" className="inline-flex items-center gap-2 text-slate-600 hover:text-blue-600 transition-colors text-sm font-medium">
+          ← Мои рейсы
+        </a>
 
-      {/* Кнопки статусов */}
-      <div style={{ marginTop: '25px' }}>
-        <TripStatusButtons tripId={tripId} currentStatus={trip.status} showAdminStatuses={false} />
-      </div>
-
-      {/* Остаток топлива (только информация) */}
-      <div style={{ marginTop: '25px', padding: '20px', border: '1px solid #ddd', borderRadius: '8px' }}>
-        <h3>⛽ Остаток топлива</h3>
-        <p style={{ fontSize: '22px', fontWeight: 'bold', color: '#0070f3' }}>
-          {fuelLeft.toFixed(1)} л
-        </p>
-      </div>
-
-      {/* Загрузка документов */}
-      <div style={{ marginTop: '25px' }}>
-        <h2>Загрузка документов</h2>
-        <FileUpload tripId={tripId} />
-      </div>
-
-      {/* Загруженные документы */}
-      <div style={{ marginTop: '25px' }}>
-        <h2>Загруженные документы</h2>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ borderBottom: '2px solid #ddd', textAlign: 'left' }}>
-              <th style={{ padding: '10px' }}>Название</th>
-              <th style={{ padding: '10px' }}>Тип</th>
-              <th style={{ padding: '10px' }}>Дата загрузки</th>
-            </tr>
-          </thead>
-          <tbody>
-            {documents?.length === 0 ? (
-              <tr><td colSpan={3} style={{ padding: '20px', textAlign: 'center', color: '#888' }}>Пока нет загруженных документов</td></tr>
-            ) : (
-              documents?.map((doc) => (
-                <tr key={doc.id} style={{ borderBottom: '1px solid #eee' }}>
-                  <td style={{ padding: '10px' }}>{doc.original_name}</td>
-                  <td style={{ padding: '10px' }}>{doc.document_type === 'cmr' ? '📄 CMR' : doc.document_type}</td>
-                  <td style={{ padding: '10px' }}>{doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleDateString() : '-'}</td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Расходы */}
-      <div style={{ marginTop: '25px' }}>
-        <h2>Расходы по рейсу</h2>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ borderBottom: '2px solid #ddd', textAlign: 'left' }}>
-              <th style={{ padding: '10px' }}>Категория</th>
-              <th style={{ padding: '10px' }}>Сумма (€)</th>
-              <th style={{ padding: '10px' }}>Валюта</th>
-              <th style={{ padding: '10px' }}>Литры</th>
-              <th style={{ padding: '10px' }}>Описание</th>
-              <th style={{ padding: '10px' }}>Дата</th>
-              <th style={{ padding: '10px' }}></th>
-            </tr>
-          </thead>
-          <tbody>
-            {expenses?.length === 0 ? (
-              <tr><td colSpan={7} style={{ padding: '20px', textAlign: 'center', color: '#888' }}>Пока нет расходов</td></tr>
-            ) : (
-              expenses?.map((exp) => (
-                <tr key={exp.id} style={{ borderBottom: '1px solid #eee' }}>
-                  <td style={{ padding: '10px' }}>
-                    {exp.category === 'fuel' ? '⛽ Топливо' :
-                     exp.category === 'epi' ? '📄 EPI' :
-                     exp.category === 'etoll' ? '🛣 e-TOLL' :
-                     exp.category === 'border' ? '🛂 Граница' :
-                     exp.category === 'salary' ? '💶 ЗП водителя' :
-                     exp.category === 'contractor' ? '🚛 Подрядчик' : exp.category}
-                  </td>
-                  <td style={{ padding: '10px', fontWeight: 'bold' }}>{exp.amount_eur} €</td>
-                  <td style={{ padding: '10px' }}>{exp.currency || 'EUR'}</td>
-                  <td style={{ padding: '10px' }}>{exp.liters || '-'}</td>
-                  <td style={{ padding: '10px' }}>{exp.description || '-'}</td>
-                  <td style={{ padding: '10px' }}>{exp.expense_date ? new Date(exp.expense_date).toLocaleDateString('ru-RU') : '-'}</td>
-                  <td style={{ padding: '10px' }}>
-                    <form action={async () => {
-                      'use server';
-                      await deleteExpense(exp.id, tripId);
-                    }}>
-                      <button type="submit" style={{ padding: '4px 10px', backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>🗑️ Удалить</button>
-                    </form>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Форма добавления расхода */}
-      <div style={{ marginTop: '30px', padding: '20px', border: '1px solid #ddd', borderRadius: '8px' }}>
-        <h3>+ Добавить расход</h3>
-        <form action={addExpense} style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxWidth: '400px' }}>
-          <input type="hidden" name="trip_id" value={tripId} />
-          
-          <div>
-            <label>Категория</label>
-            <select name="category" required style={{ width: '100%', padding: '8px' }}>
-              <option value="fuel">Топливо</option>
-              <option value="epi">EPI</option>
-              <option value="etoll">e-TOLL</option>
-              <option value="border">Граница</option>
-              <option value="salary">ЗП водителя</option>
-              <option value="contractor">Подрядчик</option>
-              <option value="other">Другое</option>
-            </select>
+        {/* Заголовок */}
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+          <div className="flex justify-between items-start mb-3">
+            <div>
+              <div className="text-xs text-slate-400 font-medium">Рейс № {trip.trip_number || '—'}</div>
+              <h1 className="text-2xl font-bold text-slate-900 mt-1">
+                {trip.clients?.name || 'Клиент не указан'}
+              </h1>
+            </div>
+            <span className={`px-3 py-1 rounded-full text-xs font-semibold border whitespace-nowrap
+                              ${statusColors[trip.status] || 'bg-slate-100 text-slate-700 border-slate-200'}`}>
+              {statusLabels[trip.status] || trip.status}
+            </span>
           </div>
-
-          <div>
-            <label>Валюта</label>
-            <select name="currency" style={{ width: '100%', padding: '8px' }}>
-              <option value="EUR">EUR</option>
-              <option value="PLN">PLN</option>
-              <option value="BYN">BYN</option>
-            </select>
+          <div className="flex items-center gap-2 text-sm text-slate-600">
+            <span>🛣</span>
+            <span>{trip.route || '—'}</span>
           </div>
-
-          <div>
-            <label>Сумма</label>
-            <input type="number" name="amount" step="0.01" required style={{ width: '100%', padding: '8px' }} />
+          <div className="text-xs text-slate-400 mt-3">
+            📅 Дата старта: {trip.start_date ? new Date(trip.start_date).toLocaleDateString('ru-RU') : '—'}
           </div>
+        </div>
 
-          <div>
-            <label>Литры (для топлива)</label>
-            <input type="number" name="liters" step="0.01" placeholder="Например, 150" style={{ width: '100%', padding: '8px' }} />
+        {/* Кнопки статуса (только «Начать» и «Завершить») */}
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+          <h2 className="text-sm font-bold text-slate-700 mb-3">Действия по рейсу</h2>
+          <TripStatusButtons tripId={tripId} currentStatus={trip.status} showAdminStatuses={false} />
+        </div>
+
+        {/* Остаток топлива */}
+        <div className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-2xl p-6 shadow-lg text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-sm text-blue-200">Остаток топлива в баке</div>
+              <div className="text-3xl font-bold mt-1">{fuelLeft.toFixed(1)} л</div>
+            </div>
+            <div className="text-5xl">⛽</div>
           </div>
+          {trip.actual_liters && trip.actual_km ? (
+            <div className="text-xs text-blue-200 mt-3">
+              Последние данные: {trip.actual_km} км / {trip.actual_liters} л · Расход: {((trip.actual_liters / trip.actual_km) * 100).toFixed(1)} л/100 км
+            </div>
+          ) : null}
+        </div>
 
-          <div>
-            <label>Описание</label>
-            <input type="text" name="description" style={{ width: '100%', padding: '8px' }} />
-          </div>
+        {/* Задание: загрузка / выгрузка */}
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-4">
+          <h2 className="text-lg font-bold text-slate-900">📋 Задание</h2>
 
-          <div>
-            <label>Дата</label>
-            <input type="date" name="expense_date" style={{ width: '100%', padding: '8px' }} />
-          </div>
+          {trip.sender_city && (
+            <div className="border-l-4 border-green-500 pl-4 py-1">
+              <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-1">📍 Загрузка</div>
+              <div className="font-bold text-slate-900">{trip.sender_name || 'Отправитель не указан'}</div>
+              <div className="text-sm text-slate-600 mt-1">
+                {trip.sender_postal_code} {trip.sender_city}, {trip.sender_address}
+              </div>
+              <div className="text-sm text-slate-500 mt-1">🌍 {trip.sender_country}</div>
+              {trip.sender_loading_number && (
+                <div className="text-sm text-blue-600 font-semibold mt-1">
+                  🚪 Погрузочный номер: {trip.sender_loading_number}
+                </div>
+              )}
+            </div>
+          )}
 
-          <button type="submit" style={{ padding: '10px', background: '#0070f3', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Добавить расход</button>
-        </form>
+          {trip.receiver_city && (
+            <div className="border-l-4 border-blue-500 pl-4 py-1">
+              <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-1">🏁 Выгрузка</div>
+              <div className="font-bold text-slate-900">{trip.receiver_name || 'Получатель не указан'}</div>
+              <div className="text-sm text-slate-600 mt-1">
+                {trip.receiver_postal_code} {trip.receiver_city}, {trip.receiver_address}
+              </div>
+              <div className="text-sm text-slate-500 mt-1">🌍 {trip.receiver_country}</div>
+              {trip.receiver_loading_number && (
+                <div className="text-sm text-blue-600 font-semibold mt-1">
+                  🚪 Погрузочный номер: {trip.receiver_loading_number}
+                </div>
+              )}
+            </div>
+          )}
+
+          {!trip.sender_city && !trip.receiver_city && (
+            <div className="text-slate-400 text-sm text-center py-6">
+              Адреса загрузки и выгрузки не заполнены
+            </div>
+          )}
+        </div>
+
+        {/* Загрузка документов */}
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+          <h2 className="text-lg font-bold text-slate-900 mb-4">📎 Загрузить документы</h2>
+          <p className="text-sm text-slate-500 mb-4">
+            Загрузите CMR с отметкой о выгрузке, фото груза и другие рабочие документы.
+          </p>
+          <FileUpload tripId={tripId} />
+        </div>
+
+        {/* Загруженные документы */}
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+          <h2 className="text-lg font-bold text-slate-900 mb-4">📁 Загруженные файлы</h2>
+          {documents?.length === 0 ? (
+            <div className="text-slate-400 text-sm text-center py-6">Файлы ещё не загружены</div>
+          ) : (
+            <div className="space-y-2">
+              {documents?.map((doc) => (
+                <a
+                  key={doc.id}
+                  href={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/documents/${doc.file_path}`}
+                  target="_blank"
+                  className="flex justify-between items-center border border-slate-100 rounded-xl p-3
+                             hover:border-blue-200 hover:bg-blue-50/30 transition-all"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="text-xl">📄</span>
+                    <div className="min-w-0">
+                      <div className="font-medium text-slate-800 truncate text-sm">{doc.original_name}</div>
+                      <div className="text-xs text-slate-400">
+                        {doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleDateString('ru-RU') : ''}
+                      </div>
+                    </div>
+                  </div>
+                  <span className="text-blue-600 text-sm font-medium whitespace-nowrap">Открыть</span>
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Расходы */}
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+          <h2 className="text-lg font-bold text-slate-900 mb-4">💸 Расходы по рейсу</h2>
+
+          {expenses?.length === 0 ? (
+            <div className="text-slate-400 text-sm text-center py-6">Пока нет расходов</div>
+          ) : (
+            <div className="space-y-2">
+              {expenses?.map((exp) => (
+                <div key={exp.id} className="flex justify-between items-center border border-slate-100 rounded-xl p-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="text-xl">
+                      {exp.category === 'fuel' ? '⛽' :
+                       exp.category === 'epi' ? '📄' :
+                       exp.category === 'etoll' ? '🛣' :
+                       exp.category === 'border' ? '🛂' :
+                       exp.category === 'salary' ? '💶' :
+                       exp.category === 'contractor' ? '🚛' : '📌'}
+                    </span>
+                    <div className="min-w-0">
+                      <div className="font-medium text-slate-800 text-sm">
+                        {exp.description || exp.category}
+                      </div>
+                      <div className="text-xs text-slate-400">
+                        {exp.original_amount} {exp.currency} · {exp.expense_date ? new Date(exp.expense_date).toLocaleDateString('ru-RU') : ''}
+                      </div>
+                    </div>
+                  </div>
+                  <form action={async () => {
+                    'use server';
+                    await deleteExpense(exp.id, tripId);
+                  }}>
+                    <button type="submit" className="text-red-500 hover:text-red-700 text-xs font-medium px-2 py-1">
+                      Удалить
+                    </button>
+                  </form>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Добавить расход */}
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+          <h2 className="text-lg font-bold text-slate-900 mb-4">➕ Добавить расход</h2>
+          <form action={addExpense} className="space-y-4">
+            <input type="hidden" name="trip_id" value={tripId} />
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label className={labelClass}>Категория</label>
+                <select name="category" required className={inputClass}>
+                  <option value="fuel">⛽ Топливо</option>
+                  <option value="epi">📄 EPI</option>
+                  <option value="etoll">🛣 e-TOLL</option>
+                  <option value="border">🛂 Граница</option>
+                  <option value="salary">💶 ЗП водителя</option>
+                  <option value="contractor">🚛 Подрядчик</option>
+                  <option value="other">📌 Другое</option>
+                </select>
+              </div>
+
+              <div>
+                <label className={labelClass}>Валюта</label>
+                <select name="currency" className={inputClass}>
+                  <option value="EUR">EUR</option>
+                  <option value="PLN">PLN</option>
+                  <option value="BYN">BYN</option>
+                </select>
+              </div>
+
+              <div>
+                <label className={labelClass}>Сумма</label>
+                <input type="number" name="amount" step="0.01" required className={inputClass} />
+              </div>
+
+              <div>
+                <label className={labelClass}>Литры (для топлива)</label>
+                <input type="number" name="liters" step="0.01" placeholder="150" className={inputClass} />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className={labelClass}>Описание</label>
+                <input type="text" name="description" placeholder="Комментарий" className={inputClass} />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className={labelClass}>Дата</label>
+                <input type="date" name="expense_date" className={inputClass} />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl
+                         shadow-md shadow-blue-600/20 transition-all duration-150 active:scale-[0.98]"
+            >
+              ✅ Добавить расход
+            </button>
+          </form>
+        </div>
+
       </div>
     </main>
   );
