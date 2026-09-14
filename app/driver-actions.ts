@@ -3,6 +3,7 @@
 import { supabase } from '../lib/supabaseClient';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+import { syncReminders } from './reminder-actions';
 
 export async function updateDriver(driverId: string, formData: FormData) {
   const firstName = formData.get('first_name') as string;
@@ -41,6 +42,11 @@ export async function updateDriver(driverId: string, formData: FormData) {
     .eq('id', driverId);
 
   if (error) throw new Error(`Ошибка обновления: ${error.message}`);
+
+  // Обновляем напоминания
+  await syncReminders('driver', driverId);
+
   revalidatePath(`/drivers/${driverId}`);
+  revalidatePath('/reminders');
   redirect(`/drivers/${driverId}`);
 }
