@@ -7,35 +7,8 @@ async function createFixedCost(formData: FormData) {
 
   const monthKey = formData.get('month_key') as string;
   const category = formData.get('category') as string;
-  const amount = parseFloat(formData.get('amount') as string) || 0;
-  const currency = formData.get('currency') as string;
+  const amountPln = parseFloat(formData.get('amount_pln') as string) || 0;
   const amountEur = parseFloat(formData.get('amount_eur') as string) || 0;
-
-  // Если валюта не EUR, автоматически пересчитываем
-  let amountEurFinal = amountEur;
-  if (currency === 'PLN') {
-    const { data: rate } = await supabase
-      .from('rates')
-      .select('pln_to_eur')
-      .order('rate_date', { ascending: false })
-      .limit(1)
-      .single();
-
-    if (rate?.pln_to_eur) {
-      amountEurFinal = amount * rate.pln_to_eur;
-    }
-  } else if (currency === 'BYN') {
-    const { data: rate } = await supabase
-      .from('rates')
-      .select('byn_to_eur')
-      .order('rate_date', { ascending: false })
-      .limit(1)
-      .single();
-
-    if (rate?.byn_to_eur) {
-      amountEurFinal = amount * rate.byn_to_eur;
-    }
-  }
 
   const { error } = await supabase
     .from('fixed_costs')
@@ -43,94 +16,88 @@ async function createFixedCost(formData: FormData) {
       {
         month_key: monthKey,
         category: category,
-        amount_pln: currency === 'PLN' ? amount : null,
-        amount_eur: amountEurFinal,
-        currency: currency
+        amount_pln: amountPln || null,
+        amount_eur: amountEur || null
       }
     ]);
 
-  if (error) {
-    throw new Error(`Ошибка добавления: ${error.message}`);
-  }
-
+  if (error) throw new Error(`Ошибка добавления: ${error.message}`);
   revalidatePath('/fixed-costs');
   redirect('/fixed-costs');
 }
 
 export default function NewFixedCostPage() {
+  const inputClass = "w-full rounded-lg border border-slate-300 px-3 py-2.5 text-slate-900 " +
+    "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-150";
+  const labelClass = "block text-sm font-medium text-slate-700 mb-1";
+  const sectionClass = "bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-4";
+  const sectionTitleClass = "text-lg font-bold text-slate-900 mb-2 flex items-center gap-2";
+
   return (
-    <div style={{ padding: '20px', fontFamily: 'sans-serif', maxWidth: '500px' }}>
-      <h1 style={{ fontSize: '24px' }}>Добавить фиксированную затрату</h1>
-      
-      <form action={createFixedCost} style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '20px' }}>
-        <div>
-          <label htmlFor="month_key" style={{ display: 'block', fontWeight: 'bold' }}>Месяц (ГГГГ-ММ)</label>
-          <input 
-            type="month" 
-            id="month_key" 
-            name="month_key" 
-            required
-            style={{ width: '100%', padding: '8px', marginTop: '5px', borderRadius: '4px', border: '1px solid #ccc' }}
-          />
-        </div>
+    <main className="min-h-screen bg-slate-50">
+      <div className="max-w-[900px] mx-auto px-6 py-8 space-y-6">
 
-        <div>
-          <label htmlFor="category" style={{ display: 'block', fontWeight: 'bold' }}>Категория</label>
-          <input 
-            type="text" 
-            id="category" 
-            name="category" 
-            placeholder="Например: Страховка, Бухгалтерия"
-            required
-            style={{ width: '100%', padding: '8px', marginTop: '5px', borderRadius: '4px', border: '1px solid #ccc' }}
-          />
-        </div>
-
-        <div>
-          <label htmlFor="currency" style={{ display: 'block', fontWeight: 'bold' }}>Валюта</label>
-          <select 
-            id="currency" 
-            name="currency" 
-            style={{ width: '100%', padding: '8px', marginTop: '5px', borderRadius: '4px', border: '1px solid #ccc' }}
-          >
-            <option value="EUR">EUR</option>
-            <option value="PLN">PLN</option>
-            <option value="BYN">BYN</option>
-          </select>
-        </div>
-
-        <div>
-          <label htmlFor="amount" style={{ display: 'block', fontWeight: 'bold' }}>Сумма</label>
-          <input 
-            type="number" 
-            id="amount" 
-            name="amount" 
-            step="0.01"
-            placeholder="0.00"
-            style={{ width: '100%', padding: '8px', marginTop: '5px', borderRadius: '4px', border: '1px solid #ccc' }}
-          />
-        </div>
-
-        <button 
-          type="submit" 
-          style={{ 
-            marginTop: '10px', 
-            padding: '10px', 
-            backgroundColor: '#0070f3', 
-            color: 'white', 
-            border: 'none', 
-            borderRadius: '4px', 
-            cursor: 'pointer',
-            fontWeight: 'bold'
-          }}
-        >
-          Сохранить затрату
-        </button>
-
-        <a href="/fixed-costs" style={{ marginTop: '10px', color: '#0070f3', textDecoration: 'underline' }}>
-          ← Назад к списку
+        {/* Назад */}
+        <a href="/fixed-costs" className="inline-flex items-center gap-2 text-slate-600 hover:text-blue-600 transition-colors text-sm font-medium">
+          ← Все затраты
         </a>
-      </form>
-    </div>
+
+        {/* Заголовок */}
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900">➕ Добавить фиксированную затрату</h1>
+          <p className="text-slate-500 mt-1">Заполните данные о затрате за месяц</p>
+        </div>
+
+        <form action={createFixedCost} className="space-y-6">
+
+          <div className={sectionClass}>
+            <h2 className={sectionTitleClass}>💰 Данные затраты</h2>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label className={labelClass}>Месяц *</label>
+                <input type="month" name="month_key" required className={inputClass} />
+              </div>
+              <div>
+                <label className={labelClass}>Категория *</label>
+                <input
+                  type="text"
+                  name="category"
+                  required
+                  placeholder="Например: Страховка, Бухгалтерия"
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Сумма (PLN)</label>
+                <input type="number" name="amount_pln" step="0.01" placeholder="0.00" className={inputClass} />
+              </div>
+              <div>
+                <label className={labelClass}>Сумма (EUR)</label>
+                <input type="number" name="amount_eur" step="0.01" placeholder="0.00" className={inputClass} />
+              </div>
+            </div>
+          </div>
+
+          {/* Кнопки */}
+          <div className="flex gap-3">
+            <button
+              type="submit"
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl
+                         shadow-md shadow-blue-600/20 transition-all duration-150 active:scale-[0.98]"
+            >
+              ✅ Сохранить затрату
+            </button>
+            <a
+              href="/fixed-costs"
+              className="px-6 py-3 rounded-xl border border-slate-300 text-slate-700 font-semibold
+                         hover:bg-slate-100 transition-all duration-150"
+            >
+              Отмена
+            </a>
+          </div>
+
+        </form>
+      </div>
+    </main>
   );
 }
