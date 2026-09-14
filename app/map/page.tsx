@@ -1,11 +1,11 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import dynamic from 'next/dynamic';
+import dynamicImport from 'next/dynamic';
 import { supabase } from '../../lib/supabaseClient';
 
 export const dynamic = 'force-dynamic';
 
-const MapView = dynamic(() => import('./MapView'), {
+const MapView = dynamicImport(() => import('./MapView'), {
   ssr: false,
   loading: () => (
     <div className="h-full w-full flex items-center justify-center bg-slate-100 text-slate-400">
