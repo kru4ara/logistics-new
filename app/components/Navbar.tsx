@@ -5,101 +5,109 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 const adminNavItems = [
-  { href: '/', label: '🚛 Главная' },
-  { href: '/trips', label: '📋 Рейсы' },
-  { href: '/drivers', label: '🚛 Водители' },
-  { href: '/trucks', label: '🚚 Машины' },
-  { href: '/clients', label: '🤝 Клиенты' },
-  { href: '/routes', label: '🛣 Маршруты' },
-  { href: '/reports', label: '💰 Отчёты' },
-  { href: '/reminders', label: '⏰ Напоминания' },
-  { href: '/map', label: '🗺 Карта' },
-  { href: '/fixed-costs', label: '💶 Фикс. затраты' },
+  { href: '/', label: 'Главная', icon: '🏠' },
+  { href: '/trips', label: 'Рейсы', icon: '📋' },
+  { href: '/drivers', label: 'Водители', icon: '🚛' },
+  { href: '/trucks', label: 'Машины', icon: '🚚' },
+  { href: '/clients', label: 'Клиенты', icon: '🤝' },
+  { href: '/routes', label: 'Маршруты', icon: '🛣' },
+  { href: '/reports', label: 'Отчёты', icon: '💰' },
+  { href: '/reminders', label: 'Напоминания', icon: '⏰' },
+  { href: '/map', label: 'Карта', icon: '🗺' },
+  { href: '/fixed-costs', label: 'Фикс. затраты', icon: '💶' },
 ];
 
 const driverNavItems = [
-  { href: '/driver', label: '🚚 Мои рейсы' },
+  { href: '/driver', label: 'Мои рейсы', icon: '🚚' },
 ];
 
 export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const [role, setRole] = useState<string | null>(null);
+  const [userName, setUserName] = useState<string>('');
 
   useEffect(() => {
-    // Читаем cookie role
     const cookies = document.cookie.split('; ');
     const roleCookie = cookies.find((c) => c.startsWith('role='));
-    if (roleCookie) {
-      setRole(roleCookie.split('=')[1]);
-    }
+    const nameCookie = cookies.find((c) => c.startsWith('user_name='));
+
+    if (roleCookie) setRole(roleCookie.split('=')[1]);
+    if (nameCookie) setUserName(decodeURIComponent(nameCookie.split('=')[1]));
   }, [pathname]);
 
   function handleLogout() {
     document.cookie = 'role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
     document.cookie = 'driver_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    document.cookie = 'user_name=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
     router.push('/login');
   }
 
-  // Пока роль не определена (не залогинен) — ничего не показываем
   if (!role) return null;
 
   const navItems = role === 'driver' ? driverNavItems : adminNavItems;
+  const displayName = userName || (role === 'admin' ? 'Офис' : 'Водитель');
+  const initials = displayName
+    .split(' ')
+    .map((w) => w[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
 
   return (
-    <nav
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-        padding: '12px 24px',
-        backgroundColor: '#1e293b',
-        color: 'white',
-        flexWrap: 'wrap',
-        position: 'sticky',
-        top: 0,
-        zIndex: 100,
-        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-      }}
-    >
-      {navItems.map((item) => {
-        const isActive =
-          pathname === item.href ||
-          (item.href !== '/' && pathname.startsWith(item.href));
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            style={{
-              padding: '8px 12px',
-              borderRadius: '6px',
-              textDecoration: 'none',
-              color: 'white',
-              backgroundColor: isActive ? '#3b82f6' : 'transparent',
-              fontWeight: isActive ? 'bold' : 'normal',
-              transition: 'background-color 0.2s',
-            }}
-          >
-            {item.label}
-          </Link>
-        );
-      })}
+    <nav className="sticky top-0 z-50 bg-slate-900 border-b border-slate-800 shadow-lg">
+      <div className="max-w-[1600px] mx-auto px-6 py-3 flex items-center gap-6 flex-wrap">
 
-      <div style={{ marginLeft: 'auto' }}>
-        <button
-          onClick={handleLogout}
-          style={{
-            padding: '8px 16px',
-            backgroundColor: '#ef4444',
-            color: 'white',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontWeight: 'bold',
-          }}
-        >
-          Выйти
-        </button>
+        {/* Логотип */}
+        <Link href={role === 'driver' ? '/driver' : '/'} className="flex items-center gap-2 shrink-0">
+          <span className="text-2xl">🚛</span>
+          <span className="text-white font-bold text-lg hidden sm:block">Logistics CRM</span>
+        </Link>
+
+        {/* Навигация */}
+        <div className="flex items-center gap-1 flex-wrap flex-1">
+          {navItems.map((item) => {
+            const isActive =
+              pathname === item.href ||
+              (item.href !== '/' && pathname.startsWith(item.href));
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`
+                  flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium
+                  transition-all duration-150
+                  ${isActive
+                    ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
+                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'}
+                `}
+              >
+                <span>{item.icon}</span>
+                <span className="hidden md:inline">{item.label}</span>
+              </Link>
+            );
+          })}
+        </div>
+
+        {/* Профиль + выход */}
+        <div className="flex items-center gap-3 ml-auto shrink-0">
+          <div className="hidden sm:flex items-center gap-2">
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-bold text-xs">
+              {initials}
+            </div>
+            <span className="text-slate-300 text-sm font-medium">{displayName}</span>
+          </div>
+
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium
+                       bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white
+                       transition-all duration-150 border border-red-500/30"
+          >
+            <span>🚪</span>
+            <span className="hidden sm:inline">Выйти</span>
+          </button>
+        </div>
       </div>
     </nav>
   );
