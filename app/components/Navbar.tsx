@@ -19,6 +19,7 @@ const adminNavItems = [
 
 const driverNavItems = [
   { href: '/driver', label: 'Мои рейсы', icon: '🚚' },
+  { href: '/driver/reminders', label: 'Напоминания', icon: '⏰' },
 ];
 
 export default function Navbar() {
@@ -57,19 +58,17 @@ export default function Navbar() {
   return (
     <nav className="sticky top-0 z-50 bg-slate-900 border-b border-slate-800 shadow-lg">
       <div className="max-w-[1600px] mx-auto px-6 py-3 flex items-center gap-6 flex-wrap">
-
-        {/* Логотип */}
         <Link href={role === 'driver' ? '/driver' : '/'} className="flex items-center gap-2 shrink-0">
           <span className="text-2xl">🚛</span>
           <span className="text-white font-bold text-lg hidden sm:block">Logistics CRM</span>
         </Link>
 
-        {/* Навигация */}
         <div className="flex items-center gap-1 flex-wrap flex-1">
           {navItems.map((item) => {
             const isActive =
               pathname === item.href ||
-              (item.href !== '/' && pathname.startsWith(item.href));
+              (item.href !== '/' && item.href !== '/driver' && pathname.startsWith(item.href)) ||
+              (item.href === '/driver' && pathname === '/driver');
             return (
               <Link
                 key={item.href}
@@ -89,7 +88,6 @@ export default function Navbar() {
           })}
         </div>
 
-        {/* Профиль + выход */}
         <div className="flex items-center gap-3 ml-auto shrink-0">
           <div className="hidden sm:flex items-center gap-2">
             <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-bold text-xs">
