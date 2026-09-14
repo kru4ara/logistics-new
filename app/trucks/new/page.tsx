@@ -1,6 +1,7 @@
 import { supabase } from '../../../lib/supabaseClient';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
+import { syncReminders } from '../../reminder-actions';
 
 async function createTruck(formData: FormData) {
   'use server';
@@ -14,7 +15,7 @@ async function createTruck(formData: FormData) {
   const tachographLegalizationExpiry = formData.get('tachograph_legalization_expiry') as string;
   const fuelCardNumber = formData.get('fuel_card_number') as string;
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('trucks')
     .insert([
       {
@@ -27,9 +28,17 @@ async function createTruck(formData: FormData) {
         tachograph_legalization_expiry: tachographLegalizationExpiry || null,
         fuel_card_number: fuelCardNumber || null
       }
-    ]);
+    ])
+    .select('id')
+    .single();
 
   if (error) throw new Error(`Ошибка добавления: ${error.message}`);
+
+  // Создаём напоминания
+  if (data?.id) {
+    await syncReminders('truck', data.id);
+  }
+
   revalidatePath('/trucks');
   redirect('/trucks');
 }
@@ -45,12 +54,10 @@ export default function NewTruckPage() {
     <main className="min-h-screen bg-slate-50">
       <div className="max-w-[900px] mx-auto px-6 py-8 space-y-6">
 
-        {/* Назад */}
         <a href="/trucks" className="inline-flex items-center gap-2 text-slate-600 hover:text-blue-600 transition-colors text-sm font-medium">
           ← Все машины
         </a>
 
-        {/* Заголовок */}
         <div>
           <h1 className="text-3xl font-bold text-slate-900">➕ Добавить машину</h1>
           <p className="text-slate-500 mt-1">Заполните данные о технике</p>
@@ -58,7 +65,6 @@ export default function NewTruckPage() {
 
         <form action={createTruck} className="space-y-6">
 
-          {/* Основные данные */}
           <div className={sectionClass}>
             <h2 className={sectionTitleClass}>🚛 Основные данные</h2>
             <div className="grid gap-4 md:grid-cols-2">
@@ -84,7 +90,6 @@ export default function NewTruckPage() {
             </div>
           </div>
 
-          {/* Страховки */}
           <div className={sectionClass}>
             <h2 className={sectionTitleClass}>🛡 Страховки</h2>
             <div className="grid gap-4 md:grid-cols-2">
@@ -99,7 +104,6 @@ export default function NewTruckPage() {
             </div>
           </div>
 
-          {/* Техосмотр и тахограф */}
           <div className={sectionClass}>
             <h2 className={sectionTitleClass}>🔧 Техосмотр и тахограф</h2>
             <div className="grid gap-4 md:grid-cols-2">
@@ -114,7 +118,6 @@ export default function NewTruckPage() {
             </div>
           </div>
 
-          {/* Кнопки */}
           <div className="flex gap-3">
             <button
               type="submit"
