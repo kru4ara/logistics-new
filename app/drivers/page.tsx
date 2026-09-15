@@ -48,15 +48,25 @@ export default async function DriversPage() {
             <h1 className="text-3xl font-bold text-slate-900">🚛 Водители</h1>
             <p className="text-slate-500 mt-1">Всего водителей: {drivers?.length || 0}</p>
           </div>
-          <a
-            href="/drivers/new"
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white
-                       font-semibold px-5 py-2.5 rounded-xl shadow-md shadow-blue-600/20
-                       transition-all duration-150 active:scale-[0.98]"
-          >
-            <span>➕</span>
-            <span>Добавить водителя</span>
-          </a>
+          <div className="flex gap-3">
+            <a
+              href="/drivers/kpi"
+              className="flex items-center gap-2 bg-white border border-slate-200 hover:border-blue-300 hover:bg-blue-50
+                         text-slate-700 font-semibold px-5 py-2.5 rounded-xl transition-all"
+            >
+              <span>📊</span>
+              <span>KPI водителей</span>
+            </a>
+            <a
+              href="/drivers/new"
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white
+                         font-semibold px-5 py-2.5 rounded-xl shadow-md shadow-blue-600/20
+                         transition-all duration-150 active:scale-[0.98]"
+            >
+              <span>➕</span>
+              <span>Добавить водителя</span>
+            </a>
+          </div>
         </div>
 
         {/* Сетка */}
@@ -92,7 +102,6 @@ export default async function DriversPage() {
                              transition-all duration-200 overflow-hidden"
                 >
                   <div className="p-5">
-                    {/* Аватар и имя */}
                     <div className="flex items-center gap-4 mb-4">
                       <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-blue-700
                                       flex items-center justify-center text-white font-bold text-lg shrink-0">
@@ -108,12 +117,10 @@ export default async function DriversPage() {
                       </div>
                     </div>
 
-                    {/* Статус документов */}
                     <div className={`px-3 py-2 rounded-xl text-xs font-semibold border ${statusColor}`}>
                       {statusLabel}
                     </div>
 
-                    {/* Быстрые данные */}
                     <div className="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-slate-100">
                       <div>
                         <div className="text-[10px] uppercase tracking-wide text-slate-400 font-medium">Виза</div>
