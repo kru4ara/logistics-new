@@ -7,6 +7,7 @@ import { redirect } from 'next/navigation';
 export async function addTripWithAddress(formData: FormData) {
   const clientId = formData.get('client_id') as string;
   const truckId = formData.get('truck_id') as string;
+  const trailerId = formData.get('trailer_id') as string;
   const driverId = formData.get('driver_id') as string;
   const startDate = formData.get('start_date') as string;
   const revenueEur = parseFloat(formData.get('revenue_eur') as string) || 0;
@@ -29,7 +30,27 @@ export async function addTripWithAddress(formData: FormData) {
 
   const route = `${senderCity || ''}, ${senderCountry || ''} → ${receiverCity || ''}, ${receiverCountry || ''}`;
 
-  // Счётчик
+  let startLat = 0;
+  let startLng = 0;
+  if (senderCity && senderCountry) {
+    try {
+      const query = encodeURIComponent(`${senderCity}, ${senderCountry}`);
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1`,
+        { headers: { 'User-Agent': 'LogisticsCRM/1.0 (contact@raibuilding.pl)' } }
+      );
+      if (response.ok) {
+        const data = await response.json();
+        if (data && data.length > 0) {
+          startLat = parseFloat(data[0].lat);
+          startLng = parseFloat(data[0].lon);
+        }
+      }
+    } catch (e) {
+      console.error('Ошибка геокодирования:', e);
+    }
+  }
+
   const { data: counterData, error: counterError } = await supabase
     .from('trip_counter')
     .select('last_number')
@@ -49,6 +70,7 @@ export async function addTripWithAddress(formData: FormData) {
       {
         client_id: clientId || null,
         truck_id: truckId || null,
+        trailer_id: trailerId || null,
         driver_id: driverId || null,
         start_date: startDate,
         revenue_eur: revenueEur,
@@ -68,6 +90,8 @@ export async function addTripWithAddress(formData: FormData) {
         receiver_address: receiverAddress || null,
         receiver_loading_number: receiverLoadingNumber || null,
         route: route || null,
+        start_lat: startLat,
+        start_lng: startLng,
         trip_number: nextNumber,
         status: 'planned'
       }
