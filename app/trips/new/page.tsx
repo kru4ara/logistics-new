@@ -5,7 +5,8 @@ export const dynamic = 'force-dynamic';
 
 export default async function NewTripPage() {
   const { data: clients } = await supabase.from('clients').select('id, name');
-  const { data: trucks } = await supabase.from('trucks').select('id, registration_number');
+  const { data: tractors } = await supabase.from('trucks').select('id, registration_number').eq('type', 'tractor');
+  const { data: trailers } = await supabase.from('trucks').select('id, registration_number').eq('type', 'trailer');
   const { data: drivers } = await supabase.from('drivers').select('id, first_name, last_name');
 
   const inputClass = "w-full rounded-lg border border-slate-300 px-3 py-2.5 text-slate-900 " +
@@ -17,13 +18,10 @@ export default async function NewTripPage() {
   return (
     <main className="min-h-screen bg-slate-50">
       <div className="max-w-[900px] mx-auto px-6 py-8 space-y-6">
-
-        {/* Назад */}
         <a href="/trips" className="inline-flex items-center gap-2 text-slate-600 hover:text-blue-600 transition-colors text-sm font-medium">
           ← Все рейсы
         </a>
 
-        {/* Заголовок */}
         <div>
           <h1 className="text-3xl font-bold text-slate-900">➕ Создать новый рейс</h1>
           <p className="text-slate-500 mt-1">Заполните данные для создания рейса</p>
@@ -31,7 +29,6 @@ export default async function NewTripPage() {
 
         <form action={addTripWithAddress} className="space-y-6">
 
-          {/* Основные данные */}
           <div className={sectionClass}>
             <h2 className={sectionTitleClass}>🚛 Основные данные</h2>
             <div className="grid gap-4 md:grid-cols-3">
@@ -43,10 +40,17 @@ export default async function NewTripPage() {
                 </select>
               </div>
               <div>
-                <label className={labelClass}>Машина</label>
+                <label className={labelClass}>Тягач</label>
                 <select name="truck_id" className={inputClass}>
-                  <option value="">Выберите машину...</option>
-                  {trucks?.map(t => <option key={t.id} value={t.id}>{t.registration_number}</option>)}
+                  <option value="">Выберите тягач...</option>
+                  {tractors?.map(t => <option key={t.id} value={t.id}>{t.registration_number}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className={labelClass}>Прицеп</label>
+                <select name="trailer_id" className={inputClass}>
+                  <option value="">Без прицепа</option>
+                  {trailers?.map(t => <option key={t.id} value={t.id}>{t.registration_number}</option>)}
                 </select>
               </div>
               <div>
@@ -58,8 +62,6 @@ export default async function NewTripPage() {
                   ))}
                 </select>
               </div>
-            </div>
-            <div className="grid gap-4 md:grid-cols-3">
               <div>
                 <label className={labelClass}>Дата старта</label>
                 <input type="date" name="start_date" required className={inputClass} />
@@ -75,7 +77,6 @@ export default async function NewTripPage() {
             </div>
           </div>
 
-          {/* Заявка клиента */}
           <div className={sectionClass}>
             <h2 className={sectionTitleClass}>📄 Заявка клиента</h2>
             <div className="grid gap-4 md:grid-cols-2">
@@ -90,7 +91,6 @@ export default async function NewTripPage() {
             </div>
           </div>
 
-          {/* Отправитель */}
           <div className={sectionClass}>
             <h2 className={sectionTitleClass}>📍 Отправитель (загрузка)</h2>
             <div className="grid gap-4 md:grid-cols-2">
@@ -121,7 +121,6 @@ export default async function NewTripPage() {
             </div>
           </div>
 
-          {/* Получатель */}
           <div className={sectionClass}>
             <h2 className={sectionTitleClass}>🏁 Получатель (выгрузка)</h2>
             <div className="grid gap-4 md:grid-cols-2">
@@ -152,24 +151,14 @@ export default async function NewTripPage() {
             </div>
           </div>
 
-          {/* Кнопка */}
           <div className="flex gap-3">
-            <button
-              type="submit"
-              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl
-                         shadow-md shadow-blue-600/20 transition-all duration-150 active:scale-[0.98]"
-            >
+            <button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl shadow-md shadow-blue-600/20 transition-all duration-150 active:scale-[0.98]">
               ✅ Создать рейс
             </button>
-            <a
-              href="/trips"
-              className="px-6 py-3 rounded-xl border border-slate-300 text-slate-700 font-semibold
-                         hover:bg-slate-100 transition-all duration-150"
-            >
+            <a href="/trips" className="px-6 py-3 rounded-xl border border-slate-300 text-slate-700 font-semibold hover:bg-slate-100 transition-all duration-150">
               Отмена
             </a>
           </div>
-
         </form>
       </div>
     </main>
