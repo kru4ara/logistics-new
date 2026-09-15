@@ -8,7 +8,7 @@ const adminNavItems = [
   { href: '/', label: 'Главная', icon: '🏠' },
   { href: '/trips', label: 'Рейсы', icon: '📋' },
   { href: '/drivers', label: 'Водители', icon: '🚛' },
-  { href: '/trucks', label: 'Машины', icon: '🚚' },
+  { href: '/trucks', label: 'Транспорт', icon: '🚚' },
   { href: '/clients', label: 'Клиенты', icon: '🤝' },
   { href: '/routes', label: 'Маршруты', icon: '🛣' },
   { href: '/reports', label: 'Отчёты', icon: '💰' },
@@ -32,7 +32,6 @@ export default function Navbar() {
     const cookies = document.cookie.split('; ');
     const roleCookie = cookies.find((c) => c.startsWith('role='));
     const nameCookie = cookies.find((c) => c.startsWith('user_name='));
-
     if (roleCookie) setRole(roleCookie.split('=')[1]);
     if (nameCookie) setUserName(decodeURIComponent(nameCookie.split('=')[1]));
   }, [pathname]);
@@ -48,12 +47,7 @@ export default function Navbar() {
 
   const navItems = role === 'driver' ? driverNavItems : adminNavItems;
   const displayName = userName || (role === 'admin' ? 'Офис' : 'Водитель');
-  const initials = displayName
-    .split(' ')
-    .map((w) => w[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
+  const initials = displayName.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
 
   return (
     <nav className="sticky top-0 z-50 bg-slate-900 border-b border-slate-800 shadow-lg">
@@ -73,13 +67,8 @@ export default function Navbar() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`
-                  flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium
-                  transition-all duration-150
-                  ${isActive
-                    ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
-                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'}
-                `}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150
+                  ${isActive ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}`}
               >
                 <span>{item.icon}</span>
                 <span className="hidden md:inline">{item.label}</span>
@@ -95,12 +84,9 @@ export default function Navbar() {
             </div>
             <span className="text-slate-300 text-sm font-medium">{displayName}</span>
           </div>
-
           <button
             onClick={handleLogout}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium
-                       bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white
-                       transition-all duration-150 border border-red-500/30"
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white transition-all duration-150 border border-red-500/30"
           >
             <span>🚪</span>
             <span className="hidden sm:inline">Выйти</span>
