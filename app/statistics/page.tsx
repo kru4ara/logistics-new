@@ -12,47 +12,98 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
   const currentYear = new Date().getFullYear();
   const year = parseInt(searchParams?.year || String(currentYear));
 
-  // Рейсы за год
+  // Загружаем ВСЕ рейсы (нужны и соседние годы — рейсы могут пересекать год)
   const { data: trips } = await supabase
     .from('trips')
-    .select('id, revenue_eur, start_date, status')
-    .gte('start_date', `${year}-01-01`)
-    .lte('start_date', `${year}-12-31`);
+    .select('id, revenue_eur, start_date, end_date, status');
 
   const tripIds = trips?.map((t) => t.id) || [];
 
-  // Прямые расходы (по дате расхода)
+  // Все прямые расходы
   let allExpenses: any[] = [];
   if (tripIds.length > 0) {
     const { data } = await supabase
       .from('trip_expenses')
-      .select('amount_eur, expense_date, trip_id')
-      .in('trip_id', tripIds);
+      .select('amount_eur, trip_id');
     allExpenses = data || [];
   }
 
-  // Общие расходы (fixed_costs)
+  // Все общие расходы (нужны все годы — годовые могут «переезжать» через границу года)
   const { data: fixedCosts } = await supabase
     .from('fixed_costs')
-    .select('amount_eur, month_key, cost_type')
-    .gte('month_key', `${year}-01`)
-    .lte('month_key', `${year}-12`);
+    .select('amount_eur, month_key, cost_type, expense_date');
 
-  // Считаем по месяцам
+  // === Логика 1: рейс относится к месяцу окончания ===
+  function getTripMonthKey(trip: any): string | null {
+    const date = trip.end_date || trip.start_date;
+    if (!date) return null;
+    const d = new Date(date);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  }
+
+  const tripsByMonth: Record<string, any[]> = {};
+  trips?.forEach((t) => {
+    const mk = getTripMonthKey(t);
+    if (!mk) return;
+    if (!tripsByMonth[mk]) tripsByMonth[mk] = [];
+    tripsByMonth[mk].push(t);
+  });
+
+  // Считаем прямые расходы по месяцу рейса (а не по дате расхода)
+  // Это делает каждый рейс цельным блоком
+  const directExpensesByMonth: Record<string, number> = {};
+  Object.entries(tripsByMonth).forEach(([mk, monthTrips]) => {
+    const ids = monthTrips.map((t) => t.id);
+    const sum = allExpenses
+      .filter((e) => ids.includes(e.trip_id))
+      .reduce((s, e) => s + (e.amount_eur || 0), 0);
+    directExpensesByMonth[mk] = sum;
+  });
+
+  // === Логика 2: годовые расходы растягиваются с месяца оплаты на 12 месяцев ===
+  const fixedCostsByMonth: Record<string, number> = {};
+
+  fixedCosts?.forEach((fc) => {
+    const amount = fc.amount_eur || 0;
+    if (amount === 0) return;
+
+    if (fc.cost_type === 'yearly') {
+      // Определяем стартовый месяц
+      let startDate: Date | null = null;
+      if (fc.expense_date) {
+        startDate = new Date(fc.expense_date);
+      } else if (fc.month_key) {
+        startDate = new Date(fc.month_key + '-01');
+      }
+      if (!startDate) return;
+
+      const monthlyPart = amount / 12;
+
+      // Раскидываем на 12 месяцев вперёд
+      for (let i = 0; i < 12; i++) {
+        const d = new Date(startDate.getFullYear(), startDate.getMonth() + i, 1);
+        const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        fixedCostsByMonth[mk] = (fixedCostsByMonth[mk] || 0) + monthlyPart;
+      }
+    } else {
+      // Месячный / рата / одноразовый — в свой месяц
+      if (fc.month_key) {
+        fixedCostsByMonth[fc.month_key] = (fixedCostsByMonth[fc.month_key] || 0) + amount;
+      }
+    }
+  });
+
+  // Собираем данные по месяцам выбранного года
   const months = [];
   for (let m = 1; m <= 12; m++) {
     const monthKey = `${year}-${String(m).padStart(2, '0')}`;
 
-    const monthTrips = trips?.filter((t) => t.start_date && t.start_date.startsWith(monthKey)) || [];
-    const revenue = monthTrips.reduce((sum, t) => sum + (t.revenue_eur || 0), 0);
+    const monthTrips = tripsByMonth[monthKey] || [];
     const tripsCount = monthTrips.length;
+    const revenue = monthTrips.reduce((sum, t) => sum + (t.revenue_eur || 0), 0);
 
-    const monthExpenses = allExpenses.filter((e) => e.expense_date && e.expense_date.startsWith(monthKey));
-    const directExpenses = monthExpenses.reduce((sum, e) => sum + (e.amount_eur || 0), 0);
-
-    const monthFixed = fixedCosts?.filter((f) => f.month_key === monthKey) || [];
-    const fixedExpenses = monthFixed.reduce((sum, f) => sum + (f.amount_eur || 0), 0);
-
+    const directExpenses = directExpensesByMonth[monthKey] || 0;
+    const fixedExpenses = fixedCostsByMonth[monthKey] || 0;
     const totalExpenses = directExpenses + fixedExpenses;
     const profit = revenue - totalExpenses;
     const margin = revenue > 0 ? (profit / revenue) * 100 : 0;
@@ -60,7 +111,6 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
     months.push({
       month: m,
       monthName: new Date(year, m - 1, 1).toLocaleDateString('ru-RU', { month: 'long' }),
-      monthShort: new Date(year, m - 1, 1).toLocaleDateString('ru-RU', { month: 'short' }),
       monthKey,
       tripsCount,
       revenue,
@@ -72,7 +122,6 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
     });
   }
 
-  // Итоги за год
   const yearTotals = months.reduce(
     (acc, m) => ({
       tripsCount: acc.tripsCount + m.tripsCount,
@@ -91,21 +140,18 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
   const now = new Date();
   const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
-  // Список годов для переключателя
   const years = [currentYear, currentYear - 1, currentYear - 2];
 
   return (
     <main className="min-h-screen bg-slate-50">
       <div className="max-w-[1600px] mx-auto px-6 py-8 space-y-6">
 
-        {/* Заголовок */}
         <div className="flex flex-wrap justify-between items-center gap-4">
           <div>
             <h1 className="text-3xl font-bold text-slate-900">📊 Статистика</h1>
             <p className="text-slate-500 mt-1">Показатели компании за {year} год</p>
           </div>
 
-          {/* Переключатель года */}
           <div className="flex gap-2">
             {years.map((y) => (
               <a
@@ -123,7 +169,6 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
           </div>
         </div>
 
-        {/* Итоги года */}
         <div>
           <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wide mb-3">
             🏆 Итоги {year} года
@@ -174,7 +219,6 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
           </div>
         </div>
 
-        {/* Таблица по месяцам */}
         <div>
           <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wide mb-3">
             📅 По месяцам
@@ -274,13 +318,19 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
           </div>
         </div>
 
-        {/* Пояснение */}
-        <div className="text-xs text-slate-500 bg-white rounded-xl border border-slate-100 p-4">
-          <b>Прямые расходы</b> — расходы, привязанные к рейсам (топливо, EPI, e-TOLL, граница, ЗП водителя, подрядчики).
-          <br />
-          <b>Общие расходы</b> — расходы, не привязанные к рейсам (страховки, бухгалтерия, администрация).
-          <br />
-          <b>Маржа</b> = Прибыль ÷ Фрахт × 100%. Хорошая маржа для логистики: 15–25%.
+        <div className="text-xs text-slate-500 bg-white rounded-xl border border-slate-100 p-4 space-y-1">
+          <div>
+            <b>Рейс относится к месяцу окончания.</b> Если рейс стартовал в октябре, а завершился в ноябре — он считается ноябрьским (и его расходы тоже).
+          </div>
+          <div>
+            <b>Годовые расходы</b> делятся на 12 месяцев и «размазываются» с месяца оплаты (например, страховка за 1595 €, оплаченная в декабре, даёт по 133 € на декабрь, январь, февраль и т.д.).
+          </div>
+          <div>
+            <b>Месячные, раты, одноразовые</b> расходы учитываются в своём месяце как есть.
+          </div>
+          <div>
+            <b>Маржа</b> = Прибыль ÷ Фрахт × 100%. Хорошая маржа для логистики: 15–25%.
+          </div>
         </div>
 
       </div>
