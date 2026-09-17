@@ -41,6 +41,10 @@ export default async function EditFixedCostPage({ params }: { params: Promise<{ 
                 <input type="month" name="month_key" required defaultValue={cost.month_key || ''} className={inputClass} />
               </div>
               <div>
+                <label className={labelClass}>Дата расхода *</label>
+                <input type="date" name="expense_date" required defaultValue={cost.expense_date || ''} className={inputClass} />
+              </div>
+              <div>
                 <label className={labelClass}>Тип расхода *</label>
                 <select name="cost_type" required defaultValue={cost.cost_type || 'monthly'} className={inputClass}>
                   <option value="yearly">📅 Годовой</option>
@@ -49,7 +53,7 @@ export default async function EditFixedCostPage({ params }: { params: Promise<{ 
                   <option value="one_time">⚡ Одноразовый</option>
                 </select>
               </div>
-              <div className="md:col-span-2">
+              <div>
                 <label className={labelClass}>Категория *</label>
                 <input type="text" name="category" required defaultValue={cost.category || ''} className={inputClass} />
               </div>
