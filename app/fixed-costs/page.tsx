@@ -24,7 +24,6 @@ export default async function FixedCostsPage() {
     return <div className="p-8 text-red-500">Ошибка загрузки: {error.message}</div>;
   }
 
-  // Эффективная месячная нагрузка = (годовые ÷ 12) + (месячные + раты + разовые в текущем месяце)
   const now = new Date();
   const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
@@ -34,7 +33,6 @@ export default async function FixedCostsPage() {
   const currentMonthYearlyPart = currentMonthCosts.filter(c => c.cost_type === 'yearly').reduce((sum, c) => sum + (c.amount_eur || 0), 0);
   const effectiveMonthly = currentMonthActual - currentMonthYearlyPart + (yearlyTotal / 12);
 
-  // Группировка по месяцам
   const costsByMonth: Record<string, MonthGroup> = {};
   costs?.forEach((c) => {
     if (!c.month_key) return;
@@ -80,7 +78,6 @@ export default async function FixedCostsPage() {
           </a>
         </div>
 
-        {/* Эффективная месячная нагрузка */}
         <div className="grid gap-5 md:grid-cols-2">
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
             <div className="flex items-center justify-between mb-3">
@@ -88,9 +85,7 @@ export default async function FixedCostsPage() {
               <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-xl">💸</div>
             </div>
             <div className="text-3xl font-bold text-red-500">{currentMonthActual.toFixed(2)} €</div>
-            <div className="text-xs text-slate-400 mt-1">
-              Все расходы, привязанные к текущему месяцу
-            </div>
+            <div className="text-xs text-slate-400 mt-1">Все расходы, привязанные к текущему месяцу</div>
           </div>
 
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
@@ -132,6 +127,7 @@ export default async function FixedCostsPage() {
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-slate-100">
+                        <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Дата</th>
                         <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Категория</th>
                         <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Тип</th>
                         <th className="text-right px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Сумма</th>
@@ -146,6 +142,9 @@ export default async function FixedCostsPage() {
                         const curr = c.currency || 'PLN';
                         return (
                           <tr key={c.id} className="border-b border-slate-50 hover:bg-blue-50/30 transition-colors">
+                            <td className="px-6 py-4 text-sm text-slate-600 whitespace-nowrap">
+                              {c.expense_date ? new Date(c.expense_date).toLocaleDateString('ru-RU') : '—'}
+                            </td>
                             <td className="px-6 py-4 font-medium text-slate-800">
                               {c.category || 'Без категории'}
                             </td>
