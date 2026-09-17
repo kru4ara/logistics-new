@@ -35,6 +35,13 @@ export default async function FixedCostsPage() {
 
   const months: MonthGroup[] = Object.values(costsByMonth);
 
+  const typeLabels: Record<string, { label: string; color: string }> = {
+    yearly: { label: '📅 Годовой', color: 'bg-purple-50 text-purple-700 border-purple-200' },
+    monthly: { label: '🔄 Месячный', color: 'bg-blue-50 text-blue-700 border-blue-200' },
+    installment: { label: '💰 Рата', color: 'bg-orange-50 text-orange-700 border-orange-200' },
+    one_time: { label: '⚡ Одноразовый', color: 'bg-slate-100 text-slate-700 border-slate-200' },
+  };
+
   return (
     <main className="min-h-screen bg-slate-50">
       <div className="max-w-[1600px] mx-auto px-6 py-8 space-y-6">
@@ -82,24 +89,37 @@ export default async function FixedCostsPage() {
                   <thead>
                     <tr className="border-b border-slate-100">
                       <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Категория</th>
+                      <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Тип</th>
                       <th className="text-right px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">PLN</th>
                       <th className="text-right px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">EUR</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {m.items.map((c: any) => (
-                      <tr key={c.id} className="border-b border-slate-50 hover:bg-blue-50/30 transition-colors">
-                        <td className="px-6 py-4 font-medium text-slate-800">
-                          {c.category || 'Без категории'}
-                        </td>
-                        <td className="px-6 py-4 text-right text-slate-600">
-                          {c.amount_pln ? `${c.amount_pln} PLN` : '—'}
-                        </td>
-                        <td className="px-6 py-4 text-right font-semibold text-red-500">
-                          {c.amount_eur ? `${c.amount_eur} €` : '—'}
-                        </td>
-                      </tr>
-                    ))}
+                    {m.items.map((c: any) => {
+                      const t = c.cost_type && typeLabels[c.cost_type] ? typeLabels[c.cost_type] : null;
+                      return (
+                        <tr key={c.id} className="border-b border-slate-50 hover:bg-blue-50/30 transition-colors">
+                          <td className="px-6 py-4 font-medium text-slate-800">
+                            {c.category || 'Без категории'}
+                          </td>
+                          <td className="px-6 py-4">
+                            {t ? (
+                              <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold border ${t.color}`}>
+                                {t.label}
+                              </span>
+                            ) : (
+                              <span className="text-slate-300 text-xs">—</span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 text-right text-slate-600">
+                            {c.amount_pln ? `${c.amount_pln} PLN` : '—'}
+                          </td>
+                          <td className="px-6 py-4 text-right font-semibold text-red-500">
+                            {c.amount_eur ? `${c.amount_eur} €` : '—'}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
