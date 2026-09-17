@@ -30,6 +30,10 @@ export default function NewFixedCostPage() {
                 <input type="month" name="month_key" required className={inputClass} />
               </div>
               <div>
+                <label className={labelClass}>Дата расхода *</label>
+                <input type="date" name="expense_date" required className={inputClass} />
+              </div>
+              <div>
                 <label className={labelClass}>Тип расхода *</label>
                 <select name="cost_type" required className={inputClass}>
                   <option value="yearly">📅 Годовой</option>
@@ -38,13 +42,13 @@ export default function NewFixedCostPage() {
                   <option value="one_time">⚡ Одноразовый</option>
                 </select>
               </div>
-              <div className="md:col-span-2">
+              <div>
                 <label className={labelClass}>Категория *</label>
                 <input
                   type="text"
                   name="category"
                   required
-                  placeholder="Например: Страховка OC, Бухгалтерия, e-TOLL"
+                  placeholder="Например: Страховка OC"
                   className={inputClass}
                 />
               </div>
@@ -62,7 +66,7 @@ export default function NewFixedCostPage() {
               </div>
             </div>
             <div className="text-xs text-slate-500 bg-slate-50 rounded-lg p-3">
-              💡 Сумма автоматически пересчитается в EUR по курсу на 1-е число выбранного месяца.
+              💡 Сумма автоматически пересчитается в EUR по курсу на дату расхода.
             </div>
           </div>
 
