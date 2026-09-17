@@ -10,6 +10,7 @@ const adminNavItems = [
   { href: '/drivers', label: 'Водители', icon: '🚛' },
   { href: '/trucks', label: 'Транспорт', icon: '🚚' },
   { href: '/clients', label: 'Клиенты', icon: '🤝' },
+  { href: '/locations', label: 'Локации', icon: '📍' },
   { href: '/routes', label: 'Маршруты', icon: '🛣' },
   { href: '/statistics', label: 'Статистика', icon: '📊' },
   { href: '/reports', label: 'Отчёты', icon: '💰' },
