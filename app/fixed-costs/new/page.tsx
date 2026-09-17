@@ -1,32 +1,6 @@
-import { supabase } from '../../../lib/supabaseClient';
-import { redirect } from 'next/navigation';
-import { revalidatePath } from 'next/cache';
+import { createFixedCost } from '../../fixed-cost-actions';
 
-async function createFixedCost(formData: FormData) {
-  'use server';
-
-  const monthKey = formData.get('month_key') as string;
-  const category = formData.get('category') as string;
-  const costType = formData.get('cost_type') as string;
-  const amountPln = parseFloat(formData.get('amount_pln') as string) || 0;
-  const amountEur = parseFloat(formData.get('amount_eur') as string) || 0;
-
-  const { error } = await supabase
-    .from('fixed_costs')
-    .insert([
-      {
-        month_key: monthKey,
-        category: category,
-        cost_type: costType || null,
-        amount_pln: amountPln || null,
-        amount_eur: amountEur || null
-      }
-    ]);
-
-  if (error) throw new Error(`Ошибка добавления: ${error.message}`);
-  revalidatePath('/fixed-costs');
-  redirect('/fixed-costs');
-}
+export const dynamic = 'force-dynamic';
 
 export default function NewFixedCostPage() {
   const inputClass = "w-full rounded-lg border border-slate-300 px-3 py-2.5 text-slate-900 " +
@@ -38,7 +12,6 @@ export default function NewFixedCostPage() {
   return (
     <main className="min-h-screen bg-slate-50">
       <div className="max-w-[900px] mx-auto px-6 py-8 space-y-6">
-
         <a href="/fixed-costs" className="inline-flex items-center gap-2 text-slate-600 hover:text-blue-600 transition-colors text-sm font-medium">
           ← Все общие расходы
         </a>
@@ -49,7 +22,6 @@ export default function NewFixedCostPage() {
         </div>
 
         <form action={createFixedCost} className="space-y-6">
-
           <div className={sectionClass}>
             <h2 className={sectionTitleClass}>💶 Данные расхода</h2>
             <div className="grid gap-4 md:grid-cols-2">
@@ -77,13 +49,20 @@ export default function NewFixedCostPage() {
                 />
               </div>
               <div>
-                <label className={labelClass}>Сумма (PLN)</label>
-                <input type="number" name="amount_pln" step="0.01" placeholder="0.00" className={inputClass} />
+                <label className={labelClass}>Валюта *</label>
+                <select name="currency" required className={inputClass} defaultValue="PLN">
+                  <option value="PLN">PLN</option>
+                  <option value="BYN">BYN</option>
+                  <option value="EUR">EUR</option>
+                </select>
               </div>
               <div>
-                <label className={labelClass}>Сумма (EUR)</label>
-                <input type="number" name="amount_eur" step="0.01" placeholder="0.00" className={inputClass} />
+                <label className={labelClass}>Сумма *</label>
+                <input type="number" name="amount" step="0.01" required placeholder="0.00" className={inputClass} />
               </div>
+            </div>
+            <div className="text-xs text-slate-500 bg-slate-50 rounded-lg p-3">
+              💡 Сумма автоматически пересчитается в EUR по курсу на 1-е число выбранного месяца.
             </div>
           </div>
 
@@ -103,7 +82,6 @@ export default function NewFixedCostPage() {
               Отмена
             </a>
           </div>
-
         </form>
       </div>
     </main>
