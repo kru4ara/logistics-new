@@ -37,21 +37,19 @@ export default function NewFixedCostPage() {
     <main className="min-h-screen bg-slate-50">
       <div className="max-w-[900px] mx-auto px-6 py-8 space-y-6">
 
-        {/* Назад */}
         <a href="/fixed-costs" className="inline-flex items-center gap-2 text-slate-600 hover:text-blue-600 transition-colors text-sm font-medium">
-          ← Все затраты
+          ← Все общие расходы
         </a>
 
-        {/* Заголовок */}
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">➕ Добавить фиксированную затрату</h1>
-          <p className="text-slate-500 mt-1">Заполните данные о затрате за месяц</p>
+          <h1 className="text-3xl font-bold text-slate-900">➕ Добавить общий расход</h1>
+          <p className="text-slate-500 mt-1">Затрата, не привязанная к конкретному рейсу</p>
         </div>
 
         <form action={createFixedCost} className="space-y-6">
 
           <div className={sectionClass}>
-            <h2 className={sectionTitleClass}>💰 Данные затраты</h2>
+            <h2 className={sectionTitleClass}>💶 Данные расхода</h2>
             <div className="grid gap-4 md:grid-cols-2">
               <div>
                 <label className={labelClass}>Месяц *</label>
@@ -78,14 +76,13 @@ export default function NewFixedCostPage() {
             </div>
           </div>
 
-          {/* Кнопки */}
           <div className="flex gap-3">
             <button
               type="submit"
               className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl
                          shadow-md shadow-blue-600/20 transition-all duration-150 active:scale-[0.98]"
             >
-              ✅ Сохранить затрату
+              ✅ Сохранить расход
             </button>
             <a
               href="/fixed-costs"
