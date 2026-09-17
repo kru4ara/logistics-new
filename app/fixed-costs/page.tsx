@@ -23,7 +23,6 @@ export default async function FixedCostsPage() {
     return <div className="p-8 text-red-500">Ошибка загрузки: {error.message}</div>;
   }
 
-  // Группируем по месяцу с явной типизацией
   const costsByMonth: Record<string, MonthGroup> = {};
   costs?.forEach((c) => {
     if (!c.month_key) return;
@@ -40,11 +39,10 @@ export default async function FixedCostsPage() {
     <main className="min-h-screen bg-slate-50">
       <div className="max-w-[1600px] mx-auto px-6 py-8 space-y-6">
 
-        {/* Заголовок */}
         <div className="flex flex-wrap justify-between items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">💰 Фиксированные затраты</h1>
-            <p className="text-slate-500 mt-1">Страховки, бухгалтерия, администрация — учёт по месяцам</p>
+            <h1 className="text-3xl font-bold text-slate-900">💶 Общие расходы</h1>
+            <p className="text-slate-500 mt-1">Расходы, не привязанные к конкретному рейсу — по месяцам</p>
           </div>
           <a
             href="/fixed-costs/new"
@@ -53,22 +51,20 @@ export default async function FixedCostsPage() {
                        transition-all duration-150 active:scale-[0.98]"
           >
             <span>➕</span>
-            <span>Добавить затрату</span>
+            <span>Добавить расход</span>
           </a>
         </div>
 
-        {/* Список по месяцам */}
         {months.length === 0 ? (
           <div className="bg-white rounded-2xl border border-slate-100 p-16 text-center">
-            <div className="text-6xl mb-4">💰</div>
-            <h2 className="text-xl font-bold text-slate-900 mb-2">Затрат пока нет</h2>
-            <p className="text-slate-500 mb-6">Добавьте первую фиксированную затрату</p>
+            <div className="text-6xl mb-4">💶</div>
+            <h2 className="text-xl font-bold text-slate-900 mb-2">Расходов пока нет</h2>
+            <p className="text-slate-500 mb-6">Добавьте первый общий расход</p>
           </div>
         ) : (
           <div className="space-y-5">
             {months.map((m) => (
               <div key={m.month_key} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                {/* Заголовок месяца */}
                 <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-xl">📅</div>
@@ -82,7 +78,6 @@ export default async function FixedCostsPage() {
                   </div>
                 </div>
 
-                {/* Таблица затрат */}
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-slate-100">
