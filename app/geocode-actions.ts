@@ -11,7 +11,7 @@ export async function addTripWithAddress(formData: FormData) {
   const driverId = formData.get('driver_id') as string;
   const startDate = formData.get('start_date') as string;
   const revenueEur = parseFloat(formData.get('revenue_eur') as string) || 0;
-  const startFuelLevel = parseFloat(formData.get('start_fuel_level') as string) || 0;
+  const manualFuel = parseFloat(formData.get('start_fuel_level') as string) || 0;
 
   const clientRequestNumber = formData.get('client_request_number') as string;
   const clientRequestDate = formData.get('client_request_date') as string;
@@ -30,6 +30,71 @@ export async function addTripWithAddress(formData: FormData) {
 
   const route = `${senderCity || ''}, ${senderCountry || ''} → ${receiverCity || ''}, ${receiverCountry || ''}`;
 
+  // ============================================================
+  // 1. НОМЕР РЕЙСА — ищем НАИМЕНЬШИЙ СВОБОДНЫЙ номер
+  // ============================================================
+  const { data: existingTrips } = await supabase
+    .from('trips')
+    .select('trip_number')
+    .not('trip_number', 'is', null);
+
+  const usedNumbers = new Set<number>(
+    (existingTrips || []).map((t) => t.trip_number).filter((n) => n !== null)
+  );
+
+  let nextNumber = 1;
+  while (usedNumbers.has(nextNumber)) {
+    nextNumber++;
+  }
+
+  console.log('Свободный номер рейса:', nextNumber, 'Занятые номера:', Array.from(usedNumbers));
+
+  // ============================================================
+  // 2. ОСТАТОК ТОПЛИВА — берём из предыдущего рейса этой машины
+  // ============================================================
+  let startFuelLevel = manualFuel;
+
+  if (truckId) {
+    // Ищем последний рейс этой машины (тягача)
+    const { data: prevTrip } = await supabase
+      .from('trips')
+      .select('id, start_fuel_level, actual_liters, trip_number')
+      .eq('truck_id', truckId)
+      .order('trip_number', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (prevTrip) {
+      // Считаем, сколько топлива залили за тот рейс
+      const { data: fuelExpenses } = await supabase
+        .from('trip_expenses')
+        .select('liters')
+        .eq('trip_id', prevTrip.id)
+        .eq('category', 'fuel');
+
+      const totalRefuel = fuelExpenses?.reduce((sum, e) => sum + (e.liters || 0), 0) || 0;
+      const consumed = prevTrip.actual_liters || 0;
+
+      const prevStart = prevTrip.start_fuel_level || 0;
+
+      // Если у предыдущего рейса есть данные о расходе
+      if (consumed > 0) {
+        startFuelLevel = prevStart + totalRefuel - consumed;
+      } else {
+        // Нет данных о расходе — берём просто начальный остаток
+        startFuelLevel = prevStart + totalRefuel;
+      }
+
+      // Если получилось отрицательное значение — обнуляем
+      if (startFuelLevel < 0) startFuelLevel = 0;
+
+      console.log('Предыдущий рейс:', prevTrip.trip_number, 'Начало:', prevStart, 'Залито:', totalRefuel, 'Расход:', consumed, '→ Итог:', startFuelLevel);
+    }
+  }
+
+  // ============================================================
+  // 3. ГЕОКОДИРОВАНИЕ
+  // ============================================================
   let startLat = 0;
   let startLng = 0;
   if (senderCity && senderCountry) {
@@ -51,19 +116,9 @@ export async function addTripWithAddress(formData: FormData) {
     }
   }
 
-  const { data: counterData, error: counterError } = await supabase
-    .from('trip_counter')
-    .select('last_number')
-    .eq('id', 1)
-    .single();
-  if (counterError) throw new Error(`Ошибка счётчика: ${counterError.message}`);
-  const nextNumber = (counterData?.last_number ?? 0) + 1;
-  const { error: updateCounterError } = await supabase
-    .from('trip_counter')
-    .update({ last_number: nextNumber })
-    .eq('id', 1);
-  if (updateCounterError) throw new Error(`Ошибка обновления счётчика: ${updateCounterError.message}`);
-
+  // ============================================================
+  // 4. СОЗДАЁМ РЕЙС
+  // ============================================================
   const { error } = await supabase
     .from('trips')
     .insert([
