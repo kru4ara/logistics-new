@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { supabase } from '../../lib/supabaseClient';
+import { deleteFixedCost } from '../fixed-cost-actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,6 +24,17 @@ export default async function FixedCostsPage() {
     return <div className="p-8 text-red-500">Ошибка загрузки: {error.message}</div>;
   }
 
+  // Эффективная месячная нагрузка = (годовые ÷ 12) + (месячные + раты + разовые в текущем месяце)
+  const now = new Date();
+  const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+  const yearlyTotal = costs?.filter(c => c.cost_type === 'yearly').reduce((sum, c) => sum + (c.amount_eur || 0), 0) || 0;
+  const currentMonthCosts = costs?.filter(c => c.month_key === currentMonthKey) || [];
+  const currentMonthActual = currentMonthCosts.reduce((sum, c) => sum + (c.amount_eur || 0), 0);
+  const currentMonthYearlyPart = currentMonthCosts.filter(c => c.cost_type === 'yearly').reduce((sum, c) => sum + (c.amount_eur || 0), 0);
+  const effectiveMonthly = currentMonthActual - currentMonthYearlyPart + (yearlyTotal / 12);
+
+  // Группировка по месяцам
   const costsByMonth: Record<string, MonthGroup> = {};
   costs?.forEach((c) => {
     if (!c.month_key) return;
@@ -40,6 +52,12 @@ export default async function FixedCostsPage() {
     monthly: { label: '🔄 Месячный', color: 'bg-blue-50 text-blue-700 border-blue-200' },
     installment: { label: '💰 Рата', color: 'bg-orange-50 text-orange-700 border-orange-200' },
     one_time: { label: '⚡ Одноразовый', color: 'bg-slate-100 text-slate-700 border-slate-200' },
+  };
+
+  const currencySymbol: Record<string, string> = {
+    PLN: 'PLN',
+    BYN: 'BYN',
+    EUR: '€',
   };
 
   return (
@@ -60,6 +78,31 @@ export default async function FixedCostsPage() {
             <span>➕</span>
             <span>Добавить расход</span>
           </a>
+        </div>
+
+        {/* Эффективная месячная нагрузка */}
+        <div className="grid gap-5 md:grid-cols-2">
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-medium text-slate-500">В этом месяце (факт)</span>
+              <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-xl">💸</div>
+            </div>
+            <div className="text-3xl font-bold text-red-500">{currentMonthActual.toFixed(2)} €</div>
+            <div className="text-xs text-slate-400 mt-1">
+              Все расходы, привязанные к текущему месяцу
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-medium text-slate-500">Эффективно в месяц</span>
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-xl">📊</div>
+            </div>
+            <div className="text-3xl font-bold text-emerald-600">{effectiveMonthly.toFixed(2)} €</div>
+            <div className="text-xs text-slate-400 mt-1">
+              Годовые ÷ 12 ({yearlyTotal.toFixed(0)} € / год) + текущие месячные
+            </div>
+          </div>
         </div>
 
         {months.length === 0 ? (
@@ -85,43 +128,67 @@ export default async function FixedCostsPage() {
                   </div>
                 </div>
 
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-slate-100">
-                      <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Категория</th>
-                      <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Тип</th>
-                      <th className="text-right px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">PLN</th>
-                      <th className="text-right px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">EUR</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {m.items.map((c: any) => {
-                      const t = c.cost_type && typeLabels[c.cost_type] ? typeLabels[c.cost_type] : null;
-                      return (
-                        <tr key={c.id} className="border-b border-slate-50 hover:bg-blue-50/30 transition-colors">
-                          <td className="px-6 py-4 font-medium text-slate-800">
-                            {c.category || 'Без категории'}
-                          </td>
-                          <td className="px-6 py-4">
-                            {t ? (
-                              <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold border ${t.color}`}>
-                                {t.label}
-                              </span>
-                            ) : (
-                              <span className="text-slate-300 text-xs">—</span>
-                            )}
-                          </td>
-                          <td className="px-6 py-4 text-right text-slate-600">
-                            {c.amount_pln ? `${c.amount_pln} PLN` : '—'}
-                          </td>
-                          <td className="px-6 py-4 text-right font-semibold text-red-500">
-                            {c.amount_eur ? `${c.amount_eur} €` : '—'}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-slate-100">
+                        <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Категория</th>
+                        <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Тип</th>
+                        <th className="text-right px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Сумма</th>
+                        <th className="text-right px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">В EUR</th>
+                        <th className="text-right px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Действия</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {m.items.map((c: any) => {
+                        const t = c.cost_type && typeLabels[c.cost_type] ? typeLabels[c.cost_type] : null;
+                        const originalAmount = c.original_amount ?? c.amount_pln ?? c.amount_eur ?? 0;
+                        const curr = c.currency || 'PLN';
+                        return (
+                          <tr key={c.id} className="border-b border-slate-50 hover:bg-blue-50/30 transition-colors">
+                            <td className="px-6 py-4 font-medium text-slate-800">
+                              {c.category || 'Без категории'}
+                            </td>
+                            <td className="px-6 py-4">
+                              {t ? (
+                                <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold border whitespace-nowrap ${t.color}`}>
+                                  {t.label}
+                                </span>
+                              ) : (
+                                <span className="text-slate-300 text-xs">—</span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 text-right text-slate-700 font-medium whitespace-nowrap">
+                              {originalAmount} {currencySymbol[curr] || curr}
+                            </td>
+                            <td className="px-6 py-4 text-right font-semibold text-red-500 whitespace-nowrap">
+                              {c.amount_eur ? `${Number(c.amount_eur).toFixed(2)} €` : '—'}
+                            </td>
+                            <td className="px-6 py-4 text-right whitespace-nowrap">
+                              <a
+                                href={`/fixed-costs/${c.id}/edit`}
+                                className="text-blue-600 hover:text-blue-800 text-xs font-medium px-2 py-1"
+                              >
+                                ✏️
+                              </a>
+                              <form action={async () => {
+                                'use server';
+                                await deleteFixedCost(c.id);
+                              }} className="inline">
+                                <button
+                                  type="submit"
+                                  className="text-red-500 hover:text-red-700 text-xs font-medium px-2 py-1"
+                                >
+                                  🗑️
+                                </button>
+                              </form>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             ))}
           </div>
