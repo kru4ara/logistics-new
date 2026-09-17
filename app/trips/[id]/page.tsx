@@ -21,7 +21,6 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
     return <div className="p-8 text-red-500">Ошибка загрузки: {tripError.message}</div>;
   }
 
-  // Прицеп — отдельным запросом (из-за конфликта связей)
   let trailerNumber: string | null = null;
   if (trip.trailer_id) {
     const { data: trailer } = await supabase
@@ -51,26 +50,12 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
   const driver = trip.drivers;
   const truck = trip.trucks;
 
-  // Формируем текст задания для копирования
+  // 🔥 Компактное задание — только 4 строки
   const taskText = [
-    `🚛 Рейс № ${trip.trip_number || '—'}`,
-    `Клиент: ${trip.clients?.name || '—'}`,
-    `Маршрут: ${trip.route || '—'}`,
-    '',
     `Тягач: ${truck?.registration_number || '—'}`,
     `Прицеп: ${trailerNumber || '—'}`,
     `Водитель: ${driver ? `${driver.first_name} ${driver.last_name}` : '—'}`,
     `Телефон: ${driver?.phone || '—'}`,
-    '',
-    '📍 ЗАГРУЗКА',
-    `Компания: ${trip.sender_name || '—'}`,
-    `Адрес: ${[trip.sender_postal_code, trip.sender_city, trip.sender_address, trip.sender_country].filter(Boolean).join(', ') || '—'}`,
-    `Погрузочный номер: ${trip.sender_loading_number || '—'}`,
-    '',
-    '🏁 ВЫГРУЗКА',
-    `Компания: ${trip.receiver_name || '—'}`,
-    `Адрес: ${[trip.receiver_postal_code, trip.receiver_city, trip.receiver_address, trip.receiver_country].filter(Boolean).join(', ') || '—'}`,
-    `Погрузочный номер: ${trip.receiver_loading_number || '—'}`,
   ].join('\n');
 
   const statusLabels: Record<string, string> = {
@@ -93,12 +78,10 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
     <main className="min-h-screen bg-slate-50">
       <div className="max-w-[900px] mx-auto px-6 py-8 space-y-6">
 
-        {/* Назад */}
         <a href="/trips" className="inline-flex items-center gap-2 text-slate-600 hover:text-blue-600 transition-colors text-sm font-medium">
           ← Все рейсы
         </a>
 
-        {/* Заголовок с действиями */}
         <div className="flex flex-wrap justify-between items-center gap-4">
           <h1 className="text-3xl font-bold text-slate-900">
             Рейс № {trip.trip_number || '—'}
@@ -182,7 +165,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
           </div>
         </div>
 
-        {/* 🔥 НОВЫЙ БЛОК: Задание для водителя (копируемое) */}
+        {/* 🔥 Компактное задание для водителя */}
         <CopyBlock text={taskText} />
 
         {/* Кнопки статуса */}
@@ -191,7 +174,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
           <TripStatusButtons tripId={tripId} currentStatus={trip.status} showAdminStatuses={true} />
         </div>
 
-        {/* Данные телеметрии */}
+        {/* Телеметрия */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
           <h2 className="text-lg font-bold text-slate-900 mb-4">📊 Данные телеметрии</h2>
           <form action={async (formData: FormData) => {
