@@ -6,6 +6,8 @@ import { redirect } from 'next/navigation';
 
 async function convertToEur(amount: number, currency: string, dateStr: string) {
   if (currency === 'EUR') return amount;
+
+  // Ищем курс на дату или ближайший до неё
   if (currency === 'PLN') {
     const { data: rate } = await supabase
       .from('rates')
@@ -16,6 +18,7 @@ async function convertToEur(amount: number, currency: string, dateStr: string) {
       .single();
     return amount * (rate?.pln_to_eur ?? 0.23);
   }
+
   if (currency === 'BYN') {
     const { data: rate } = await supabase
       .from('rates')
@@ -26,6 +29,7 @@ async function convertToEur(amount: number, currency: string, dateStr: string) {
       .single();
     return amount * (rate?.byn_to_eur ?? 0.30);
   }
+
   return amount;
 }
 
@@ -33,10 +37,12 @@ export async function createFixedCost(formData: FormData) {
   const monthKey = formData.get('month_key') as string;
   const category = formData.get('category') as string;
   const costType = formData.get('cost_type') as string;
+  const expenseDate = formData.get('expense_date') as string;
   const originalAmount = parseFloat(formData.get('amount') as string) || 0;
   const currency = (formData.get('currency') as string) || 'EUR';
 
-  const dateForRate = `${monthKey}-01`;
+  // Если дата не указана — используем 1-е число месяца
+  const dateForRate = expenseDate || `${monthKey}-01`;
   const amountEur = await convertToEur(originalAmount, currency, dateForRate);
 
   const { error } = await supabase
@@ -46,6 +52,7 @@ export async function createFixedCost(formData: FormData) {
         month_key: monthKey,
         category: category,
         cost_type: costType,
+        expense_date: expenseDate || null,
         currency: currency,
         original_amount: originalAmount,
         amount_eur: amountEur,
@@ -62,10 +69,11 @@ export async function updateFixedCost(costId: string, formData: FormData) {
   const monthKey = formData.get('month_key') as string;
   const category = formData.get('category') as string;
   const costType = formData.get('cost_type') as string;
+  const expenseDate = formData.get('expense_date') as string;
   const originalAmount = parseFloat(formData.get('amount') as string) || 0;
   const currency = (formData.get('currency') as string) || 'EUR';
 
-  const dateForRate = `${monthKey}-01`;
+  const dateForRate = expenseDate || `${monthKey}-01`;
   const amountEur = await convertToEur(originalAmount, currency, dateForRate);
 
   const { error } = await supabase
@@ -74,6 +82,7 @@ export async function updateFixedCost(costId: string, formData: FormData) {
       month_key: monthKey,
       category: category,
       cost_type: costType,
+      expense_date: expenseDate || null,
       currency: currency,
       original_amount: originalAmount,
       amount_eur: amountEur,
