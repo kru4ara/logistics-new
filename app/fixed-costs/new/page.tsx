@@ -7,6 +7,7 @@ async function createFixedCost(formData: FormData) {
 
   const monthKey = formData.get('month_key') as string;
   const category = formData.get('category') as string;
+  const costType = formData.get('cost_type') as string;
   const amountPln = parseFloat(formData.get('amount_pln') as string) || 0;
   const amountEur = parseFloat(formData.get('amount_eur') as string) || 0;
 
@@ -16,6 +17,7 @@ async function createFixedCost(formData: FormData) {
       {
         month_key: monthKey,
         category: category,
+        cost_type: costType || null,
         amount_pln: amountPln || null,
         amount_eur: amountEur || null
       }
@@ -56,12 +58,21 @@ export default function NewFixedCostPage() {
                 <input type="month" name="month_key" required className={inputClass} />
               </div>
               <div>
+                <label className={labelClass}>Тип расхода *</label>
+                <select name="cost_type" required className={inputClass}>
+                  <option value="yearly">📅 Годовой</option>
+                  <option value="monthly">🔄 Месячный</option>
+                  <option value="installment">💰 Рата (часть платежа)</option>
+                  <option value="one_time">⚡ Одноразовый</option>
+                </select>
+              </div>
+              <div className="md:col-span-2">
                 <label className={labelClass}>Категория *</label>
                 <input
                   type="text"
                   name="category"
                   required
-                  placeholder="Например: Страховка, Бухгалтерия"
+                  placeholder="Например: Страховка OC, Бухгалтерия, e-TOLL"
                   className={inputClass}
                 />
               </div>
