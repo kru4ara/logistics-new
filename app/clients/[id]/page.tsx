@@ -6,16 +6,26 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
   const { id: clientId } = await params;
   if (!clientId) return <div className="p-8">Ошибка: ID клиента не передан</div>;
 
-  const { data: client, error } = await supabase.from('clients').select('*').eq('id', clientId).single();
+  const { data: client, error } = await supabase
+    .from('clients')
+    .select('*')
+    .eq('id', clientId)
+    .single();
+
   if (error) return <div className="p-8 text-red-500">Ошибка: {error.message}</div>;
 
-  const { data: trips } = await supabase
+  // Явно указываем, какая связь используется для truck_id
+  const { data: trips, error: tripsError } = await supabase
     .from('trips')
-    .select('*, drivers(first_name, last_name, phone), trucks(registration_number)')
+    .select('*, drivers!driver_id(first_name, last_name, phone), trucks!truck_id(registration_number)')
     .eq('client_id', clientId)
     .order('trip_number', { ascending: false });
 
-  // Загружаем прицепы (они в отдельной таблице trucks)
+  if (tripsError) {
+    console.error('Ошибка загрузки рейсов:', tripsError.message);
+  }
+
+  // Загружаем прицепы отдельно (по trailer_id)
   const trailerIds = trips?.map((t) => t.trailer_id).filter(Boolean) || [];
   let trailersMap: Record<string, string> = {};
   if (trailerIds.length > 0) {
@@ -28,7 +38,10 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
     });
   }
 
-  const { data: expenses } = await supabase.from('trip_expenses').select('trip_id, amount_eur');
+  // Расходы по рейсам
+  const { data: expenses } = await supabase
+    .from('trip_expenses')
+    .select('trip_id, amount_eur');
 
   const expensesByTrip = expenses?.reduce((acc, e) => {
     if (!e.trip_id) return acc;
@@ -67,6 +80,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
           ← Все клиенты
         </a>
 
+        {/* Шапка клиента */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
           <div className="flex flex-wrap items-center gap-5">
             <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-pink-500 to-pink-700 flex items-center justify-center text-white font-bold text-2xl shrink-0">
@@ -83,6 +97,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
           </div>
         </div>
 
+        {/* Финансы */}
         <div className="grid gap-5 md:grid-cols-3">
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
             <div className="text-sm font-medium text-slate-500 mb-2">Общий фрахт</div>
@@ -100,6 +115,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
           </div>
         </div>
 
+        {/* Список рейсов */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
           <h2 className="text-lg font-bold text-slate-900 mb-4">📋 Рейсы клиента ({trips?.length || 0})</h2>
           {trips?.length === 0 ? (
@@ -143,7 +159,6 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
                       </div>
                     </div>
 
-                    {/* Транспорт и водитель */}
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-slate-100 text-xs">
                       <div className="flex items-center gap-2 text-slate-600">
                         <span>🚛</span>
