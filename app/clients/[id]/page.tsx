@@ -14,7 +14,6 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
 
   if (error) return <div className="p-8 text-red-500">Ошибка: {error.message}</div>;
 
-  // Явно указываем, какая связь используется для truck_id
   const { data: trips, error: tripsError } = await supabase
     .from('trips')
     .select('*, drivers!driver_id(first_name, last_name, phone), trucks!truck_id(registration_number)')
@@ -25,7 +24,6 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
     console.error('Ошибка загрузки рейсов:', tripsError.message);
   }
 
-  // Загружаем прицепы отдельно (по trailer_id)
   const trailerIds = trips?.map((t) => t.trailer_id).filter(Boolean) || [];
   let trailersMap: Record<string, string> = {};
   if (trailerIds.length > 0) {
@@ -38,7 +36,6 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
     });
   }
 
-  // Расходы по рейсам
   const { data: expenses } = await supabase
     .from('trip_expenses')
     .select('trip_id, amount_eur');
@@ -80,20 +77,31 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
           ← Все клиенты
         </a>
 
-        {/* Шапка клиента */}
+        {/* Шапка */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-          <div className="flex flex-wrap items-center gap-5">
-            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-pink-500 to-pink-700 flex items-center justify-center text-white font-bold text-2xl shrink-0">
-              {initials || '🤝'}
-            </div>
-            <div className="flex-1 min-w-0">
-              <h1 className="text-2xl font-bold text-slate-900">{client.name}</h1>
-              <div className="flex flex-wrap gap-4 mt-2 text-sm text-slate-500">
-                {client.contact_person && <span>👤 {client.contact_person}</span>}
-                {client.phone && <span>📞 {client.phone}</span>}
-                {client.email && <span>✉️ {client.email}</span>}
+          <div className="flex flex-wrap items-center justify-between gap-5">
+            <div className="flex items-center gap-5 min-w-0 flex-1">
+              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-pink-500 to-pink-700 flex items-center justify-center text-white font-bold text-2xl shrink-0">
+                {initials || '🤝'}
+              </div>
+              <div className="min-w-0">
+                <h1 className="text-2xl font-bold text-slate-900">{client.name}</h1>
+                <div className="flex flex-wrap gap-4 mt-2 text-sm text-slate-500">
+                  {client.contact_person && <span>👤 {client.contact_person}</span>}
+                  {client.phone && <span>📞 {client.phone}</span>}
+                  {client.email && <span>✉️ {client.email}</span>}
+                </div>
               </div>
             </div>
+
+            <a
+              href={`/clients/${clientId}/edit`}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white
+                         font-semibold px-5 py-2.5 rounded-xl shadow-md shadow-blue-600/20
+                         transition-all duration-150 active:scale-[0.98] shrink-0"
+            >
+              ✏️ Редактировать
+            </a>
           </div>
         </div>
 
@@ -144,7 +152,11 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
                             № {trip.trip_number || '—'} · {trip.route || '—'}
                           </div>
                           <div className="text-xs text-slate-400">
-                            {trip.start_date ? new Date(trip.start_date).toLocaleDateString('ru-RU') : '—'}
+                            {trip.end_date
+                              ? new Date(trip.end_date).toLocaleDateString('ru-RU')
+                              : trip.start_date
+                                ? new Date(trip.start_date).toLocaleDateString('ru-RU')
+                                : '—'}
                           </div>
                         </div>
                       </div>
