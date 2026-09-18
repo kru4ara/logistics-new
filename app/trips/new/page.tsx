@@ -1,13 +1,29 @@
-import { supabase } from '../../../lib/supabaseClient';
+import { createClient } from '../../../lib/supabase-server';
 import NewTripForm from './NewTripForm';
 
 export const dynamic = 'force-dynamic';
 
 export default async function NewTripPage() {
-  const { data: clients } = await supabase.from('clients').select('id, name').order('name');
-  const { data: tractors } = await supabase.from('trucks').select('id, registration_number').eq('type', 'tractor');
-  const { data: trailers } = await supabase.from('trucks').select('id, registration_number').eq('type', 'trailer');
-  const { data: drivers } = await supabase.from('drivers').select('id, first_name, last_name');
+  const supabase = await createClient();
+
+  const { data: clients } = await supabase
+    .from('clients')
+    .select('id, name')
+    .order('name');
+
+  const { data: tractors } = await supabase
+    .from('trucks')
+    .select('id, registration_number')
+    .eq('type', 'tractor');
+
+  const { data: trailers } = await supabase
+    .from('trucks')
+    .select('id, registration_number')
+    .eq('type', 'trailer');
+
+  const { data: drivers } = await supabase
+    .from('drivers')
+    .select('id, first_name, last_name');
 
   const { data: loadingLocations } = await supabase
     .from('locations')
@@ -47,5 +63,3 @@ export default async function NewTripPage() {
     </main>
   );
 }
-
-// cache buster 2026-09-18
