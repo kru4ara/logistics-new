@@ -1,4 +1,4 @@
-import { supabase } from '../../../lib/supabaseClient';
+import { createClient } from '../../../lib/supabase-server';
 import { addExpense, deleteExpense, deleteTrip } from '../../trip-actions';
 import FileUpload from '../../driver/FileUpload';
 import TripStatusButtons from '../../driver/TripStatusButtons';
@@ -10,6 +10,8 @@ export const dynamic = 'force-dynamic';
 export default async function TripDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: tripId } = await params;
   if (!tripId) return <div className="p-8">Ошибка: ID рейса не передан</div>;
+
+  const supabase = await createClient();
 
   const { data: trip, error: tripError } = await supabase
     .from('trips')
@@ -50,13 +52,93 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
   const driver = trip.drivers;
   const truck = trip.trucks;
 
-  // 🔥 Компактное задание — только 4 строки
-  const taskText = [
-    `Тягач: ${truck?.registration_number || '—'}`,
-    `Прицеп: ${trailerNumber || '—'}`,
-    `Водитель: ${driver ? `${driver.first_name} ${driver.last_name}` : '—'}`,
-    `Телефон: ${driver?.phone || '—'}`,
-  ].join('\n');
+  // ============================================================
+  // ТОЧКИ ПОГРУЗКИ — собираем все заполненные
+  // ============================================================
+  type LoadingPoint = {
+    num: number;
+    country: string | null;
+    name: string | null;
+    postal_code: string | null;
+    city: string | null;
+    address: string | null;
+    loading_number: string | null;
+  };
+
+  const loadingPoints: LoadingPoint[] = [
+    {
+      num: 1,
+      country: trip.sender_country,
+      name: trip.sender_name,
+      postal_code: trip.sender_postal_code,
+      city: trip.sender_city,
+      address: trip.sender_address,
+      loading_number: trip.sender_loading_number,
+    },
+    {
+      num: 2,
+      country: trip.sender2_country,
+      name: trip.sender2_name,
+      postal_code: trip.sender2_postal_code,
+      city: trip.sender2_city,
+      address: trip.sender2_address,
+      loading_number: trip.sender2_loading_number,
+    },
+    {
+      num: 3,
+      country: trip.sender3_country,
+      name: trip.sender3_name,
+      postal_code: trip.sender3_postal_code,
+      city: trip.sender3_city,
+      address: trip.sender3_address,
+      loading_number: trip.sender3_loading_number,
+    },
+  ].filter((p) => p.city || p.name || p.country || p.address);
+
+  // ============================================================
+  // ТЕКСТ ЗАДАНИЯ ДЛЯ ВОДИТЕЛЯ (для копирования и Telegram)
+  // ============================================================
+  const taskLines: string[] = [];
+  taskLines.push(`Тягач: ${truck?.registration_number || '—'}`);
+  taskLines.push(`Прицеп: ${trailerNumber || '—'}`);
+  taskLines.push(`Водитель: ${driver ? `${driver.first_name} ${driver.last_name}` : '—'}`);
+  taskLines.push(`Телефон: ${driver?.phone || '—'}`);
+  taskLines.push('');
+
+  if (loadingPoints.length > 0) {
+    taskLines.push('📍 ЗАГРУЗКА:');
+    loadingPoints.forEach((p) => {
+      const parts = [
+        p.country,
+        p.postal_code,
+        p.city,
+        p.address,
+      ].filter(Boolean).join(', ');
+      taskLines.push(`${p.num}. ${p.name || '—'}`);
+      taskLines.push(`   ${parts || '—'}`);
+      if (p.loading_number) {
+        taskLines.push(`   № погрузки: ${p.loading_number}`);
+      }
+      taskLines.push('');
+    });
+  }
+
+  if (trip.receiver_city || trip.receiver_name) {
+    taskLines.push('🏁 ВЫГРУЗКА:');
+    taskLines.push(`${trip.receiver_name || '—'}`);
+    const recvParts = [
+      trip.receiver_country,
+      trip.receiver_postal_code,
+      trip.receiver_city,
+      trip.receiver_address,
+    ].filter(Boolean).join(', ');
+    taskLines.push(`   ${recvParts || '—'}`);
+    if (trip.receiver_loading_number) {
+      taskLines.push(`   № погрузки: ${trip.receiver_loading_number}`);
+    }
+  }
+
+  const taskText = taskLines.join('\n');
 
   const statusLabels: Record<string, string> = {
     planned: 'Планируется',
@@ -165,7 +247,71 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
           </div>
         </div>
 
-        {/* 🔥 Компактное задание для водителя */}
+        {/* 📍 ТОЧКИ ПОГРУЗКИ И ВЫГРУЗКИ */}
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+          <h2 className="text-lg font-bold text-slate-900 mb-4">📍 Маршрутные точки</h2>
+
+          {/* Загрузка */}
+          <div className="mb-6">
+            <div className="text-sm font-semibold text-green-700 mb-3 flex items-center gap-2">
+              🟢 Загрузка
+              {loadingPoints.length > 1 && (
+                <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
+                  {loadingPoints.length} точки
+                </span>
+              )}
+            </div>
+            {loadingPoints.length === 0 ? (
+              <div className="text-slate-400 text-sm pl-4">Не указана</div>
+            ) : (
+              <div className="space-y-3">
+                {loadingPoints.map((p) => (
+                  <div key={p.num} className="border-l-4 border-green-500 pl-4 py-1">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-xs font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded">
+                        #{p.num}
+                      </span>
+                      <span className="font-semibold text-slate-800">{p.name || '—'}</span>
+                    </div>
+                    <div className="text-sm text-slate-600 mt-1">
+                      {[p.country, p.postal_code, p.city, p.address].filter(Boolean).join(', ') || '—'}
+                    </div>
+                    {p.loading_number && (
+                      <div className="text-xs text-slate-500 mt-1">
+                        № погрузки: <span className="font-medium">{p.loading_number}</span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Выгрузка */}
+          <div className="pt-4 border-t border-slate-100">
+            <div className="text-sm font-semibold text-red-700 mb-3 flex items-center gap-2">
+              🔴 Выгрузка
+            </div>
+            {trip.receiver_city || trip.receiver_name ? (
+              <div className="border-l-4 border-red-500 pl-4 py-1">
+                <div className="font-semibold text-slate-800">{trip.receiver_name || '—'}</div>
+                <div className="text-sm text-slate-600 mt-1">
+                  {[trip.receiver_country, trip.receiver_postal_code, trip.receiver_city, trip.receiver_address]
+                    .filter(Boolean).join(', ') || '—'}
+                </div>
+                {trip.receiver_loading_number && (
+                  <div className="text-xs text-slate-500 mt-1">
+                    № погрузки: <span className="font-medium">{trip.receiver_loading_number}</span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-slate-400 text-sm pl-4">Не указана</div>
+            )}
+          </div>
+        </div>
+
+        {/* 🔥 Задание для водителя (копирование) */}
         <CopyBlock text={taskText} />
 
         {/* Кнопки статуса */}
