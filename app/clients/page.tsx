@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { supabase } from '../../lib/supabaseClient';
+import { deleteClient } from '../client-actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,7 +18,6 @@ export default async function ClientsPage() {
     return <div className="p-8 text-red-500">Ошибка загрузки: {error.message}</div>;
   }
 
-  // Считаем количество рейсов по каждому клиенту
   const { data: trips } = await supabase
     .from('trips')
     .select('client_id');
@@ -33,7 +33,6 @@ export default async function ClientsPage() {
     <main className="min-h-screen bg-slate-50">
       <div className="max-w-[1600px] mx-auto px-6 py-8 space-y-6">
 
-        {/* Заголовок */}
         <div className="flex flex-wrap justify-between items-center gap-4">
           <div>
             <h1 className="text-3xl font-bold text-slate-900">🤝 Клиенты</h1>
@@ -50,12 +49,11 @@ export default async function ClientsPage() {
           </a>
         </div>
 
-        {/* Сетка */}
         {clients?.length === 0 ? (
           <div className="bg-white rounded-2xl border border-slate-100 p-16 text-center">
             <div className="text-6xl mb-4">🤝</div>
             <h2 className="text-xl font-bold text-slate-900 mb-2">Клиентов пока нет</h2>
-            <p className="text-slate-500 mb-6">Добавьте первого клиента, чтобы начать работу</p>
+            <p className="text-slate-500 mb-6">Добавьте первого клиента</p>
           </div>
         ) : (
           <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
@@ -69,31 +67,30 @@ export default async function ClientsPage() {
               const tripCount = tripsByClient[client.id] || 0;
 
               return (
-                <a
+                <div
                   key={client.id}
-                  href={`/clients/${client.id}`}
                   className="group bg-white rounded-2xl border border-slate-100 shadow-sm
-                             hover:shadow-xl hover:border-blue-200 hover:-translate-y-0.5
-                             transition-all duration-200 overflow-hidden"
+                             hover:shadow-xl hover:border-blue-200 transition-all duration-200 overflow-hidden"
                 >
                   <div className="p-5">
-                    {/* Аватар и название */}
                     <div className="flex items-center gap-4 mb-4">
                       <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-pink-500 to-pink-700
                                       flex items-center justify-center text-white font-bold text-lg shrink-0">
                         {initials || '🤝'}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="text-lg font-bold text-slate-900 group-hover:text-blue-600 transition-colors truncate">
+                        <a
+                          href={`/clients/${client.id}`}
+                          className="text-lg font-bold text-slate-900 hover:text-blue-600 transition-colors truncate block"
+                        >
                           {client.name}
-                        </div>
+                        </a>
                         <div className="text-sm text-slate-500 truncate">
                           👤 {client.contact_person || 'Контакт не указан'}
                         </div>
                       </div>
                     </div>
 
-                    {/* Контакты */}
                     <div className="space-y-1 text-sm text-slate-600 mb-4">
                       <div className="flex items-center gap-2">
                         <span>📞</span>
@@ -105,15 +102,34 @@ export default async function ClientsPage() {
                       </div>
                     </div>
 
-                    {/* Количество рейсов */}
                     <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                      <span className="text-xs uppercase tracking-wide text-slate-400 font-medium">
-                        Рейсов
-                      </span>
-                      <span className="text-lg font-bold text-blue-600">{tripCount}</span>
+                      <div className="text-xs uppercase tracking-wide text-slate-400 font-medium">
+                        Рейсов: <b className="text-slate-600">{tripCount}</b>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <a
+                          href={`/clients/${client.id}/edit`}
+                          className="text-blue-600 hover:bg-blue-50 rounded-lg p-2 text-sm transition-colors"
+                          title="Редактировать"
+                        >
+                          ✏️
+                        </a>
+                        <form action={async () => {
+                          'use server';
+                          await deleteClient(client.id);
+                        }}>
+                          <button
+                            type="submit"
+                            className="text-red-500 hover:bg-red-50 rounded-lg p-2 text-sm transition-colors"
+                            title="Удалить"
+                          >
+                            🗑️
+                          </button>
+                        </form>
+                      </div>
                     </div>
                   </div>
-                </a>
+                </div>
               );
             })}
           </div>
