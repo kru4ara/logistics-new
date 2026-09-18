@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { supabase } from '../../../../lib/supabaseClient';
+import { createClient } from '../../../../lib/supabase-server';
 import { addExpense, deleteExpense } from '../../../trip-actions';
 import FileUpload from '../../FileUpload';
 import TripStatusButtons from '../../TripStatusButtons';
@@ -14,6 +14,8 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
   const cookieStore = cookies();
   const role = cookieStore.get('role')?.value;
   if (role !== 'driver') redirect('/login');
+
+  const supabase = await createClient();
 
   const { data: trip, error: tripError } = await supabase
     .from('trips')
@@ -35,6 +37,51 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
 
   const refuelLiters = expenses?.filter(e => e.category === 'fuel' && e.liters).reduce((sum, e) => sum + e.liters, 0) || 0;
   const fuelLeft = (trip.start_fuel_level || 0) + refuelLiters - (trip.actual_liters || 0);
+
+  // ============================================================
+  // ТОЧКИ ПОГРУЗКИ — собираем все заполненные
+  // ============================================================
+  type LoadingPoint = {
+    num: number;
+    country: string | null;
+    name: string | null;
+    postal_code: string | null;
+    city: string | null;
+    address: string | null;
+    loading_number: string | null;
+  };
+
+  const loadingPoints: LoadingPoint[] = [
+    {
+      num: 1,
+      country: trip.sender_country,
+      name: trip.sender_name,
+      postal_code: trip.sender_postal_code,
+      city: trip.sender_city,
+      address: trip.sender_address,
+      loading_number: trip.sender_loading_number,
+    },
+    {
+      num: 2,
+      country: trip.sender2_country,
+      name: trip.sender2_name,
+      postal_code: trip.sender2_postal_code,
+      city: trip.sender2_city,
+      address: trip.sender2_address,
+      loading_number: trip.sender2_loading_number,
+    },
+    {
+      num: 3,
+      country: trip.sender3_country,
+      name: trip.sender3_name,
+      postal_code: trip.sender3_postal_code,
+      city: trip.sender3_city,
+      address: trip.sender3_address,
+      loading_number: trip.sender3_loading_number,
+    },
+  ].filter((p) => p.city || p.name || p.country || p.address);
+
+  const hasReceiver = Boolean(trip.receiver_city || trip.receiver_name);
 
   const statusLabels: Record<string, string> = {
     planned: 'Планируется',
@@ -110,27 +157,48 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
           ) : null}
         </div>
 
-        {/* Задание: загрузка / выгрузка */}
+        {/* Задание: загрузка(и) / выгрузка */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-4">
           <h2 className="text-lg font-bold text-slate-900">📋 Задание</h2>
 
-          {trip.sender_city && (
-            <div className="border-l-4 border-green-500 pl-4 py-1">
-              <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-1">📍 Загрузка</div>
-              <div className="font-bold text-slate-900">{trip.sender_name || 'Отправитель не указан'}</div>
-              <div className="text-sm text-slate-600 mt-1">
-                {trip.sender_postal_code} {trip.sender_city}, {trip.sender_address}
+          {/* ЗАГРУЗКА — все точки */}
+          {loadingPoints.length > 0 && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <span className="text-xs uppercase tracking-wide text-slate-400 font-semibold">📍 Загрузка</span>
+                {loadingPoints.length > 1 && (
+                  <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
+                    {loadingPoints.length} точки
+                  </span>
+                )}
               </div>
-              <div className="text-sm text-slate-500 mt-1">🌍 {trip.sender_country}</div>
-              {trip.sender_loading_number && (
-                <div className="text-sm text-blue-600 font-semibold mt-1">
-                  🚪 Погрузочный номер: {trip.sender_loading_number}
+
+              {loadingPoints.map((p) => (
+                <div key={p.num} className="border-l-4 border-green-500 pl-4 py-1">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-xs font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded">
+                      #{p.num}
+                    </span>
+                    <div className="font-bold text-slate-900">{p.name || 'Отправитель не указан'}</div>
+                  </div>
+                  <div className="text-sm text-slate-600 mt-1">
+                    {[p.postal_code, p.city, p.address].filter(Boolean).join(', ') || '—'}
+                  </div>
+                  {p.country && (
+                    <div className="text-sm text-slate-500 mt-1">🌍 {p.country}</div>
+                  )}
+                  {p.loading_number && (
+                    <div className="text-sm text-blue-600 font-semibold mt-1">
+                      🚪 Погрузочный номер: {p.loading_number}
+                    </div>
+                  )}
                 </div>
-              )}
+              ))}
             </div>
           )}
 
-          {trip.receiver_city && (
+          {/* ВЫГРУЗКА */}
+          {hasReceiver && (
             <div className="border-l-4 border-blue-500 pl-4 py-1">
               <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-1">🏁 Выгрузка</div>
               <div className="font-bold text-slate-900">{trip.receiver_name || 'Получатель не указан'}</div>
@@ -146,7 +214,7 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
             </div>
           )}
 
-          {!trip.sender_city && !trip.receiver_city && (
+          {loadingPoints.length === 0 && !hasReceiver && (
             <div className="text-slate-400 text-sm text-center py-6">
               Адреса загрузки и выгрузки не заполнены
             </div>
