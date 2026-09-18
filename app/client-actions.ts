@@ -2,8 +2,9 @@
 
 import { supabase } from '../lib/supabaseClient';
 import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
 
-export async function addClient(formData: FormData) {
+export async function updateClient(clientId: string, formData: FormData) {
   const name = formData.get('name') as string;
   const contactPerson = formData.get('contact_person') as string;
   const phone = formData.get('phone') as string;
@@ -11,18 +12,34 @@ export async function addClient(formData: FormData) {
 
   const { error } = await supabase
     .from('clients')
-    .insert([
-      {
-        name: name,
-        contact_person: contactPerson || null,
-        phone: phone || null,
-        email: email || null
-      }
-    ]);
+    .update({
+      name: name,
+      contact_person: contactPerson || null,
+      phone: phone || null,
+      email: email || null
+    })
+    .eq('id', clientId);
 
-  if (error) {
-    throw new Error(`Ошибка добавления: ${error.message}`);
-  }
+  if (error) throw new Error(`Ошибка обновления: ${error.message}`);
+  revalidatePath('/clients');
+  revalidatePath(`/clients/${clientId}`);
+  redirect(`/clients/${clientId}`);
+}
+
+export async function deleteClient(clientId: string) {
+  // Сначала отвязываем клиента от рейсов (чтобы не нарушить внешний ключ)
+  const { error: unlinkError } = await supabase
+    .from('trips')
+    .update({ client_id: null })
+    .eq('client_id', clientId);
+  if (unlinkError) throw new Error(`Ошибка отвязки рейсов: ${unlinkError.message}`);
+
+  const { error } = await supabase
+    .from('clients')
+    .delete()
+    .eq('id', clientId);
+  if (error) throw new Error(`Ошибка удаления: ${error.message}`);
 
   revalidatePath('/clients');
+  redirect('/clients');
 }
