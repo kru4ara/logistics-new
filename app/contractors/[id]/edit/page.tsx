@@ -8,9 +8,8 @@ export const dynamic = 'force-dynamic';
 export default async function EditContractorPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const cookieStore = cookies();
-  const role = cookieStore.get('role')?.value;
-  if (role !== 'office') redirect('/login');
+  const role = cookies().get('role')?.value;
+  if (role === 'driver') redirect('/driver');
 
   const supabase = await createClient();
 
