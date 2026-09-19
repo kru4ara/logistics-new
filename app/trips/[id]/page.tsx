@@ -171,6 +171,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
     { value: 'disinfection', label: '🧴 Дезинфекция' },
     { value: 'ex1', label: '🧾 ЕХ-1' },
     { value: 'otkat', label: '🔄 Откат' },
+    { value: 'gps_seal', label: '📡 GPS пломба' },
     { value: 'other', label: '📌 Другое' },
   ];
 
