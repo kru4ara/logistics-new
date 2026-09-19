@@ -99,6 +99,28 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
     paid: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   };
 
+  const expenseCategories: { value: string; label: string; emoji: string }[] = [
+    { value: 'fuel', label: 'Топливо', emoji: '⛽' },
+    { value: 'epi', label: 'EPI', emoji: '📄' },
+    { value: 'etoll', label: 'e-TOLL', emoji: '🛣' },
+    { value: 'border', label: 'Граница', emoji: '🛂' },
+    { value: 'salary', label: 'ЗП водителя', emoji: '💶' },
+    { value: 'contractor', label: 'Подрядчик', emoji: '🚛' },
+    { value: 'permit', label: 'Дозвол', emoji: '📋' },
+    { value: 'tlc', label: 'ТЛЦ', emoji: '🏭' },
+    { value: 'waiting', label: 'Зона ожидания', emoji: '⏳' },
+    { value: 'repair', label: 'Ремонт', emoji: '🔧' },
+    { value: 'parking', label: 'Паркинг', emoji: '🅿️' },
+    { value: 'disinfection', label: 'Дезинфекция', emoji: '🧴' },
+    { value: 'ex1', label: 'ЕХ-1', emoji: '🧾' },
+    { value: 'otkat', label: 'Откат', emoji: '🔄' },
+    { value: 'other', label: 'Другое', emoji: '📌' },
+  ];
+
+  function categoryEmoji(cat: string): string {
+    return expenseCategories.find((c) => c.value === cat)?.emoji || '📌';
+  }
+
   const inputClass = "w-full rounded-lg border border-slate-300 px-3 py-2.5 text-slate-900 " +
     "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-150";
   const labelClass = "block text-sm font-medium text-slate-700 mb-1";
@@ -272,14 +294,7 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
               {expenses?.map((exp) => (
                 <div key={exp.id} className="flex justify-between items-center border border-slate-100 rounded-xl p-3">
                   <div className="flex items-center gap-3 min-w-0">
-                    <span className="text-xl">
-                      {exp.category === 'fuel' ? '⛽' :
-                       exp.category === 'epi' ? '📄' :
-                       exp.category === 'etoll' ? '🛣' :
-                       exp.category === 'border' ? '🛂' :
-                       exp.category === 'salary' ? '💶' :
-                       exp.category === 'contractor' ? '🚛' : '📌'}
-                    </span>
+                    <span className="text-xl">{categoryEmoji(exp.category)}</span>
                     <div className="min-w-0">
                       <div className="font-medium text-slate-800 text-sm">
                         {exp.description || exp.category}
@@ -313,13 +328,9 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
               <div>
                 <label className={labelClass}>Категория</label>
                 <select name="category" required className={inputClass}>
-                  <option value="fuel">⛽ Топливо</option>
-                  <option value="epi">📄 EPI</option>
-                  <option value="etoll">🛣 e-TOLL</option>
-                  <option value="border">🛂 Граница</option>
-                  <option value="salary">💶 ЗП водителя</option>
-                  <option value="contractor">🚛 Подрядчик</option>
-                  <option value="other">📌 Другое</option>
+                  {expenseCategories.map((c) => (
+                    <option key={c.value} value={c.value}>{c.emoji} {c.label}</option>
+                  ))}
                 </select>
               </div>
 
