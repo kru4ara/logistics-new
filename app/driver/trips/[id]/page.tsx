@@ -114,6 +114,7 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
     { value: 'disinfection', label: 'Дезинфекция', emoji: '🧴' },
     { value: 'ex1', label: 'ЕХ-1', emoji: '🧾' },
     { value: 'otkat', label: 'Откат', emoji: '🔄' },
+    { value: 'gps_seal', label: 'GPS пломба', emoji: '📡' },
     { value: 'other', label: 'Другое', emoji: '📌' },
   ];
 
