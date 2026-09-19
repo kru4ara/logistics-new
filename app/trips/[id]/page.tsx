@@ -156,6 +156,28 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
     paid: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   };
 
+  const expenseCategories: { value: string; label: string }[] = [
+    { value: 'fuel', label: '⛽ Топливо' },
+    { value: 'epi', label: '📄 EPI' },
+    { value: 'etoll', label: '🛣 e-TOLL' },
+    { value: 'border', label: '🛂 Граница' },
+    { value: 'salary', label: '💶 ЗП водителя' },
+    { value: 'contractor', label: '🚛 Подрядчик' },
+    { value: 'permit', label: '📋 Дозвол' },
+    { value: 'tlc', label: '🏭 ТЛЦ' },
+    { value: 'waiting', label: '⏳ Зона ожидания' },
+    { value: 'repair', label: '🔧 Ремонт' },
+    { value: 'parking', label: '🅿️ Паркинг' },
+    { value: 'disinfection', label: '🧴 Дезинфекция' },
+    { value: 'ex1', label: '🧾 ЕХ-1' },
+    { value: 'otkat', label: '🔄 Откат' },
+    { value: 'other', label: '📌 Другое' },
+  ];
+
+  function categoryLabel(cat: string): string {
+    return expenseCategories.find((c) => c.value === cat)?.label || cat;
+  }
+
   return (
     <main className="min-h-screen bg-slate-50">
       <div className="max-w-[900px] mx-auto px-6 py-8 space-y-6">
@@ -414,12 +436,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
                 expenses?.map((exp) => (
                   <tr key={exp.id} className="border-b border-slate-50">
                     <td className="py-3 text-sm">
-                      {exp.category === 'fuel' ? '⛽ Топливо' :
-                       exp.category === 'epi' ? '📄 EPI' :
-                       exp.category === 'etoll' ? '🛣 e-TOLL' :
-                       exp.category === 'border' ? '🛂 Граница' :
-                       exp.category === 'salary' ? '💶 ЗП водителя' :
-                       exp.category === 'contractor' ? '🚛 Подрядчик' : exp.category}
+                      {categoryLabel(exp.category)}
                     </td>
                     <td className="py-3 text-right text-sm font-medium">
                       {exp.original_amount} {exp.currency}
@@ -479,13 +496,9 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Категория</label>
                 <select name="category" required className="w-full rounded-lg border border-slate-300 px-3 py-2.5">
-                  <option value="fuel">⛽ Топливо</option>
-                  <option value="epi">📄 EPI</option>
-                  <option value="etoll">🛣 e-TOLL</option>
-                  <option value="border">🛂 Граница</option>
-                  <option value="salary">💶 ЗП водителя</option>
-                  <option value="contractor">🚛 Подрядчик</option>
-                  <option value="other">📌 Другое</option>
+                  {expenseCategories.map((c) => (
+                    <option key={c.value} value={c.value}>{c.label}</option>
+                  ))}
                 </select>
               </div>
 
