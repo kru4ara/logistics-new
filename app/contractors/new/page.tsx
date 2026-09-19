@@ -5,9 +5,8 @@ import { createContractor } from '../actions';
 export const dynamic = 'force-dynamic';
 
 export default function NewContractorPage() {
-  const cookieStore = cookies();
-  const role = cookieStore.get('role')?.value;
-  if (role !== 'office') redirect('/login');
+  const role = cookies().get('role')?.value;
+  if (role === 'driver') redirect('/driver');
 
   const inputClass =
     'w-full rounded-lg border border-slate-300 px-3 py-2.5 text-slate-900 ' +
