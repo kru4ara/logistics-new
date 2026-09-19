@@ -6,9 +6,8 @@ import { deleteContractor } from './actions';
 export const dynamic = 'force-dynamic';
 
 export default async function ContractorsPage() {
-  const cookieStore = cookies();
-  const role = cookieStore.get('role')?.value;
-  if (role !== 'office') redirect('/login');
+  const role = cookies().get('role')?.value;
+  if (role === 'driver') redirect('/driver');
 
   const supabase = await createClient();
 
@@ -27,7 +26,7 @@ export default async function ContractorsPage() {
 
         <div className="flex flex-wrap justify-between items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">🤝 Подрядчики</h1>
+            <h1 className="text-3xl font-bold text-slate-900">🏢 Подрядчики</h1>
             <p className="text-slate-500 mt-1">Фирмы, которых мы нанимаем для экспедирования</p>
           </div>
           <a
@@ -41,7 +40,7 @@ export default async function ContractorsPage() {
 
         {(!contractors || contractors.length === 0) ? (
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-12 text-center">
-            <div className="text-5xl mb-4">🤝</div>
+            <div className="text-5xl mb-4">🏢</div>
             <p className="text-slate-500 mb-4">Пока нет ни одного подрядчика</p>
             <a
               href="/contractors/new"
