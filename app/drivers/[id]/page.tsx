@@ -1,4 +1,4 @@
-import { supabase } from '../../../lib/supabaseClient';
+import { createClient } from '../../../lib/supabase-server';
 import DocumentUpload from '../../components/DocumentUpload';
 
 export const dynamic = 'force-dynamic';
@@ -6,6 +6,8 @@ export const dynamic = 'force-dynamic';
 export default async function DriverDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: driverId } = await params;
   if (!driverId) return <div className="p-8">Ошибка: ID водителя не передан</div>;
+
+  const supabase = await createClient();
 
   const { data: driver, error: driverError } = await supabase
     .from('drivers')
@@ -51,7 +53,6 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
     <main className="min-h-screen bg-slate-50">
       <div className="max-w-[1400px] mx-auto px-6 py-8 space-y-6">
 
-        {/* Кнопка назад */}
         <a href="/drivers" className="inline-flex items-center gap-2 text-slate-600 hover:text-blue-600 transition-colors text-sm font-medium">
           ← Все водители
         </a>
