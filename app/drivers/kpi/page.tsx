@@ -1,13 +1,14 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { supabase } from '../../../lib/supabaseClient';
+import { createClient } from '../../../lib/supabase-server';
 
 export const dynamic = 'force-dynamic';
 
 export default async function DriverKpiPage() {
   const role = cookies().get('role')?.value;
   if (role === 'driver') redirect('/driver');
-  if (role !== 'admin') redirect('/login');
+
+  const supabase = await createClient();
 
   // Все водители
   const { data: drivers, error: driversError } = await supabase
@@ -56,15 +57,12 @@ export default async function DriverKpiPage() {
     const totalTrips = driverTrips.length;
     const monthTripsCount = monthTrips.length;
 
-    // Зарплата: считаем только по завершённым рейсам
     const salaryTotal = driverTrips.reduce((sum, t) => sum + (salaryByTrip[t.id] || 0), 0);
     const salaryMonth = monthTrips.reduce((sum, t) => sum + (salaryByTrip[t.id] || 0), 0);
 
-    // Пробег и топливо (только где есть данные)
     const totalKm = driverTrips.reduce((sum, t) => sum + (t.actual_km || 0), 0);
     const totalLiters = driverTrips.reduce((sum, t) => sum + (t.actual_liters || 0), 0);
 
-    // Средний расход л/100км (только рейсы с обоими полями)
     const tripsWithFuel = driverTrips.filter(
       (t) => t.actual_km && t.actual_km > 0 && t.actual_liters
     );
@@ -72,10 +70,7 @@ export default async function DriverKpiPage() {
     const totalLitersForFuel = tripsWithFuel.reduce((sum, t) => sum + (t.actual_liters || 0), 0);
     const avgConsumption = totalKmForFuel > 0 ? (totalLitersForFuel / totalKmForFuel) * 100 : null;
 
-    // Фрахт по рейсам водителя
     const totalRevenue = driverTrips.reduce((sum, t) => sum + (t.revenue_eur || 0), 0);
-
-    // Средний фрахт за рейс
     const avgRevenue = totalTrips > 0 ? totalRevenue / totalTrips : 0;
 
     return {
@@ -92,7 +87,6 @@ export default async function DriverKpiPage() {
     };
   }) || [];
 
-  // Сортируем по количеству рейсов за месяц (убывание)
   const sortedKpi = [...kpi].sort((a, b) => b.monthTripsCount - a.monthTripsCount);
 
   return (
@@ -134,7 +128,7 @@ export default async function DriverKpiPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedKpi.map((item, idx) => {
+                  {sortedKpi.map((item) => {
                     const initials = `${item.driver.first_name?.[0] || ''}${item.driver.last_name?.[0] || ''}`.toUpperCase();
                     const consumptionColor =
                       item.avgConsumption === null ? 'text-slate-400' :
@@ -194,7 +188,6 @@ export default async function DriverKpiPage() {
               </table>
             </div>
 
-            {/* Пояснение */}
             <div className="p-4 border-t border-slate-100 bg-slate-50/50 text-xs text-slate-500">
               <b>Расход</b> считается только по рейсам, где есть и пробег, и литры.
               {' · '}
