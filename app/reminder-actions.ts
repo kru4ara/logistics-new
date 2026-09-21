@@ -1,6 +1,6 @@
 'use server';
 
-import { supabase } from '../lib/supabaseClient';
+import { createClient } from '../lib/supabase-server';
 import { revalidatePath } from 'next/cache';
 
 /**
@@ -11,6 +11,8 @@ export async function syncReminders(
   entityType: 'driver' | 'truck',
   entityId: string
 ) {
+  const supabase = await createClient();
+
   // 1. Удаляем старые напоминания для этой сущности
   await supabase
     .from('reminders')
