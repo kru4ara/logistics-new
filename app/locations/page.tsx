@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { supabase } from '../../lib/supabaseClient';
+import { createClient } from '../../lib/supabase-server';
 import { deleteLocation } from './actions';
 
 export const dynamic = 'force-dynamic';
@@ -8,6 +8,8 @@ export const dynamic = 'force-dynamic';
 export default async function LocationsPage() {
   const role = cookies().get('role')?.value;
   if (role === 'driver') redirect('/driver');
+
+  const supabase = await createClient();
 
   const { data: locations, error } = await supabase
     .from('locations')
