@@ -1,10 +1,13 @@
-import { supabase } from '../../../../lib/supabaseClient';
+import { createClient } from '../../../../lib/supabase-server';
 import { updateFixedCost } from '../../../fixed-cost-actions';
 
 export const dynamic = 'force-dynamic';
 
 export default async function EditFixedCostPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: costId } = await params;
+
+  const supabase = await createClient();
+
   const { data: cost, error } = await supabase
     .from('fixed_costs')
     .select('*')
