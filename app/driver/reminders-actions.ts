@@ -1,9 +1,11 @@
 'use server';
 
-import { supabase } from '../../lib/supabaseClient';
+import { createClient } from '../../lib/supabase-server';
 import { revalidatePath } from 'next/cache';
 
 export async function createReminderFromDriver(driverId: string, title: string, dueDate: string) {
+  const supabase = await createClient();
+
   const { error } = await supabase
     .from('reminders')
     .insert([
