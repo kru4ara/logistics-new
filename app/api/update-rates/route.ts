@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '../../../lib/supabaseClient';
+import { createClient } from '../../../lib/supabase-server';
 
 export async function GET() {
   try {
+    const supabase = await createClient();
+
     // 1. Скачиваем курсы с бесплатного API (open.er-api.com)
     const response = await fetch('https://open.er-api.com/v6/latest/EUR');
     const data = await response.json();
