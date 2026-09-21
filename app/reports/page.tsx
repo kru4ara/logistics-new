@@ -1,13 +1,24 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { supabase } from '../../lib/supabaseClient';
+import { createClient } from '../../lib/supabase-server';
 import DownloadButton from './DownloadButton';
 
 export const dynamic = 'force-dynamic';
 
+function pickName(rel: unknown): string | undefined {
+  if (!rel) return undefined;
+  if (Array.isArray(rel)) return rel[0]?.name;
+  if (typeof rel === 'object' && 'name' in rel) {
+    return (rel as { name?: string }).name;
+  }
+  return undefined;
+}
+
 export default async function ReportsPage() {
   const role = cookies().get('role')?.value;
   if (role === 'driver') redirect('/driver');
+
+  const supabase = await createClient();
 
   const { data: trips, error: tripsError } = await supabase
     .from('trips')
@@ -127,6 +138,7 @@ export default async function ReportsPage() {
                 <tbody>
                   {tripsWithExpenses.map((trip) => {
                     const tripProfit = (trip.revenue_eur || 0) - trip.expenses;
+                    const clientName = pickName(trip.clients) || 'Не указан';
                     return (
                       <tr key={trip.id} className="border-b border-slate-50 hover:bg-blue-50/30 transition-colors">
                         <td className="px-6 py-4 text-sm text-slate-500 font-medium">
@@ -134,7 +146,7 @@ export default async function ReportsPage() {
                         </td>
                         <td className="px-6 py-4 font-medium text-slate-800">
                           <a href={`/trips/${trip.id}`} className="hover:text-blue-600 transition-colors">
-                            {trip.clients?.name || 'Не указан'}
+                            {clientName}
                           </a>
                         </td>
                         <td className="px-6 py-4 text-sm text-slate-600">
