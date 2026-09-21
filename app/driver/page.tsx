@@ -1,8 +1,17 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { supabase } from '../../lib/supabaseClient';
+import { createClient } from '../../lib/supabase-server';
 
 export const dynamic = 'force-dynamic';
+
+function pickName(rel: unknown): string | undefined {
+  if (!rel) return undefined;
+  if (Array.isArray(rel)) return rel[0]?.name;
+  if (typeof rel === 'object' && 'name' in rel) {
+    return (rel as { name?: string }).name;
+  }
+  return undefined;
+}
 
 export default async function DriverPage() {
   const cookieStore = cookies();
@@ -16,6 +25,8 @@ export default async function DriverPage() {
     redirect('/login');
   }
 
+  const supabase = await createClient();
+
   // Все рейсы водителя
   const { data: trips, error } = await supabase
     .from('trips')
@@ -27,7 +38,7 @@ export default async function DriverPage() {
     return <div className="p-6 text-red-500">Ошибка загрузки рейсов: {error.message}</div>;
   }
 
-  // Зарплата водителя (расходы категории salary по его рейсам)
+  // Зарплата водителя
   const tripIds = trips?.map((t) => t.id) || [];
   let salaryTotal = 0;
   if (tripIds.length > 0) {
@@ -39,7 +50,7 @@ export default async function DriverPage() {
     salaryTotal = salaryExpenses?.reduce((sum, e) => sum + (e.amount_eur || 0), 0) || 0;
   }
 
-  // Статистика за текущий месяц
+  // Текущий месяц
   const now = new Date();
   const currentMonth = now.getMonth();
   const currentYear = now.getFullYear();
@@ -145,75 +156,78 @@ export default async function DriverPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {trips?.map((trip) => (
-                <a
-                  key={trip.id}
-                  href={`/driver/trips/${trip.id}`}
-                  className="block bg-white rounded-2xl border border-slate-100 shadow-sm
-                             hover:shadow-lg hover:border-blue-200 transition-all overflow-hidden active:scale-[0.99]"
-                >
-                  <div className={`h-1.5 ${statusStripColors[trip.status] || 'bg-slate-300'}`} />
+              {trips?.map((trip) => {
+                const clientName = pickName(trip.clients) || 'Клиент не указан';
+                return (
+                  <a
+                    key={trip.id}
+                    href={`/driver/trips/${trip.id}`}
+                    className="block bg-white rounded-2xl border border-slate-100 shadow-sm
+                               hover:shadow-lg hover:border-blue-200 transition-all overflow-hidden active:scale-[0.99]"
+                  >
+                    <div className={`h-1.5 ${statusStripColors[trip.status] || 'bg-slate-300'}`} />
 
-                  <div className="p-5">
-                    <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <div className="text-xs text-slate-400 font-medium">
-                          Рейс № {trip.trip_number || '—'}
-                        </div>
-                        <div className="text-lg font-bold text-slate-900 mt-0.5">
-                          {trip.clients?.name || 'Клиент не указан'}
-                        </div>
-                      </div>
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold border whitespace-nowrap
-                                        ${statusColors[trip.status] || 'bg-slate-100 text-slate-700 border-slate-200'}`}>
-                        {statusLabels[trip.status] || trip.status}
-                      </span>
-                    </div>
-
-                    <div className="bg-slate-50 rounded-xl p-3 mb-3">
-                      <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Маршрут</div>
-                      <div className="flex items-center gap-2 text-slate-800 font-semibold text-sm">
-                        <span>🛣</span>
-                        <span>{trip.route || '—'}</span>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2 text-sm">
-                      {trip.sender_city && (
-                        <div className="flex items-start gap-2">
-                          <span className="shrink-0 mt-0.5">📍</span>
-                          <div className="min-w-0">
-                            <div className="text-xs text-slate-400 font-medium">Загрузка</div>
-                            <div className="text-slate-700 truncate">
-                              {trip.sender_city}, {trip.sender_country}
-                            </div>
+                    <div className="p-5">
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <div className="text-xs text-slate-400 font-medium">
+                            Рейс № {trip.trip_number || '—'}
+                          </div>
+                          <div className="text-lg font-bold text-slate-900 mt-0.5">
+                            {clientName}
                           </div>
                         </div>
-                      )}
-                      {trip.receiver_city && (
-                        <div className="flex items-start gap-2">
-                          <span className="shrink-0 mt-0.5">🏁</span>
-                          <div className="min-w-0">
-                            <div className="text-xs text-slate-400 font-medium">Выгрузка</div>
-                            <div className="text-slate-700 truncate">
-                              {trip.receiver_city}, {trip.receiver_country}
+                        <span className={`px-3 py-1 rounded-full text-xs font-semibold border whitespace-nowrap
+                                          ${statusColors[trip.status] || 'bg-slate-100 text-slate-700 border-slate-200'}`}>
+                          {statusLabels[trip.status] || trip.status}
+                        </span>
+                      </div>
+
+                      <div className="bg-slate-50 rounded-xl p-3 mb-3">
+                        <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Маршрут</div>
+                        <div className="flex items-center gap-2 text-slate-800 font-semibold text-sm">
+                          <span>🛣</span>
+                          <span>{trip.route || '—'}</span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2 text-sm">
+                        {trip.sender_city && (
+                          <div className="flex items-start gap-2">
+                            <span className="shrink-0 mt-0.5">📍</span>
+                            <div className="min-w-0">
+                              <div className="text-xs text-slate-400 font-medium">Загрузка</div>
+                              <div className="text-slate-700 truncate">
+                                {trip.sender_city}, {trip.sender_country}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      )}
-                    </div>
+                        )}
+                        {trip.receiver_city && (
+                          <div className="flex items-start gap-2">
+                            <span className="shrink-0 mt-0.5">🏁</span>
+                            <div className="min-w-0">
+                              <div className="text-xs text-slate-400 font-medium">Выгрузка</div>
+                              <div className="text-slate-700 truncate">
+                                {trip.receiver_city}, {trip.receiver_country}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
 
-                    <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-100">
-                      <span className="text-xs text-slate-400">
-                        📅 {trip.start_date ? new Date(trip.start_date).toLocaleDateString('ru-RU') : '—'}
-                      </span>
-                      <span className="text-blue-600 font-semibold text-sm">
-                        Открыть →
-                      </span>
+                      <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-100">
+                        <span className="text-xs text-slate-400">
+                          📅 {trip.start_date ? new Date(trip.start_date).toLocaleDateString('ru-RU') : '—'}
+                        </span>
+                        <span className="text-blue-600 font-semibold text-sm">
+                          Открыть →
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                </a>
-              ))}
+                  </a>
+                );
+              })}
             </div>
           )}
         </div>
