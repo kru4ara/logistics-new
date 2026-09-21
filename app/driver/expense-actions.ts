@@ -1,9 +1,11 @@
 'use server';
 
-import { supabase } from '../../lib/supabaseClient';
+import { createClient } from '../../lib/supabase-server';
 import { revalidatePath } from 'next/cache';
 
 export async function addDriverExpense(formData: FormData) {
+  const supabase = await createClient();
+
   const tripId = formData.get('trip_id') as string;
   const category = formData.get('category') as string;
   const amount = parseFloat(formData.get('amount') as string) || 0;
