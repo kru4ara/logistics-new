@@ -1,16 +1,26 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase-server';
+import ReminderCard, { ReminderCardData } from './ReminderCard';
 
 export const dynamic = 'force-dynamic';
 
-export default async function RemindersPage() {
+type SearchParams = { show?: string };
+
+export default async function RemindersPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
   const role = cookies().get('role')?.value;
   if (role === 'driver') redirect('/driver');
 
   const supabase = await createClient();
 
-  const { data: reminders, error } = await supabase
+  const show = searchParams.show || 'active';
+
+  // Загружаем всё — фильтр делаем на клиенте, чтобы считать статистику по всем
+  const { data: allReminders, error } = await supabase
     .from('reminders')
     .select('*')
     .order('due_date', { ascending: true });
@@ -26,22 +36,36 @@ export default async function RemindersPage() {
     return Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
   }
 
-  const reminderStats = reminders?.map((r) => ({
-    ...r,
+  const enriched: ReminderCardData[] = (allReminders || []).map((r) => ({
+    id: r.id,
+    title: r.title || '',
+    category: r.category || '',
+    due_date: r.due_date,
+    amount: r.amount,
+    status: r.status || 'active',
+    entity_type: r.entity_type,
+    entity_id: r.entity_id,
     daysLeft: getDaysUntil(r.due_date),
-  })) || [];
+  }));
 
-  const expiredCount = reminderStats.filter((r) => r.daysLeft !== null && r.daysLeft < 0).length;
-  const soonCount = reminderStats.filter((r) => r.daysLeft !== null && r.daysLeft >= 0 && r.daysLeft < 30).length;
-  const okCount = reminderStats.filter((r) => r.daysLeft !== null && r.daysLeft >= 30).length;
+  // Счётчики
+  const activeReminders = enriched.filter((r) => r.status !== 'done');
+  const doneReminders = enriched.filter((r) => r.status === 'done');
 
-  const categoryLabels: Record<string, { label: string; icon: string }> = {
-    insurance: { label: 'Страховка', icon: '🛡' },
-    inspection: { label: 'Техосмотр', icon: '🔧' },
-    driver_doc: { label: 'Документы водителя', icon: '📄' },
-    payment_to_contractor: { label: 'Подрядчик', icon: '🚛' },
-    accounting: { label: 'Бухгалтерия', icon: '💰' },
-  };
+  const expiredCount = activeReminders.filter((r) => r.daysLeft !== null && r.daysLeft < 0).length;
+  const soonCount = activeReminders.filter((r) => r.daysLeft !== null && r.daysLeft >= 0 && r.daysLeft < 30).length;
+  const okCount = activeReminders.filter((r) => r.daysLeft !== null && r.daysLeft >= 30).length;
+
+  // Фильтрация для отображения
+  const visible =
+    show === 'done' ? doneReminders :
+    show === 'all' ? enriched :
+    activeReminders;
+
+  // Сортируем активные — просроченные вперёд
+  if (show === 'active') {
+    visible.sort((a, b) => (a.daysLeft ?? 99999) - (b.daysLeft ?? 99999));
+  }
 
   return (
     <main className="min-h-screen bg-slate-50">
@@ -51,7 +75,9 @@ export default async function RemindersPage() {
         <div className="flex flex-wrap justify-between items-center gap-4">
           <div>
             <h1 className="text-3xl font-bold text-slate-900">⏰ Напоминания</h1>
-            <p className="text-slate-500 mt-1">Всего записей: {reminders?.length || 0}</p>
+            <p className="text-slate-500 mt-1">
+              Активных: <b>{activeReminders.length}</b> · Выполненных: <b>{doneReminders.length}</b>
+            </p>
           </div>
           <a
             href="/reminders/new"
@@ -64,7 +90,7 @@ export default async function RemindersPage() {
           </a>
         </div>
 
-        {/* Карточки-счётчики */}
+        {/* Счётчики активных */}
         <div className="grid gap-5 md:grid-cols-3">
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
             <div className="flex items-center justify-between mb-3">
@@ -91,61 +117,65 @@ export default async function RemindersPage() {
           </div>
         </div>
 
-        {/* Список напоминаний */}
-        {reminders?.length === 0 ? (
+        {/* Фильтр */}
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-3 flex flex-wrap gap-2">
+          <a
+            href="/reminders?show=active"
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all
+              ${show === 'active'
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+          >
+            🟢 Активные ({activeReminders.length})
+          </a>
+          <a
+            href="/reminders?show=done"
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all
+              ${show === 'done'
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+          >
+            ✅ Выполненные ({doneReminders.length})
+          </a>
+          <a
+            href="/reminders?show=all"
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all
+              ${show === 'all'
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+          >
+            📋 Все ({enriched.length})
+          </a>
+        </div>
+
+        {/* Список */}
+        {visible.length === 0 ? (
           <div className="bg-white rounded-2xl border border-slate-100 p-16 text-center">
             <div className="text-6xl mb-4">⏰</div>
-            <h2 className="text-xl font-bold text-slate-900 mb-2">Напоминаний пока нет</h2>
-            <p className="text-slate-500 mb-6">Добавьте напоминание, чтобы не пропустить срок</p>
+            <h2 className="text-xl font-bold text-slate-900 mb-2">
+              {show === 'done' ? 'Нет выполненных' :
+               show === 'all' ? 'Напоминаний пока нет' :
+               'Все активные напоминания отработаны'}
+            </h2>
+            <p className="text-slate-500 mb-6">
+              {show === 'active'
+                ? 'Добавьте новое напоминание, чтобы не пропустить важный срок'
+                : 'Переключитесь на другую вкладку'}
+            </p>
+            {show === 'active' && (
+              <a
+                href="/reminders/new"
+                className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-xl"
+              >
+                ➕ Добавить напоминание
+              </a>
+            )}
           </div>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {reminderStats.map((r) => {
-              const cat = categoryLabels[r.category] || { label: r.category, icon: '📌' };
-              const daysLeft = r.daysLeft;
-
-              const statusBorder =
-                daysLeft !== null && daysLeft < 0 ? 'border-l-red-500' :
-                daysLeft !== null && daysLeft < 30 ? 'border-l-orange-500' :
-                'border-l-green-500';
-
-              const statusBadge =
-                daysLeft !== null && daysLeft < 0 ? 'bg-red-50 text-red-700 border-red-200' :
-                daysLeft !== null && daysLeft < 30 ? 'bg-orange-50 text-orange-700 border-orange-200' :
-                'bg-green-50 text-green-700 border-green-200';
-
-              const statusText =
-                daysLeft !== null && daysLeft < 0 ? `⚠️ Просрочено (${Math.abs(daysLeft)} дн.)` :
-                daysLeft !== null && daysLeft < 30 ? `⚡ ${daysLeft} дн.` :
-                daysLeft !== null ? `✅ ${daysLeft} дн.` : '—';
-
-              return (
-                <div
-                  key={r.id}
-                  className={`bg-white rounded-2xl border border-slate-100 border-l-4 shadow-sm
-                              p-5 hover:shadow-md transition-all ${statusBorder}`}
-                >
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="text-lg">{cat.icon}</span>
-                    <span className="text-xs uppercase tracking-wide text-slate-400 font-semibold">
-                      {cat.label}
-                    </span>
-                  </div>
-
-                  <h3 className="text-lg font-bold text-slate-900 mb-3 truncate">
-                    {r.title}
-                  </h3>
-
-                  <div className="text-sm text-slate-500 mb-4">
-                    📅 {r.due_date ? new Date(r.due_date).toLocaleDateString('ru-RU') : '—'}
-                  </div>
-
-                  <div className={`inline-block px-3 py-1 rounded-full text-xs font-semibold border ${statusBadge}`}>
-                    {statusText}
-                  </div>
-                </div>
-              );
-            })}
+            {visible.map((r) => (
+              <ReminderCard key={r.id} r={r} />
+            ))}
           </div>
         )}
 
