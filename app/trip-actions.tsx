@@ -117,6 +117,61 @@ export async function updateTrip(tripId: string, formData: FormData) {
 
   const route = `${senderCity || ''}, ${senderCountry || ''} → ${receiverCity || ''}, ${receiverCountry || ''}`;
 
+  // ============================================================
+  // ГЕОКОДИРОВАНИЕ — пересчитываем, если адреса изменились
+  // ============================================================
+  const { data: existing } = await supabase
+    .from('trips')
+    .select('start_lat, start_lng, end_lat, end_lng, sender_city, sender_country, receiver_city, receiver_country')
+    .eq('id', tripId)
+    .single();
+
+  async function geocode(city: string, country: string): Promise<{ lat: number; lng: number } | null> {
+    if (!city || !country) return null;
+    try {
+      const query = encodeURIComponent(`${city}, ${country}`);
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1`,
+        { headers: { 'User-Agent': 'LogisticsCRM/1.0 (contact@raibuilding.pl)' } }
+      );
+      if (!response.ok) return null;
+      const data = await response.json();
+      if (Array.isArray(data) && data.length > 0) {
+        return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+      }
+    } catch (e) {
+      console.error('Ошибка геокодирования:', e);
+    }
+    return null;
+  }
+
+  let startLat = existing?.start_lat ?? 0;
+  let startLng = existing?.start_lng ?? 0;
+  let endLat = existing?.end_lat ?? 0;
+  let endLng = existing?.end_lng ?? 0;
+
+  const senderChanged =
+    !existing ||
+    existing.sender_city !== senderCity ||
+    existing.sender_country !== senderCountry ||
+    !existing.start_lat;
+
+  const receiverChanged =
+    !existing ||
+    existing.receiver_city !== receiverCity ||
+    existing.receiver_country !== receiverCountry ||
+    !existing.end_lat;
+
+  if (senderChanged) {
+    const c = await geocode(senderCity, senderCountry);
+    if (c) { startLat = c.lat; startLng = c.lng; }
+  }
+
+  if (receiverChanged) {
+    const c = await geocode(receiverCity, receiverCountry);
+    if (c) { endLat = c.lat; endLng = c.lng; }
+  }
+
   const { error } = await supabase
     .from('trips')
     .update({
@@ -157,7 +212,12 @@ export async function updateTrip(tripId: string, formData: FormData) {
       receiver_city: receiverCity || null,
       receiver_address: receiverAddress || null,
       receiver_loading_number: receiverLoadingNumber || null,
-      route: route || null
+
+      route: route || null,
+      start_lat: startLat,
+      start_lng: startLng,
+      end_lat: endLat,
+      end_lng: endLng
     })
     .eq('id', tripId);
 
