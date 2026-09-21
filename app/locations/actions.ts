@@ -1,10 +1,12 @@
 'use server';
 
-import { supabase } from '../../lib/supabaseClient';
+import { createClient } from '../../lib/supabase-server';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 
 export async function createLocation(formData: FormData) {
+  const supabase = await createClient();
+
   const name = formData.get('name') as string;
   const type = formData.get('type') as string;
   const country = formData.get('country') as string;
@@ -35,6 +37,8 @@ export async function createLocation(formData: FormData) {
 }
 
 export async function deleteLocation(locationId: string) {
+  const supabase = await createClient();
+
   const { error } = await supabase.from('locations').delete().eq('id', locationId);
   if (error) throw new Error(`Ошибка удаления: ${error.message}`);
   revalidatePath('/locations');
