@@ -1,9 +1,11 @@
-import { supabase } from '../../../lib/supabaseClient';
+import { createClient as createSupabaseClient } from '../../../lib/supabase-server';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 
 async function createClient(formData: FormData) {
   'use server';
+
+  const supabase = await createSupabaseClient();
 
   const name = formData.get('name') as string;
   const contactPerson = formData.get('contact_person') as string;
@@ -37,12 +39,10 @@ export default function NewClientPage() {
     <main className="min-h-screen bg-slate-50">
       <div className="max-w-[900px] mx-auto px-6 py-8 space-y-6">
 
-        {/* Назад */}
         <a href="/clients" className="inline-flex items-center gap-2 text-slate-600 hover:text-blue-600 transition-colors text-sm font-medium">
           ← Все клиенты
         </a>
 
-        {/* Заголовок */}
         <div>
           <h1 className="text-3xl font-bold text-slate-900">➕ Добавить клиента</h1>
           <p className="text-slate-500 mt-1">Заполните данные о компании</p>
@@ -50,7 +50,6 @@ export default function NewClientPage() {
 
         <form action={createClient} className="space-y-6">
 
-          {/* Основные данные */}
           <div className={sectionClass}>
             <h2 className={sectionTitleClass}>🏢 Данные компании</h2>
             <div className="grid gap-4 md:grid-cols-2">
@@ -73,7 +72,6 @@ export default function NewClientPage() {
             </div>
           </div>
 
-          {/* Кнопки */}
           <div className="flex gap-3">
             <button
               type="submit"
