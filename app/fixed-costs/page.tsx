@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { supabase } from '../../lib/supabaseClient';
+import { createClient } from '../../lib/supabase-server';
 import { deleteFixedCost } from '../fixed-cost-actions';
 
 export const dynamic = 'force-dynamic';
@@ -14,6 +14,8 @@ type MonthGroup = {
 export default async function FixedCostsPage() {
   const role = cookies().get('role')?.value;
   if (role === 'driver') redirect('/driver');
+
+  const supabase = await createClient();
 
   const { data: costs, error } = await supabase
     .from('fixed_costs')
