@@ -22,7 +22,7 @@ export default async function MapPage() {
 
   const { data: trips, error } = await supabase
     .from('trips')
-    .select('id, trip_number, route, status, start_lat, start_lng, start_date')
+    .select('id, trip_number, route, status, start_lat, start_lng, end_lat, end_lng, start_date, sender_city, sender_country, receiver_city, receiver_country')
     .not('start_lat', 'is', null)
     .not('start_lng', 'is', null)
     .order('trip_number', { ascending: false });
@@ -30,6 +30,10 @@ export default async function MapPage() {
   if (error) {
     return <div className="p-8 text-red-500">Ошибка загрузки рейсов: {error.message}</div>;
   }
+
+  const withBoth = (trips || []).filter(
+    (t) => t.start_lat && t.start_lng && t.end_lat && t.end_lng
+  );
 
   const statusColors: Record<string, string> = {
     planned: 'bg-slate-100 text-slate-700',
@@ -53,15 +57,22 @@ export default async function MapPage() {
 
         <div>
           <h1 className="text-3xl font-bold text-slate-900">🗺 Карта рейсов</h1>
-          <p className="text-slate-500 mt-1">На карте отображены точки загрузки активных и завершённых рейсов</p>
+          <p className="text-slate-500 mt-1">
+            🟢 Загрузка · 🔴 Выгрузка · Линия — маршрут
+          </p>
         </div>
 
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-          <div className="p-5 border-b border-slate-100 flex justify-between items-center">
+          <div className="p-5 border-b border-slate-100 flex justify-between items-center flex-wrap gap-3">
             <h2 className="text-lg font-bold text-slate-900">Точки маршрутов</h2>
-            <span className="text-sm text-slate-500">
-              Отмечено: <b className="text-blue-600">{trips?.length || 0}</b>
-            </span>
+            <div className="flex items-center gap-4 text-sm text-slate-500">
+              <span>
+                🟢 Загрузка: <b className="text-green-600">{trips?.length || 0}</b>
+              </span>
+              <span>
+                🔴 Выгрузка: <b className="text-red-600">{withBoth.length}</b>
+              </span>
+            </div>
           </div>
           <div style={{ height: '600px' }}>
             <MapView trips={trips || []} />
@@ -89,10 +100,10 @@ export default async function MapPage() {
                       <div className="font-semibold text-slate-800">
                         № {trip.trip_number || '—'} · {trip.route || '—'}
                       </div>
-                      <div className="text-xs text-slate-400">
-                        {trip.start_date ? new Date(trip.start_date).toLocaleDateString('ru-RU') : '—'}
-                        {' · '}
-                        {trip.start_lat?.toFixed(4)}, {trip.start_lng?.toFixed(4)}
+                      <div className="text-xs text-slate-400 truncate">
+                        🟢 {trip.sender_city || '—'}, {trip.sender_country || '—'}
+                        {' → '}
+                        🔴 {trip.receiver_city || '—'}, {trip.receiver_country || '—'}
                       </div>
                     </div>
                   </div>
