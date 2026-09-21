@@ -1,10 +1,12 @@
 'use server';
 
-import { supabase } from '../lib/supabaseClient';
+import { createClient } from '../lib/supabase-server';
 
 export async function updateRates() {
-  // Получаем курс PLN → EUR
+  const supabase = await createClient();
+
   try {
+    // Получаем курс PLN → EUR
     const plnResponse = await fetch('https://api.exchangerate.host/convert?from=PLN&to=EUR');
     const plnData = await plnResponse.json();
     const plnToEur = plnData.result;
