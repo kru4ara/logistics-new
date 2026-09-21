@@ -1,13 +1,17 @@
 'use server';
 
-import { supabase } from '../lib/supabaseClient';
+import { createClient } from '../lib/supabase-server';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 
-async function convertToEur(amount: number, currency: string, dateStr: string) {
+async function convertToEur(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  amount: number,
+  currency: string,
+  dateStr: string
+) {
   if (currency === 'EUR') return amount;
 
-  // Ищем курс на дату или ближайший до неё
   if (currency === 'PLN') {
     const { data: rate } = await supabase
       .from('rates')
@@ -34,6 +38,8 @@ async function convertToEur(amount: number, currency: string, dateStr: string) {
 }
 
 export async function createFixedCost(formData: FormData) {
+  const supabase = await createClient();
+
   const monthKey = formData.get('month_key') as string;
   const category = formData.get('category') as string;
   const costType = formData.get('cost_type') as string;
@@ -43,7 +49,7 @@ export async function createFixedCost(formData: FormData) {
 
   // Если дата не указана — используем 1-е число месяца
   const dateForRate = expenseDate || `${monthKey}-01`;
-  const amountEur = await convertToEur(originalAmount, currency, dateForRate);
+  const amountEur = await convertToEur(supabase, originalAmount, currency, dateForRate);
 
   const { error } = await supabase
     .from('fixed_costs')
@@ -66,6 +72,8 @@ export async function createFixedCost(formData: FormData) {
 }
 
 export async function updateFixedCost(costId: string, formData: FormData) {
+  const supabase = await createClient();
+
   const monthKey = formData.get('month_key') as string;
   const category = formData.get('category') as string;
   const costType = formData.get('cost_type') as string;
@@ -74,7 +82,7 @@ export async function updateFixedCost(costId: string, formData: FormData) {
   const currency = (formData.get('currency') as string) || 'EUR';
 
   const dateForRate = expenseDate || `${monthKey}-01`;
-  const amountEur = await convertToEur(originalAmount, currency, dateForRate);
+  const amountEur = await convertToEur(supabase, originalAmount, currency, dateForRate);
 
   const { error } = await supabase
     .from('fixed_costs')
@@ -96,6 +104,8 @@ export async function updateFixedCost(costId: string, formData: FormData) {
 }
 
 export async function deleteFixedCost(costId: string) {
+  const supabase = await createClient();
+
   const { error } = await supabase
     .from('fixed_costs')
     .delete()
