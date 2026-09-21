@@ -1,10 +1,12 @@
-import { supabase } from '../../../lib/supabaseClient';
+import { createClient } from '../../../lib/supabase-server';
 
 export const dynamic = 'force-dynamic';
 
 export default async function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: clientId } = await params;
   if (!clientId) return <div className="p-8">Ошибка: ID клиента не передан</div>;
+
+  const supabase = await createClient();
 
   const { data: client, error } = await supabase
     .from('clients')
@@ -25,7 +27,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
   }
 
   const trailerIds = trips?.map((t) => t.trailer_id).filter(Boolean) || [];
-  let trailersMap: Record<string, string> = {};
+  const trailersMap: Record<string, string> = {};
   if (trailerIds.length > 0) {
     const { data: trailerData } = await supabase
       .from('trucks')
