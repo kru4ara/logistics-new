@@ -101,28 +101,37 @@ export async function addTripWithAddress(formData: FormData) {
   }
 
   // ============================================================
-  // 3. ГЕОКОДИРОВАНИЕ
+  // 3. ГЕОКОДИРОВАНИЕ (Nominatim: загрузка + выгрузка)
   // ============================================================
-  let startLat = 0;
-  let startLng = 0;
-  if (senderCity && senderCountry) {
+  async function geocode(city: string, country: string): Promise<{ lat: number; lng: number } | null> {
+    if (!city || !country) return null;
     try {
-      const query = encodeURIComponent(`${senderCity}, ${senderCountry}`);
+      const query = encodeURIComponent(`${city}, ${country}`);
       const response = await fetch(
         `https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1`,
         { headers: { 'User-Agent': 'LogisticsCRM/1.0 (contact@raibuilding.pl)' } }
       );
-      if (response.ok) {
-        const data = await response.json();
-        if (data && data.length > 0) {
-          startLat = parseFloat(data[0].lat);
-          startLng = parseFloat(data[0].lon);
-        }
+      if (!response.ok) return null;
+      const data = await response.json();
+      if (Array.isArray(data) && data.length > 0) {
+        return {
+          lat: parseFloat(data[0].lat),
+          lng: parseFloat(data[0].lon),
+        };
       }
     } catch (e) {
       console.error('Ошибка геокодирования:', e);
     }
+    return null;
   }
+
+  const senderCoords = await geocode(senderCity, senderCountry);
+  const receiverCoords = await geocode(receiverCity, receiverCountry);
+
+  const startLat = senderCoords?.lat ?? 0;
+  const startLng = senderCoords?.lng ?? 0;
+  const endLat = receiverCoords?.lat ?? 0;
+  const endLng = receiverCoords?.lng ?? 0;
 
   // ============================================================
   // 4. СОЗДАЁМ РЕЙС
@@ -172,6 +181,8 @@ export async function addTripWithAddress(formData: FormData) {
         route: route || null,
         start_lat: startLat,
         start_lng: startLng,
+        end_lat: endLat,
+        end_lng: endLng,
         trip_number: nextNumber,
         status: 'planned',
       },
