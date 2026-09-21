@@ -1,10 +1,13 @@
-import { supabase } from '../../../../lib/supabaseClient';
+import { createClient } from '../../../../lib/supabase-server';
 import { updateClient } from '../../../client-actions';
 
 export const dynamic = 'force-dynamic';
 
 export default async function EditClientPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: clientId } = await params;
+
+  const supabase = await createClient();
+
   const { data: client, error } = await supabase
     .from('clients')
     .select('*')
