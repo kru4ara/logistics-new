@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { supabase } from '../../lib/supabaseClient';
+import { createClient } from '../../lib/supabase-server';
 import DownloadButton from './DownloadButton';
 
 export const dynamic = 'force-dynamic';
@@ -9,9 +9,10 @@ export default async function TripsPage({ searchParams }: { searchParams: { year
   const role = cookies().get('role')?.value;
   if (role === 'driver') redirect('/driver');
 
+  const supabase = await createClient();
+
   const now = new Date();
   const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth() + 1;
 
   const year = parseInt(searchParams?.year || String(currentYear));
   const monthFilter = searchParams?.month ? parseInt(searchParams.month) : null;
