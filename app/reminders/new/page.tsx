@@ -1,33 +1,4 @@
-import { createClient } from '../../../lib/supabase-server';
-import { redirect } from 'next/navigation';
-import { revalidatePath } from 'next/cache';
-
-async function createReminder(formData: FormData) {
-  'use server';
-
-  const supabase = await createClient();
-
-  const title = formData.get('title') as string;
-  const category = formData.get('category') as string;
-  const dueDate = formData.get('due_date') as string;
-  const amount = parseFloat(formData.get('amount') as string) || 0;
-
-  const { error } = await supabase
-    .from('reminders')
-    .insert([
-      {
-        title: title,
-        category: category,
-        due_date: dueDate,
-        amount: amount || null,
-        status: 'active'
-      }
-    ]);
-
-  if (error) throw new Error(`Ошибка добавления: ${error.message}`);
-  revalidatePath('/reminders');
-  redirect('/reminders');
-}
+import { createReminder } from '../actions';
 
 export default function NewReminderPage() {
   const inputClass = "w-full rounded-lg border border-slate-300 px-3 py-2.5 text-slate-900 " +
@@ -40,20 +11,17 @@ export default function NewReminderPage() {
     <main className="min-h-screen bg-slate-50">
       <div className="max-w-[900px] mx-auto px-6 py-8 space-y-6">
 
-        {/* Назад */}
         <a href="/reminders" className="inline-flex items-center gap-2 text-slate-600 hover:text-blue-600 transition-colors text-sm font-medium">
           ← Все напоминания
         </a>
 
-        {/* Заголовок */}
         <div>
           <h1 className="text-3xl font-bold text-slate-900">➕ Добавить напоминание</h1>
-          <p className="text-slate-500 mt-1">Напоминание будет показано в разделе "Напоминания" и в Telegram</p>
+          <p className="text-slate-500 mt-1">Напоминание будет показано в разделе «Напоминания» и в Telegram</p>
         </div>
 
         <form action={createReminder} className="space-y-6">
 
-          {/* Основные данные */}
           <div className={sectionClass}>
             <h2 className={sectionTitleClass}>⏰ Данные напоминания</h2>
             <div className="grid gap-4 md:grid-cols-2">
@@ -88,7 +56,6 @@ export default function NewReminderPage() {
             </div>
           </div>
 
-          {/* Кнопки */}
           <div className="flex gap-3">
             <button
               type="submit"
