@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import dynamicImport from 'next/dynamic';
-import { supabase } from '../../lib/supabaseClient';
+import { createClient } from '../../lib/supabase-server';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,6 +17,8 @@ const MapView = dynamicImport(() => import('./MapView'), {
 export default async function MapPage() {
   const role = cookies().get('role')?.value;
   if (role === 'driver') redirect('/driver');
+
+  const supabase = await createClient();
 
   const { data: trips, error } = await supabase
     .from('trips')
