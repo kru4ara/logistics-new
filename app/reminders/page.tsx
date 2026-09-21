@@ -1,12 +1,14 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { supabase } from '../../lib/supabaseClient';
+import { createClient } from '../../lib/supabase-server';
 
 export const dynamic = 'force-dynamic';
 
 export default async function RemindersPage() {
   const role = cookies().get('role')?.value;
   if (role === 'driver') redirect('/driver');
+
+  const supabase = await createClient();
 
   const { data: reminders, error } = await supabase
     .from('reminders')
@@ -123,7 +125,6 @@ export default async function RemindersPage() {
                   className={`bg-white rounded-2xl border border-slate-100 border-l-4 shadow-sm
                               p-5 hover:shadow-md transition-all ${statusBorder}`}
                 >
-                  {/* Категория */}
                   <div className="flex items-center gap-2 mb-3">
                     <span className="text-lg">{cat.icon}</span>
                     <span className="text-xs uppercase tracking-wide text-slate-400 font-semibold">
@@ -131,17 +132,14 @@ export default async function RemindersPage() {
                     </span>
                   </div>
 
-                  {/* Заголовок */}
                   <h3 className="text-lg font-bold text-slate-900 mb-3 truncate">
                     {r.title}
                   </h3>
 
-                  {/* Дата */}
                   <div className="text-sm text-slate-500 mb-4">
                     📅 {r.due_date ? new Date(r.due_date).toLocaleDateString('ru-RU') : '—'}
                   </div>
 
-                  {/* Статус */}
                   <div className={`inline-block px-3 py-1 rounded-full text-xs font-semibold border ${statusBadge}`}>
                     {statusText}
                   </div>
