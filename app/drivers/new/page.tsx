@@ -1,10 +1,12 @@
-import { supabase } from '../../../lib/supabaseClient';
+import { createClient } from '../../../lib/supabase-server';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { syncReminders } from '../../reminder-actions';
 
 async function createDriver(formData: FormData) {
   'use server';
+
+  const supabase = await createClient();
 
   const firstName = formData.get('first_name') as string;
   const lastName = formData.get('last_name') as string;
