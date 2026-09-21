@@ -1,7 +1,11 @@
-import { supabase } from '../../../lib/supabaseClient';
+import { createClient } from '../../../lib/supabase-server';
 import { Button } from '@/components/ui/button';
 
+export const dynamic = 'force-dynamic';
+
 export default async function ExportPage() {
+  const supabase = await createClient();
+
   const { data: trips } = await supabase
     .from('trips')
     .select('route, revenue_eur, id');
