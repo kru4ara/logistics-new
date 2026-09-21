@@ -1,13 +1,14 @@
 'use server';
 
-import { supabase } from '../../lib/supabaseClient';
+import { createClient } from '../../lib/supabase-server';
 import { revalidatePath } from 'next/cache';
 
-// Создаём Telegram-бот
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
 export async function sendReminderNotification(reminderId: string) {
+  const supabase = await createClient();
+
   const { data: reminder } = await supabase
     .from('reminders')
     .select('*')
@@ -26,7 +27,6 @@ export async function sendReminderNotification(reminderId: string) {
     return { success: false, message: 'Красная зона: напоминание уже просрочено' };
   }
 
-  // Sending via Telegram bot
   const payload = {
     chat_id: TELEGRAM_CHAT_ID,
     text: `⏰ **Напоминание**\n\n${reminder.title}\n\n📅 Дата: ${reminder.due_date}\n💡 Осталось: ${daysLeft} дн.`,
