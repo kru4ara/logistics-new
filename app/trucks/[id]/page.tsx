@@ -1,4 +1,4 @@
-import { supabase } from '../../../lib/supabaseClient';
+import { createClient } from '../../../lib/supabase-server';
 import DocumentUpload from '../../components/DocumentUpload';
 
 export const dynamic = 'force-dynamic';
@@ -6,6 +6,8 @@ export const dynamic = 'force-dynamic';
 export default async function TruckDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: truckId } = await params;
   if (!truckId) return <div className="p-8">Ошибка: ID машины не передан</div>;
+
+  const supabase = await createClient();
 
   const { data: truck, error: truckError } = await supabase
     .from('trucks')
