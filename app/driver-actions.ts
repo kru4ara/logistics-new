@@ -1,11 +1,13 @@
 'use server';
 
-import { supabase } from '../lib/supabaseClient';
+import { createClient } from '../lib/supabase-server';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { syncReminders } from './reminder-actions';
 
 export async function updateDriver(driverId: string, formData: FormData) {
+  const supabase = await createClient();
+
   const firstName = formData.get('first_name') as string;
   const lastName = formData.get('last_name') as string;
   const phone = formData.get('phone') as string;
