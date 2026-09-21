@@ -4,6 +4,17 @@ import { createClient } from '../lib/supabase-server';
 
 export const dynamic = 'force-dynamic';
 
+// Supabase может вернуть related-запись как объект ИЛИ как массив,
+// в зависимости от того, как распознана связь. Нормализуем.
+function pickName(rel: unknown): string | undefined {
+  if (!rel) return undefined;
+  if (Array.isArray(rel)) return rel[0]?.name;
+  if (typeof rel === 'object' && 'name' in rel) {
+    return (rel as { name?: string }).name;
+  }
+  return undefined;
+}
+
 export default async function Home() {
   const role = cookies().get('role')?.value;
   const userName = cookies().get('user_name')?.value
@@ -82,32 +93,31 @@ export default async function Home() {
 
   const monthForwardingClient = monthForwarding.reduce((sum, f) => sum + (f.client_price_eur || 0), 0);
   const monthForwardingContractor = monthForwarding.reduce((sum, f) => sum + (f.contractor_price_eur || 0), 0);
-  const monthForwardingMargin = monthForwardingClient - monthForwardingContractor;
 
   // Общие за месяц
   const monthTotalIncome = monthTripRevenue + monthForwardingClient;
   const monthTotalExpenses = monthTripExpenses + monthForwardingContractor;
   const monthTotalProfit = monthTotalIncome - monthTotalExpenses;
 
-  // Топ-5 клиентов (по рейсам + экспедициям, по количеству)
+  // Топ-5 клиентов (рейсы + экспедиции)
   const clientStats: Record<string, { name: string; revenue: number; count: number }> = {};
   trips?.forEach((t) => {
-    if (!t.clients?.name) return;
-    const key = t.clients.name;
-    if (!clientStats[key]) clientStats[key] = { name: key, revenue: 0, count: 0 };
-    clientStats[key].revenue += t.revenue_eur || 0;
-    clientStats[key].count += 1;
+    const name = pickName(t.clients);
+    if (!name) return;
+    if (!clientStats[name]) clientStats[name] = { name, revenue: 0, count: 0 };
+    clientStats[name].revenue += t.revenue_eur || 0;
+    clientStats[name].count += 1;
   });
   forwarding?.forEach((f) => {
-    if (!f.clients?.name) return;
-    const key = f.clients.name;
-    if (!clientStats[key]) clientStats[key] = { name: key, revenue: 0, count: 0 };
-    clientStats[key].revenue += f.client_price_eur || 0;
-    clientStats[key].count += 1;
+    const name = pickName(f.clients);
+    if (!name) return;
+    if (!clientStats[name]) clientStats[name] = { name, revenue: 0, count: 0 };
+    clientStats[name].revenue += f.client_price_eur || 0;
+    clientStats[name].count += 1;
   });
   const topClients = Object.values(clientStats).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
 
-  // Топ-5 маршрутов (только рейсы, для экспедиций маршрут текстовый)
+  // Топ-5 маршрутов (только рейсы)
   const routeStats: Record<string, { route: string; revenue: number; count: number }> = {};
   trips?.forEach((t) => {
     if (!t.route) return;
@@ -143,9 +153,7 @@ export default async function Home() {
           <p className="text-slate-500 mt-1">Обзор вашей логистики за {monthName}</p>
         </div>
 
-        {/* ============================================================ */}
-        {/* КОМБИНИРОВАННЫЕ ПОКАЗАТЕЛИ ЗА МЕСЯЦ                            */}
-        {/* ============================================================ */}
+        {/* КОМБИНИРОВАННЫЕ ПОКАЗАТЕЛИ ЗА МЕСЯЦ */}
         <div>
           <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wide mb-3">
             📊 Показатели за {monthName}
@@ -198,9 +206,7 @@ export default async function Home() {
           </div>
         </div>
 
-        {/* ============================================================ */}
-        {/* ОБЩИЕ ПОКАЗАТЕЛИ ЗА ВСЁ ВРЕМЯ                                  */}
-        {/* ============================================================ */}
+        {/* ОБЩИЕ ПОКАЗАТЕЛИ ЗА ВСЁ ВРЕМЯ */}
         <div>
           <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wide mb-3">
             🏆 За всё время
@@ -209,9 +215,7 @@ export default async function Home() {
             <div className="bg-gradient-to-br from-green-500 to-green-700 rounded-2xl shadow-lg p-6 text-white">
               <div className="text-sm text-green-100">Общий доход</div>
               <div className="text-3xl font-bold mt-2">{combinedIncome.toFixed(0)} €</div>
-              <div className="text-xs text-green-200 mt-1">
-                Рейсы + Экспедирование
-              </div>
+              <div className="text-xs text-green-200 mt-1">Рейсы + Экспедирование</div>
             </div>
             <div className="bg-gradient-to-br from-red-500 to-red-700 rounded-2xl shadow-lg p-6 text-white">
               <div className="text-sm text-red-100">Общие расходы</div>
@@ -220,9 +224,7 @@ export default async function Home() {
             <div className="bg-gradient-to-br from-purple-600 to-purple-800 rounded-2xl shadow-lg p-6 text-white">
               <div className="text-sm text-purple-100">📦 Экспедирование</div>
               <div className="text-3xl font-bold mt-2">{forwardingMarginTotal.toFixed(0)} €</div>
-              <div className="text-xs text-purple-200 mt-1">
-                Маржа за всё время
-              </div>
+              <div className="text-xs text-purple-200 mt-1">Маржа за всё время</div>
             </div>
             <div className={`bg-gradient-to-br ${combinedProfit >= 0 ? 'from-blue-600 to-blue-800' : 'from-red-600 to-red-800'} rounded-2xl shadow-lg p-6 text-white`}>
               <div className={`text-sm ${combinedProfit >= 0 ? 'text-blue-100' : 'text-red-100'}`}>Чистая прибыль</div>
@@ -234,9 +236,7 @@ export default async function Home() {
           </div>
         </div>
 
-        {/* ============================================================ */}
-        {/* ПОСЛЕДНИЕ ЭКСПЕДИЦИИ                                          */}
-        {/* ============================================================ */}
+        {/* ПОСЛЕДНИЕ ЭКСПЕДИЦИИ */}
         {forwarding && forwarding.length > 0 && (
           <div>
             <div className="flex justify-between items-center mb-4">
@@ -246,6 +246,8 @@ export default async function Home() {
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               {forwarding.slice(0, 4).map((f) => {
                 const margin = (f.client_price_eur || 0) - (f.contractor_price_eur || 0);
+                const clientName = pickName(f.clients) || 'Не указан';
+                const contractorName = pickName(f.contractors) || '—';
                 return (
                   <a
                     key={f.id}
@@ -263,10 +265,10 @@ export default async function Home() {
                       </span>
                     </div>
                     <div className="text-base font-bold text-slate-900 mb-1 truncate">
-                      {f.clients?.name || 'Не указан'}
+                      {clientName}
                     </div>
                     <div className="text-xs text-slate-500 truncate mb-3">
-                      → {f.contractors?.name || '—'}
+                      → {contractorName}
                     </div>
                     <div className="pt-3 border-t border-slate-100 flex justify-between items-center">
                       <span className="text-[10px] text-slate-400">Маржа</span>
@@ -281,9 +283,7 @@ export default async function Home() {
           </div>
         )}
 
-        {/* ============================================================ */}
-        {/* ТОП-5 КЛИЕНТОВ И ТОП-5 МАРШРУТОВ                                */}
-        {/* ============================================================ */}
+        {/* ТОП-5 КЛИЕНТОВ И ТОП-5 МАРШРУТОВ */}
         <div className="grid gap-6 lg:grid-cols-2">
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
             <div className="p-5 border-b border-slate-100 flex justify-between items-center">
@@ -352,9 +352,7 @@ export default async function Home() {
           </div>
         </div>
 
-        {/* ============================================================ */}
-        {/* ПОСЛЕДНИЕ РЕЙСЫ                                               */}
-        {/* ============================================================ */}
+        {/* ПОСЛЕДНИЕ РЕЙСЫ */}
         <div>
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-bold text-slate-900">🚛 Последние рейсы</h2>
@@ -367,44 +365,45 @@ export default async function Home() {
             </div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              {trips?.slice(0, 4).map((trip) => (
-                <a
-                  key={trip.id}
-                  href={`/trips/${trip.id}`}
-                  className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm
-                             hover:shadow-lg hover:border-blue-200 transition-all duration-200"
-                >
-                  <div className="flex justify-between items-start mb-3">
-                    <div className="text-xs text-slate-400 font-medium">№ {trip.trip_number || '—'}</div>
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border
-                                      ${statusColors[trip.status] || 'bg-slate-100 text-slate-700 border-slate-200'}`}>
-                      {statusLabels[trip.status] || trip.status}
-                    </span>
-                  </div>
-                  <div className="text-base font-bold text-slate-900 mb-2 truncate">
-                    {trip.clients?.name || 'Не указан'}
-                  </div>
-                  <div className="text-xs text-slate-500 flex items-center gap-1 mb-3">
-                    <span>🛣</span>
-                    <span className="truncate">{trip.route || '—'}</span>
-                  </div>
-                  <div className="pt-3 border-t border-slate-100 flex justify-between items-center">
-                    <span className="text-[10px] text-slate-400">
-                      {trip.start_date ? new Date(trip.start_date).toLocaleDateString('ru-RU') : '—'}
-                    </span>
-                    <span className="text-sm font-bold text-green-600">
-                      {trip.revenue_eur ? `${trip.revenue_eur} €` : '—'}
-                    </span>
-                  </div>
-                </a>
-              ))}
+              {trips?.slice(0, 4).map((trip) => {
+                const clientName = pickName(trip.clients) || 'Не указан';
+                return (
+                  <a
+                    key={trip.id}
+                    href={`/trips/${trip.id}`}
+                    className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm
+                               hover:shadow-lg hover:border-blue-200 transition-all duration-200"
+                  >
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="text-xs text-slate-400 font-medium">№ {trip.trip_number || '—'}</div>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border
+                                        ${statusColors[trip.status] || 'bg-slate-100 text-slate-700 border-slate-200'}`}>
+                        {statusLabels[trip.status] || trip.status}
+                      </span>
+                    </div>
+                    <div className="text-base font-bold text-slate-900 mb-2 truncate">
+                      {clientName}
+                    </div>
+                    <div className="text-xs text-slate-500 flex items-center gap-1 mb-3">
+                      <span>🛣</span>
+                      <span className="truncate">{trip.route || '—'}</span>
+                    </div>
+                    <div className="pt-3 border-t border-slate-100 flex justify-between items-center">
+                      <span className="text-[10px] text-slate-400">
+                        {trip.start_date ? new Date(trip.start_date).toLocaleDateString('ru-RU') : '—'}
+                      </span>
+                      <span className="text-sm font-bold text-green-600">
+                        {trip.revenue_eur ? `${trip.revenue_eur} €` : '—'}
+                      </span>
+                    </div>
+                  </a>
+                );
+              })}
             </div>
           )}
         </div>
 
-        {/* ============================================================ */}
-        {/* БЫСТРЫЙ ДОСТУП                                               */}
-        {/* ============================================================ */}
+        {/* БЫСТРЫЙ ДОСТУП */}
         <div>
           <h2 className="text-lg font-bold text-slate-900 mb-4">⚡ Быстрый доступ</h2>
           <div className="flex flex-wrap gap-3">
