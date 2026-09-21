@@ -1,10 +1,12 @@
-import { supabase } from '../../../lib/supabaseClient';
+import { createClient } from '../../../lib/supabase-server';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { syncReminders } from '../../reminder-actions';
 
 async function createTruck(formData: FormData) {
   'use server';
+
+  const supabase = await createClient();
 
   const registrationNumber = formData.get('registration_number') as string;
   const type = formData.get('type') as string;
