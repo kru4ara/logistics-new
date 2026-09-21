@@ -1,9 +1,11 @@
-import { supabase } from '../../../lib/supabaseClient';
+import { createClient } from '../../../lib/supabase-server';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 
 async function createReminder(formData: FormData) {
   'use server';
+
+  const supabase = await createClient();
 
   const title = formData.get('title') as string;
   const category = formData.get('category') as string;
