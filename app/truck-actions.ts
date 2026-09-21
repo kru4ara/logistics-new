@@ -1,11 +1,13 @@
 'use server';
 
-import { supabase } from '../lib/supabaseClient';
+import { createClient } from '../lib/supabase-server';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { syncReminders } from './reminder-actions';
 
 export async function updateTruck(truckId: string, formData: FormData) {
+  const supabase = await createClient();
+
   const registrationNumber = formData.get('registration_number') as string;
   const type = formData.get('type') as string;
   const trailerNumber = formData.get('trailer_number') as string;
