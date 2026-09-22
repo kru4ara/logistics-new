@@ -6,6 +6,9 @@ import { revalidatePath } from 'next/cache';
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
+// ============================================================
+// ЗАГРУЗКА
+// ============================================================
 export async function uploadDocument(
   tripId: string,
   documentType: string,
@@ -15,7 +18,6 @@ export async function uploadDocument(
   try {
     const supabase = await createClient();
 
-    // 1. Base64 → Uint8Array
     const base64 = base64Data.split(',')[1];
     if (!base64) {
       return { success: false, message: 'Некорректные данные файла' };
@@ -27,7 +29,6 @@ export async function uploadDocument(
       bytes[i] = binary.charCodeAt(i);
     }
 
-    // 2. Определяем MIME и расширение
     const fileExt = fileName.split('.').pop()?.toLowerCase() || 'bin';
     const mimeType =
       fileExt === 'pdf' ? 'application/pdf' :
@@ -36,7 +37,6 @@ export async function uploadDocument(
       fileExt === 'heic' ? 'image/heic' :
       'application/octet-stream';
 
-    // 3. Загружаем в Storage
     const filePath = `trips/${tripId}/${documentType}-${Date.now()}.${fileExt}`;
 
     const { error: uploadError } = await supabase.storage
@@ -54,7 +54,6 @@ export async function uploadDocument(
       };
     }
 
-    // 4. Записываем в БД
     const { error: insertError } = await supabase
       .from('trip_documents')
       .insert([
@@ -69,7 +68,6 @@ export async function uploadDocument(
 
     if (insertError) {
       console.error('[uploadDocument] DB error:', insertError);
-      // Пробуем удалить уже загруженный файл, чтобы не было мусора
       await supabase.storage.from('documents').remove([filePath]);
       return {
         success: false,
@@ -77,7 +75,6 @@ export async function uploadDocument(
       };
     }
 
-    // 5. Уведомление в Telegram (не критично, ошибки игнорируем)
     if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID) {
       try {
         const payload = {
@@ -104,9 +101,73 @@ export async function uploadDocument(
     }
 
     revalidatePath(`/driver/trips/${tripId}`);
+    revalidatePath(`/trips/${tripId}`);
     return { success: true, message: 'Документ загружен!' };
   } catch (error) {
     console.error('[uploadDocument] Unexpected error:', error);
+    const msg =
+      error instanceof Error
+        ? error.message
+        : typeof error === 'string'
+          ? error
+          : 'Неизвестная ошибка';
+    return { success: false, message: msg };
+  }
+}
+
+// ============================================================
+// УДАЛЕНИЕ
+// ============================================================
+export async function deleteDocument(documentId: string, tripId: string) {
+  try {
+    const supabase = await createClient();
+
+    // 1. Получаем документ, чтобы узнать file_path
+    const { data: doc, error: fetchError } = await supabase
+      .from('trip_documents')
+      .select('file_path')
+      .eq('id', documentId)
+      .single();
+
+    if (fetchError || !doc) {
+      console.error('[deleteDocument] Fetch error:', fetchError);
+      return {
+        success: false,
+        message: `Документ не найден: ${fetchError?.message || 'неизвестная ошибка'}`,
+      };
+    }
+
+    // 2. Удаляем из Storage
+    if (doc.file_path) {
+      const { error: storageError } = await supabase.storage
+        .from('documents')
+        .remove([doc.file_path]);
+
+      if (storageError) {
+        console.error('[deleteDocument] Storage error:', storageError);
+        // Не прерываем — удалим запись из БД даже если файл не удалился
+      }
+    }
+
+    // 3. Удаляем запись из БД
+    const { error: deleteError } = await supabase
+      .from('trip_documents')
+      .delete()
+      .eq('id', documentId);
+
+    if (deleteError) {
+      console.error('[deleteDocument] DB error:', deleteError);
+      return {
+        success: false,
+        message: `Ошибка удаления записи: ${deleteError.message || 'неизвестная ошибка'}`,
+      };
+    }
+
+    revalidatePath(`/driver/trips/${tripId}`);
+    revalidatePath(`/trips/${tripId}`);
+    return { success: true, message: 'Документ удалён' };
+  } catch (error) {
+    console.error('[deleteDocument] Unexpected error:', error);
     const msg =
       error instanceof Error
         ? error.message
