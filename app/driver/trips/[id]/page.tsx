@@ -8,6 +8,15 @@ import TripStatusButtons from '../../TripStatusButtons';
 
 export const dynamic = 'force-dynamic';
 
+function pickName(rel: unknown): string | undefined {
+  if (!rel) return undefined;
+  if (Array.isArray(rel)) return rel[0]?.name;
+  if (typeof rel === 'object' && 'name' in rel) {
+    return (rel as { name?: string }).name;
+  }
+  return undefined;
+}
+
 export default async function DriverTripDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: tripId } = await params;
   if (!tripId) return <div className="p-6">Ошибка: ID рейса не передан</div>;
@@ -39,6 +48,8 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
 
   const refuelLiters = expenses?.filter(e => e.category === 'fuel' && e.liters).reduce((sum, e) => sum + e.liters, 0) || 0;
   const fuelLeft = (trip.start_fuel_level || 0) + refuelLiters - (trip.actual_liters || 0);
+
+  const clientName = pickName(trip.clients) || 'Клиент не указан';
 
   // ============================================================
   // ТОЧКИ ПОГРУЗКИ
@@ -120,6 +131,10 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
     { value: 'other', label: 'Другое', emoji: '📌' },
   ];
 
+  function categoryLabel(cat: string): string {
+    return expenseCategories.find((c) => c.value === cat)?.label || cat;
+  }
+
   function categoryEmoji(cat: string): string {
     return expenseCategories.find((c) => c.value === cat)?.emoji || '📌';
   }
@@ -138,25 +153,27 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
         </a>
 
         {/* Заголовок */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-          <div className="flex justify-between items-start mb-3">
-            <div>
-              <div className="text-xs text-slate-400 font-medium">Рейс № {trip.trip_number || '—'}</div>
-              <h1 className="text-2xl font-bold text-slate-900 mt-1">
-                {trip.clients?.name || 'Клиент не указан'}
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+          <div className="flex items-start justify-between gap-3 mb-3">
+            <div className="min-w-0 flex-1">
+              <div className="text-xs text-slate-400 font-medium">
+                Рейс № {trip.trip_number || '—'}
+              </div>
+              <h1 className="text-xl font-bold text-slate-900 mt-1 break-words">
+                {clientName}
               </h1>
             </div>
-            <span className={`px-3 py-1 rounded-full text-xs font-semibold border whitespace-nowrap
+            <span className={`shrink-0 px-3 py-1 rounded-full text-xs font-semibold border whitespace-nowrap
                               ${statusColors[trip.status] || 'bg-slate-100 text-slate-700 border-slate-200'}`}>
               {statusLabels[trip.status] || trip.status}
             </span>
           </div>
-          <div className="flex items-center gap-2 text-sm text-slate-600">
-            <span>🛣</span>
-            <span>{trip.route || '—'}</span>
+          <div className="flex items-start gap-2 text-sm text-slate-600 mb-2">
+            <span className="shrink-0">🛣</span>
+            <span className="break-words">{trip.route || '—'}</span>
           </div>
-          <div className="text-xs text-slate-400 mt-3">
-            📅 Дата старта: {trip.start_date ? new Date(trip.start_date).toLocaleDateString('ru-RU') : '—'}
+          <div className="text-xs text-slate-400">
+            📅 Старт: {trip.start_date ? new Date(trip.start_date).toLocaleDateString('ru-RU') : '—'}
           </div>
         </div>
 
@@ -167,13 +184,13 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
         </div>
 
         {/* Остаток топлива */}
-        <div className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-2xl p-6 shadow-lg text-white">
-          <div className="flex items-center justify-between">
-            <div>
+        <div className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-2xl p-5 shadow-lg text-white">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
               <div className="text-sm text-blue-200">Остаток топлива в баке</div>
               <div className="text-3xl font-bold mt-1">{fuelLeft.toFixed(1)} л</div>
             </div>
-            <div className="text-5xl">⛽</div>
+            <div className="text-5xl shrink-0">⛽</div>
           </div>
           {trip.actual_liters && trip.actual_km ? (
             <div className="text-xs text-blue-200 mt-3">
@@ -183,12 +200,12 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
         </div>
 
         {/* Задание */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-4">
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-4">
           <h2 className="text-lg font-bold text-slate-900">📋 Задание</h2>
 
           {loadingPoints.length > 0 && (
             <div className="space-y-4">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs uppercase tracking-wide text-slate-400 font-semibold">📍 Загрузка</span>
                 {loadingPoints.length > 1 && (
                   <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
@@ -198,14 +215,16 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
               </div>
 
               {loadingPoints.map((p) => (
-                <div key={p.num} className="border-l-4 border-green-500 pl-4 py-1">
-                  <div className="flex items-baseline gap-2">
+                <div key={p.num} className="border-l-4 border-green-500 pl-3 py-1">
+                  <div className="flex items-baseline gap-2 flex-wrap">
                     <span className="text-xs font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded">
                       #{p.num}
                     </span>
-                    <div className="font-bold text-slate-900">{p.name || 'Отправитель не указан'}</div>
+                    <div className="font-bold text-slate-900 text-sm break-words">
+                      {p.name || 'Отправитель не указан'}
+                    </div>
                   </div>
-                  <div className="text-sm text-slate-600 mt-1">
+                  <div className="text-sm text-slate-600 mt-1 break-words">
                     {[p.postal_code, p.city, p.address].filter(Boolean).join(', ') || '—'}
                   </div>
                   {p.country && (
@@ -222,10 +241,10 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
           )}
 
           {hasReceiver && (
-            <div className="border-l-4 border-blue-500 pl-4 py-1">
+            <div className="border-l-4 border-blue-500 pl-3 py-1">
               <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-1">🏁 Выгрузка</div>
-              <div className="font-bold text-slate-900">{trip.receiver_name || 'Получатель не указан'}</div>
-              <div className="text-sm text-slate-600 mt-1">
+              <div className="font-bold text-slate-900 text-sm break-words">{trip.receiver_name || 'Получатель не указан'}</div>
+              <div className="text-sm text-slate-600 mt-1 break-words">
                 {trip.receiver_postal_code} {trip.receiver_city}, {trip.receiver_address}
               </div>
               <div className="text-sm text-slate-500 mt-1">🌍 {trip.receiver_country}</div>
@@ -245,8 +264,8 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
         </div>
 
         {/* Загрузка документов */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-          <h2 className="text-lg font-bold text-slate-900 mb-4">📎 Загрузить документы</h2>
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+          <h2 className="text-lg font-bold text-slate-900 mb-3">📎 Загрузить документы</h2>
           <p className="text-sm text-slate-500 mb-4">
             Загрузите CMR с отметкой о выгрузке, фото груза и другие рабочие документы.
           </p>
@@ -254,7 +273,7 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
         </div>
 
         {/* Загруженные документы */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
           <h2 className="text-lg font-bold text-slate-900 mb-4">📁 Загруженные файлы</h2>
           <DocumentList
             documents={documents || []}
@@ -264,7 +283,7 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
         </div>
 
         {/* Расходы */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
           <h2 className="text-lg font-bold text-slate-900 mb-4">💸 Расходы по рейсу</h2>
 
           {expenses?.length === 0 ? (
@@ -272,26 +291,47 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
           ) : (
             <div className="space-y-2">
               {expenses?.map((exp) => (
-                <div key={exp.id} className="flex justify-between items-center border border-slate-100 rounded-xl p-3">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span className="text-xl">{categoryEmoji(exp.category)}</span>
-                    <div className="min-w-0">
-                      <div className="font-medium text-slate-800 text-sm">
-                        {exp.description || exp.category}
-                      </div>
+                <div key={exp.id} className="border border-slate-100 rounded-xl p-3 bg-slate-50/40">
+                  {/* Верхняя строка: emoji + категория + сумма */}
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-lg shrink-0">{categoryEmoji(exp.category)}</span>
+                    <div className="font-semibold text-slate-800 text-sm flex-1 min-w-0 truncate">
+                      {categoryLabel(exp.category)}
+                    </div>
+                    <div className="text-right shrink-0">
                       <div className="text-xs text-slate-400">
-                        {exp.original_amount} {exp.currency} · {exp.expense_date ? new Date(exp.expense_date).toLocaleDateString('ru-RU') : ''}
+                        {exp.original_amount} {exp.currency}
+                      </div>
+                      <div className="font-bold text-red-500 text-sm">
+                        {exp.amount_eur} €
                       </div>
                     </div>
                   </div>
-                  <form action={async () => {
-                    'use server';
-                    await deleteExpense(exp.id, tripId);
-                  }}>
-                    <button type="submit" className="text-red-500 hover:text-red-700 text-xs font-medium px-2 py-1">
-                      Удалить
-                    </button>
-                  </form>
+
+                  {/* Описание */}
+                  {exp.description && (
+                    <div className="text-xs text-slate-600 mb-2 break-words">
+                      {exp.description}
+                    </div>
+                  )}
+
+                  {/* Нижняя строка: дата + удалить */}
+                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200/60">
+                    <span className="text-xs text-slate-400">
+                      📅 {exp.expense_date ? new Date(exp.expense_date).toLocaleDateString('ru-RU') : '—'}
+                    </span>
+                    <form action={async () => {
+                      'use server';
+                      await deleteExpense(exp.id, tripId);
+                    }}>
+                      <button
+                        type="submit"
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50 text-xs font-medium px-3 py-1 rounded-lg transition-colors"
+                      >
+                        🗑 Удалить
+                      </button>
+                    </form>
+                  </div>
                 </div>
               ))}
             </div>
@@ -299,7 +339,7 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
         </div>
 
         {/* Добавить расход */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
           <h2 className="text-lg font-bold text-slate-900 mb-4">➕ Добавить расход</h2>
           <form action={addExpense} className="space-y-4">
             <input type="hidden" name="trip_id" value={tripId} />
