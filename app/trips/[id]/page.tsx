@@ -1,6 +1,7 @@
 import { createClient } from '../../../lib/supabase-server';
 import { addExpense, deleteExpense, deleteTrip } from '../../trip-actions';
 import FileUpload from '../../driver/FileUpload';
+import DocumentList from '../../driver/DocumentList';
 import TripStatusButtons from '../../driver/TripStatusButtons';
 import { saveTelemetry } from '../../telemetry-actions';
 import CopyBlock from '../../components/CopyBlock';
@@ -41,7 +42,8 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
   const { data: documents } = await supabase
     .from('trip_documents')
     .select('*')
-    .eq('trip_id', tripId);
+    .eq('trip_id', tripId)
+    .order('uploaded_at', { ascending: false });
 
   const totalExpenses = expenses?.reduce((sum, e) => sum + (e.amount_eur || 0), 0) || 0;
   const profit = (trip.revenue_eur || 0) - totalExpenses;
@@ -53,7 +55,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
   const truck = trip.trucks;
 
   // ============================================================
-  // ТОЧКИ ПОГРУЗКИ — собираем все заполненные
+  // ТОЧКИ ПОГРУЗКИ
   // ============================================================
   type LoadingPoint = {
     num: number;
@@ -96,7 +98,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
   ].filter((p) => p.city || p.name || p.country || p.address);
 
   // ============================================================
-  // ТЕКСТ ЗАДАНИЯ ДЛЯ ВОДИТЕЛЯ (для копирования и Telegram)
+  // ТЕКСТ ЗАДАНИЯ ДЛЯ ВОДИТЕЛЯ
   // ============================================================
   const taskLines: string[] = [];
   taskLines.push(`Тягач: ${truck?.registration_number || '—'}`);
@@ -274,7 +276,6 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
           <h2 className="text-lg font-bold text-slate-900 mb-4">📍 Маршрутные точки</h2>
 
-          {/* Загрузка */}
           <div className="mb-6">
             <div className="text-sm font-semibold text-green-700 mb-3 flex items-center gap-2">
               🟢 Загрузка
@@ -310,7 +311,6 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
             )}
           </div>
 
-          {/* Выгрузка */}
           <div className="pt-4 border-t border-slate-100">
             <div className="text-sm font-semibold text-red-700 mb-3 flex items-center gap-2">
               🔴 Выгрузка
@@ -334,7 +334,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
           </div>
         </div>
 
-        {/* 🔥 Задание для водителя (копирование) */}
+        {/* 🔥 Задание для водителя */}
         <CopyBlock text={taskText} />
 
         {/* Кнопки статуса */}
@@ -388,32 +388,11 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
         {/* Загруженные документы */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
           <h2 className="text-lg font-bold text-slate-900 mb-4">📁 Загруженные файлы</h2>
-          {documents?.length === 0 ? (
-            <div className="text-slate-400 text-sm text-center py-6">Файлы ещё не загружены</div>
-          ) : (
-            <div className="space-y-2">
-              {documents?.map((doc) => (
-                <a
-                  key={doc.id}
-                  href={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/documents/${doc.file_path}`}
-                  target="_blank"
-                  className="flex justify-between items-center border border-slate-100 rounded-xl p-3
-                             hover:border-blue-200 hover:bg-blue-50/30 transition-all"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span className="text-xl">📄</span>
-                    <div className="min-w-0">
-                      <div className="font-medium text-slate-800 truncate text-sm">{doc.original_name}</div>
-                      <div className="text-xs text-slate-400">
-                        {doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleDateString('ru-RU') : ''}
-                      </div>
-                    </div>
-                  </div>
-                  <span className="text-blue-600 text-sm font-medium whitespace-nowrap">Открыть</span>
-                </a>
-              ))}
-            </div>
-          )}
+          <DocumentList
+            documents={documents || []}
+            tripId={tripId}
+            canDelete={true}
+          />
         </div>
 
         {/* Расходы */}
