@@ -22,6 +22,24 @@ const statusColors: Record<string, string> = {
   paid: 'bg-emerald-50 text-emerald-700 border-emerald-200',
 };
 
+function pickName(rel: unknown): string | undefined {
+  if (!rel) return undefined;
+  if (Array.isArray(rel)) return rel[0]?.name;
+  if (typeof rel === 'object' && 'name' in rel) {
+    return (rel as { name?: string }).name;
+  }
+  return undefined;
+}
+
+function pickField(rel: unknown, field: string): string | undefined {
+  if (!rel) return undefined;
+  const obj = Array.isArray(rel) ? rel[0] : rel;
+  if (typeof obj === 'object' && obj !== null && field in obj) {
+    return (obj as Record<string, string | undefined>)[field];
+  }
+  return undefined;
+}
+
 export default async function ForwardingDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
@@ -48,69 +66,71 @@ export default async function ForwardingDetailPage({ params }: { params: Promise
   const originalCurrency = order.original_currency || 'EUR';
   const showOriginal = originalCurrency !== 'EUR';
 
+  const clientName = pickName(order.clients) || '—';
+  const clientContact = pickField(order.clients, 'contact_person');
+  const clientPhone = pickField(order.clients, 'phone');
+  const contractorName = pickName(order.contractors) || '—';
+  const contractorPhone = pickField(order.contractors, 'phone');
+
   return (
     <main className="min-h-screen bg-slate-50">
-      <div className="max-w-[1000px] mx-auto px-6 py-8 space-y-6">
+      <div className="max-w-[1000px] mx-auto px-4 md:px-6 py-6 md:py-8 space-y-5 md:space-y-6">
 
         <a href="/forwarding" className="inline-flex items-center gap-2 text-slate-600 hover:text-blue-600 transition-colors text-sm font-medium">
           ← Все заявки
         </a>
 
         {/* Заголовок */}
-        <div className="flex flex-wrap justify-between items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900">
-              📦 Заявка #{order.order_number || '—'}
-            </h1>
-            <p className="text-slate-500 mt-1">
-              {order.load_date ? new Date(order.load_date).toLocaleDateString('ru-RU') : 'Дата не указана'}
-            </p>
-          </div>
-          <div className="flex gap-3">
-            <a
-              href={`/forwarding/${id}/edit`}
-              className="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 font-medium
-                         hover:bg-slate-100 transition-all text-sm"
-            >
-              ✏️ Редактировать
-            </a>
-            <form action={deleteForwarding.bind(null, id)}>
-              <button
-                type="submit"
-                className="px-4 py-2 rounded-lg bg-red-500/10 text-red-600 border border-red-500/30
-                           hover:bg-red-500 hover:text-white transition-all text-sm font-medium"
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
+            <div className="min-w-0">
+              <h1 className="text-2xl md:text-3xl font-bold text-slate-900 break-words">
+                📦 Заявка #{order.order_number || '—'}
+              </h1>
+              <p className="text-slate-500 mt-1 text-sm">
+                {order.load_date ? new Date(order.load_date).toLocaleDateString('ru-RU') : 'Дата не указана'}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2 sm:gap-3 sm:shrink-0">
+              <a
+                href={`/forwarding/${id}/edit`}
+                className="flex-1 sm:flex-none text-center px-4 py-2 rounded-lg border border-slate-300 text-slate-700 font-medium
+                           hover:bg-slate-100 transition-all text-sm"
               >
-                🗑️ Удалить
-              </button>
-            </form>
+                ✏️ Редактировать
+              </a>
+              <form action={deleteForwarding.bind(null, id)} className="flex-1 sm:flex-none">
+                <button
+                  type="submit"
+                  className="w-full px-4 py-2 rounded-lg bg-red-500/10 text-red-600 border border-red-500/30
+                             hover:bg-red-500 hover:text-white transition-all text-sm font-medium"
+                >
+                  🗑️ Удалить
+                </button>
+              </form>
+            </div>
           </div>
         </div>
 
         {/* Статус */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-          <div className="flex justify-between items-center">
-            <div>
-              <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Статус</div>
-              <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold border
-                ${statusColors[order.status] || 'bg-slate-100 text-slate-700 border-slate-200'}`}>
-                {statusLabels[order.status] || order.status}
-              </span>
-            </div>
-          </div>
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
+          <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-2">Статус</div>
+          <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold border
+            ${statusColors[order.status] || 'bg-slate-100 text-slate-700 border-slate-200'}`}>
+            {statusLabels[order.status] || order.status}
+          </span>
           <div className="mt-4 pt-4 border-t border-slate-100">
             <ForwardingStatusButtons orderId={id} currentStatus={order.status} />
           </div>
         </div>
 
         {/* Экономика */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
           <h2 className="text-lg font-bold text-slate-900 mb-4">💰 Экономика</h2>
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
             <div>
-              <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">
-                Клиент платит
-              </div>
-              <div className="text-2xl font-bold text-green-600">{clientPrice.toFixed(2)} €</div>
+              <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Клиент платит</div>
+              <div className="text-xl md:text-2xl font-bold text-green-600 break-words">{clientPrice.toFixed(2)} €</div>
               {showOriginal && (
                 <div className="text-xs text-slate-400 mt-1">
                   ({order.original_client_price?.toFixed(2)} {originalCurrency})
@@ -118,10 +138,8 @@ export default async function ForwardingDetailPage({ params }: { params: Promise
               )}
             </div>
             <div>
-              <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">
-                Подрядчику
-              </div>
-              <div className="text-2xl font-bold text-red-500">{contractorPrice.toFixed(2)} €</div>
+              <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Подрядчику</div>
+              <div className="text-xl md:text-2xl font-bold text-red-500 break-words">{contractorPrice.toFixed(2)} €</div>
               {showOriginal && (
                 <div className="text-xs text-slate-400 mt-1">
                   ({order.original_contractor_price?.toFixed(2)} {originalCurrency})
@@ -129,45 +147,37 @@ export default async function ForwardingDetailPage({ params }: { params: Promise
               )}
             </div>
             <div>
-              <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">
-                Наша маржа
-              </div>
-              <div className={`text-2xl font-bold ${margin >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+              <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Наша маржа</div>
+              <div className={`text-xl md:text-2xl font-bold break-words ${margin >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                 {margin.toFixed(2)} €
               </div>
-              <div className="text-xs text-slate-400 mt-1">
-                {marginPct.toFixed(1)}% от суммы клиента
-              </div>
+              <div className="text-xs text-slate-400 mt-1">{marginPct.toFixed(1)}% от суммы клиента</div>
             </div>
           </div>
         </div>
 
         {/* Участники */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
           <h2 className="text-lg font-bold text-slate-900 mb-4">🤝 Участники</h2>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
             <div className="border-l-4 border-green-500 pl-4 py-1">
-              <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-1">
-                Клиент (заказчик)
-              </div>
-              <div className="font-bold text-slate-900">{order.clients?.name || '—'}</div>
-              {order.clients?.contact_person && (
-                <div className="text-sm text-slate-600 mt-1">👤 {order.clients.contact_person}</div>
+              <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-1">Клиент (заказчик)</div>
+              <div className="font-bold text-slate-900 break-words">{clientName}</div>
+              {clientContact && (
+                <div className="text-sm text-slate-600 mt-1">👤 {clientContact}</div>
               )}
-              {order.clients?.phone && (
+              {clientPhone && (
                 <div className="text-sm text-slate-600 mt-1">
-                  📞 <a href={`tel:${order.clients.phone}`} className="hover:text-blue-600">{order.clients.phone}</a>
+                  📞 <a href={`tel:${clientPhone}`} className="hover:text-blue-600">{clientPhone}</a>
                 </div>
               )}
             </div>
             <div className="border-l-4 border-red-500 pl-4 py-1">
-              <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-1">
-                Подрядчик (перевозчик)
-              </div>
-              <div className="font-bold text-slate-900">{order.contractors?.name || '—'}</div>
-              {order.contractors?.phone && (
+              <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-1">Подрядчик (перевозчик)</div>
+              <div className="font-bold text-slate-900 break-words">{contractorName}</div>
+              {contractorPhone && (
                 <div className="text-sm text-slate-600 mt-1">
-                  📞 <a href={`tel:${order.contractors.phone}`} className="hover:text-blue-600">{order.contractors.phone}</a>
+                  📞 <a href={`tel:${contractorPhone}`} className="hover:text-blue-600">{contractorPhone}</a>
                 </div>
               )}
             </div>
@@ -175,16 +185,16 @@ export default async function ForwardingDetailPage({ params }: { params: Promise
         </div>
 
         {/* Маршрут */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
           <h2 className="text-lg font-bold text-slate-900 mb-4">📍 Маршрут</h2>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
             <div>
               <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Откуда</div>
-              <div className="text-slate-800 font-medium">{order.route_from || '—'}</div>
+              <div className="text-slate-800 font-medium break-words">{order.route_from || '—'}</div>
             </div>
             <div>
               <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Куда</div>
-              <div className="text-slate-800 font-medium">{order.route_to || '—'}</div>
+              <div className="text-slate-800 font-medium break-words">{order.route_to || '—'}</div>
             </div>
             <div>
               <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Дата загрузки</div>
@@ -201,7 +211,7 @@ export default async function ForwardingDetailPage({ params }: { params: Promise
             {order.cargo_description && (
               <div className="sm:col-span-2">
                 <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Груз</div>
-                <div className="text-slate-800 font-medium">{order.cargo_description}</div>
+                <div className="text-slate-800 font-medium break-words">{order.cargo_description}</div>
               </div>
             )}
           </div>
@@ -209,9 +219,9 @@ export default async function ForwardingDetailPage({ params }: { params: Promise
 
         {/* Заметки */}
         {order.notes && (
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
             <h2 className="text-lg font-bold text-slate-900 mb-3">📝 Заметки</h2>
-            <div className="text-slate-700 whitespace-pre-wrap">{order.notes}</div>
+            <div className="text-slate-700 whitespace-pre-wrap break-words">{order.notes}</div>
           </div>
         )}
 
