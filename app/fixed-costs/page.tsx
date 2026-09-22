@@ -62,40 +62,42 @@ export default async function FixedCostsPage() {
 
   return (
     <main className="min-h-screen bg-slate-50">
-      <div className="max-w-[1600px] mx-auto px-6 py-8 space-y-6">
+      <div className="max-w-[1600px] mx-auto px-4 md:px-6 py-6 md:py-8 space-y-5 md:space-y-6">
 
-        <div className="flex flex-wrap justify-between items-center gap-4">
+        {/* Заголовок */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-between sm:items-center">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">💶 Общие расходы</h1>
-            <p className="text-slate-500 mt-1">Расходы, не привязанные к конкретному рейсу — по месяцам</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-slate-900">💶 Общие расходы</h1>
+            <p className="text-slate-500 mt-1 text-sm md:text-base">Расходы, не привязанные к конкретному рейсу</p>
           </div>
           <a
             href="/fixed-costs/new"
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white
-                       font-semibold px-5 py-2.5 rounded-xl shadow-md shadow-blue-600/20
-                       transition-all duration-150 active:scale-[0.98]"
+            className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white
+                       font-semibold px-4 md:px-5 py-2.5 rounded-xl shadow-md shadow-blue-600/20
+                       transition-all duration-150 active:scale-[0.98] text-sm md:text-base"
           >
             <span>➕</span>
             <span>Добавить расход</span>
           </a>
         </div>
 
-        <div className="grid gap-5 md:grid-cols-2">
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+        {/* Счётчики */}
+        <div className="grid gap-3 md:gap-5 grid-cols-1 md:grid-cols-2">
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-6">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-medium text-slate-500">В этом месяце (факт)</span>
-              <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-xl">💸</div>
+              <span className="text-xs md:text-sm font-medium text-slate-500">В этом месяце (факт)</span>
+              <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-blue-50 flex items-center justify-center text-base md:text-xl">💸</div>
             </div>
-            <div className="text-3xl font-bold text-red-500">{currentMonthActual.toFixed(2)} €</div>
-            <div className="text-xs text-slate-400 mt-1">Все расходы, привязанные к текущему месяцу</div>
+            <div className="text-2xl md:text-3xl font-bold text-red-500 break-words">{currentMonthActual.toFixed(2)} €</div>
+            <div className="text-xs text-slate-400 mt-1">Все расходы за текущий месяц</div>
           </div>
 
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-6">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-medium text-slate-500">Эффективно в месяц</span>
-              <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-xl">📊</div>
+              <span className="text-xs md:text-sm font-medium text-slate-500">Эффективно в месяц</span>
+              <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-base md:text-xl">📊</div>
             </div>
-            <div className="text-3xl font-bold text-emerald-600">{effectiveMonthly.toFixed(2)} €</div>
+            <div className="text-2xl md:text-3xl font-bold text-emerald-600 break-words">{effectiveMonthly.toFixed(2)} €</div>
             <div className="text-xs text-slate-400 mt-1">
               Годовые ÷ 12 ({yearlyTotal.toFixed(0)} € / год) + текущие месячные
             </div>
@@ -103,29 +105,93 @@ export default async function FixedCostsPage() {
         </div>
 
         {months.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-slate-100 p-16 text-center">
-            <div className="text-6xl mb-4">💶</div>
+          <div className="bg-white rounded-2xl border border-slate-100 p-10 md:p-16 text-center">
+            <div className="text-5xl md:text-6xl mb-4">💶</div>
             <h2 className="text-xl font-bold text-slate-900 mb-2">Расходов пока нет</h2>
             <p className="text-slate-500 mb-6">Добавьте первый общий расход</p>
           </div>
         ) : (
-          <div className="space-y-5">
+          <div className="space-y-4 md:space-y-5">
             {months.map((m) => (
               <div key={m.month_key} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                {/* Заголовок месяца */}
+                <div className="p-4 md:p-5 border-b border-slate-100 bg-slate-50/50 flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-center">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-xl">📅</div>
-                    <h2 className="text-lg font-bold text-slate-900">
+                    <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-blue-50 flex items-center justify-center text-lg md:text-xl shrink-0">📅</div>
+                    <h2 className="text-base md:text-lg font-bold text-slate-900 capitalize">
                       {new Date(m.month_key + '-01').toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' })}
                     </h2>
                   </div>
                   <div className="text-right">
-                    <div className="text-xs uppercase tracking-wide text-slate-400 font-medium">Итого за месяц</div>
-                    <div className="text-xl font-bold text-red-500">{m.total.toFixed(2)} €</div>
+                    <div className="text-[10px] md:text-xs uppercase tracking-wide text-slate-400 font-medium">Итого за месяц</div>
+                    <div className="text-lg md:text-xl font-bold text-red-500">{m.total.toFixed(2)} €</div>
                   </div>
                 </div>
 
-                <div className="overflow-x-auto">
+                {/* Mobile: карточки */}
+                <div className="md:hidden divide-y divide-slate-100">
+                  {m.items.map((c: any) => {
+                    const t = c.cost_type && typeLabels[c.cost_type] ? typeLabels[c.cost_type] : null;
+                    const originalAmount = c.original_amount ?? c.amount_pln ?? c.amount_eur ?? 0;
+                    const curr = c.currency || 'PLN';
+                    return (
+                      <div key={c.id} className="p-4 space-y-2">
+                        {/* Категория + сумма */}
+                        <div className="flex justify-between items-start gap-2">
+                          <div className="min-w-0 flex-1">
+                            <div className="font-semibold text-slate-800 break-words">
+                              {c.category || 'Без категории'}
+                            </div>
+                            <div className="text-xs text-slate-400 mt-0.5">
+                              📅 {c.expense_date ? new Date(c.expense_date).toLocaleDateString('ru-RU') : '—'}
+                            </div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <div className="text-xs text-slate-400">
+                              {originalAmount} {currencySymbol[curr] || curr}
+                            </div>
+                            <div className="font-bold text-red-500 break-words">
+                              {c.amount_eur ? `${Number(c.amount_eur).toFixed(2)} €` : '—'}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Тип */}
+                        {t && (
+                          <div>
+                            <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold border ${t.color}`}>
+                              {t.label}
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Кнопки */}
+                        <div className="flex gap-2 pt-2 border-t border-slate-100">
+                          <a
+                            href={`/fixed-costs/${c.id}/edit`}
+                            className="flex-1 text-center px-3 py-2 rounded-lg border border-slate-300 text-slate-700 text-xs font-medium hover:bg-slate-100 transition-all"
+                          >
+                            ✏️ Изменить
+                          </a>
+                          <form action={async () => {
+                            'use server';
+                            await deleteFixedCost(c.id);
+                          }} className="flex-1">
+                            <button
+                              type="submit"
+                              className="w-full px-3 py-2 rounded-lg bg-red-500/10 text-red-600 border border-red-500/30 text-xs font-medium hover:bg-red-500 hover:text-white transition-all"
+                            >
+                              🗑️ Удалить
+                            </button>
+                          </form>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Desktop: таблица */}
+                <div className="hidden md:block overflow-x-auto">
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-slate-100">
