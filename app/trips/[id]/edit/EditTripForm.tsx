@@ -108,7 +108,6 @@ export default function EditTripForm({
     toAddr(trip.receiver_country, trip.receiver_name, trip.receiver_postal_code, trip.receiver_city, trip.receiver_address, trip.receiver_loading_number)
   );
 
-  // Собираем extras из существующих данных: если sender2_* заполнено — добавим, если sender3_* — тоже
   const initialExtras: AddrState[] = [];
   const s2 = toAddr(trip.sender2_country, trip.sender2_name, trip.sender2_postal_code, trip.sender2_city, trip.sender2_address, trip.sender2_loading_number);
   const s3 = toAddr(trip.sender3_country, trip.sender3_name, trip.sender3_postal_code, trip.sender3_city, trip.sender3_address, trip.sender3_loading_number);
@@ -178,23 +177,24 @@ export default function EditTripForm({
     );
   }
 
+  // text-base (16px) — iOS Safari не зумит при фокусе
   const inputClass =
-    'w-full rounded-lg border border-slate-300 px-3 py-2.5 text-slate-900 ' +
+    'w-full rounded-lg border border-slate-300 px-3 py-2.5 text-base text-slate-900 ' +
     'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-150';
   const labelClass = 'block text-sm font-medium text-slate-700 mb-1';
-  const sectionClass = 'bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-4';
-  const sectionTitleClass = 'text-lg font-bold text-slate-900 mb-2 flex items-center gap-2';
+  const sectionClass = 'bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-6 space-y-4';
+  const sectionTitleClass = 'text-base md:text-lg font-bold text-slate-900 mb-2 flex items-center gap-2';
   const presetClass =
-    'w-full rounded-lg border-2 border-dashed border-blue-300 bg-blue-50 px-3 py-2.5 text-slate-900 font-medium ' +
+    'w-full rounded-lg border-2 border-dashed border-blue-300 bg-blue-50 px-3 py-2.5 text-base text-slate-900 font-medium ' +
     'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-solid focus:border-blue-500 transition-all duration-150';
 
   return (
-    <form action={updateTrip.bind(null, tripId)} className="space-y-6">
+    <form action={updateTrip.bind(null, tripId)} className="space-y-4 md:space-y-6">
 
       {/* ОСНОВНЫЕ ДАННЫЕ */}
       <div className={sectionClass}>
         <h2 className={sectionTitleClass}>🚛 Основные данные</h2>
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-3">
           <div>
             <label className={labelClass}>Клиент</label>
             <select name="client_id" defaultValue={trip.client_id || ''} className={inputClass}>
@@ -231,7 +231,7 @@ export default function EditTripForm({
             <label className={labelClass}>Фрахт (€)</label>
             <input type="number" name="revenue_eur" step="0.01" defaultValue={trip.revenue_eur || 0} className={inputClass} />
           </div>
-          <div>
+          <div className="md:col-span-3 lg:col-span-1">
             <label className={labelClass}>Остаток топлива (л)</label>
             <input type="number" name="start_fuel_level" step="0.01" defaultValue={trip.start_fuel_level || 0} className={inputClass} />
           </div>
@@ -241,7 +241,7 @@ export default function EditTripForm({
       {/* ЗАЯВКА КЛИЕНТА */}
       <div className={sectionClass}>
         <h2 className={sectionTitleClass}>📄 Заявка клиента</h2>
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
           <div>
             <label className={labelClass}>Номер заявки</label>
             <input type="text" name="client_request_number" defaultValue={trip.client_request_number || ''} className={inputClass} />
@@ -258,7 +258,10 @@ export default function EditTripForm({
         <h2 className={sectionTitleClass}>📍 Отправитель (основная загрузка)</h2>
 
         <div>
-          <label className={labelClass}>Выбрать из сохранённых локаций <span className="text-xs text-slate-400 font-normal ml-2">(заполнит поля ниже)</span></label>
+          <label className={labelClass}>
+            Выбрать из сохранённых локаций
+            <span className="text-xs text-slate-400 font-normal ml-2 hidden sm:inline">(заполнит поля ниже)</span>
+          </label>
           <select onChange={(e) => fillSender(e.target.value)} className={presetClass} defaultValue="">
             <option value="">— Выберите локацию —</option>
             {loadingLocations.map((loc) => (
@@ -269,7 +272,7 @@ export default function EditTripForm({
           </select>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 pt-2 border-t border-slate-100">
+        <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2 pt-2 border-t border-slate-100">
           <div>
             <label className={labelClass}>Страна</label>
             <input type="text" name="sender_country" value={sender.country}
@@ -307,12 +310,14 @@ export default function EditTripForm({
           const n = idx + 2;
           return (
             <div key={idx} className="border-t-2 border-blue-200 pt-4 mt-4">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-semibold text-slate-800">📍 Доп. точка погрузки №{idx + 1}</h3>
+              <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
+                <h3 className="font-semibold text-slate-800 text-sm md:text-base">
+                  📍 Доп. точка погрузки №{idx + 1}
+                </h3>
                 <button
                   type="button"
                   onClick={() => removeExtra(idx)}
-                  className="text-red-500 hover:text-red-700 text-sm font-medium px-3 py-1 rounded-lg hover:bg-red-50 transition-colors"
+                  className="text-red-600 hover:text-red-700 text-xs md:text-sm font-medium px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 transition-colors"
                 >
                   ✕ Удалить
                 </button>
@@ -330,7 +335,7 @@ export default function EditTripForm({
                 </select>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2 pt-2">
+              <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2 pt-2">
                 <div>
                   <label className={labelClass}>Страна</label>
                   <input type="text" name={`sender${n}_country`} value={extra.country}
@@ -371,7 +376,8 @@ export default function EditTripForm({
             type="button"
             onClick={addExtra}
             className="w-full mt-4 py-3 rounded-xl border-2 border-dashed border-blue-300 text-blue-600 font-medium
-                       hover:bg-blue-50 hover:border-blue-400 transition-all duration-150"
+                       hover:bg-blue-50 hover:border-blue-400 transition-all duration-150
+                       text-sm md:text-base active:scale-[0.99]"
           >
             + Добавить точку погрузки
           </button>
@@ -380,10 +386,13 @@ export default function EditTripForm({
 
       {/* ВЫГРУЗКА */}
       <div className={sectionClass}>
-        <h2 className={sectionTitleClass}>🏁 Получатель</h2>
+        <h2 className={sectionTitleClass}>🏁 Получатель (выгрузка)</h2>
 
         <div>
-          <label className={labelClass}>Выбрать из сохранённых локаций <span className="text-xs text-slate-400 font-normal ml-2">(заполнит поля ниже)</span></label>
+          <label className={labelClass}>
+            Выбрать из сохранённых локаций
+            <span className="text-xs text-slate-400 font-normal ml-2 hidden sm:inline">(заполнит поля ниже)</span>
+          </label>
           <select onChange={(e) => fillReceiver(e.target.value)} className={presetClass} defaultValue="">
             <option value="">— Выберите локацию —</option>
             {unloadingLocations.map((loc) => (
@@ -394,7 +403,7 @@ export default function EditTripForm({
           </select>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 pt-2 border-t border-slate-100">
+        <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2 pt-2 border-t border-slate-100">
           <div>
             <label className={labelClass}>Страна</label>
             <input type="text" name="receiver_country" value={receiver.country}
@@ -429,21 +438,24 @@ export default function EditTripForm({
       </div>
 
       {/* КНОПКИ */}
-      <div className="flex gap-3">
-        <button
-          type="submit"
-          className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl
-                     shadow-md shadow-blue-600/20 transition-all duration-150 active:scale-[0.98]"
-        >
-          ✅ Сохранить изменения
-        </button>
+      <div className="flex flex-col-reverse sm:flex-row gap-3 sticky bottom-3 sm:static
+                      bg-slate-50/95 sm:bg-transparent backdrop-blur-sm sm:backdrop-blur-none
+                      -mx-4 px-4 sm:mx-0 sm:px-0 py-3 sm:py-0
+                      border-t sm:border-0 border-slate-200">
         <a
           href={`/trips/${tripId}`}
-          className="px-6 py-3 rounded-xl border border-slate-300 text-slate-700 font-semibold
+          className="w-full sm:w-auto text-center px-6 py-3 rounded-xl border border-slate-300 text-slate-700 font-semibold
                      hover:bg-slate-100 transition-all duration-150"
         >
           Отмена
         </a>
+        <button
+          type="submit"
+          className="w-full sm:flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl
+                     shadow-md shadow-blue-600/20 transition-all duration-150 active:scale-[0.98]"
+        >
+          ✅ Сохранить изменения
+        </button>
       </div>
 
     </form>
