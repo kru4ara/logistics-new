@@ -3,92 +3,72 @@
 import { useTransition } from 'react';
 import { changeTripStatus } from './trip-status-actions';
 
-export default function TripStatusButtons({ 
-  tripId, 
-  currentStatus, 
-  showAdminStatuses = false // По умолчанию скрываем кнопки офиса
-}: { 
-  tripId: string; 
-  currentStatus: string; 
-  showAdminStatuses?: boolean 
+type StatusBtn = {
+  value: string;
+  label: string;
+  emoji: string;
+};
+
+export default function TripStatusButtons({
+  tripId,
+  currentStatus,
+  showAdminStatuses = false,
+}: {
+  tripId: string;
+  currentStatus: string;
+  showAdminStatuses?: boolean;
 }) {
   const [isPending, startTransition] = useTransition();
 
   function handleStatusChange(status: string) {
+    if (status === currentStatus || isPending) return;
     startTransition(async () => {
       await changeTripStatus(tripId, status);
     });
   }
 
-  return (
-    <div style={{ display: 'flex', gap: '10px' }}>
-      {/* Кнопки водителя */}
-      <button
-        onClick={() => handleStatusChange('active')}
-        disabled={isPending || currentStatus === 'active'}
-        style={{
-          padding: '10px 20px',
-          backgroundColor: currentStatus === 'active' ? '#3b82f6' : '#10b981',
-          color: 'white',
-          border: 'none',
-          borderRadius: '8px',
-          cursor: 'pointer',
-          fontWeight: 'bold'
-        }}
-      >
-        🚛 Начать рейс
-      </button>
-      <button
-        onClick={() => handleStatusChange('completed')}
-        disabled={isPending || currentStatus === 'completed'}
-        style={{
-          padding: '10px 20px',
-          backgroundColor: currentStatus === 'completed' ? '#3b82f6' : '#10b981',
-          color: 'white',
-          border: 'none',
-          borderRadius: '8px',
-          cursor: 'pointer',
-          fontWeight: 'bold'
-        }}
-      >
-        ✅ Завершить рейс
-      </button>
+  const driverButtons: StatusBtn[] = [
+    { value: 'active', label: 'Начать рейс', emoji: '🚛' },
+    { value: 'completed', label: 'Завершить', emoji: '✅' },
+  ];
 
-      {/* Кнопки офиса (видны только если showAdminStatuses = true) */}
-      {showAdminStatuses && (
-        <>
+  const adminButtons: StatusBtn[] = [
+    { value: 'invoiced', label: 'Выставить счёт', emoji: '💰' },
+    { value: 'paid', label: 'Оплачен', emoji: '💶' },
+  ];
+
+  const buttons = showAdminStatuses
+    ? [...driverButtons, ...adminButtons]
+    : driverButtons;
+
+  return (
+    <div className="grid grid-cols-2 md:flex md:flex-wrap gap-2 md:gap-3">
+      {buttons.map((btn) => {
+        const isActive = currentStatus === btn.value;
+        const isDisabled = isPending || isActive;
+
+        return (
           <button
-            onClick={() => handleStatusChange('invoiced')}
-            disabled={isPending || currentStatus === 'invoiced'}
-            style={{
-              padding: '10px 20px',
-              backgroundColor: currentStatus === 'invoiced' ? '#3b82f6' : '#10b981',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontWeight: 'bold'
-            }}
+            key={btn.value}
+            type="button"
+            onClick={() => handleStatusChange(btn.value)}
+            disabled={isDisabled}
+            className={`flex items-center justify-center gap-2 px-3 py-2.5 md:px-5 md:py-3 rounded-xl
+                        font-semibold text-sm md:text-base transition-all duration-150
+                        w-full md:w-auto
+              ${isActive
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30 cursor-default'
+                : isPending
+                  ? 'bg-slate-200 text-slate-400 cursor-wait'
+                  : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20 active:scale-[0.98]'
+              }`}
           >
-            💰 Выставить счёт
+            <span className="text-base md:text-lg">{btn.emoji}</span>
+            <span className="truncate">{btn.label}</span>
+            {isActive && <span className="text-xs ml-1">✓</span>}
           </button>
-          <button
-            onClick={() => handleStatusChange('paid')}
-            disabled={isPending || currentStatus === 'paid'}
-            style={{
-              padding: '10px 20px',
-              backgroundColor: currentStatus === 'paid' ? '#3b82f6' : '#10b981',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontWeight: 'bold'
-            }}
-          >
-            💶 Оплачен
-          </button>
-        </>
-      )}
+        );
+      })}
     </div>
   );
 }
