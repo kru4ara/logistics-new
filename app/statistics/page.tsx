@@ -24,13 +24,10 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
 
   let allExpenses: any[] = [];
   if (tripIds.length > 0) {
-    const { data } = await supabase
-      .from('trip_expenses')
-      .select('amount_eur, trip_id');
+    const { data } = await supabase.from('trip_expenses').select('amount_eur, trip_id');
     allExpenses = data || [];
   }
 
-  // Общие расходы
   const { data: fixedCosts } = await supabase
     .from('fixed_costs')
     .select('amount_eur, month_key, cost_type, expense_date');
@@ -42,7 +39,6 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
     .from('forwarding_orders')
     .select('id, client_price_eur, contractor_price_eur, load_date, unload_date, status');
 
-  // === Логика 1: рейс относится к месяцу окончания ===
   function getTripMonthKey(trip: any): string | null {
     const date = trip.end_date || trip.start_date;
     if (!date) return null;
@@ -67,24 +63,16 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
     directExpensesByMonth[mk] = sum;
   });
 
-  // === Логика 2: годовые расходы растягиваются с месяца оплаты на 12 месяцев ===
   const fixedCostsByMonth: Record<string, number> = {};
-
   fixedCosts?.forEach((fc) => {
     const amount = fc.amount_eur || 0;
     if (amount === 0) return;
-
     if (fc.cost_type === 'yearly') {
       let startDate: Date | null = null;
-      if (fc.expense_date) {
-        startDate = new Date(fc.expense_date);
-      } else if (fc.month_key) {
-        startDate = new Date(fc.month_key + '-01');
-      }
+      if (fc.expense_date) startDate = new Date(fc.expense_date);
+      else if (fc.month_key) startDate = new Date(fc.month_key + '-01');
       if (!startDate) return;
-
       const monthlyPart = amount / 12;
-
       for (let i = 0; i < 12; i++) {
         const d = new Date(startDate.getFullYear(), startDate.getMonth() + i, 1);
         const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -97,7 +85,6 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
     }
   });
 
-  // === Экспедиции по месяцам (по дате загрузки) ===
   function getForwardingMonthKey(f: any): string | null {
     const date = f.load_date || f.unload_date;
     if (!date) return null;
@@ -113,28 +100,23 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
     forwardingByMonth[mk].push(f);
   });
 
-  // === Собираем данные по месяцам выбранного года ===
   const months = [];
   for (let m = 1; m <= 12; m++) {
     const monthKey = `${year}-${String(m).padStart(2, '0')}`;
 
-    // Рейсы
     const monthTrips = tripsByMonth[monthKey] || [];
     const tripsCount = monthTrips.length;
     const tripRevenue = monthTrips.reduce((sum, t) => sum + (t.revenue_eur || 0), 0);
     const directExpenses = directExpensesByMonth[monthKey] || 0;
 
-    // Экспедиции
     const monthForwarding = forwardingByMonth[monthKey] || [];
     const forwardingCount = monthForwarding.length;
     const forwardingClientSum = monthForwarding.reduce((sum, f) => sum + (f.client_price_eur || 0), 0);
     const forwardingContractorSum = monthForwarding.reduce((sum, f) => sum + (f.contractor_price_eur || 0), 0);
     const forwardingMargin = forwardingClientSum - forwardingContractorSum;
 
-    // Общие расходы
     const fixedExpenses = fixedCostsByMonth[monthKey] || 0;
 
-    // Комбинированные итоги
     const totalIncome = tripRevenue + forwardingClientSum;
     const totalExpenses = directExpenses + forwardingContractorSum + fixedExpenses;
     const profit = totalIncome - totalExpenses;
@@ -144,21 +126,9 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
       month: m,
       monthName: new Date(year, m - 1, 1).toLocaleDateString('ru-RU', { month: 'long' }),
       monthKey,
-      // Рейсы
-      tripsCount,
-      tripRevenue,
-      directExpenses,
-      // Экспедиции
-      forwardingCount,
-      forwardingClientSum,
-      forwardingContractorSum,
-      forwardingMargin,
-      // Общие
-      fixedExpenses,
-      totalIncome,
-      totalExpenses,
-      profit,
-      margin,
+      tripsCount, tripRevenue, directExpenses,
+      forwardingCount, forwardingClientSum, forwardingContractorSum, forwardingMargin,
+      fixedExpenses, totalIncome, totalExpenses, profit, margin,
     });
   }
 
@@ -194,20 +164,20 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
 
   return (
     <main className="min-h-screen bg-slate-50">
-      <div className="max-w-[1600px] mx-auto px-6 py-8 space-y-6">
+      <div className="max-w-[1600px] mx-auto px-4 md:px-6 py-6 md:py-8 space-y-5 md:space-y-6">
 
-        <div className="flex flex-wrap justify-between items-center gap-4">
+        {/* Заголовок */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-between sm:items-center">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">📊 Статистика</h1>
-            <p className="text-slate-500 mt-1">Рейсы + Экспедирование за {year} год</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-slate-900">📊 Статистика</h1>
+            <p className="text-slate-500 mt-1 text-sm md:text-base">Рейсы + Экспедирование за {year} год</p>
           </div>
-
           <div className="flex gap-2">
             {years.map((y) => (
               <a
                 key={y}
                 href={`/statistics?year=${y}`}
-                className={`px-4 py-2 rounded-xl font-semibold text-sm transition-all
+                className={`px-3 md:px-4 py-2 rounded-xl font-semibold text-sm transition-all
                   ${y === year
                     ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
                     : 'bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:border-blue-300'
@@ -219,141 +189,258 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
           </div>
         </div>
 
-        {/* ============================================================ */}
-        {/* ИТОГИ ГОДА — КОМБИНИРОВАННЫЕ                                    */}
-        {/* ============================================================ */}
+        {/* ИТОГИ ГОДА */}
         <div>
-          <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wide mb-3">
-            🏆 Итоги {year} года (Рейсы + Экспедирование)
+          <h2 className="text-xs md:text-sm font-bold text-slate-500 uppercase tracking-wide mb-3">
+            🏆 Итоги {year} года
           </h2>
-          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+          <div className="grid gap-3 md:gap-5 grid-cols-2 lg:grid-cols-4">
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-6">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-medium text-slate-500">Сделок за год</span>
-                <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-xl">📊</div>
+                <span className="text-xs md:text-sm font-medium text-slate-500">Сделок</span>
+                <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-blue-50 flex items-center justify-center text-base md:text-xl">📊</div>
               </div>
-              <div className="text-3xl font-bold text-blue-600">
+              <div className="text-2xl md:text-3xl font-bold text-blue-600">
                 {yearTotals.tripsCount + yearTotals.forwardingCount}
               </div>
-              <div className="text-xs text-slate-400 mt-1">
-                🚛 {yearTotals.tripsCount} рейсов · 📦 {yearTotals.forwardingCount} экспедиций
+              <div className="text-[10px] md:text-xs text-slate-400 mt-1">
+                🚛 {yearTotals.tripsCount} · 📦 {yearTotals.forwardingCount}
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-6">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-medium text-slate-500">Общий доход</span>
-                <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center text-xl">💵</div>
+                <span className="text-xs md:text-sm font-medium text-slate-500">Доход</span>
+                <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-green-50 flex items-center justify-center text-base md:text-xl">💵</div>
               </div>
-              <div className="text-3xl font-bold text-green-600">{yearTotals.totalIncome.toFixed(0)} €</div>
-              <div className="text-xs text-slate-400 mt-1">
-                Фрахт: {yearTotals.tripRevenue.toFixed(0)} € · Эксп.: {yearTotals.forwardingClientSum.toFixed(0)} €
+              <div className="text-xl md:text-3xl font-bold text-green-600 break-words">{yearTotals.totalIncome.toFixed(0)} €</div>
+              <div className="text-[10px] md:text-xs text-slate-400 mt-1 break-words">
+                Фрахт: {yearTotals.tripRevenue.toFixed(0)} · Эксп.: {yearTotals.forwardingClientSum.toFixed(0)}
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-6">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-medium text-slate-500">Общие расходы</span>
-                <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center text-xl">📉</div>
+                <span className="text-xs md:text-sm font-medium text-slate-500">Расходы</span>
+                <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-red-50 flex items-center justify-center text-base md:text-xl">📉</div>
               </div>
-              <div className="text-3xl font-bold text-red-500">{yearTotals.totalExpenses.toFixed(0)} €</div>
-              <div className="text-xs text-slate-400 mt-1">
-                Рейсы: {(yearTotals.directExpenses + yearTotals.fixedExpenses).toFixed(0)} € · Подрядчики: {yearTotals.forwardingContractorSum.toFixed(0)} €
+              <div className="text-xl md:text-3xl font-bold text-red-500 break-words">{yearTotals.totalExpenses.toFixed(0)} €</div>
+              <div className="text-[10px] md:text-xs text-slate-400 mt-1 break-words">
+                Рейсы: {(yearTotals.directExpenses + yearTotals.fixedExpenses).toFixed(0)} · Подряд.: {yearTotals.forwardingContractorSum.toFixed(0)}
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-6">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-medium text-slate-500">Чистая прибыль</span>
-                <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-xl">📈</div>
+                <span className="text-xs md:text-sm font-medium text-slate-500">Прибыль</span>
+                <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-base md:text-xl">📈</div>
               </div>
-              <div className={`text-3xl font-bold ${yearTotals.profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+              <div className={`text-xl md:text-3xl font-bold break-words ${yearTotals.profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                 {yearTotals.profit.toFixed(0)} €
               </div>
-              <div className="text-xs text-slate-400 mt-1">
-                Общая маржа: <b className={avgMargin >= 0 ? 'text-emerald-600' : 'text-red-500'}>{avgMargin.toFixed(1)}%</b>
+              <div className="text-[10px] md:text-xs text-slate-400 mt-1">
+                Маржа: <b className={avgMargin >= 0 ? 'text-emerald-600' : 'text-red-500'}>{avgMargin.toFixed(1)}%</b>
               </div>
             </div>
           </div>
         </div>
 
-        {/* ============================================================ */}
-        {/* РАЗБИВКА ПО НАПРАВЛЕНИЯМ                                       */}
-        {/* ============================================================ */}
+        {/* РАЗБИВКА */}
         <div className="grid gap-5 lg:grid-cols-2">
-          {/* Рейсы */}
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-            <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wide mb-4">
-              🚛 Рейсы (за год)
-            </h3>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
+            <h3 className="text-xs md:text-sm font-bold text-slate-500 uppercase tracking-wide mb-4">🚛 Рейсы (за год)</h3>
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between items-center gap-2">
                 <span className="text-slate-600">Количество</span>
                 <span className="font-bold text-slate-800">{yearTotals.tripsCount}</span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-slate-600">Фрахт (доход)</span>
-                <span className="font-bold text-green-600">{yearTotals.tripRevenue.toFixed(0)} €</span>
+              <div className="flex justify-between items-center gap-2">
+                <span className="text-slate-600">Фрахт</span>
+                <span className="font-bold text-green-600 break-words text-right">{yearTotals.tripRevenue.toFixed(0)} €</span>
               </div>
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-center gap-2">
                 <span className="text-slate-600">Прямые расходы</span>
-                <span className="font-bold text-red-500">−{yearTotals.directExpenses.toFixed(0)} €</span>
+                <span className="font-bold text-red-500 break-words text-right">−{yearTotals.directExpenses.toFixed(0)} €</span>
               </div>
-              <div className="flex justify-between items-center pt-3 border-t border-slate-100">
-                <span className="text-slate-700 font-semibold">Прибыль от рейсов</span>
-                <span className={`font-bold ${tripProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+              <div className="flex justify-between items-center gap-2 pt-3 border-t border-slate-100">
+                <span className="text-slate-700 font-semibold">Прибыль</span>
+                <span className={`font-bold break-words text-right ${tripProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                   {tripProfit.toFixed(0)} €
                 </span>
               </div>
               <div className="text-xs text-slate-400">
-                Средняя прибыль за рейс: <b className="text-slate-600">{avgProfitPerTrip.toFixed(0)} €</b>
+                Средняя за рейс: <b className="text-slate-600">{avgProfitPerTrip.toFixed(0)} €</b>
               </div>
             </div>
           </div>
 
-          {/* Экспедиции */}
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-            <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wide mb-4">
-              📦 Экспедирование (за год)
-            </h3>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
+            <h3 className="text-xs md:text-sm font-bold text-slate-500 uppercase tracking-wide mb-4">📦 Экспедирование (за год)</h3>
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between items-center gap-2">
                 <span className="text-slate-600">Количество</span>
                 <span className="font-bold text-slate-800">{yearTotals.forwardingCount}</span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-slate-600">Доход от клиентов</span>
-                <span className="font-bold text-green-600">{yearTotals.forwardingClientSum.toFixed(0)} €</span>
+              <div className="flex justify-between items-center gap-2">
+                <span className="text-slate-600">Доход</span>
+                <span className="font-bold text-green-600 break-words text-right">{yearTotals.forwardingClientSum.toFixed(0)} €</span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-slate-600">Оплата подрядчикам</span>
-                <span className="font-bold text-red-500">−{yearTotals.forwardingContractorSum.toFixed(0)} €</span>
+              <div className="flex justify-between items-center gap-2">
+                <span className="text-slate-600">Подрядчикам</span>
+                <span className="font-bold text-red-500 break-words text-right">−{yearTotals.forwardingContractorSum.toFixed(0)} €</span>
               </div>
-              <div className="flex justify-between items-center pt-3 border-t border-slate-100">
-                <span className="text-slate-700 font-semibold">Маржа экспедирования</span>
-                <span className={`font-bold ${yearTotals.forwardingMargin >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+              <div className="flex justify-between items-center gap-2 pt-3 border-t border-slate-100">
+                <span className="text-slate-700 font-semibold">Маржа</span>
+                <span className={`font-bold break-words text-right ${yearTotals.forwardingMargin >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                   {yearTotals.forwardingMargin.toFixed(0)} €
                 </span>
               </div>
               <div className="text-xs text-slate-400">
-                Средняя маржа за заявку: <b className="text-slate-600">
-                  {yearTotals.forwardingCount > 0
-                    ? (yearTotals.forwardingMargin / yearTotals.forwardingCount).toFixed(0)
-                    : 0} €
+                Средняя за заявку: <b className="text-slate-600">
+                  {yearTotals.forwardingCount > 0 ? (yearTotals.forwardingMargin / yearTotals.forwardingCount).toFixed(0) : 0} €
                 </b>
               </div>
             </div>
           </div>
         </div>
 
-        {/* ============================================================ */}
-        {/* ТАБЛИЦА ПО МЕСЯЦАМ                                            */}
-        {/* ============================================================ */}
+        {/* ТАБЛИЦА ПО МЕСЯЦАМ */}
         <div>
-          <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wide mb-3">
+          <h2 className="text-xs md:text-sm font-bold text-slate-500 uppercase tracking-wide mb-3">
             📅 По месяцам
           </h2>
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+
+          {/* Mobile: карточки */}
+          <div className="md:hidden space-y-3">
+            {months.map((m) => {
+              const isCurrentMonth = m.monthKey === currentMonthKey;
+              const isFuture = m.monthKey > currentMonthKey;
+              const isEmpty = m.tripsCount === 0 && m.forwardingCount === 0 && m.totalExpenses === 0;
+
+              return (
+                <div
+                  key={m.monthKey}
+                  className={`bg-white rounded-2xl border shadow-sm p-4
+                    ${isCurrentMonth ? 'border-blue-300 bg-blue-50/40' :
+                      isFuture ? 'border-slate-100 opacity-60' : 'border-slate-100'}`}
+                >
+                  {/* Заголовок */}
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className={`font-bold capitalize ${isFuture ? 'text-slate-400' : 'text-slate-900'}`}>
+                      {m.monthName}
+                    </span>
+                    {isCurrentMonth && (
+                      <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-blue-600 text-white">
+                        ТЕКУЩИЙ
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Доходы */}
+                  <div className="space-y-1.5 text-xs mb-3">
+                    <div className="flex justify-between items-center gap-2">
+                      <span className="text-slate-500">🚛 Рейсов</span>
+                      <span className="font-semibold text-slate-700">{m.tripsCount || '—'}</span>
+                    </div>
+                    <div className="flex justify-between items-center gap-2">
+                      <span className="text-slate-500">Фрахт</span>
+                      <span className="font-semibold text-green-600 break-words text-right">
+                        {m.tripRevenue > 0 ? `${m.tripRevenue.toFixed(0)} €` : '—'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center gap-2">
+                      <span className="text-slate-500">📦 Эксп.</span>
+                      <span className="font-semibold text-slate-700">{m.forwardingCount || '—'}</span>
+                    </div>
+                    <div className="flex justify-between items-center gap-2">
+                      <span className="text-slate-500">Маржа эксп.</span>
+                      <span className="font-semibold text-emerald-600 break-words text-right">
+                        {m.forwardingMargin > 0 ? `${m.forwardingMargin.toFixed(0)} €` : '—'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Расходы и итог */}
+                  <div className="pt-3 border-t border-slate-100 space-y-1.5 text-xs">
+                    <div className="flex justify-between items-center gap-2">
+                      <span className="text-slate-500">Прямые / Общие</span>
+                      <span className="font-medium text-slate-600 break-words text-right">
+                        {m.directExpenses.toFixed(0)} / {m.fixedExpenses.toFixed(0)} €
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center gap-2">
+                      <span className="text-slate-500">Всего расходов</span>
+                      <span className="font-semibold text-red-500 break-words text-right">
+                        {m.totalExpenses > 0 ? `${m.totalExpenses.toFixed(0)} €` : '—'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center gap-2 pt-2 border-t border-slate-100">
+                      <span className="font-semibold text-slate-800">Прибыль</span>
+                      <span className={`font-bold text-base break-words text-right ${
+                        isFuture ? 'text-slate-400' :
+                        m.profit > 0 ? 'text-emerald-600' :
+                        m.profit < 0 ? 'text-red-500' : 'text-slate-400'
+                      }`}>
+                        {!isEmpty ? `${m.profit.toFixed(0)} €` : '—'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center gap-2">
+                      <span className="text-slate-500">Маржа</span>
+                      <span className={`font-semibold text-right ${
+                        isFuture ? 'text-slate-400' :
+                        m.margin > 0 ? 'text-emerald-600' :
+                        m.margin < 0 ? 'text-red-500' : 'text-slate-400'
+                      }`}>
+                        {m.totalIncome > 0 ? `${m.margin.toFixed(1)}%` : '—'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Итого мобильный */}
+            <div className="bg-slate-100 rounded-2xl border-2 border-slate-200 p-4">
+              <div className="font-bold text-slate-900 mb-3">ИТОГО за {year}</div>
+              <div className="space-y-1.5 text-xs">
+                <div className="flex justify-between items-center gap-2">
+                  <span className="text-slate-600">🚛 Рейсов</span>
+                  <span className="font-bold text-slate-900">{yearTotals.tripsCount}</span>
+                </div>
+                <div className="flex justify-between items-center gap-2">
+                  <span className="text-slate-600">Фрахт</span>
+                  <span className="font-bold text-green-600 break-words text-right">{yearTotals.tripRevenue.toFixed(0)} €</span>
+                </div>
+                <div className="flex justify-between items-center gap-2">
+                  <span className="text-slate-600">📦 Эксп.</span>
+                  <span className="font-bold text-slate-900">{yearTotals.forwardingCount}</span>
+                </div>
+                <div className="flex justify-between items-center gap-2">
+                  <span className="text-slate-600">Маржа эксп.</span>
+                  <span className="font-bold text-emerald-600 break-words text-right">{yearTotals.forwardingMargin.toFixed(0)} €</span>
+                </div>
+                <div className="flex justify-between items-center gap-2">
+                  <span className="text-slate-600">Всего расходов</span>
+                  <span className="font-bold text-red-500 break-words text-right">{yearTotals.totalExpenses.toFixed(0)} €</span>
+                </div>
+                <div className="flex justify-between items-center gap-2 pt-2 border-t border-slate-300">
+                  <span className="font-bold text-slate-800">Прибыль</span>
+                  <span className={`font-bold text-lg break-words text-right ${yearTotals.profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                    {yearTotals.profit.toFixed(0)} €
+                  </span>
+                </div>
+                <div className="flex justify-between items-center gap-2">
+                  <span className="text-slate-600">Маржа</span>
+                  <span className={`font-bold text-right ${avgMargin >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                    {avgMargin.toFixed(1)}%
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Desktop: таблица */}
+          <div className="hidden md:block bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full min-w-[1200px]">
                 <thead>
@@ -459,21 +546,10 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
         </div>
 
         <div className="text-xs text-slate-500 bg-white rounded-xl border border-slate-100 p-4 space-y-1">
-          <div>
-            <b>Рейс относится к месяцу окончания.</b> Если рейс стартовал в октябре, а завершился в ноябре — он считается ноябрьским (и его расходы тоже).
-          </div>
-          <div>
-            <b>Экспедиция относится к месяцу загрузки.</b> Если даты загрузки нет — берётся дата выгрузки.
-          </div>
-          <div>
-            <b>Годовые расходы</b> делятся на 12 месяцев и «размазываются» с месяца оплаты.
-          </div>
-          <div>
-            <b>Прибыль</b> = Фрахт + Доход экспедиций − Прямые − Оплата подрядчикам − Общие.
-          </div>
-          <div>
-            <b>Маржа</b> = Прибыль ÷ Общий доход × 100%. Хорошая маржа для логистики: 15–25%.
-          </div>
+          <div><b>Рейс относится к месяцу окончания.</b> Экспедиция — к месяцу загрузки.</div>
+          <div><b>Годовые расходы</b> делятся на 12 месяцев.</div>
+          <div><b>Прибыль</b> = Фрахт + Доход экспедиций − Прямые − Подрядчики − Общие.</div>
+          <div><b>Маржа</b> = Прибыль ÷ Общий доход × 100%.</div>
         </div>
 
       </div>
