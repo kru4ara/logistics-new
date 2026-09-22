@@ -107,9 +107,9 @@ export default async function DriverPage() {
       <div className="max-w-[900px] mx-auto px-4 py-6 space-y-5">
 
         {/* Приветствие */}
-        <div className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-2xl p-6 shadow-lg text-white">
+        <div className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-2xl p-5 shadow-lg text-white">
           <div className="text-sm text-blue-200">Привет,</div>
-          <div className="text-2xl font-bold mt-1">{userName} 👋</div>
+          <div className="text-2xl font-bold mt-1 break-words">{userName} 👋</div>
           <div className="text-sm text-blue-200 mt-3">
             Всего рейсов: <span className="font-bold text-white">{trips?.length || 0}</span>
           </div>
@@ -120,20 +120,20 @@ export default async function DriverPage() {
           <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wide mb-3 px-1">
             📊 {monthName}
           </h2>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 sm:p-5">
               <div className="text-xs text-slate-400 font-medium mb-1">Рейсов за месяц</div>
               <div className="text-2xl font-bold text-blue-600">{monthTrips.length}</div>
             </div>
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 sm:p-5">
               <div className="text-xs text-slate-400 font-medium mb-1">Зарплата за месяц</div>
               <div className="text-2xl font-bold text-emerald-600">{monthSalary.toFixed(0)} €</div>
             </div>
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 sm:p-5">
               <div className="text-xs text-slate-400 font-medium mb-1">Пройдено км</div>
               <div className="text-2xl font-bold text-slate-800">{monthKm.toFixed(0)}</div>
             </div>
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 sm:p-5">
               <div className="text-xs text-slate-400 font-medium mb-1">Израсходовано топлива</div>
               <div className="text-2xl font-bold text-slate-800">{monthLiters.toFixed(0)} л</div>
             </div>
@@ -167,37 +167,40 @@ export default async function DriverPage() {
                   >
                     <div className={`h-1.5 ${statusStripColors[trip.status] || 'bg-slate-300'}`} />
 
-                    <div className="p-5">
-                      <div className="flex justify-between items-start mb-3">
-                        <div>
+                    <div className="p-4 sm:p-5">
+                      {/* Заголовок карточки */}
+                      <div className="flex flex-wrap items-start justify-between gap-2 mb-3">
+                        <div className="min-w-0 flex-1">
                           <div className="text-xs text-slate-400 font-medium">
                             Рейс № {trip.trip_number || '—'}
                           </div>
-                          <div className="text-lg font-bold text-slate-900 mt-0.5">
+                          <div className="text-base sm:text-lg font-bold text-slate-900 mt-0.5 break-words">
                             {clientName}
                           </div>
                         </div>
-                        <span className={`px-3 py-1 rounded-full text-xs font-semibold border whitespace-nowrap
+                        <span className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-semibold border whitespace-nowrap
                                           ${statusColors[trip.status] || 'bg-slate-100 text-slate-700 border-slate-200'}`}>
                           {statusLabels[trip.status] || trip.status}
                         </span>
                       </div>
 
+                      {/* Маршрут */}
                       <div className="bg-slate-50 rounded-xl p-3 mb-3">
                         <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Маршрут</div>
-                        <div className="flex items-center gap-2 text-slate-800 font-semibold text-sm">
-                          <span>🛣</span>
-                          <span>{trip.route || '—'}</span>
+                        <div className="flex items-start gap-2 text-slate-800 font-semibold text-sm">
+                          <span className="shrink-0">🛣</span>
+                          <span className="break-words">{trip.route || '—'}</span>
                         </div>
                       </div>
 
+                      {/* Точки */}
                       <div className="space-y-2 text-sm">
                         {trip.sender_city && (
                           <div className="flex items-start gap-2">
                             <span className="shrink-0 mt-0.5">📍</span>
                             <div className="min-w-0">
                               <div className="text-xs text-slate-400 font-medium">Загрузка</div>
-                              <div className="text-slate-700 truncate">
+                              <div className="text-slate-700 break-words">
                                 {trip.sender_city}, {trip.sender_country}
                               </div>
                             </div>
@@ -208,7 +211,7 @@ export default async function DriverPage() {
                             <span className="shrink-0 mt-0.5">🏁</span>
                             <div className="min-w-0">
                               <div className="text-xs text-slate-400 font-medium">Выгрузка</div>
-                              <div className="text-slate-700 truncate">
+                              <div className="text-slate-700 break-words">
                                 {trip.receiver_city}, {trip.receiver_country}
                               </div>
                             </div>
@@ -216,6 +219,7 @@ export default async function DriverPage() {
                         )}
                       </div>
 
+                      {/* Футер */}
                       <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-100">
                         <span className="text-xs text-slate-400">
                           📅 {trip.start_date ? new Date(trip.start_date).toLocaleDateString('ru-RU') : '—'}
