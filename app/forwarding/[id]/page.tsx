@@ -126,6 +126,16 @@ export default async function ForwardingDetailPage({ params }: { params: Promise
               <p className="text-slate-500 mt-1 text-sm">
                 {order.load_date ? new Date(order.load_date).toLocaleDateString('ru-RU') : 'Дата не указана'}
               </p>
+              {order.client_request_number && (
+                <p className="text-sm text-slate-500 mt-1">
+                  📄 Заявка клиента № <b className="text-slate-700">{order.client_request_number}</b>
+                  {order.client_request_date && (
+                    <span className="text-slate-400 ml-2">
+                      от {new Date(order.client_request_date).toLocaleDateString('ru-RU')}
+                    </span>
+                  )}
+                </p>
+              )}
             </div>
             <div className="flex flex-wrap gap-2 sm:gap-3 sm:shrink-0">
               <a
