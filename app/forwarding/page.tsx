@@ -235,6 +235,16 @@ export default async function ForwardingPage({
                       <div className="text-xs text-slate-400">
                         📅 {o.load_date ? new Date(o.load_date).toLocaleDateString('ru-RU') : '—'}
                       </div>
+                      {o.client_request_number && (
+                        <div className="text-xs text-slate-500 mt-1 break-words">
+                          📄 Заявка клиента: <b className="text-slate-700">{o.client_request_number}</b>
+                          {o.client_request_date && (
+                            <span className="text-slate-400 ml-1">
+                              от {new Date(o.client_request_date).toLocaleDateString('ru-RU')}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     <div className="p-4 space-y-3">
@@ -309,6 +319,7 @@ export default async function ForwardingPage({
                       <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase">№</th>
                       <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase">Дата</th>
                       <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase">Клиент</th>
+                      <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase">Заявка</th>
                       <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase">Подрядчик</th>
                       <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase">Маршрут</th>
                       <th className="text-right py-3 px-4 text-xs font-semibold text-slate-500 uppercase">Клиент €</th>
@@ -335,6 +346,20 @@ export default async function ForwardingPage({
                             {o.load_date ? new Date(o.load_date).toLocaleDateString('ru-RU') : '—'}
                           </td>
                           <td className="py-3 px-4 text-sm text-slate-800 font-medium">{clientName}</td>
+                          <td className="py-3 px-4 text-sm text-slate-600 whitespace-nowrap">
+                            {o.client_request_number ? (
+                              <span>
+                                <b className="text-slate-800">{o.client_request_number}</b>
+                                {o.client_request_date && (
+                                  <span className="text-slate-400 ml-1 text-xs">
+                                    от {new Date(o.client_request_date).toLocaleDateString('ru-RU')}
+                                  </span>
+                                )}
+                              </span>
+                            ) : (
+                              <span className="text-slate-300">—</span>
+                            )}
+                          </td>
                           <td className="py-3 px-4 text-sm text-slate-600">{contractorName}</td>
                           <td className="py-3 px-4 text-sm text-slate-600 max-w-[250px] truncate">
                             {o.route_from || o.route_to
