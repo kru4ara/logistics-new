@@ -1,7 +1,8 @@
 'use server';
 
-import { supabase } from '../../lib/supabaseClient';
+import { createClient } from '../../lib/supabase-server';
 import { revalidatePath } from 'next/cache';
+import { syncTripFromLogisat } from '../../lib/logisat';
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
@@ -24,22 +25,60 @@ async function sendTelegramMessage(text: string) {
 }
 
 export async function changeTripStatus(tripId: string, status: string) {
-  // 1. Получаем данные рейса перед обновлением
+  const supabase = await createClient();
+
+  // 1. Получаем данные рейса
   const { data: trip } = await supabase
     .from('trips')
     .select('*, drivers(first_name, last_name), trucks(registration_number), clients(name)')
     .eq('id', tripId)
     .single();
 
-  // 2. Обновляем статус
+  // 2. Формируем обновление
+  const updateData: Record<string, any> = { status };
+
+  const todayDate = new Date().toISOString().split('T')[0];
+
+  // Начало рейса — если пусто
+  if (status === 'active' && !trip?.start_date) {
+    updateData.start_date = todayDate;
+  }
+
+  // Завершение рейса — ставим end_date
+  if (status === 'completed') {
+    updateData.end_date = todayDate;
+    if (!trip?.start_date) {
+      updateData.start_date = todayDate;
+    }
+  }
+
+  // 3. Обновляем статус и даты
   const { error } = await supabase
     .from('trips')
-    .update({ status })
+    .update(updateData)
     .eq('id', tripId);
 
   if (error) throw new Error(`Ошибка обновления: ${error.message}`);
 
-  // 3. Отправляем уведомление в Telegram
+  // 4. Автосинхронизация Logisat при завершении
+  if (status === 'completed') {
+    try {
+      const syncResult = await syncTripFromLogisat(tripId);
+      if (syncResult.success) {
+        console.log('[changeTripStatus] Logisat sync OK:', {
+          tripId,
+          km: syncResult.distanceKm,
+          liters: syncResult.fuelLiters,
+        });
+      } else {
+        console.log('[changeTripStatus] Logisat sync failed:', syncResult.error);
+      }
+    } catch (e) {
+      console.error('[changeTripStatus] Logisat sync exception:', e);
+    }
+  }
+
+  // 5. Telegram
   const statusEmoji: Record<string, string> = {
     active: '🚛',
     completed: '✅',
