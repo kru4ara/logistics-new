@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../../lib/supabase-server';
-import { createForwarding } from '../actions';
+import NewForwardingForm from './NewForwardingForm';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,13 +14,6 @@ export default async function NewForwardingPage() {
   const { data: clients } = await supabase.from('clients').select('id, name').order('name');
   const { data: contractors } = await supabase.from('contractors').select('id, name').order('name');
 
-  const inputClass =
-    'w-full rounded-lg border border-slate-300 px-3 py-2.5 text-base text-slate-900 ' +
-    'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-150';
-  const labelClass = 'block text-sm font-medium text-slate-700 mb-1';
-  const sectionClass = 'bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-6 space-y-4';
-  const sectionTitleClass = 'text-base md:text-lg font-bold text-slate-900 mb-2 flex items-center gap-2';
-
   return (
     <main className="min-h-screen bg-slate-50">
       <div className="max-w-[900px] mx-auto px-4 md:px-6 py-6 md:py-8 space-y-5 md:space-y-6">
@@ -31,161 +24,14 @@ export default async function NewForwardingPage() {
 
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-slate-900">➕ Новая заявка экспедирования</h1>
-          <p className="text-slate-500 mt-1 text-sm md:text-base">Перепродажа груза: клиент → подрядчик</p>
+          <p className="text-slate-500 mt-1 text-sm md:text-base">Клиент → Мы → Подрядчики</p>
         </div>
 
-        <form action={createForwarding} className="space-y-4 md:space-y-6">
+        <NewForwardingForm
+          clients={(clients || []).map((c) => ({ id: c.id, label: c.name }))}
+          contractors={(contractors || []).map((c) => ({ id: c.id, label: c.name }))}
+        />
 
-          {/* УЧАСТНИКИ */}
-          <div className={sectionClass}>
-            <h2 className={sectionTitleClass}>🤝 Участники</h2>
-            <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
-              <div>
-                <label className={labelClass}>Клиент (заказчик) *</label>
-                <select name="client_id" required className={inputClass}>
-                  <option value="">Выберите клиента...</option>
-                  {clients?.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className={labelClass}>Подрядчик (перевозчик) *</label>
-                <select name="contractor_id" required className={inputClass}>
-                  <option value="">Выберите подрядчика...</option>
-                  {contractors?.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            {(!contractors || contractors.length === 0) && (
-              <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">
-                ⚠️ У вас нет подрядчиков. Сначала добавьте их в разделе{' '}
-                <a href="/contractors/new" className="font-semibold underline">Подрядчики</a>.
-              </div>
-            )}
-          </div>
-
-          {/* ЗАЯВКА КЛИЕНТА */}
-          <div className={sectionClass}>
-            <h2 className={sectionTitleClass}>📄 Заявка клиента</h2>
-            <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
-              <div>
-                <label className={labelClass}>Номер заявки</label>
-                <input
-                  type="text"
-                  name="client_request_number"
-                  placeholder="ZAM-2026-001"
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label className={labelClass}>Дата заявки</label>
-                <input
-                  type="date"
-                  name="client_request_date"
-                  className={inputClass}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* ЭКОНОМИКА */}
-          <div className={sectionClass}>
-            <h2 className={sectionTitleClass}>💰 Экономика</h2>
-            <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-3">
-              <div>
-                <label className={labelClass}>Валюта</label>
-                <select name="currency" className={inputClass} defaultValue="EUR">
-                  <option value="EUR">EUR €</option>
-                  <option value="PLN">PLN zł</option>
-                </select>
-              </div>
-              <div>
-                <label className={labelClass}>Клиент платит нам</label>
-                <input type="number" name="client_price" step="0.01" required placeholder="2000" className={inputClass} />
-              </div>
-              <div>
-                <label className={labelClass}>Мы платим подрядчику</label>
-                <input type="number" name="contractor_price" step="0.01" required placeholder="1500" className={inputClass} />
-              </div>
-            </div>
-            <p className="text-xs text-slate-500">
-              Маржа = разница. Если валюта PLN — сконвертируется в EUR по курсу на дату загрузки.
-            </p>
-          </div>
-
-          {/* МАРШРУТ */}
-          <div className={sectionClass}>
-            <h2 className={sectionTitleClass}>📍 Маршрут</h2>
-            <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
-              <div>
-                <label className={labelClass}>Откуда</label>
-                <input type="text" name="route_from" placeholder="Варшава, Польша" className={inputClass} />
-              </div>
-              <div>
-                <label className={labelClass}>Куда</label>
-                <input type="text" name="route_to" placeholder="Берлин, Германия" className={inputClass} />
-              </div>
-              <div>
-                <label className={labelClass}>Дата загрузки</label>
-                <input type="date" name="load_date" required className={inputClass} />
-              </div>
-              <div>
-                <label className={labelClass}>Дата выгрузки</label>
-                <input type="date" name="unload_date" className={inputClass} />
-              </div>
-              <div className="md:col-span-2">
-                <label className={labelClass}>Описание груза</label>
-                <input type="text" name="cargo_description" placeholder="Паллеты, 20т" className={inputClass} />
-              </div>
-            </div>
-          </div>
-
-          {/* СТАТУС И ЗАМЕТКИ */}
-          <div className={sectionClass}>
-            <h2 className={sectionTitleClass}>📋 Статус</h2>
-            <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
-              <div>
-                <label className={labelClass}>Статус</label>
-                <select name="status" className={inputClass} defaultValue="planned">
-                  <option value="planned">Планируется</option>
-                  <option value="active">В пути</option>
-                  <option value="completed">Завершена</option>
-                  <option value="invoiced">Выставлен счёт</option>
-                  <option value="paid">Оплачена</option>
-                </select>
-              </div>
-              <div className="md:col-span-2">
-                <label className={labelClass}>Заметки</label>
-                <textarea name="notes" rows={2} className={inputClass} />
-              </div>
-            </div>
-          </div>
-
-          {/* КНОПКИ */}
-          <div className="flex flex-col-reverse sm:flex-row gap-3 sticky bottom-3 sm:static
-                          bg-slate-50/95 sm:bg-transparent backdrop-blur-sm sm:backdrop-blur-none
-                          -mx-4 px-4 sm:mx-0 sm:px-0 py-3 sm:py-0
-                          border-t sm:border-0 border-slate-200">
-            <a
-              href="/forwarding"
-              className="w-full sm:w-auto text-center px-6 py-3 rounded-xl border border-slate-300 text-slate-700 font-semibold
-                         hover:bg-slate-100 transition-all duration-150"
-            >
-              Отмена
-            </a>
-            <button
-              type="submit"
-              className="w-full sm:flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl
-                         shadow-md shadow-blue-600/20 transition-all duration-150 active:scale-[0.98]"
-            >
-              ✅ Создать заявку
-            </button>
-          </div>
-
-        </form>
       </div>
     </main>
   );
