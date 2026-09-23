@@ -195,6 +195,16 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
               <div className="text-sm text-slate-500 mt-1">
                 {trip.clients?.name || 'Клиент не указан'}
               </div>
+              {trip.client_request_number && (
+                <div className="text-sm text-slate-500 mt-1">
+                  📄 Заявка № <b className="text-slate-700">{trip.client_request_number}</b>
+                  {trip.client_request_date && (
+                    <span className="text-slate-400 ml-2">
+                      от {new Date(trip.client_request_date).toLocaleDateString('ru-RU')}
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
             <span className={`self-start px-3 py-1 rounded-full text-xs font-semibold border whitespace-nowrap
                               ${statusColors[trip.status] || 'bg-slate-100 text-slate-700 border-slate-200'}`}>
@@ -336,13 +346,11 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
 
         <CopyBlock text={taskText} />
 
-        {/* Кнопки статуса */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
           <h2 className="text-sm font-bold text-slate-700 mb-3">Действия по рейсу</h2>
           <TripStatusButtons tripId={tripId} currentStatus={trip.status} showAdminStatuses={true} />
         </div>
 
-        {/* Телеметрия */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
           <h2 className="text-lg font-bold text-slate-900 mb-4">📊 Данные телеметрии</h2>
           <form action={async (formData: FormData) => {
@@ -378,23 +386,16 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
           )}
         </div>
 
-        {/* Загрузка документов */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
           <h2 className="text-lg font-bold text-slate-900 mb-4">📎 Загрузить документы</h2>
           <FileUpload tripId={tripId} />
         </div>
 
-        {/* Загруженные документы */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
           <h2 className="text-lg font-bold text-slate-900 mb-4">📁 Загруженные файлы</h2>
-          <DocumentList
-            documents={documents || []}
-            tripId={tripId}
-            canDelete={true}
-          />
+          <DocumentList documents={documents || []} tripId={tripId} canDelete={true} />
         </div>
 
-        {/* Расходы */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
           <h2 className="text-lg font-bold text-slate-900 mb-4">💸 Расходы по рейсу</h2>
 
@@ -402,7 +403,6 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
             <div className="text-center py-8 text-slate-400 text-sm">Пока нет расходов</div>
           ) : (
             <>
-              {/* Mobile: карточки */}
               <div className="md:hidden space-y-2">
                 {expenses?.map((exp) => (
                   <div key={exp.id} className="border border-slate-100 rounded-xl p-3 bg-slate-50/40">
@@ -444,7 +444,6 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
                 ))}
               </div>
 
-              {/* Desktop: таблица */}
               <div className="hidden md:block overflow-x-auto">
                 <table className="w-full">
                   <thead>
@@ -460,9 +459,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
                   <tbody>
                     {expenses?.map((exp) => (
                       <tr key={exp.id} className="border-b border-slate-50">
-                        <td className="py-3 text-sm">
-                          {categoryLabel(exp.category)}
-                        </td>
+                        <td className="py-3 text-sm">{categoryLabel(exp.category)}</td>
                         <td className="py-3 text-right text-sm font-medium">
                           {exp.original_amount} {exp.currency}
                         </td>
@@ -492,7 +489,6 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
           )}
         </div>
 
-        {/* Экономика */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
           <h2 className="text-lg font-bold text-slate-900 mb-4">💰 Экономика рейса</h2>
           <div className="grid gap-4 grid-cols-3">
@@ -513,7 +509,6 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
           </div>
         </div>
 
-        {/* Добавить расход */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
           <h2 className="text-lg font-bold text-slate-900 mb-4">➕ Добавить расход</h2>
           <form action={addExpense} className="space-y-4">
