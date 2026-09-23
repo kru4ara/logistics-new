@@ -65,9 +65,25 @@ export default async function ForwardingPage({
     return <div className="p-8 text-red-500">Ошибка загрузки: {error.message}</div>;
   }
 
+  // Загружаем расходы для всех заявок
+  const orderIds = orders?.map((o) => o.id) || [];
+  let expensesByOrder: Record<string, number> = {};
+  if (orderIds.length > 0) {
+    const { data: allExp } = await supabase
+      .from('forwarding_expenses')
+      .select('forwarding_id, amount_eur')
+      .in('forwarding_id', orderIds);
+
+    allExp?.forEach((e) => {
+      if (!e.forwarding_id) return;
+      expensesByOrder[e.forwarding_id] = (expensesByOrder[e.forwarding_id] || 0) + (e.amount_eur || 0);
+    });
+  }
+
   const totalClient = orders?.reduce((sum, o) => sum + (o.client_price_eur || 0), 0) || 0;
   const totalContractor = orders?.reduce((sum, o) => sum + (o.contractor_price_eur || 0), 0) || 0;
-  const totalMargin = totalClient - totalContractor;
+  const totalExpenses = Object.values(expensesByOrder).reduce((s, v) => s + v, 0);
+  const totalMargin = totalClient - totalContractor - totalExpenses;
 
   const monthNames = [
     'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
@@ -99,7 +115,6 @@ export default async function ForwardingPage({
 
         {/* Фильтры */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-5 space-y-3">
-          {/* Годы */}
           <div>
             <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2">Год</div>
             <div className="flex flex-wrap gap-2">
@@ -118,7 +133,6 @@ export default async function ForwardingPage({
             </div>
           </div>
 
-          {/* Месяцы */}
           <div>
             <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2">Месяц</div>
             <div className="flex flex-wrap gap-1.5 md:gap-2">
@@ -150,24 +164,30 @@ export default async function ForwardingPage({
         </div>
 
         {/* Итоги */}
-        <div className="grid gap-3 md:gap-4 grid-cols-1 sm:grid-cols-3">
+        <div className="grid gap-3 md:gap-5 grid-cols-2 md:grid-cols-4">
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-5">
             <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">
               Доход от клиентов
             </div>
-            <div className="text-xl md:text-2xl font-bold text-green-600">{totalClient.toFixed(2)} €</div>
+            <div className="text-lg md:text-2xl font-bold text-green-600 break-words">{totalClient.toFixed(2)} €</div>
           </div>
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-5">
             <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">
-              Оплата подрядчикам
+              Подрядчикам
             </div>
-            <div className="text-xl md:text-2xl font-bold text-red-500">{totalContractor.toFixed(2)} €</div>
+            <div className="text-lg md:text-2xl font-bold text-red-500 break-words">{totalContractor.toFixed(2)} €</div>
+          </div>
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-5">
+            <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">
+              Доп. расходы
+            </div>
+            <div className="text-lg md:text-2xl font-bold text-orange-600 break-words">{totalExpenses.toFixed(2)} €</div>
           </div>
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-5">
             <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">
               Наша маржа
             </div>
-            <div className={`text-xl md:text-2xl font-bold ${totalMargin >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+            <div className={`text-lg md:text-2xl font-bold break-words ${totalMargin >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
               {totalMargin.toFixed(2)} €
             </div>
           </div>
@@ -190,7 +210,8 @@ export default async function ForwardingPage({
             {/* Mobile: карточки */}
             <div className="md:hidden space-y-3">
               {orders.map((o) => {
-                const margin = (o.client_price_eur || 0) - (o.contractor_price_eur || 0);
+                const expenses = expensesByOrder[o.id] || 0;
+                const margin = (o.client_price_eur || 0) - (o.contractor_price_eur || 0) - expenses;
                 const clientName = pickName(o.clients) || '—';
                 const contractorName = pickName(o.contractors) || '—';
 
@@ -201,7 +222,6 @@ export default async function ForwardingPage({
                     className="block bg-white rounded-2xl border border-slate-100 shadow-sm
                                hover:shadow-lg hover:border-blue-200 transition-all active:scale-[0.99] overflow-hidden"
                   >
-                    {/* Заголовок */}
                     <div className="p-4 border-b border-slate-100">
                       <div className="flex items-start justify-between gap-2 mb-1">
                         <div className="text-sm font-bold text-blue-600">
@@ -217,7 +237,6 @@ export default async function ForwardingPage({
                       </div>
                     </div>
 
-                    {/* Участники + маршрут */}
                     <div className="p-4 space-y-3">
                       <div className="flex items-start gap-2">
                         <span className="text-base shrink-0">🤝</span>
@@ -246,25 +265,32 @@ export default async function ForwardingPage({
                       </div>
                     </div>
 
-                    {/* Экономика */}
                     <div className="p-4 pt-3 border-t border-slate-100 bg-slate-50/40">
-                      <div className="grid grid-cols-3 gap-2 text-xs">
+                      <div className={`grid ${expenses > 0 ? 'grid-cols-4' : 'grid-cols-3'} gap-2 text-xs`}>
                         <div>
                           <div className="text-[10px] uppercase text-slate-400 font-medium">Клиент</div>
                           <div className="text-sm font-bold text-green-600 break-words">
-                            {(o.client_price_eur || 0).toFixed(2)} €
+                            {(o.client_price_eur || 0).toFixed(0)} €
                           </div>
                         </div>
                         <div>
-                          <div className="text-[10px] uppercase text-slate-400 font-medium">Подрядчик</div>
+                          <div className="text-[10px] uppercase text-slate-400 font-medium">Подряд.</div>
                           <div className="text-sm font-bold text-red-500 break-words">
-                            {(o.contractor_price_eur || 0).toFixed(2)} €
+                            {(o.contractor_price_eur || 0).toFixed(0)} €
                           </div>
                         </div>
+                        {expenses > 0 && (
+                          <div>
+                            <div className="text-[10px] uppercase text-slate-400 font-medium">Расх.</div>
+                            <div className="text-sm font-bold text-orange-600 break-words">
+                              −{expenses.toFixed(0)} €
+                            </div>
+                          </div>
+                        )}
                         <div>
                           <div className="text-[10px] uppercase text-slate-400 font-medium">Маржа</div>
                           <div className={`text-sm font-bold break-words ${margin >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                            {margin.toFixed(2)} €
+                            {margin.toFixed(0)} €
                           </div>
                         </div>
                       </div>
@@ -286,14 +312,16 @@ export default async function ForwardingPage({
                       <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase">Подрядчик</th>
                       <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase">Маршрут</th>
                       <th className="text-right py-3 px-4 text-xs font-semibold text-slate-500 uppercase">Клиент €</th>
-                      <th className="text-right py-3 px-4 text-xs font-semibold text-slate-500 uppercase">Подрядчик €</th>
+                      <th className="text-right py-3 px-4 text-xs font-semibold text-slate-500 uppercase">Подряд. €</th>
+                      <th className="text-right py-3 px-4 text-xs font-semibold text-slate-500 uppercase">Расходы</th>
                       <th className="text-right py-3 px-4 text-xs font-semibold text-slate-500 uppercase">Маржа</th>
                       <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase">Статус</th>
                     </tr>
                   </thead>
                   <tbody>
                     {orders.map((o) => {
-                      const margin = (o.client_price_eur || 0) - (o.contractor_price_eur || 0);
+                      const expenses = expensesByOrder[o.id] || 0;
+                      const margin = (o.client_price_eur || 0) - (o.contractor_price_eur || 0) - expenses;
                       const clientName = pickName(o.clients) || '—';
                       const contractorName = pickName(o.contractors) || '—';
                       return (
@@ -306,12 +334,8 @@ export default async function ForwardingPage({
                           <td className="py-3 px-4 text-sm text-slate-600 whitespace-nowrap">
                             {o.load_date ? new Date(o.load_date).toLocaleDateString('ru-RU') : '—'}
                           </td>
-                          <td className="py-3 px-4 text-sm text-slate-800 font-medium">
-                            {clientName}
-                          </td>
-                          <td className="py-3 px-4 text-sm text-slate-600">
-                            {contractorName}
-                          </td>
+                          <td className="py-3 px-4 text-sm text-slate-800 font-medium">{clientName}</td>
+                          <td className="py-3 px-4 text-sm text-slate-600">{contractorName}</td>
                           <td className="py-3 px-4 text-sm text-slate-600 max-w-[250px] truncate">
                             {o.route_from || o.route_to
                               ? `${o.route_from || '?'} → ${o.route_to || '?'}`
@@ -322,6 +346,9 @@ export default async function ForwardingPage({
                           </td>
                           <td className="py-3 px-4 text-right text-sm font-medium text-red-500 whitespace-nowrap">
                             {(o.contractor_price_eur || 0).toFixed(2)}
+                          </td>
+                          <td className="py-3 px-4 text-right text-sm font-medium text-orange-600 whitespace-nowrap">
+                            {expenses > 0 ? `−${expenses.toFixed(2)}` : '—'}
                           </td>
                           <td className={`py-3 px-4 text-right text-sm font-bold whitespace-nowrap ${margin >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                             {margin.toFixed(2)} €
