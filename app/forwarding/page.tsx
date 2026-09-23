@@ -46,7 +46,7 @@ export default async function ForwardingPage({
 
   let query = supabase
     .from('forwarding_orders')
-    .select('*, clients(name), contractors(name)')
+    .select('*, clients(name)')
     .order('load_date', { ascending: false });
 
   if (month > 0) {
@@ -65,8 +65,33 @@ export default async function ForwardingPage({
     return <div className="p-8 text-red-500">Ошибка загрузки: {error.message}</div>;
   }
 
-  // Загружаем расходы для всех заявок
   const orderIds = orders?.map((o) => o.id) || [];
+
+  // Сумма подрядчиков по каждой заявке (из новой таблицы)
+  let contractorsByOrder: Record<string, number> = {};
+  // Список имён подрядчиков по заявке (для показа)
+  let contractorNamesByOrder: Record<string, string[]> = {};
+
+  if (orderIds.length > 0) {
+    const { data: allContractors } = await supabase
+      .from('forwarding_contractors')
+      .select('forwarding_id, price_eur, contractors(name)')
+      .in('forwarding_id', orderIds);
+
+    allContractors?.forEach((c) => {
+      if (!c.forwarding_id) return;
+      contractorsByOrder[c.forwarding_id] =
+        (contractorsByOrder[c.forwarding_id] || 0) + (c.price_eur || 0);
+
+      const cName = pickName(c.contractors);
+      if (cName) {
+        if (!contractorNamesByOrder[c.forwarding_id]) contractorNamesByOrder[c.forwarding_id] = [];
+        contractorNamesByOrder[c.forwarding_id].push(cName);
+      }
+    });
+  }
+
+  // Сумма расходов по заявкам
   let expensesByOrder: Record<string, number> = {};
   if (orderIds.length > 0) {
     const { data: allExp } = await supabase
@@ -81,7 +106,7 @@ export default async function ForwardingPage({
   }
 
   const totalClient = orders?.reduce((sum, o) => sum + (o.client_price_eur || 0), 0) || 0;
-  const totalContractor = orders?.reduce((sum, o) => sum + (o.contractor_price_eur || 0), 0) || 0;
+  const totalContractor = Object.values(contractorsByOrder).reduce((s, v) => s + v, 0);
   const totalExpenses = Object.values(expensesByOrder).reduce((s, v) => s + v, 0);
   const totalMargin = totalClient - totalContractor - totalExpenses;
 
@@ -100,7 +125,7 @@ export default async function ForwardingPage({
         <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:justify-between sm:items-center">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-slate-900">📦 Экспедирование</h1>
-            <p className="text-slate-500 mt-1 text-sm md:text-base">Перепродажа грузов: клиент → подрядчик</p>
+            <p className="text-slate-500 mt-1 text-sm md:text-base">Перепродажа грузов: клиент → подрядчики</p>
           </div>
           <a
             href="/forwarding/new"
@@ -210,10 +235,12 @@ export default async function ForwardingPage({
             {/* Mobile: карточки */}
             <div className="md:hidden space-y-3">
               {orders.map((o) => {
-                const expenses = expensesByOrder[o.id] || 0;
-                const margin = (o.client_price_eur || 0) - (o.contractor_price_eur || 0) - expenses;
+                const cSum = contractorsByOrder[o.id] || 0;
+                const expSum = expensesByOrder[o.id] || 0;
+                const margin = (o.client_price_eur || 0) - cSum - expSum;
                 const clientName = pickName(o.clients) || '—';
-                const contractorName = pickName(o.contractors) || '—';
+                const cNames = contractorNamesByOrder[o.id] || [];
+                const contractorsCount = cNames.length;
 
                 return (
                   <a
@@ -258,8 +285,16 @@ export default async function ForwardingPage({
                       <div className="flex items-start gap-2">
                         <span className="text-base shrink-0">🚛</span>
                         <div className="min-w-0">
-                          <div className="text-[10px] uppercase tracking-wide text-slate-400 font-medium">Подрядчик</div>
-                          <div className="text-sm text-slate-700 break-words">{contractorName}</div>
+                          <div className="text-[10px] uppercase tracking-wide text-slate-400 font-medium">
+                            Подрядчики {contractorsCount > 0 && `(${contractorsCount})`}
+                          </div>
+                          <div className="text-sm text-slate-700 break-words">
+                            {contractorsCount === 0
+                              ? '—'
+                              : contractorsCount === 1
+                                ? cNames[0]
+                                : cNames.join(' · ')}
+                          </div>
                         </div>
                       </div>
                       <div className="flex items-start gap-2">
@@ -276,7 +311,7 @@ export default async function ForwardingPage({
                     </div>
 
                     <div className="p-4 pt-3 border-t border-slate-100 bg-slate-50/40">
-                      <div className={`grid ${expenses > 0 ? 'grid-cols-4' : 'grid-cols-3'} gap-2 text-xs`}>
+                      <div className={`grid ${expSum > 0 ? 'grid-cols-4' : 'grid-cols-3'} gap-2 text-xs`}>
                         <div>
                           <div className="text-[10px] uppercase text-slate-400 font-medium">Клиент</div>
                           <div className="text-sm font-bold text-green-600 break-words">
@@ -286,14 +321,14 @@ export default async function ForwardingPage({
                         <div>
                           <div className="text-[10px] uppercase text-slate-400 font-medium">Подряд.</div>
                           <div className="text-sm font-bold text-red-500 break-words">
-                            {(o.contractor_price_eur || 0).toFixed(0)} €
+                            {cSum > 0 ? `−${cSum.toFixed(0)} €` : '—'}
                           </div>
                         </div>
-                        {expenses > 0 && (
+                        {expSum > 0 && (
                           <div>
                             <div className="text-[10px] uppercase text-slate-400 font-medium">Расх.</div>
                             <div className="text-sm font-bold text-orange-600 break-words">
-                              −{expenses.toFixed(0)} €
+                              −{expSum.toFixed(0)} €
                             </div>
                           </div>
                         )}
@@ -320,7 +355,7 @@ export default async function ForwardingPage({
                       <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase">Дата</th>
                       <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase">Клиент</th>
                       <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase">Заявка</th>
-                      <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase">Подрядчик</th>
+                      <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase">Подрядчики</th>
                       <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase">Маршрут</th>
                       <th className="text-right py-3 px-4 text-xs font-semibold text-slate-500 uppercase">Клиент €</th>
                       <th className="text-right py-3 px-4 text-xs font-semibold text-slate-500 uppercase">Подряд. €</th>
@@ -331,10 +366,18 @@ export default async function ForwardingPage({
                   </thead>
                   <tbody>
                     {orders.map((o) => {
-                      const expenses = expensesByOrder[o.id] || 0;
-                      const margin = (o.client_price_eur || 0) - (o.contractor_price_eur || 0) - expenses;
+                      const cSum = contractorsByOrder[o.id] || 0;
+                      const expSum = expensesByOrder[o.id] || 0;
+                      const margin = (o.client_price_eur || 0) - cSum - expSum;
                       const clientName = pickName(o.clients) || '—';
-                      const contractorName = pickName(o.contractors) || '—';
+                      const cNames = contractorNamesByOrder[o.id] || [];
+                      const contractorsDisplay =
+                        cNames.length === 0
+                          ? '—'
+                          : cNames.length === 1
+                            ? cNames[0]
+                            : `${cNames[0]} +${cNames.length - 1}`;
+
                       return (
                         <tr key={o.id} className="border-b border-slate-50 hover:bg-slate-50/40 transition-colors">
                           <td className="py-3 px-4">
@@ -360,8 +403,10 @@ export default async function ForwardingPage({
                               <span className="text-slate-300">—</span>
                             )}
                           </td>
-                          <td className="py-3 px-4 text-sm text-slate-600">{contractorName}</td>
-                          <td className="py-3 px-4 text-sm text-slate-600 max-w-[250px] truncate">
+                          <td className="py-3 px-4 text-sm text-slate-600 max-w-[200px] truncate" title={cNames.join(', ')}>
+                            {contractorsDisplay}
+                          </td>
+                          <td className="py-3 px-4 text-sm text-slate-600 max-w-[200px] truncate">
                             {o.route_from || o.route_to
                               ? `${o.route_from || '?'} → ${o.route_to || '?'}`
                               : '—'}
@@ -370,10 +415,10 @@ export default async function ForwardingPage({
                             {(o.client_price_eur || 0).toFixed(2)}
                           </td>
                           <td className="py-3 px-4 text-right text-sm font-medium text-red-500 whitespace-nowrap">
-                            {(o.contractor_price_eur || 0).toFixed(2)}
+                            {cSum > 0 ? `−${cSum.toFixed(2)}` : '—'}
                           </td>
                           <td className="py-3 px-4 text-right text-sm font-medium text-orange-600 whitespace-nowrap">
-                            {expenses > 0 ? `−${expenses.toFixed(2)}` : '—'}
+                            {expSum > 0 ? `−${expSum.toFixed(2)}` : '—'}
                           </td>
                           <td className={`py-3 px-4 text-right text-sm font-bold whitespace-nowrap ${margin >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                             {margin.toFixed(2)} €
