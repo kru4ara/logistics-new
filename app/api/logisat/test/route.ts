@@ -33,8 +33,27 @@ export async function GET(request: NextRequest) {
 
     const data = await res.json();
 
-    // Возвращаем только первые 3 кадра + мета-инфо
-    const positions = Array.isArray(data) ? data : (data.positionList || data.history || []);
+    // Пробуем разные варианты структуры
+    let positions: any[] = [];
+    if (Array.isArray(data)) {
+      positions = data;
+    } else if (Array.isArray(data.positionList)) {
+      positions = data.positionList;
+    } else if (Array.isArray(data.history)) {
+      positions = data.history;
+    } else if (Array.isArray(data.historyList)) {
+      positions = data.historyList;
+    } else {
+      // Неизвестная структура — вернём как есть (первые 500 символов)
+      return NextResponse.json({
+        success: true,
+        deviceId,
+        rawType: typeof data,
+        rawKeys: typeof data === 'object' && data !== null ? Object.keys(data) : null,
+        rawSample: JSON.stringify(data).slice(0, 500),
+      });
+    }
+
     const first = positions[0];
     const last = positions[positions.length - 1];
 
@@ -44,13 +63,13 @@ export async function GET(request: NextRequest) {
       fromTs: twoHoursAgo,
       toTs: now,
       framesCount: positions.length,
+      sampleKeys: first ? Object.keys(first) : [],
       firstFrame: first,
       lastFrame: last,
       totaldistance_first: first?.totaldistance,
       totaldistance_last: last?.totaldistance,
       totalfuel_first: first?.totalfuel,
       totalfuel_last: last?.totalfuel,
-      sampleKeys: first ? Object.keys(first) : [],
     });
   } catch (err) {
     return NextResponse.json(
