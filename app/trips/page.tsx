@@ -299,6 +299,13 @@ export default async function TripsPage({ searchParams }: { searchParams: { year
                               </span>
                             </div>
 
+                            {/* Заявка клиента */}
+                            {trip.client_request_number && (
+                              <div className="text-xs text-slate-500 mb-2 break-words">
+                                📄 Заявка: <b className="text-slate-700">{trip.client_request_number}</b>
+                              </div>
+                            )}
+
                             {/* Маршрут */}
                             <div className="flex items-start gap-2 text-sm text-slate-600 mb-2">
                               <span className="shrink-0">🛣</span>
