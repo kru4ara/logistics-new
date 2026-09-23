@@ -37,8 +37,43 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
   // ============================================================
   const { data: forwarding } = await supabase
     .from('forwarding_orders')
-    .select('id, client_price_eur, contractor_price_eur, load_date, unload_date, status');
+    .select('id, client_price_eur, load_date, unload_date, status');
 
+  const forwardingIds = forwarding?.map((f) => f.id) || [];
+
+  // Подрядчики экспедиций
+  let contractorsByForwarding: Record<string, number> = {};
+  if (forwardingIds.length > 0) {
+    const { data: allContractors } = await supabase
+      .from('forwarding_contractors')
+      .select('forwarding_id, price_eur')
+      .in('forwarding_id', forwardingIds);
+
+    allContractors?.forEach((c) => {
+      if (!c.forwarding_id) return;
+      contractorsByForwarding[c.forwarding_id] =
+        (contractorsByForwarding[c.forwarding_id] || 0) + (c.price_eur || 0);
+    });
+  }
+
+  // Доп. расходы экспедиций
+  let expensesByForwarding: Record<string, number> = {};
+  if (forwardingIds.length > 0) {
+    const { data: allFExp } = await supabase
+      .from('forwarding_expenses')
+      .select('forwarding_id, amount_eur')
+      .in('forwarding_id', forwardingIds);
+
+    allFExp?.forEach((e) => {
+      if (!e.forwarding_id) return;
+      expensesByForwarding[e.forwarding_id] =
+        (expensesByForwarding[e.forwarding_id] || 0) + (e.amount_eur || 0);
+    });
+  }
+
+  // ============================================================
+  // Логика: рейс → месяц окончания
+  // ============================================================
   function getTripMonthKey(trip: any): string | null {
     const date = trip.end_date || trip.start_date;
     if (!date) return null;
@@ -63,6 +98,7 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
     directExpensesByMonth[mk] = sum;
   });
 
+  // Годовые расходы → растягиваем на 12 месяцев
   const fixedCostsByMonth: Record<string, number> = {};
   fixedCosts?.forEach((fc) => {
     const amount = fc.amount_eur || 0;
@@ -85,6 +121,7 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
     }
   });
 
+  // Экспедиции → месяц загрузки
   function getForwardingMonthKey(f: any): string | null {
     const date = f.load_date || f.unload_date;
     if (!date) return null;
@@ -100,6 +137,9 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
     forwardingByMonth[mk].push(f);
   });
 
+  // ============================================================
+  // Сборка по месяцам
+  // ============================================================
   const months = [];
   for (let m = 1; m <= 12; m++) {
     const monthKey = `${year}-${String(m).padStart(2, '0')}`;
@@ -112,13 +152,20 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
     const monthForwarding = forwardingByMonth[monthKey] || [];
     const forwardingCount = monthForwarding.length;
     const forwardingClientSum = monthForwarding.reduce((sum, f) => sum + (f.client_price_eur || 0), 0);
-    const forwardingContractorSum = monthForwarding.reduce((sum, f) => sum + (f.contractor_price_eur || 0), 0);
-    const forwardingMargin = forwardingClientSum - forwardingContractorSum;
+    const forwardingContractorSum = monthForwarding.reduce(
+      (sum, f) => sum + (contractorsByForwarding[f.id] || 0),
+      0
+    );
+    const forwardingExtraExpenses = monthForwarding.reduce(
+      (sum, f) => sum + (expensesByForwarding[f.id] || 0),
+      0
+    );
+    const forwardingMargin = forwardingClientSum - forwardingContractorSum - forwardingExtraExpenses;
 
     const fixedExpenses = fixedCostsByMonth[monthKey] || 0;
 
     const totalIncome = tripRevenue + forwardingClientSum;
-    const totalExpenses = directExpenses + forwardingContractorSum + fixedExpenses;
+    const totalExpenses = directExpenses + forwardingContractorSum + forwardingExtraExpenses + fixedExpenses;
     const profit = totalIncome - totalExpenses;
     const margin = totalIncome > 0 ? (profit / totalIncome) * 100 : 0;
 
@@ -127,7 +174,7 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
       monthName: new Date(year, m - 1, 1).toLocaleDateString('ru-RU', { month: 'long' }),
       monthKey,
       tripsCount, tripRevenue, directExpenses,
-      forwardingCount, forwardingClientSum, forwardingContractorSum, forwardingMargin,
+      forwardingCount, forwardingClientSum, forwardingContractorSum, forwardingExtraExpenses, forwardingMargin,
       fixedExpenses, totalIncome, totalExpenses, profit, margin,
     });
   }
@@ -140,6 +187,7 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
       forwardingCount: acc.forwardingCount + m.forwardingCount,
       forwardingClientSum: acc.forwardingClientSum + m.forwardingClientSum,
       forwardingContractorSum: acc.forwardingContractorSum + m.forwardingContractorSum,
+      forwardingExtraExpenses: acc.forwardingExtraExpenses + m.forwardingExtraExpenses,
       forwardingMargin: acc.forwardingMargin + m.forwardingMargin,
       fixedExpenses: acc.fixedExpenses + m.fixedExpenses,
       totalIncome: acc.totalIncome + m.totalIncome,
@@ -148,7 +196,7 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
     }),
     {
       tripsCount: 0, tripRevenue: 0, directExpenses: 0,
-      forwardingCount: 0, forwardingClientSum: 0, forwardingContractorSum: 0, forwardingMargin: 0,
+      forwardingCount: 0, forwardingClientSum: 0, forwardingContractorSum: 0, forwardingExtraExpenses: 0, forwardingMargin: 0,
       fixedExpenses: 0, totalIncome: 0, totalExpenses: 0, profit: 0,
     }
   );
@@ -166,7 +214,6 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
     <main className="min-h-screen bg-slate-50">
       <div className="max-w-[1600px] mx-auto px-4 md:px-6 py-6 md:py-8 space-y-5 md:space-y-6">
 
-        {/* Заголовок */}
         <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-between sm:items-center">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-slate-900">📊 Статистика</h1>
@@ -226,7 +273,7 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
               </div>
               <div className="text-xl md:text-3xl font-bold text-red-500 break-words">{yearTotals.totalExpenses.toFixed(0)} €</div>
               <div className="text-[10px] md:text-xs text-slate-400 mt-1 break-words">
-                Рейсы: {(yearTotals.directExpenses + yearTotals.fixedExpenses).toFixed(0)} · Подряд.: {yearTotals.forwardingContractorSum.toFixed(0)}
+                Рейсы: {(yearTotals.directExpenses + yearTotals.fixedExpenses).toFixed(0)} · Эксп.: {(yearTotals.forwardingContractorSum + yearTotals.forwardingExtraExpenses).toFixed(0)}
               </div>
             </div>
 
@@ -282,13 +329,19 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
                 <span className="font-bold text-slate-800">{yearTotals.forwardingCount}</span>
               </div>
               <div className="flex justify-between items-center gap-2">
-                <span className="text-slate-600">Доход</span>
+                <span className="text-slate-600">Доход от клиентов</span>
                 <span className="font-bold text-green-600 break-words text-right">{yearTotals.forwardingClientSum.toFixed(0)} €</span>
               </div>
               <div className="flex justify-between items-center gap-2">
                 <span className="text-slate-600">Подрядчикам</span>
                 <span className="font-bold text-red-500 break-words text-right">−{yearTotals.forwardingContractorSum.toFixed(0)} €</span>
               </div>
+              {yearTotals.forwardingExtraExpenses > 0 && (
+                <div className="flex justify-between items-center gap-2">
+                  <span className="text-slate-600">Доп. расходы</span>
+                  <span className="font-bold text-orange-600 break-words text-right">−{yearTotals.forwardingExtraExpenses.toFixed(0)} €</span>
+                </div>
+              )}
               <div className="flex justify-between items-center gap-2 pt-3 border-t border-slate-100">
                 <span className="text-slate-700 font-semibold">Маржа</span>
                 <span className={`font-bold break-words text-right ${yearTotals.forwardingMargin >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
@@ -324,7 +377,6 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
                     ${isCurrentMonth ? 'border-blue-300 bg-blue-50/40' :
                       isFuture ? 'border-slate-100 opacity-60' : 'border-slate-100'}`}
                 >
-                  {/* Заголовок */}
                   <div className="flex items-center gap-2 mb-3">
                     <span className={`font-bold capitalize ${isFuture ? 'text-slate-400' : 'text-slate-900'}`}>
                       {m.monthName}
@@ -336,7 +388,6 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
                     )}
                   </div>
 
-                  {/* Доходы */}
                   <div className="space-y-1.5 text-xs mb-3">
                     <div className="flex justify-between items-center gap-2">
                       <span className="text-slate-500">🚛 Рейсов</span>
@@ -355,12 +406,11 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
                     <div className="flex justify-between items-center gap-2">
                       <span className="text-slate-500">Маржа эксп.</span>
                       <span className="font-semibold text-emerald-600 break-words text-right">
-                        {m.forwardingMargin > 0 ? `${m.forwardingMargin.toFixed(0)} €` : '—'}
+                        {m.forwardingMargin !== 0 ? `${m.forwardingMargin.toFixed(0)} €` : '—'}
                       </span>
                     </div>
                   </div>
 
-                  {/* Расходы и итог */}
                   <div className="pt-3 border-t border-slate-100 space-y-1.5 text-xs">
                     <div className="flex justify-between items-center gap-2">
                       <span className="text-slate-500">Прямые / Общие</span>
@@ -399,7 +449,6 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
               );
             })}
 
-            {/* Итого мобильный */}
             <div className="bg-slate-100 rounded-2xl border-2 border-slate-200 p-4">
               <div className="font-bold text-slate-900 mb-3">ИТОГО за {year}</div>
               <div className="space-y-1.5 text-xs">
@@ -493,7 +542,7 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
                           {m.forwardingCount > 0 ? m.forwardingCount : '—'}
                         </td>
                         <td className={`px-4 py-4 text-right font-semibold ${isFuture ? 'text-slate-400' : 'text-emerald-600'}`}>
-                          {m.forwardingMargin > 0 ? `${m.forwardingMargin.toFixed(0)} €` : '—'}
+                          {m.forwardingMargin !== 0 ? `${m.forwardingMargin.toFixed(0)} €` : '—'}
                         </td>
                         <td className={`px-4 py-4 text-right ${isFuture ? 'text-slate-400' : 'text-slate-600'}`}>
                           {m.directExpenses > 0 ? `${m.directExpenses.toFixed(0)} €` : '—'}
@@ -548,8 +597,8 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
         <div className="text-xs text-slate-500 bg-white rounded-xl border border-slate-100 p-4 space-y-1">
           <div><b>Рейс относится к месяцу окончания.</b> Экспедиция — к месяцу загрузки.</div>
           <div><b>Годовые расходы</b> делятся на 12 месяцев.</div>
-          <div><b>Прибыль</b> = Фрахт + Доход экспедиций − Прямые − Подрядчики − Общие.</div>
-          <div><b>Маржа</b> = Прибыль ÷ Общий доход × 100%.</div>
+          <div><b>Маржа экспедиции</b> = Клиент − Подрядчики − Доп. расходы.</div>
+          <div><b>Прибыль</b> = Фрахт + Доход экспедиций − Все расходы.</div>
         </div>
 
       </div>
