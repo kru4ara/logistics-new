@@ -13,9 +13,7 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
   const currentYear = new Date().getFullYear();
   const year = parseInt(searchParams?.year || String(currentYear));
 
-  // ============================================================
   // РЕЙСЫ
-  // ============================================================
   const { data: trips } = await supabase
     .from('trips')
     .select('id, revenue_eur, start_date, end_date, status');
@@ -32,16 +30,13 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
     .from('fixed_costs')
     .select('amount_eur, month_key, cost_type, expense_date');
 
-  // ============================================================
   // ЭКСПЕДИРОВАНИЕ
-  // ============================================================
   const { data: forwarding } = await supabase
     .from('forwarding_orders')
     .select('id, client_price_eur, load_date, unload_date, status');
 
   const forwardingIds = forwarding?.map((f) => f.id) || [];
 
-  // Подрядчики экспедиций
   let contractorsByForwarding: Record<string, number> = {};
   if (forwardingIds.length > 0) {
     const { data: allContractors } = await supabase
@@ -56,7 +51,6 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
     });
   }
 
-  // Доп. расходы экспедиций
   let expensesByForwarding: Record<string, number> = {};
   if (forwardingIds.length > 0) {
     const { data: allFExp } = await supabase
@@ -71,9 +65,7 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
     });
   }
 
-  // ============================================================
   // Логика: рейс → месяц окончания
-  // ============================================================
   function getTripMonthKey(trip: any): string | null {
     const date = trip.end_date || trip.start_date;
     if (!date) return null;
@@ -98,7 +90,6 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
     directExpensesByMonth[mk] = sum;
   });
 
-  // Годовые расходы → растягиваем на 12 месяцев
   const fixedCostsByMonth: Record<string, number> = {};
   fixedCosts?.forEach((fc) => {
     const amount = fc.amount_eur || 0;
@@ -121,7 +112,6 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
     }
   });
 
-  // Экспедиции → месяц загрузки
   function getForwardingMonthKey(f: any): string | null {
     const date = f.load_date || f.unload_date;
     if (!date) return null;
@@ -137,9 +127,6 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
     forwardingByMonth[mk].push(f);
   });
 
-  // ============================================================
-  // Сборка по месяцам
-  // ============================================================
   const months = [];
   for (let m = 1; m <= 12; m++) {
     const monthKey = `${year}-${String(m).padStart(2, '0')}`;
@@ -257,7 +244,7 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
 
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-6">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs md:text-sm font-medium text-slate-500">Доход</span>
+                <span className="text-xs md:text-sm font-medium text-slate-500">Общий доход</span>
                 <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-green-50 flex items-center justify-center text-base md:text-xl">💵</div>
               </div>
               <div className="text-xl md:text-3xl font-bold text-green-600 break-words">{yearTotals.totalIncome.toFixed(0)} €</div>
@@ -268,7 +255,7 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
 
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-6">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs md:text-sm font-medium text-slate-500">Расходы</span>
+                <span className="text-xs md:text-sm font-medium text-slate-500">Общие расходы</span>
                 <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-red-50 flex items-center justify-center text-base md:text-xl">📉</div>
               </div>
               <div className="text-xl md:text-3xl font-bold text-red-500 break-words">{yearTotals.totalExpenses.toFixed(0)} €</div>
@@ -279,7 +266,7 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
 
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-6">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs md:text-sm font-medium text-slate-500">Прибыль</span>
+                <span className="text-xs md:text-sm font-medium text-slate-500">Чистая прибыль</span>
                 <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-base md:text-xl">📈</div>
               </div>
               <div className={`text-xl md:text-3xl font-bold break-words ${yearTotals.profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
@@ -292,7 +279,7 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
           </div>
         </div>
 
-        {/* РАЗБИВКА */}
+        {/* РАЗБИВКА ПО НАПРАВЛЕНИЯМ */}
         <div className="grid gap-5 lg:grid-cols-2">
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
             <h3 className="text-xs md:text-sm font-bold text-slate-500 uppercase tracking-wide mb-4">🚛 Рейсы (за год)</h3>
@@ -302,7 +289,7 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
                 <span className="font-bold text-slate-800">{yearTotals.tripsCount}</span>
               </div>
               <div className="flex justify-between items-center gap-2">
-                <span className="text-slate-600">Фрахт</span>
+                <span className="text-slate-600">Фрахт (доход)</span>
                 <span className="font-bold text-green-600 break-words text-right">{yearTotals.tripRevenue.toFixed(0)} €</span>
               </div>
               <div className="flex justify-between items-center gap-2">
@@ -310,7 +297,7 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
                 <span className="font-bold text-red-500 break-words text-right">−{yearTotals.directExpenses.toFixed(0)} €</span>
               </div>
               <div className="flex justify-between items-center gap-2 pt-3 border-t border-slate-100">
-                <span className="text-slate-700 font-semibold">Прибыль</span>
+                <span className="text-slate-700 font-semibold">Прибыль рейсов</span>
                 <span className={`font-bold break-words text-right ${tripProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                   {tripProfit.toFixed(0)} €
                 </span>
@@ -343,7 +330,7 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
                 </div>
               )}
               <div className="flex justify-between items-center gap-2 pt-3 border-t border-slate-100">
-                <span className="text-slate-700 font-semibold">Маржа</span>
+                <span className="text-slate-700 font-semibold">Маржа экспедиций</span>
                 <span className={`font-bold break-words text-right ${yearTotals.forwardingMargin >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                   {yearTotals.forwardingMargin.toFixed(0)} €
                 </span>
@@ -402,6 +389,12 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
                     <div className="flex justify-between items-center gap-2">
                       <span className="text-slate-500">📦 Эксп.</span>
                       <span className="font-semibold text-slate-700">{m.forwardingCount || '—'}</span>
+                    </div>
+                    <div className="flex justify-between items-center gap-2">
+                      <span className="text-slate-500">Доход эксп.</span>
+                      <span className="font-semibold text-green-600 break-words text-right">
+                        {m.forwardingClientSum > 0 ? `${m.forwardingClientSum.toFixed(0)} €` : '—'}
+                      </span>
                     </div>
                     <div className="flex justify-between items-center gap-2">
                       <span className="text-slate-500">Маржа эксп.</span>
@@ -465,6 +458,10 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
                   <span className="font-bold text-slate-900">{yearTotals.forwardingCount}</span>
                 </div>
                 <div className="flex justify-between items-center gap-2">
+                  <span className="text-slate-600">Доход эксп.</span>
+                  <span className="font-bold text-green-600 break-words text-right">{yearTotals.forwardingClientSum.toFixed(0)} €</span>
+                </div>
+                <div className="flex justify-between items-center gap-2">
                   <span className="text-slate-600">Маржа эксп.</span>
                   <span className="font-bold text-emerald-600 break-words text-right">{yearTotals.forwardingMargin.toFixed(0)} €</span>
                 </div>
@@ -491,13 +488,14 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
           {/* Desktop: таблица */}
           <div className="hidden md:block bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[1200px]">
+              <table className="w-full min-w-[1300px]">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50/50">
                     <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Месяц</th>
                     <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">🚛 Рейсов</th>
                     <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Фрахт</th>
                     <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">📦 Эксп.</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Доход эксп.</th>
                     <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Маржа эксп.</th>
                     <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Прямые</th>
                     <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Общие</th>
@@ -541,6 +539,9 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
                         <td className={`px-4 py-4 text-center font-semibold ${isFuture ? 'text-slate-400' : 'text-slate-700'}`}>
                           {m.forwardingCount > 0 ? m.forwardingCount : '—'}
                         </td>
+                        <td className={`px-4 py-4 text-right font-semibold ${isFuture ? 'text-slate-400' : 'text-green-600'}`}>
+                          {m.forwardingClientSum > 0 ? `${m.forwardingClientSum.toFixed(0)} €` : '—'}
+                        </td>
                         <td className={`px-4 py-4 text-right font-semibold ${isFuture ? 'text-slate-400' : 'text-emerald-600'}`}>
                           {m.forwardingMargin !== 0 ? `${m.forwardingMargin.toFixed(0)} €` : '—'}
                         </td>
@@ -577,6 +578,7 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
                     <td className="px-4 py-4 text-center font-bold text-slate-900">{yearTotals.tripsCount}</td>
                     <td className="px-4 py-4 text-right font-bold text-green-600">{yearTotals.tripRevenue.toFixed(0)} €</td>
                     <td className="px-4 py-4 text-center font-bold text-slate-900">{yearTotals.forwardingCount}</td>
+                    <td className="px-4 py-4 text-right font-bold text-green-600">{yearTotals.forwardingClientSum.toFixed(0)} €</td>
                     <td className="px-4 py-4 text-right font-bold text-emerald-600">{yearTotals.forwardingMargin.toFixed(0)} €</td>
                     <td className="px-4 py-4 text-right font-bold text-slate-700">{yearTotals.directExpenses.toFixed(0)} €</td>
                     <td className="px-4 py-4 text-right font-bold text-slate-700">{yearTotals.fixedExpenses.toFixed(0)} €</td>
@@ -597,8 +599,10 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
         <div className="text-xs text-slate-500 bg-white rounded-xl border border-slate-100 p-4 space-y-1">
           <div><b>Рейс относится к месяцу окончания.</b> Экспедиция — к месяцу загрузки.</div>
           <div><b>Годовые расходы</b> делятся на 12 месяцев.</div>
-          <div><b>Маржа экспедиции</b> = Клиент − Подрядчики − Доп. расходы.</div>
-          <div><b>Прибыль</b> = Фрахт + Доход экспедиций − Все расходы.</div>
+          <div><b>Доход эксп.</b> = сумма, которую заплатили клиенты за экспедиции.</div>
+          <div><b>Маржа эксп.</b> = Доход эксп. − Подрядчики − Доп. расходы.</div>
+          <div><b>Прибыль</b> = Фрахт + Доход эксп. − Всего расходов.</div>
+          <div><b>Маржа %</b> = Прибыль ÷ Общий доход × 100%.</div>
         </div>
 
       </div>
