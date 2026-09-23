@@ -15,31 +15,31 @@ export default async function NewForwardingPage() {
   const { data: contractors } = await supabase.from('contractors').select('id, name').order('name');
 
   const inputClass =
-    'w-full rounded-lg border border-slate-300 px-3 py-2.5 text-slate-900 ' +
+    'w-full rounded-lg border border-slate-300 px-3 py-2.5 text-base text-slate-900 ' +
     'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-150';
   const labelClass = 'block text-sm font-medium text-slate-700 mb-1';
-  const sectionClass = 'bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-4';
-  const sectionTitleClass = 'text-lg font-bold text-slate-900 mb-2 flex items-center gap-2';
+  const sectionClass = 'bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-6 space-y-4';
+  const sectionTitleClass = 'text-base md:text-lg font-bold text-slate-900 mb-2 flex items-center gap-2';
 
   return (
     <main className="min-h-screen bg-slate-50">
-      <div className="max-w-[900px] mx-auto px-6 py-8 space-y-6">
+      <div className="max-w-[900px] mx-auto px-4 md:px-6 py-6 md:py-8 space-y-5 md:space-y-6">
 
         <a href="/forwarding" className="inline-flex items-center gap-2 text-slate-600 hover:text-blue-600 transition-colors text-sm font-medium">
           ← Все заявки
         </a>
 
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">➕ Новая заявка экспедирования</h1>
-          <p className="text-slate-500 mt-1">Перепродажа груза: клиент → подрядчик</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-slate-900">➕ Новая заявка экспедирования</h1>
+          <p className="text-slate-500 mt-1 text-sm md:text-base">Перепродажа груза: клиент → подрядчик</p>
         </div>
 
-        <form action={createForwarding} className="space-y-6">
+        <form action={createForwarding} className="space-y-4 md:space-y-6">
 
-          {/* КТО И КОМУ */}
+          {/* УЧАСТНИКИ */}
           <div className={sectionClass}>
             <h2 className={sectionTitleClass}>🤝 Участники</h2>
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
               <div>
                 <label className={labelClass}>Клиент (заказчик) *</label>
                 <select name="client_id" required className={inputClass}>
@@ -67,10 +67,34 @@ export default async function NewForwardingPage() {
             )}
           </div>
 
+          {/* ЗАЯВКА КЛИЕНТА */}
+          <div className={sectionClass}>
+            <h2 className={sectionTitleClass}>📄 Заявка клиента</h2>
+            <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
+              <div>
+                <label className={labelClass}>Номер заявки</label>
+                <input
+                  type="text"
+                  name="client_request_number"
+                  placeholder="ZAM-2026-001"
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Дата заявки</label>
+                <input
+                  type="date"
+                  name="client_request_date"
+                  className={inputClass}
+                />
+              </div>
+            </div>
+          </div>
+
           {/* ЭКОНОМИКА */}
           <div className={sectionClass}>
             <h2 className={sectionTitleClass}>💰 Экономика</h2>
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-3">
               <div>
                 <label className={labelClass}>Валюта</label>
                 <select name="currency" className={inputClass} defaultValue="EUR">
@@ -88,14 +112,14 @@ export default async function NewForwardingPage() {
               </div>
             </div>
             <p className="text-xs text-slate-500">
-              Маржа = разница. Если валюта PLN — автоматически сконвертируется в EUR по курсу на дату загрузки.
+              Маржа = разница. Если валюта PLN — сконвертируется в EUR по курсу на дату загрузки.
             </p>
           </div>
 
           {/* МАРШРУТ */}
           <div className={sectionClass}>
             <h2 className={sectionTitleClass}>📍 Маршрут</h2>
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
               <div>
                 <label className={labelClass}>Откуда</label>
                 <input type="text" name="route_from" placeholder="Варшава, Польша" className={inputClass} />
@@ -122,7 +146,7 @@ export default async function NewForwardingPage() {
           {/* СТАТУС И ЗАМЕТКИ */}
           <div className={sectionClass}>
             <h2 className={sectionTitleClass}>📋 Статус</h2>
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
               <div>
                 <label className={labelClass}>Статус</label>
                 <select name="status" className={inputClass} defaultValue="planned">
@@ -141,21 +165,24 @@ export default async function NewForwardingPage() {
           </div>
 
           {/* КНОПКИ */}
-          <div className="flex gap-3">
-            <button
-              type="submit"
-              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl
-                         shadow-md shadow-blue-600/20 transition-all duration-150 active:scale-[0.98]"
-            >
-              ✅ Создать заявку
-            </button>
+          <div className="flex flex-col-reverse sm:flex-row gap-3 sticky bottom-3 sm:static
+                          bg-slate-50/95 sm:bg-transparent backdrop-blur-sm sm:backdrop-blur-none
+                          -mx-4 px-4 sm:mx-0 sm:px-0 py-3 sm:py-0
+                          border-t sm:border-0 border-slate-200">
             <a
               href="/forwarding"
-              className="px-6 py-3 rounded-xl border border-slate-300 text-slate-700 font-semibold
+              className="w-full sm:w-auto text-center px-6 py-3 rounded-xl border border-slate-300 text-slate-700 font-semibold
                          hover:bg-slate-100 transition-all duration-150"
             >
               Отмена
             </a>
+            <button
+              type="submit"
+              className="w-full sm:flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl
+                         shadow-md shadow-blue-600/20 transition-all duration-150 active:scale-[0.98]"
+            >
+              ✅ Создать заявку
+            </button>
           </div>
 
         </form>
