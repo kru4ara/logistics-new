@@ -75,6 +75,10 @@ export async function createForwarding(formData: FormData) {
   const notes = (formData.get('notes') as string)?.trim() || null;
   const status = (formData.get('status') as string) || 'planned';
 
+  // НОВОЕ
+  const clientRequestNumber = (formData.get('client_request_number') as string)?.trim() || null;
+  const clientRequestDate = (formData.get('client_request_date') as string) || null;
+
   const dateForRate = loadDate || new Date().toISOString().split('T')[0];
 
   const clientPriceEur = await toEur(supabase, clientPrice, currency, dateForRate);
@@ -99,6 +103,8 @@ export async function createForwarding(formData: FormData) {
       cargo_description: cargoDescription,
       status,
       notes,
+      client_request_number: clientRequestNumber,
+      client_request_date: clientRequestDate,
     }]);
 
   if (error) throw new Error(`Ошибка создания: ${error.message}`);
@@ -125,6 +131,10 @@ export async function updateForwarding(orderId: string, formData: FormData) {
   const notes = (formData.get('notes') as string)?.trim() || null;
   const status = (formData.get('status') as string) || 'planned';
 
+  // НОВОЕ
+  const clientRequestNumber = (formData.get('client_request_number') as string)?.trim() || null;
+  const clientRequestDate = (formData.get('client_request_date') as string) || null;
+
   const dateForRate = loadDate || new Date().toISOString().split('T')[0];
 
   const clientPriceEur = await toEur(supabase, clientPrice, currency, dateForRate);
@@ -147,6 +157,8 @@ export async function updateForwarding(orderId: string, formData: FormData) {
       cargo_description: cargoDescription,
       status,
       notes,
+      client_request_number: clientRequestNumber,
+      client_request_date: clientRequestDate,
     })
     .eq('id', orderId);
 
