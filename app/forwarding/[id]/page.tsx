@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../../lib/supabase-server';
 import { deleteForwarding } from '../actions';
+import { addForwardingExpense, deleteForwardingExpense } from '../expense-actions';
 import ForwardingStatusButtons from './ForwardingStatusButtons';
 
 export const dynamic = 'force-dynamic';
@@ -21,6 +22,27 @@ const statusColors: Record<string, string> = {
   invoiced: 'bg-yellow-50 text-yellow-700 border-yellow-200',
   paid: 'bg-emerald-50 text-emerald-700 border-emerald-200',
 };
+
+const expenseCategories: { value: string; label: string }[] = [
+  { value: 'fuel', label: '⛽ Топливо' },
+  { value: 'epi', label: '📄 EPI' },
+  { value: 'etoll', label: '🛣 e-TOLL' },
+  { value: 'border', label: '🛂 Граница' },
+  { value: 'permit', label: '📋 Дозвол' },
+  { value: 'tlc', label: '🏭 ТЛЦ' },
+  { value: 'waiting', label: '⏳ Зона ожидания' },
+  { value: 'repair', label: '🔧 Ремонт' },
+  { value: 'parking', label: '🅿️ Паркинг' },
+  { value: 'disinfection', label: '🧴 Дезинфекция' },
+  { value: 'ex1', label: '🧾 ЕХ-1' },
+  { value: 'otkat', label: '🔄 Откат' },
+  { value: 'gps_seal', label: '📡 GPS пломба' },
+  { value: 'other', label: '📌 Другое' },
+];
+
+function categoryLabel(cat: string): string {
+  return expenseCategories.find((c) => c.value === cat)?.label || cat;
+}
 
 function pickName(rel: unknown): string | undefined {
   if (!rel) return undefined;
@@ -58,9 +80,19 @@ export default async function ForwardingDetailPage({ params }: { params: Promise
     return <div className="p-8 text-red-500">Заявка не найдена</div>;
   }
 
+  // Загружаем расходы
+  const { data: expenses } = await supabase
+    .from('forwarding_expenses')
+    .select('*')
+    .eq('forwarding_id', id)
+    .order('expense_date', { ascending: false });
+
   const clientPrice = order.client_price_eur || 0;
   const contractorPrice = order.contractor_price_eur || 0;
-  const margin = clientPrice - contractorPrice;
+  const totalExpenses = expenses?.reduce((sum, e) => sum + (e.amount_eur || 0), 0) || 0;
+
+  // МАРЖА С УЧЁТОМ РАСХОДОВ
+  const margin = clientPrice - contractorPrice - totalExpenses;
   const marginPct = clientPrice > 0 ? (margin / clientPrice) * 100 : 0;
 
   const originalCurrency = order.original_currency || 'EUR';
@@ -71,6 +103,10 @@ export default async function ForwardingDetailPage({ params }: { params: Promise
   const clientPhone = pickField(order.clients, 'phone');
   const contractorName = pickName(order.contractors) || '—';
   const contractorPhone = pickField(order.contractors, 'phone');
+
+  const inputClass = "w-full rounded-lg border border-slate-300 px-3 py-2.5 text-base text-slate-900 " +
+    "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all";
+  const labelClass = "block text-sm font-medium text-slate-700 mb-1";
 
   return (
     <main className="min-h-screen bg-slate-50">
@@ -127,7 +163,9 @@ export default async function ForwardingDetailPage({ params }: { params: Promise
         {/* Экономика */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
           <h2 className="text-lg font-bold text-slate-900 mb-4">💰 Экономика</h2>
-          <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
+
+          {/* Верхняя строка: Клиент + Подрядчик */}
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 mb-4">
             <div>
               <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Клиент платит</div>
               <div className="text-xl md:text-2xl font-bold text-green-600 break-words">{clientPrice.toFixed(2)} €</div>
@@ -146,12 +184,28 @@ export default async function ForwardingDetailPage({ params }: { params: Promise
                 </div>
               )}
             </div>
-            <div>
-              <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Наша маржа</div>
-              <div className={`text-xl md:text-2xl font-bold break-words ${margin >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+          </div>
+
+          {/* Доп. расходы */}
+          {totalExpenses > 0 && (
+            <div className="mb-4 pt-3 border-t border-slate-100">
+              <div className="flex justify-between items-center">
+                <div className="text-xs uppercase tracking-wide text-slate-400 font-medium">Доп. расходы</div>
+                <div className="text-lg font-bold text-orange-600">−{totalExpenses.toFixed(2)} €</div>
+              </div>
+            </div>
+          )}
+
+          {/* Маржа */}
+          <div className="pt-3 border-t-2 border-slate-200">
+            <div className="flex justify-between items-baseline gap-3">
+              <div className="text-sm uppercase tracking-wide text-slate-500 font-bold">Наша маржа</div>
+              <div className={`text-2xl md:text-3xl font-bold break-words ${margin >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                 {margin.toFixed(2)} €
               </div>
-              <div className="text-xs text-slate-400 mt-1">{marginPct.toFixed(1)}% от суммы клиента</div>
+            </div>
+            <div className="text-xs text-slate-400 mt-1 text-right">
+              {marginPct.toFixed(1)}% от суммы клиента
             </div>
           </div>
         </div>
@@ -215,6 +269,113 @@ export default async function ForwardingDetailPage({ params }: { params: Promise
               </div>
             )}
           </div>
+        </div>
+
+        {/* Расходы */}
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
+          <h2 className="text-lg font-bold text-slate-900 mb-4">💸 Расходы по заявке</h2>
+
+          {(!expenses || expenses.length === 0) ? (
+            <div className="text-center py-6 text-slate-400 text-sm">Пока нет расходов</div>
+          ) : (
+            <div className="space-y-2">
+              {expenses.map((exp) => (
+                <div key={exp.id} className="border border-slate-100 rounded-xl p-3 bg-slate-50/40">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="font-semibold text-slate-800 text-sm flex-1 min-w-0 truncate">
+                      {categoryLabel(exp.category)}
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="text-xs text-slate-400">
+                        {exp.original_amount} {exp.currency}
+                      </div>
+                      <div className="font-bold text-red-500 text-sm">
+                        {exp.amount_eur.toFixed(2)} €
+                      </div>
+                    </div>
+                  </div>
+                  {exp.description && (
+                    <div className="text-xs text-slate-600 mb-2 break-words">
+                      {exp.description}
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200/60">
+                    <span className="text-xs text-slate-400">
+                      📅 {exp.expense_date ? new Date(exp.expense_date).toLocaleDateString('ru-RU') : '—'}
+                    </span>
+                    <form action={async () => {
+                      'use server';
+                      await deleteForwardingExpense(exp.id, id);
+                    }}>
+                      <button
+                        type="submit"
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50 text-xs font-medium px-3 py-1 rounded-lg transition-colors"
+                      >
+                        🗑 Удалить
+                      </button>
+                    </form>
+                  </div>
+                </div>
+              ))}
+
+              {/* Итого расходов */}
+              <div className="pt-3 border-t-2 border-slate-200 flex justify-between items-center">
+                <span className="text-sm font-semibold text-slate-700">Итого расходов</span>
+                <span className="text-lg font-bold text-orange-600">{totalExpenses.toFixed(2)} €</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Добавить расход */}
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
+          <h2 className="text-lg font-bold text-slate-900 mb-4">➕ Добавить расход</h2>
+          <form action={addForwardingExpense} className="space-y-4">
+            <input type="hidden" name="forwarding_id" value={id} />
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label className={labelClass}>Категория</label>
+                <select name="category" required className={inputClass}>
+                  {expenseCategories.map((c) => (
+                    <option key={c.value} value={c.value}>{c.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className={labelClass}>Валюта</label>
+                <select name="currency" className={inputClass}>
+                  <option value="EUR">EUR</option>
+                  <option value="PLN">PLN</option>
+                  <option value="BYN">BYN</option>
+                </select>
+              </div>
+
+              <div>
+                <label className={labelClass}>Сумма</label>
+                <input type="number" name="amount" step="0.01" required className={inputClass} />
+              </div>
+
+              <div>
+                <label className={labelClass}>Дата</label>
+                <input type="date" name="expense_date" className={inputClass} />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className={labelClass}>Описание</label>
+                <input type="text" name="description" placeholder="Комментарий" className={inputClass} />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl
+                         shadow-md shadow-blue-600/20 transition-all duration-150 active:scale-[0.98]"
+            >
+              ✅ Добавить расход
+            </button>
+          </form>
         </div>
 
         {/* Заметки */}
