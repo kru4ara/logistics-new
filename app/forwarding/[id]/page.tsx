@@ -72,7 +72,7 @@ export default async function ForwardingDetailPage({ params }: { params: Promise
 
   const { data: order, error } = await supabase
     .from('forwarding_orders')
-    .select('*, clients(name, contact_person, phone), contractors(name, phone)')
+    .select('*, clients(name, contact_person, phone)')
     .eq('id', id)
     .single();
 
@@ -87,12 +87,19 @@ export default async function ForwardingDetailPage({ params }: { params: Promise
     .eq('forwarding_id', id)
     .order('expense_date', { ascending: false });
 
+  // Загружаем подрядчиков (с join на contractors)
+  const { data: contractorsList } = await supabase
+    .from('forwarding_contractors')
+    .select('*, contractors(name, phone)')
+    .eq('forwarding_id', id)
+    .order('position');
+
   const clientPrice = order.client_price_eur || 0;
-  const contractorPrice = order.contractor_price_eur || 0;
+  const totalContractors = contractorsList?.reduce((sum, c) => sum + (c.price_eur || 0), 0) || 0;
   const totalExpenses = expenses?.reduce((sum, e) => sum + (e.amount_eur || 0), 0) || 0;
 
-  // МАРЖА С УЧЁТОМ РАСХОДОВ
-  const margin = clientPrice - contractorPrice - totalExpenses;
+  // МАРЖА С УЧЁТОМ ВСЕХ ПОДРЯДЧИКОВ И РАСХОДОВ
+  const margin = clientPrice - totalContractors - totalExpenses;
   const marginPct = clientPrice > 0 ? (margin / clientPrice) * 100 : 0;
 
   const originalCurrency = order.original_currency || 'EUR';
@@ -101,8 +108,6 @@ export default async function ForwardingDetailPage({ params }: { params: Promise
   const clientName = pickName(order.clients) || '—';
   const clientContact = pickField(order.clients, 'contact_person');
   const clientPhone = pickField(order.clients, 'phone');
-  const contractorName = pickName(order.contractors) || '—';
-  const contractorPhone = pickField(order.contractors, 'phone');
 
   const inputClass = "w-full rounded-lg border border-slate-300 px-3 py-2.5 text-base text-slate-900 " +
     "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all";
@@ -174,31 +179,32 @@ export default async function ForwardingDetailPage({ params }: { params: Promise
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
           <h2 className="text-lg font-bold text-slate-900 mb-4">💰 Экономика</h2>
 
-          {/* Верхняя строка: Клиент + Подрядчик */}
-          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 mb-4">
-            <div>
-              <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Клиент платит</div>
-              <div className="text-xl md:text-2xl font-bold text-green-600 break-words">{clientPrice.toFixed(2)} €</div>
-              {showOriginal && (
-                <div className="text-xs text-slate-400 mt-1">
-                  ({order.original_client_price?.toFixed(2)} {originalCurrency})
-                </div>
-              )}
-            </div>
-            <div>
-              <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Подрядчику</div>
-              <div className="text-xl md:text-2xl font-bold text-red-500 break-words">{contractorPrice.toFixed(2)} €</div>
-              {showOriginal && (
-                <div className="text-xs text-slate-400 mt-1">
-                  ({order.original_contractor_price?.toFixed(2)} {originalCurrency})
-                </div>
-              )}
-            </div>
+          {/* Клиент */}
+          <div className="mb-4">
+            <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Клиент платит</div>
+            <div className="text-xl md:text-2xl font-bold text-green-600 break-words">{clientPrice.toFixed(2)} €</div>
+            {showOriginal && (
+              <div className="text-xs text-slate-400 mt-1">
+                ({order.original_client_price?.toFixed(2)} {originalCurrency})
+              </div>
+            )}
           </div>
 
-          {/* Доп. расходы */}
+          {/* Подрядчики */}
+          {totalContractors > 0 && (
+            <div className="mb-3 pt-3 border-t border-slate-100">
+              <div className="flex justify-between items-center">
+                <div className="text-xs uppercase tracking-wide text-slate-400 font-medium">
+                  Подрядчики ({contractorsList?.length || 0})
+                </div>
+                <div className="text-lg font-bold text-red-500">−{totalContractors.toFixed(2)} €</div>
+              </div>
+            </div>
+          )}
+
+          {/* Расходы */}
           {totalExpenses > 0 && (
-            <div className="mb-4 pt-3 border-t border-slate-100">
+            <div className="mb-3 pt-3 border-t border-slate-100">
               <div className="flex justify-between items-center">
                 <div className="text-xs uppercase tracking-wide text-slate-400 font-medium">Доп. расходы</div>
                 <div className="text-lg font-bold text-orange-600">−{totalExpenses.toFixed(2)} €</div>
@@ -220,32 +226,82 @@ export default async function ForwardingDetailPage({ params }: { params: Promise
           </div>
         </div>
 
-        {/* Участники */}
+        {/* Клиент */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
-          <h2 className="text-lg font-bold text-slate-900 mb-4">🤝 Участники</h2>
-          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
-            <div className="border-l-4 border-green-500 pl-4 py-1">
-              <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-1">Клиент (заказчик)</div>
-              <div className="font-bold text-slate-900 break-words">{clientName}</div>
-              {clientContact && (
-                <div className="text-sm text-slate-600 mt-1">👤 {clientContact}</div>
-              )}
-              {clientPhone && (
-                <div className="text-sm text-slate-600 mt-1">
-                  📞 <a href={`tel:${clientPhone}`} className="hover:text-blue-600">{clientPhone}</a>
-                </div>
-              )}
-            </div>
-            <div className="border-l-4 border-red-500 pl-4 py-1">
-              <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-1">Подрядчик (перевозчик)</div>
-              <div className="font-bold text-slate-900 break-words">{contractorName}</div>
-              {contractorPhone && (
-                <div className="text-sm text-slate-600 mt-1">
-                  📞 <a href={`tel:${contractorPhone}`} className="hover:text-blue-600">{contractorPhone}</a>
-                </div>
-              )}
-            </div>
+          <h2 className="text-lg font-bold text-slate-900 mb-4">🤝 Клиент</h2>
+          <div className="border-l-4 border-green-500 pl-4 py-1">
+            <div className="font-bold text-slate-900 break-words">{clientName}</div>
+            {clientContact && (
+              <div className="text-sm text-slate-600 mt-1">👤 {clientContact}</div>
+            )}
+            {clientPhone && (
+              <div className="text-sm text-slate-600 mt-1">
+                📞 <a href={`tel:${clientPhone}`} className="hover:text-blue-600">{clientPhone}</a>
+              </div>
+            )}
           </div>
+        </div>
+
+        {/* Подрядчики */}
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
+          <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+            🚛 Подрядчики
+            {contractorsList && contractorsList.length > 0 && (
+              <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">
+                {contractorsList.length}
+              </span>
+            )}
+          </h2>
+
+          {(!contractorsList || contractorsList.length === 0) ? (
+            <div className="text-center py-6 text-slate-400 text-sm">
+              Подрядчики не указаны.{' '}
+              <a href={`/forwarding/${id}/edit`} className="text-blue-600 hover:underline">
+                Добавить
+              </a>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {contractorsList.map((c, idx) => {
+                const cName = pickName(c.contractors) || '—';
+                const cPhone = pickField(c.contractors, 'phone');
+                const showOrig = (c.currency || 'EUR') !== 'EUR';
+
+                return (
+                  <div key={c.id} className="border-l-4 border-red-500 pl-4 py-2">
+                    <div className="flex flex-wrap items-baseline gap-2 mb-1">
+                      <span className="text-xs font-bold text-red-700 bg-red-50 px-2 py-0.5 rounded">
+                        #{idx + 1}
+                      </span>
+                      <div className="font-bold text-slate-900 break-words">{cName}</div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                      <div className="text-red-500 font-semibold">
+                        {c.price_eur?.toFixed(2)} €
+                      </div>
+                      {showOrig && (
+                        <div className="text-xs text-slate-400">
+                          ({c.original_price?.toFixed(2)} {c.currency})
+                        </div>
+                      )}
+                      {cPhone && (
+                        <a href={`tel:${cPhone}`} className="text-slate-600 hover:text-blue-600 text-xs">
+                          📞 {cPhone}
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {contractorsList.length > 1 && (
+                <div className="pt-3 border-t-2 border-slate-200 flex justify-between items-center">
+                  <span className="text-sm font-semibold text-slate-700">Итого подрядчикам</span>
+                  <span className="text-lg font-bold text-red-500">{totalContractors.toFixed(2)} €</span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Маршрут */}
@@ -283,7 +339,7 @@ export default async function ForwardingDetailPage({ params }: { params: Promise
 
         {/* Расходы */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
-          <h2 className="text-lg font-bold text-slate-900 mb-4">💸 Расходы по заявке</h2>
+          <h2 className="text-lg font-bold text-slate-900 mb-4">💸 Доп. расходы</h2>
 
           {(!expenses || expenses.length === 0) ? (
             <div className="text-center py-6 text-slate-400 text-sm">Пока нет расходов</div>
@@ -299,7 +355,7 @@ export default async function ForwardingDetailPage({ params }: { params: Promise
                       <div className="text-xs text-slate-400">
                         {exp.original_amount} {exp.currency}
                       </div>
-                      <div className="font-bold text-red-500 text-sm">
+                      <div className="font-bold text-orange-600 text-sm">
                         {exp.amount_eur.toFixed(2)} €
                       </div>
                     </div>
@@ -328,7 +384,6 @@ export default async function ForwardingDetailPage({ params }: { params: Promise
                 </div>
               ))}
 
-              {/* Итого расходов */}
               <div className="pt-3 border-t-2 border-slate-200 flex justify-between items-center">
                 <span className="text-sm font-semibold text-slate-700">Итого расходов</span>
                 <span className="text-lg font-bold text-orange-600">{totalExpenses.toFixed(2)} €</span>
