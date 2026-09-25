@@ -20,7 +20,8 @@ export default async function FixedCostsPage() {
   const { data: costs, error } = await supabase
     .from('fixed_costs')
     .select('*')
-    .order('month_key', { ascending: false });
+    .order('month_key', { ascending: false })
+    .order('expense_date', { ascending: false });
 
   if (error) {
     return <div className="p-8 text-red-500">Ошибка загрузки: {error.message}</div>;
@@ -43,6 +44,20 @@ export default async function FixedCostsPage() {
     }
     costsByMonth[c.month_key].items.push(c);
     costsByMonth[c.month_key].total += c.amount_eur || 0;
+  });
+
+  // Сортируем записи ВНУТРИ каждого месяца по expense_date DESC (свежие вверху)
+  Object.values(costsByMonth).forEach((group) => {
+    group.items.sort((a, b) => {
+      const da = a.expense_date ? new Date(a.expense_date).getTime() : 0;
+      const db = b.expense_date ? new Date(b.expense_date).getTime() : 0;
+      if (db !== da) return db - da;
+
+      // Если даты равны — по created_at DESC
+      const ca = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const cb = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return cb - ca;
+    });
   });
 
   const months: MonthGroup[] = Object.values(costsByMonth);
@@ -136,7 +151,6 @@ export default async function FixedCostsPage() {
                     const curr = c.currency || 'PLN';
                     return (
                       <div key={c.id} className="p-4 space-y-2">
-                        {/* Категория + сумма */}
                         <div className="flex justify-between items-start gap-2">
                           <div className="min-w-0 flex-1">
                             <div className="font-semibold text-slate-800 break-words">
@@ -156,7 +170,6 @@ export default async function FixedCostsPage() {
                           </div>
                         </div>
 
-                        {/* Тип */}
                         {t && (
                           <div>
                             <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold border ${t.color}`}>
@@ -165,7 +178,6 @@ export default async function FixedCostsPage() {
                           </div>
                         )}
 
-                        {/* Кнопки */}
                         <div className="flex gap-2 pt-2 border-t border-slate-100">
                           <a
                             href={`/fixed-costs/${c.id}/edit`}
