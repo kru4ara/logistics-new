@@ -61,7 +61,6 @@ export default async function Home() {
 
   const forwardingIds = forwarding?.map((f) => f.id) || [];
 
-  // Подрядчики экспедиций
   let contractorsByForwarding: Record<string, number> = {};
   if (forwardingIds.length > 0) {
     const { data: allContractors } = await supabase
@@ -76,7 +75,6 @@ export default async function Home() {
     });
   }
 
-  // Доп. расходы экспедиций
   let expensesByForwarding: Record<string, number> = {};
   if (forwardingIds.length > 0) {
     const { data: allFExp } = await supabase
@@ -92,7 +90,14 @@ export default async function Home() {
   }
 
   // ============================================================
-  // ОБЩИЕ ИТОГИ
+  // ОБЩИЕ РАСХОДЫ (fixed_costs)
+  // ============================================================
+  const { data: fixedCosts } = await supabase
+    .from('fixed_costs')
+    .select('amount_eur, month_key, cost_type, expense_date');
+
+  // ============================================================
+  // ОБЩИЕ ИТОГИ (за всё время)
   // ============================================================
   const totalTripRevenue = trips?.reduce((sum, t) => sum + (t.revenue_eur || 0), 0) || 0;
   const totalTripExpenses = tripExpenses?.reduce((sum, e) => sum + (e.amount_eur || 0), 0) || 0;
@@ -103,8 +108,11 @@ export default async function Home() {
   const totalForwardingExpenses = Object.values(expensesByForwarding).reduce((s, v) => s + v, 0);
   const forwardingMarginTotal = totalForwardingClient - totalForwardingContractor - totalForwardingExpenses;
 
+  // За всё время — просто сумма всех fixed_costs (без размазывания)
+  const totalFixedCosts = fixedCosts?.reduce((sum, fc) => sum + (fc.amount_eur || 0), 0) || 0;
+
   const combinedIncome = totalTripRevenue + totalForwardingClient;
-  const combinedExpenses = totalTripExpenses + totalForwardingContractor + totalForwardingExpenses;
+  const combinedExpenses = totalTripExpenses + totalForwardingContractor + totalForwardingExpenses + totalFixedCosts;
   const combinedProfit = combinedIncome - combinedExpenses;
 
   // ============================================================
@@ -114,6 +122,7 @@ export default async function Home() {
   const currentMonth = now.getMonth();
   const currentYear = now.getFullYear();
   const monthName = now.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
+  const currentMonthKey = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
 
   const monthTrips = trips?.filter((t) => {
     if (!t.start_date) return false;
@@ -140,12 +149,44 @@ export default async function Home() {
     0
   );
 
+  // Фиксированные расходы за текущий месяц (с размазыванием годовых как в статистике)
+  let monthFixedCosts = 0;
+  fixedCosts?.forEach((fc) => {
+    const amount = fc.amount_eur || 0;
+    if (amount === 0) return;
+
+    if (fc.cost_type === 'yearly') {
+      let startDate: Date | null = null;
+      if (fc.expense_date) startDate = new Date(fc.expense_date);
+      else if (fc.month_key) startDate = new Date(fc.month_key + '-01');
+      if (!startDate) return;
+
+      const monthlyPart = amount / 12;
+      const currentDate = new Date(currentYear, currentMonth, 1);
+      const diffMonths =
+        (currentDate.getFullYear() - startDate.getFullYear()) * 12 +
+        (currentDate.getMonth() - startDate.getMonth());
+
+      if (diffMonths >= 0 && diffMonths < 12) {
+        monthFixedCosts += monthlyPart;
+      }
+    } else {
+      if (fc.month_key === currentMonthKey) {
+        monthFixedCosts += amount;
+      }
+    }
+  });
+
   const monthTotalIncome = monthTripRevenue + monthForwardingClient;
-  const monthTotalExpenses = monthTripExpenses + monthForwardingContractor + monthForwardingExpenses;
+  const monthTotalExpenses =
+    monthTripExpenses +
+    monthForwardingContractor +
+    monthForwardingExpenses +
+    monthFixedCosts;
   const monthTotalProfit = monthTotalIncome - monthTotalExpenses;
 
   // ============================================================
-  // ТОП-5 клиентов
+  // ТОП-5
   // ============================================================
   const clientStats: Record<string, { name: string; revenue: number; count: number }> = {};
   trips?.forEach((t) => {
@@ -164,9 +205,6 @@ export default async function Home() {
   });
   const topClients = Object.values(clientStats).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
 
-  // ============================================================
-  // ТОП-5 маршрутов
-  // ============================================================
   const routeStats: Record<string, { route: string; revenue: number; count: number }> = {};
   trips?.forEach((t) => {
     if (!t.route) return;
@@ -196,7 +234,6 @@ export default async function Home() {
     <main className="min-h-screen bg-slate-50">
       <div className="max-w-[1600px] mx-auto px-4 md:px-6 py-6 md:py-8 space-y-6 md:space-y-8">
 
-        {/* Приветствие */}
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-slate-900 break-words">Привет, {userName} 👋</h1>
           <p className="text-slate-500 mt-1 text-sm md:text-base">Обзор вашей логистики за {monthName}</p>
@@ -239,7 +276,7 @@ export default async function Home() {
               </div>
               <div className="text-xl md:text-2xl font-bold text-red-500 break-words">{monthTotalExpenses.toFixed(0)} €</div>
               <div className="text-[10px] md:text-xs text-slate-400 mt-1 break-words">
-                Рейсы: {monthTripExpenses.toFixed(0)} · Эксп.: {(monthForwardingContractor + monthForwardingExpenses).toFixed(0)}
+                Рейсы: {monthTripExpenses.toFixed(0)} · Эксп.: {(monthForwardingContractor + monthForwardingExpenses).toFixed(0)} · Фикс.: {monthFixedCosts.toFixed(0)}
               </div>
             </div>
 
@@ -269,6 +306,7 @@ export default async function Home() {
             <div className="bg-gradient-to-br from-red-500 to-red-700 rounded-2xl shadow-lg p-4 md:p-6 text-white">
               <div className="text-xs md:text-sm text-red-100">Общие расходы</div>
               <div className="text-xl md:text-3xl font-bold mt-2 break-words">{combinedExpenses.toFixed(0)} €</div>
+              <div className="text-[10px] md:text-xs text-red-200 mt-1">Прямые + Эксп. + Фикс.</div>
             </div>
             <div className="bg-gradient-to-br from-purple-600 to-purple-800 rounded-2xl shadow-lg p-4 md:p-6 text-white">
               <div className="text-xs md:text-sm text-purple-100">📦 Экспедирование</div>
@@ -279,7 +317,7 @@ export default async function Home() {
               <div className={`text-xs md:text-sm ${combinedProfit >= 0 ? 'text-blue-100' : 'text-red-100'}`}>Чистая прибыль</div>
               <div className="text-xl md:text-3xl font-bold mt-2 break-words">{combinedProfit.toFixed(0)} €</div>
               <div className="text-[10px] md:text-xs text-blue-200 mt-1 break-words">
-                🚛 {tripProfitTotal.toFixed(0)} € + 📦 {forwardingMarginTotal.toFixed(0)} €
+                🚛 {tripProfitTotal.toFixed(0)} € + 📦 {forwardingMarginTotal.toFixed(0)} € − 🏢 {totalFixedCosts.toFixed(0)} €
               </div>
             </div>
           </div>
@@ -290,9 +328,7 @@ export default async function Home() {
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
             <div className="p-4 md:p-5 border-b border-slate-100 flex justify-between items-center">
               <h2 className="text-base md:text-lg font-bold text-slate-900">🤝 Топ-5 клиентов</h2>
-              <a href="/clients" className="text-sm text-blue-600 hover:underline font-medium whitespace-nowrap">
-                Все →
-              </a>
+              <a href="/clients" className="text-sm text-blue-600 hover:underline font-medium whitespace-nowrap">Все →</a>
             </div>
             {topClients.length === 0 ? (
               <div className="p-8 md:p-10 text-center text-slate-400 text-sm">Пока нет данных</div>
@@ -308,15 +344,11 @@ export default async function Home() {
                       {i + 1}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="font-semibold text-slate-800 break-words text-sm md:text-base">
-                        {c.name}
-                      </div>
+                      <div className="font-semibold text-slate-800 break-words text-sm md:text-base">{c.name}</div>
                       <div className="text-xs text-slate-400">{c.count} сделок</div>
                     </div>
                     <div className="text-right shrink-0">
-                      <div className="font-bold text-green-600 text-sm md:text-base whitespace-nowrap">
-                        {c.revenue.toFixed(0)} €
-                      </div>
+                      <div className="font-bold text-green-600 text-sm md:text-base whitespace-nowrap">{c.revenue.toFixed(0)} €</div>
                     </div>
                   </div>
                 ))}
@@ -327,9 +359,7 @@ export default async function Home() {
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
             <div className="p-4 md:p-5 border-b border-slate-100 flex justify-between items-center">
               <h2 className="text-base md:text-lg font-bold text-slate-900">🛣 Топ-5 маршрутов</h2>
-              <a href="/routes" className="text-sm text-blue-600 hover:underline font-medium whitespace-nowrap">
-                Все →
-              </a>
+              <a href="/routes" className="text-sm text-blue-600 hover:underline font-medium whitespace-nowrap">Все →</a>
             </div>
             {topRoutes.length === 0 ? (
               <div className="p-8 md:p-10 text-center text-slate-400 text-sm">Пока нет данных</div>
@@ -345,15 +375,11 @@ export default async function Home() {
                       {i + 1}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="font-semibold text-slate-800 text-sm md:text-base break-words leading-snug">
-                        {r.route}
-                      </div>
+                      <div className="font-semibold text-slate-800 text-sm md:text-base break-words leading-snug">{r.route}</div>
                       <div className="text-xs text-slate-400 mt-0.5">{r.count} рейсов</div>
                     </div>
                     <div className="text-right shrink-0">
-                      <div className="font-bold text-green-600 text-sm md:text-base whitespace-nowrap">
-                        {r.revenue.toFixed(0)} €
-                      </div>
+                      <div className="font-bold text-green-600 text-sm md:text-base whitespace-nowrap">{r.revenue.toFixed(0)} €</div>
                     </div>
                   </div>
                 ))}
@@ -362,14 +388,12 @@ export default async function Home() {
           </div>
         </div>
 
-        {/* ПОСЛЕДНИЕ ЭКСПЕДИЦИИ — в стиле рейсов */}
+        {/* ПОСЛЕДНИЕ ЭКСПЕДИЦИИ */}
         {forwarding && forwarding.length > 0 && (
           <div>
             <div className="flex justify-between items-center mb-3 md:mb-4">
               <h2 className="text-base md:text-lg font-bold text-slate-900">📦 Последние экспедиции</h2>
-              <a href="/forwarding" className="text-sm text-blue-600 hover:underline font-medium whitespace-nowrap">
-                Все →
-              </a>
+              <a href="/forwarding" className="text-sm text-blue-600 hover:underline font-medium whitespace-nowrap">Все →</a>
             </div>
             <div className="grid gap-3 md:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
               {forwarding.slice(0, 4).map((f) => {
@@ -377,7 +401,6 @@ export default async function Home() {
                 const eSum = expensesByForwarding[f.id] || 0;
                 const margin = (f.client_price_eur || 0) - cSum - eSum;
                 const clientName = pickName(f.clients) || 'Не указан';
-
                 return (
                   <a
                     key={f.id}
@@ -389,9 +412,7 @@ export default async function Home() {
                     <div className="p-4 md:p-5">
                       <div className="flex items-start justify-between gap-2 mb-3">
                         <div className="min-w-0 flex-1">
-                          <div className="text-xs text-slate-400 font-medium">
-                            № {f.order_number || '—'}
-                          </div>
+                          <div className="text-xs text-slate-400 font-medium">№ {f.order_number || '—'}</div>
                           <div className="text-base font-bold text-slate-900 mt-0.5 break-words group-hover:text-blue-600 transition-colors">
                             {clientName}
                           </div>
@@ -401,13 +422,11 @@ export default async function Home() {
                           {statusLabels[f.status] || f.status}
                         </span>
                       </div>
-
                       {f.client_request_number && (
                         <div className="text-xs text-slate-500 mb-2 break-words">
                           📄 Заявка: <b className="text-slate-700">{f.client_request_number}</b>
                         </div>
                       )}
-
                       <div className="flex items-start gap-1 text-xs text-slate-500 mb-3">
                         <span className="shrink-0">🛣</span>
                         <span className="break-words">
@@ -416,7 +435,6 @@ export default async function Home() {
                             : '—'}
                         </span>
                       </div>
-
                       <div className="pt-3 border-t border-slate-100 flex justify-between items-center">
                         <span className="text-[10px] text-slate-400">
                           {f.load_date ? new Date(f.load_date).toLocaleDateString('ru-RU') : '—'}
@@ -437,9 +455,7 @@ export default async function Home() {
         <div>
           <div className="flex justify-between items-center mb-3 md:mb-4">
             <h2 className="text-base md:text-lg font-bold text-slate-900">🚛 Последние рейсы</h2>
-            <a href="/trips" className="text-sm text-blue-600 hover:underline font-medium whitespace-nowrap">
-              Все →
-            </a>
+            <a href="/trips" className="text-sm text-blue-600 hover:underline font-medium whitespace-nowrap">Все →</a>
           </div>
 
           {trips?.length === 0 ? (
@@ -471,12 +487,10 @@ export default async function Home() {
                           {statusLabels[trip.status] || trip.status}
                         </span>
                       </div>
-
                       <div className="flex items-start gap-1 text-xs text-slate-500 mb-3">
                         <span className="shrink-0">🛣</span>
                         <span className="break-words">{trip.route || '—'}</span>
                       </div>
-
                       <div className="pt-3 border-t border-slate-100 flex justify-between items-center">
                         <span className="text-[10px] text-slate-400">
                           {trip.start_date ? new Date(trip.start_date).toLocaleDateString('ru-RU') : '—'}
