@@ -19,18 +19,32 @@ type Order = {
   status: string | null;
   client_request_number: string | null;
   client_request_date: string | null;
+  transport_type: string | null;
+  cargo_type: string | null;
+  cargo_quantity: string | null;
+  customs_loading: string | null;
+  customs_unloading: string | null;
+  loading_reference: string | null;
 };
 
 type InitialContractor = {
   contractor_id: string | null;
   original_price: number | null;
   currency: string | null;
+  truck_number: string | null;
+  driver_name: string | null;
+  payment_days: number | null;
+  notes: string | null;
 };
 
 type ContractorEntry = {
   contractor_id: string;
   price: string;
   currency: string;
+  truck_number: string;
+  driver_name: string;
+  payment_days: string;
+  notes: string;
 };
 
 export default function EditForwardingForm({
@@ -52,21 +66,41 @@ export default function EditForwardingForm({
           contractor_id: c.contractor_id || '',
           price: c.original_price != null ? String(c.original_price) : '',
           currency: c.currency || 'EUR',
+          truck_number: c.truck_number || '',
+          driver_name: c.driver_name || '',
+          payment_days: c.payment_days != null ? String(c.payment_days) : '30',
+          notes: c.notes || '',
         }))
-      : [{ contractor_id: '', price: '', currency: 'EUR' }];
+      : [{
+          contractor_id: '',
+          price: '',
+          currency: 'EUR',
+          truck_number: '',
+          driver_name: '',
+          payment_days: '30',
+          notes: '',
+        }];
 
   const [items, setItems] = useState<ContractorEntry[]>(startItems);
 
   function addItem() {
     if (items.length >= 10) return;
-    setItems([...items, { contractor_id: '', price: '', currency: 'EUR' }]);
+    setItems([...items, {
+      contractor_id: '',
+      price: '',
+      currency: 'EUR',
+      truck_number: '',
+      driver_name: '',
+      payment_days: '30',
+      notes: '',
+    }]);
   }
 
   function removeItem(idx: number) {
     setItems(items.filter((_, i) => i !== idx));
   }
 
-  function updateItem(idx: number, field: keyof ContractorEntry, value: string) {
+  function updateItem<K extends keyof ContractorEntry>(idx: number, field: K, value: string) {
     setItems(items.map((it, i) => (i === idx ? { ...it, [field]: value } : it)));
   }
 
@@ -78,10 +112,7 @@ export default function EditForwardingForm({
   const sectionTitleClass = 'text-base md:text-lg font-bold text-slate-900 mb-2 flex items-center gap-2';
 
   const allEur = items.every((i) => i.currency === 'EUR');
-  const eurTotal = items.reduce(
-    (s, i) => s + (parseFloat(i.price) || 0),
-    0
-  );
+  const eurTotal = items.reduce((s, i) => s + (parseFloat(i.price) || 0), 0);
 
   return (
     <form action={updateForwarding.bind(null, orderId)} className="space-y-4 md:space-y-6">
@@ -110,7 +141,6 @@ export default function EditForwardingForm({
               type="text"
               name="client_request_number"
               defaultValue={order.client_request_number || ''}
-              placeholder="ZAM-2026-001"
               className={inputClass}
             />
           </div>
@@ -141,18 +171,12 @@ export default function EditForwardingForm({
           <div>
             <label className={labelClass}>Сумма от клиента *</label>
             <input
-              type="number"
-              name="client_price"
-              step="0.01"
-              required
+              type="number" name="client_price" step="0.01" required
               defaultValue={order.original_client_price || 0}
               className={inputClass}
             />
           </div>
         </div>
-        <p className="text-xs text-slate-500">
-          Изменение суммы или валюты пересчитает EUR по курсу на дату загрузки.
-        </p>
       </div>
 
       {/* ПОДРЯДЧИКИ */}
@@ -168,14 +192,9 @@ export default function EditForwardingForm({
 
         <div className="space-y-3">
           {items.map((item, idx) => (
-            <div
-              key={idx}
-              className="border border-slate-200 rounded-xl p-3 md:p-4 bg-slate-50/40 space-y-3"
-            >
+            <div key={idx} className="border border-slate-200 rounded-xl p-3 md:p-4 bg-slate-50/40 space-y-3">
               <div className="flex items-center justify-between gap-2">
-                <div className="text-sm font-semibold text-slate-700">
-                  Подрядчик #{idx + 1}
-                </div>
+                <div className="text-sm font-semibold text-slate-700">Подрядчик #{idx + 1}</div>
                 {items.length > 1 && (
                   <button
                     type="button"
@@ -191,8 +210,7 @@ export default function EditForwardingForm({
                 <div className="md:col-span-2">
                   <label className={labelClass}>Подрядчик *</label>
                   <select
-                    name={`contractor_${idx}_id`}
-                    required
+                    name={`contractor_${idx}_id`} required
                     value={item.contractor_id}
                     onChange={(e) => updateItem(idx, 'contractor_id', e.target.value)}
                     className={inputClass}
@@ -207,10 +225,7 @@ export default function EditForwardingForm({
                 <div>
                   <label className={labelClass}>Сумма *</label>
                   <input
-                    type="number"
-                    step="0.01"
-                    required
-                    placeholder="1500"
+                    type="number" step="0.01" required
                     value={item.price}
                     onChange={(e) => updateItem(idx, 'price', e.target.value)}
                     name={`contractor_${idx}_price`}
@@ -230,6 +245,53 @@ export default function EditForwardingForm({
                     <option value="PLN">PLN zł</option>
                     <option value="BYN">BYN Br</option>
                   </select>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className={labelClass}>№ машины</label>
+                  <input
+                    type="text"
+                    name={`contractor_${idx}_truck_number`}
+                    value={item.truck_number}
+                    onChange={(e) => updateItem(idx, 'truck_number', e.target.value)}
+                    placeholder="WSI42316 / WLS73FF"
+                    className={inputClass}
+                  />
+                </div>
+
+                <div>
+                  <label className={labelClass}>Водитель</label>
+                  <input
+                    type="text"
+                    name={`contractor_${idx}_driver_name`}
+                    value={item.driver_name}
+                    onChange={(e) => updateItem(idx, 'driver_name', e.target.value)}
+                    placeholder="Daniel Wojtczuk"
+                    className={inputClass}
+                  />
+                </div>
+
+                <div>
+                  <label className={labelClass}>Срок оплаты (дней)</label>
+                  <input
+                    type="number"
+                    name={`contractor_${idx}_payment_days`}
+                    value={item.payment_days}
+                    onChange={(e) => updateItem(idx, 'payment_days', e.target.value)}
+                    placeholder="30"
+                    className={inputClass}
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className={labelClass}>Заметки для этого подрядчика</label>
+                  <input
+                    type="text"
+                    name={`contractor_${idx}_notes`}
+                    value={item.notes}
+                    onChange={(e) => updateItem(idx, 'notes', e.target.value)}
+                    className={inputClass}
+                  />
                 </div>
               </div>
             </div>
@@ -254,11 +316,6 @@ export default function EditForwardingForm({
             <span className="text-lg font-bold text-red-500">{eurTotal.toFixed(2)} €</span>
           </div>
         )}
-        {!allEur && items.length > 0 && (
-          <div className="text-xs text-slate-500">
-            ℹ️ Валюты разные — итог в EUR посчитается на сервере по курсу.
-          </div>
-        )}
       </div>
 
       {/* МАРШРУТ */}
@@ -275,29 +332,77 @@ export default function EditForwardingForm({
           </div>
           <div>
             <label className={labelClass}>Дата загрузки *</label>
+            <input type="date" name="load_date" defaultValue={order.load_date || ''} required className={inputClass} />
+          </div>
+          <div>
+            <label className={labelClass}>Дата выгрузки</label>
+            <input type="date" name="unload_date" defaultValue={order.unload_date || ''} className={inputClass} />
+          </div>
+          <div className="md:col-span-2">
+            <label className={labelClass}>Reference loading</label>
             <input
-              type="date"
-              name="load_date"
-              defaultValue={order.load_date || ''}
-              required
+              type="text" name="loading_reference"
+              defaultValue={order.loading_reference || ''}
+              className={inputClass}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* ДЕТАЛИ ПЕРЕВОЗКИ */}
+      <div className={sectionClass}>
+        <h2 className={sectionTitleClass}>📦 Детали перевозки</h2>
+        <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
+          <div>
+            <label className={labelClass}>Тип транспорта</label>
+            <input
+              type="text" name="transport_type"
+              defaultValue={order.transport_type || ''}
+              placeholder="Chlodnia +15 LTL"
               className={inputClass}
             />
           </div>
           <div>
-            <label className={labelClass}>Дата выгрузки</label>
+            <label className={labelClass}>Тип груза</label>
             <input
-              type="date"
-              name="unload_date"
-              defaultValue={order.unload_date || ''}
+              type="text" name="cargo_type"
+              defaultValue={order.cargo_type || ''}
+              placeholder="Czekolady"
               className={inputClass}
             />
           </div>
-          <div className="md:col-span-2">
-            <label className={labelClass}>Описание груза</label>
+          <div>
+            <label className={labelClass}>Количество груза</label>
             <input
-              type="text"
-              name="cargo_description"
+              type="text" name="cargo_quantity"
+              defaultValue={order.cargo_quantity || ''}
+              placeholder="22 epall"
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className={labelClass}>Описание груза (внутр.)</label>
+            <input
+              type="text" name="cargo_description"
               defaultValue={order.cargo_description || ''}
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className={labelClass}>Таможня при загрузке</label>
+            <input
+              type="text" name="customs_loading"
+              defaultValue={order.customs_loading || ''}
+              placeholder="bez"
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className={labelClass}>Таможня при разгрузке</label>
+            <input
+              type="text" name="customs_unloading"
+              defaultValue={order.customs_unloading || ''}
+              placeholder="bez"
               className={inputClass}
             />
           </div>
@@ -319,13 +424,8 @@ export default function EditForwardingForm({
             </select>
           </div>
           <div className="md:col-span-2">
-            <label className={labelClass}>Заметки</label>
-            <textarea
-              name="notes"
-              rows={3}
-              defaultValue={order.notes || ''}
-              className={inputClass}
-            />
+            <label className={labelClass}>Заметки (общие)</label>
+            <textarea name="notes" rows={3} defaultValue={order.notes || ''} className={inputClass} />
           </div>
         </div>
       </div>
