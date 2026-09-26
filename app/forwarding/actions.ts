@@ -38,37 +38,60 @@ async function toEur(
 }
 
 // ============================================================
-// Поиск свободного номера заявки
+// Поиск номера для новой заявки по её дате загрузки
 // ============================================================
-async function findFreeNumber(
-  supabase: Awaited<ReturnType<typeof createClient>>
+async function findNumberForDate(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  loadDate: string
 ): Promise<number> {
-  const { data } = await supabase
+  const { count: earlier } = await supabase
     .from('forwarding_orders')
-    .select('order_number')
-    .not('order_number', 'is', null);
+    .select('*', { count: 'exact', head: true })
+    .lt('load_date', loadDate);
 
-  const used = new Set<number>(
-    (data || []).map((r) => r.order_number).filter((n) => n !== null)
-  );
-  let n = 1;
-  while (used.has(n)) n++;
-  return n;
+  const { count: sameDate } = await supabase
+    .from('forwarding_orders')
+    .select('*', { count: 'exact', head: true })
+    .eq('load_date', loadDate);
+
+  return (earlier || 0) + (sameDate || 0) + 1;
+}
+
+async function shiftNumbersFrom(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  fromNumber: number
+) {
+  const { data: toShift } = await supabase
+    .from('forwarding_orders')
+    .select('id, order_number')
+    .gte('order_number', fromNumber)
+    .order('order_number', { ascending: false });
+
+  if (!toShift || toShift.length === 0) return;
+
+  for (const row of toShift) {
+    await supabase
+      .from('forwarding_orders')
+      .update({ order_number: (row.order_number || 0) + 1 })
+      .eq('id', row.id);
+  }
 }
 
 // ============================================================
 // Парсинг подрядчиков из formData
-// Ключи: contractor_0_id, contractor_0_price, contractor_0_currency
 // ============================================================
 type ParsedContractor = {
   contractor_id: string;
   price: number;
   currency: string;
+  truck_number: string | null;
+  driver_name: string | null;
+  payment_days: number;
+  notes: string | null;
 };
 
 function parseContractors(formData: FormData): ParsedContractor[] {
   const indices = new Set<number>();
-
   Array.from(formData.keys()).forEach((key) => {
     const m = key.match(/^contractor_(\d+)_id$/);
     if (m) indices.add(parseInt(m[1]));
@@ -79,26 +102,28 @@ function parseContractors(formData: FormData): ParsedContractor[] {
 
   for (const i of sorted) {
     const cid = (formData.get(`contractor_${i}_id`) as string) || '';
-    const price = parseFloat(formData.get(`contractor_${i}_price`) as string) || 0;
-    const currency = (formData.get(`contractor_${i}_currency`) as string) || 'EUR';
-
     if (!cid) continue;
-    result.push({ contractor_id: cid, price, currency });
+
+    result.push({
+      contractor_id: cid,
+      price: parseFloat(formData.get(`contractor_${i}_price`) as string) || 0,
+      currency: (formData.get(`contractor_${i}_currency`) as string) || 'EUR',
+      truck_number: (formData.get(`contractor_${i}_truck_number`) as string)?.trim() || null,
+      driver_name: (formData.get(`contractor_${i}_driver_name`) as string)?.trim() || null,
+      payment_days: parseInt(formData.get(`contractor_${i}_payment_days`) as string) || 30,
+      notes: (formData.get(`contractor_${i}_notes`) as string)?.trim() || null,
+    });
   }
 
   return result;
 }
 
-// ============================================================
-// СОХРАНЕНИЕ подрядчиков в БД
-// ============================================================
 async function saveContractors(
   supabase: Awaited<ReturnType<typeof createClient>>,
   forwardingId: string,
   contractors: ParsedContractor[],
   dateForRate: string
 ) {
-  // Удаляем старые
   await supabase
     .from('forwarding_contractors')
     .delete()
@@ -106,7 +131,6 @@ async function saveContractors(
 
   if (contractors.length === 0) return;
 
-  // Готовим записи
   const rows = [];
   for (let i = 0; i < contractors.length; i++) {
     const c = contractors[i];
@@ -118,6 +142,10 @@ async function saveContractors(
       original_price: c.price,
       currency: c.currency,
       position: i + 1,
+      truck_number: c.truck_number,
+      driver_name: c.driver_name,
+      payment_days: c.payment_days,
+      notes: c.notes,
     });
   }
 
@@ -148,21 +176,43 @@ export async function createForwarding(formData: FormData) {
   const clientRequestNumber = (formData.get('client_request_number') as string)?.trim() || null;
   const clientRequestDate = (formData.get('client_request_date') as string) || null;
 
+  // НОВЫЕ ПОЛЯ
+  const transportType = (formData.get('transport_type') as string)?.trim() || null;
+  const cargoType = (formData.get('cargo_type') as string)?.trim() || null;
+  const cargoQuantity = (formData.get('cargo_quantity') as string)?.trim() || null;
+  const customsLoading = (formData.get('customs_loading') as string)?.trim() || null;
+  const customsUnloading = (formData.get('customs_unloading') as string)?.trim() || null;
+  const loadingReference = (formData.get('loading_reference') as string)?.trim() || null;
+
   const contractors = parseContractors(formData);
 
   const dateForRate = loadDate || new Date().toISOString().split('T')[0];
-
   const clientPriceEur = await toEur(supabase, clientPrice, currency, dateForRate);
-  const orderNumber = await findFreeNumber(supabase);
+
+  // Номер по дате загрузки
+  let orderNumber = 1;
+  if (loadDate) {
+    orderNumber = await findNumberForDate(supabase, loadDate);
+
+    const { data: existing } = await supabase
+      .from('forwarding_orders')
+      .select('id')
+      .eq('order_number', orderNumber)
+      .maybeSingle();
+
+    if (existing) {
+      await shiftNumbersFrom(supabase, orderNumber);
+    }
+  }
 
   const { data: created, error } = await supabase
     .from('forwarding_orders')
     .insert([{
       order_number: orderNumber,
       client_id: clientId || null,
-      contractor_id: null, // больше не используется
+      contractor_id: null,
       client_price_eur: clientPriceEur,
-      contractor_price_eur: 0, // устаревшее, оставляем 0
+      contractor_price_eur: 0,
       original_currency: currency,
       original_client_price: clientPrice,
       original_contractor_price: 0,
@@ -175,13 +225,18 @@ export async function createForwarding(formData: FormData) {
       notes,
       client_request_number: clientRequestNumber,
       client_request_date: clientRequestDate,
+      transport_type: transportType,
+      cargo_type: cargoType,
+      cargo_quantity: cargoQuantity,
+      customs_loading: customsLoading,
+      customs_unloading: customsUnloading,
+      loading_reference: loadingReference,
     }])
     .select('id')
     .single();
 
   if (error || !created) throw new Error(`Ошибка создания: ${error?.message || 'unknown'}`);
 
-  // Сохраняем подрядчиков
   await saveContractors(supabase, created.id, contractors, dateForRate);
 
   revalidatePath('/forwarding');
@@ -210,10 +265,17 @@ export async function updateForwarding(orderId: string, formData: FormData) {
   const clientRequestNumber = (formData.get('client_request_number') as string)?.trim() || null;
   const clientRequestDate = (formData.get('client_request_date') as string) || null;
 
+  // НОВЫЕ ПОЛЯ
+  const transportType = (formData.get('transport_type') as string)?.trim() || null;
+  const cargoType = (formData.get('cargo_type') as string)?.trim() || null;
+  const cargoQuantity = (formData.get('cargo_quantity') as string)?.trim() || null;
+  const customsLoading = (formData.get('customs_loading') as string)?.trim() || null;
+  const customsUnloading = (formData.get('customs_unloading') as string)?.trim() || null;
+  const loadingReference = (formData.get('loading_reference') as string)?.trim() || null;
+
   const contractors = parseContractors(formData);
 
   const dateForRate = loadDate || new Date().toISOString().split('T')[0];
-
   const clientPriceEur = await toEur(supabase, clientPrice, currency, dateForRate);
 
   const { error } = await supabase
@@ -232,12 +294,17 @@ export async function updateForwarding(orderId: string, formData: FormData) {
       notes,
       client_request_number: clientRequestNumber,
       client_request_date: clientRequestDate,
+      transport_type: transportType,
+      cargo_type: cargoType,
+      cargo_quantity: cargoQuantity,
+      customs_loading: customsLoading,
+      customs_unloading: customsUnloading,
+      loading_reference: loadingReference,
     })
     .eq('id', orderId);
 
   if (error) throw new Error(`Ошибка обновления: ${error.message}`);
 
-  // Пересохраняем подрядчиков
   await saveContractors(supabase, orderId, contractors, dateForRate);
 
   revalidatePath('/forwarding');
