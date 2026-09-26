@@ -9,6 +9,20 @@ type ContractorEntry = {
   contractor_id: string;
   price: string;
   currency: string;
+  truck_number: string;
+  driver_name: string;
+  payment_days: string;
+  notes: string;
+};
+
+const emptyContractor: ContractorEntry = {
+  contractor_id: '',
+  price: '',
+  currency: 'EUR',
+  truck_number: '',
+  driver_name: '',
+  payment_days: '30',
+  notes: '',
 };
 
 export default function NewForwardingForm({
@@ -18,20 +32,18 @@ export default function NewForwardingForm({
   clients: Option[];
   contractors: Option[];
 }) {
-  const [items, setItems] = useState<ContractorEntry[]>([
-    { contractor_id: '', price: '', currency: 'EUR' },
-  ]);
+  const [items, setItems] = useState<ContractorEntry[]>([{ ...emptyContractor }]);
 
   function addItem() {
     if (items.length >= 10) return;
-    setItems([...items, { contractor_id: '', price: '', currency: 'EUR' }]);
+    setItems([...items, { ...emptyContractor }]);
   }
 
   function removeItem(idx: number) {
     setItems(items.filter((_, i) => i !== idx));
   }
 
-  function updateItem(idx: number, field: keyof ContractorEntry, value: string) {
+  function updateItem<K extends keyof ContractorEntry>(idx: number, field: K, value: string) {
     setItems(items.map((it, i) => (i === idx ? { ...it, [field]: value } : it)));
   }
 
@@ -42,17 +54,13 @@ export default function NewForwardingForm({
   const sectionClass = 'bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-6 space-y-4';
   const sectionTitleClass = 'text-base md:text-lg font-bold text-slate-900 mb-2 flex items-center gap-2';
 
-  // Итого подрядчиков (только EUR, для справки)
   const allEur = items.every((i) => i.currency === 'EUR');
-  const eurTotal = items.reduce(
-    (s, i) => s + (parseFloat(i.price) || 0),
-    0
-  );
+  const eurTotal = items.reduce((s, i) => s + (parseFloat(i.price) || 0), 0);
 
   return (
     <form action={createForwarding} className="space-y-4 md:space-y-6">
 
-      {/* УЧАСТНИКИ (только клиент) */}
+      {/* КЛИЕНТ */}
       <div className={sectionClass}>
         <h2 className={sectionTitleClass}>🤝 Клиент</h2>
         <div>
@@ -72,12 +80,7 @@ export default function NewForwardingForm({
         <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
           <div>
             <label className={labelClass}>Номер заявки</label>
-            <input
-              type="text"
-              name="client_request_number"
-              placeholder="ZAM-2026-001"
-              className={inputClass}
-            />
+            <input type="text" name="client_request_number" placeholder="6750" className={inputClass} />
           </div>
           <div>
             <label className={labelClass}>Дата заявки</label>
@@ -100,19 +103,9 @@ export default function NewForwardingForm({
           </div>
           <div>
             <label className={labelClass}>Сумма от клиента *</label>
-            <input
-              type="number"
-              name="client_price"
-              step="0.01"
-              required
-              placeholder="5000"
-              className={inputClass}
-            />
+            <input type="number" name="client_price" step="0.01" required placeholder="5000" className={inputClass} />
           </div>
         </div>
-        <p className="text-xs text-slate-500">
-          Если валюта не EUR — сконвертируется по курсу на дату загрузки.
-        </p>
       </div>
 
       {/* ПОДРЯДЧИКИ */}
@@ -135,10 +128,7 @@ export default function NewForwardingForm({
 
         <div className="space-y-3">
           {items.map((item, idx) => (
-            <div
-              key={idx}
-              className="border border-slate-200 rounded-xl p-3 md:p-4 bg-slate-50/40 space-y-3"
-            >
+            <div key={idx} className="border border-slate-200 rounded-xl p-3 md:p-4 bg-slate-50/40 space-y-3">
               <div className="flex items-center justify-between gap-2">
                 <div className="text-sm font-semibold text-slate-700">
                   Подрядчик #{idx + 1}
@@ -174,10 +164,7 @@ export default function NewForwardingForm({
                 <div>
                   <label className={labelClass}>Сумма *</label>
                   <input
-                    type="number"
-                    step="0.01"
-                    required
-                    placeholder="1500"
+                    type="number" step="0.01" required placeholder="1500"
                     value={item.price}
                     onChange={(e) => updateItem(idx, 'price', e.target.value)}
                     name={`contractor_${idx}_price`}
@@ -197,6 +184,54 @@ export default function NewForwardingForm({
                     <option value="PLN">PLN zł</option>
                     <option value="BYN">BYN Br</option>
                   </select>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className={labelClass}>№ машины</label>
+                  <input
+                    type="text"
+                    name={`contractor_${idx}_truck_number`}
+                    value={item.truck_number}
+                    onChange={(e) => updateItem(idx, 'truck_number', e.target.value)}
+                    placeholder="WSI42316 / WLS73FF"
+                    className={inputClass}
+                  />
+                </div>
+
+                <div>
+                  <label className={labelClass}>Водитель</label>
+                  <input
+                    type="text"
+                    name={`contractor_${idx}_driver_name`}
+                    value={item.driver_name}
+                    onChange={(e) => updateItem(idx, 'driver_name', e.target.value)}
+                    placeholder="Daniel Wojtczuk"
+                    className={inputClass}
+                  />
+                </div>
+
+                <div>
+                  <label className={labelClass}>Срок оплаты (дней)</label>
+                  <input
+                    type="number"
+                    name={`contractor_${idx}_payment_days`}
+                    value={item.payment_days}
+                    onChange={(e) => updateItem(idx, 'payment_days', e.target.value)}
+                    placeholder="30"
+                    className={inputClass}
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className={labelClass}>Заметки для этого подрядчика</label>
+                  <input
+                    type="text"
+                    name={`contractor_${idx}_notes`}
+                    value={item.notes}
+                    onChange={(e) => updateItem(idx, 'notes', e.target.value)}
+                    placeholder="Доп. инфо"
+                    className={inputClass}
+                  />
                 </div>
               </div>
             </div>
@@ -221,11 +256,6 @@ export default function NewForwardingForm({
             <span className="text-lg font-bold text-red-500">{eurTotal.toFixed(2)} €</span>
           </div>
         )}
-        {!allEur && items.length > 0 && (
-          <div className="text-xs text-slate-500">
-            ℹ️ Валюты разные — итог в EUR посчитается на сервере по курсу.
-          </div>
-        )}
       </div>
 
       {/* МАРШРУТ */}
@@ -234,11 +264,11 @@ export default function NewForwardingForm({
         <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
           <div>
             <label className={labelClass}>Откуда</label>
-            <input type="text" name="route_from" placeholder="Варшава, Польша" className={inputClass} />
+            <input type="text" name="route_from" placeholder="Vrasene, BE" className={inputClass} />
           </div>
           <div>
             <label className={labelClass}>Куда</label>
-            <input type="text" name="route_to" placeholder="Берлин, Германия" className={inputClass} />
+            <input type="text" name="route_to" placeholder="Siedlce, PL" className={inputClass} />
           </div>
           <div>
             <label className={labelClass}>Дата загрузки *</label>
@@ -249,8 +279,69 @@ export default function NewForwardingForm({
             <input type="date" name="unload_date" className={inputClass} />
           </div>
           <div className="md:col-span-2">
-            <label className={labelClass}>Описание груза</label>
-            <input type="text" name="cargo_description" placeholder="Паллеты, 20т" className={inputClass} />
+            <label className={labelClass}>Reference loading</label>
+            <input type="text" name="loading_reference" placeholder="vo27/02199" className={inputClass} />
+          </div>
+        </div>
+      </div>
+
+      {/* ДЕТАЛИ ПЕРЕВОЗКИ */}
+      <div className={sectionClass}>
+        <h2 className={sectionTitleClass}>📦 Детали перевозки</h2>
+        <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
+          <div>
+            <label className={labelClass}>Тип транспорта</label>
+            <input
+              type="text"
+              name="transport_type"
+              placeholder="Chlodnia +15 LTL"
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className={labelClass}>Тип груза</label>
+            <input
+              type="text"
+              name="cargo_type"
+              placeholder="Czekolady"
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className={labelClass}>Количество груза</label>
+            <input
+              type="text"
+              name="cargo_quantity"
+              placeholder="22 epall"
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className={labelClass}>Описание груза (внутр.)</label>
+            <input
+              type="text"
+              name="cargo_description"
+              placeholder="Паллеты, 20т"
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className={labelClass}>Таможня при загрузке</label>
+            <input
+              type="text"
+              name="customs_loading"
+              placeholder="bez"
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className={labelClass}>Таможня при разгрузке</label>
+            <input
+              type="text"
+              name="customs_unloading"
+              placeholder="bez"
+              className={inputClass}
+            />
           </div>
         </div>
       </div>
@@ -270,7 +361,7 @@ export default function NewForwardingForm({
             </select>
           </div>
           <div className="md:col-span-2">
-            <label className={labelClass}>Заметки</label>
+            <label className={labelClass}>Заметки (общие)</label>
             <textarea name="notes" rows={2} className={inputClass} />
           </div>
         </div>
