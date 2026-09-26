@@ -11,6 +11,7 @@ import {
   AlignmentType,
   ImageRun,
   BorderStyle,
+  VerticalAlign,
 } from 'docx';
 import { createClient } from '../../../../../../../lib/supabase-server';
 import { COMPANY, STAMP_URL, getTerms } from '../../../../../../../lib/company';
@@ -36,64 +37,68 @@ async function fetchImage(url: string): Promise<Buffer | null> {
 }
 
 // ============================================================
-// Хелперы для параграфов
+// Хелперы — компактные параграфы
 // ============================================================
-function p(text: string, opts?: { bold?: boolean; size?: number; spacing?: number }): Paragraph {
+const FONT = 'Calibri';
+const LINE = 240; // одинарный межстрочный (в twips)
+
+type TextOpts = {
+  bold?: boolean;
+  size?: number; // half-points (20 = 10pt)
+  before?: number;
+  after?: number;
+  align?: (typeof AlignmentType)[keyof typeof AlignmentType];
+  color?: string;
+};
+
+function txt(text: string, opts?: TextOpts): Paragraph {
   return new Paragraph({
-    spacing: { after: opts?.spacing ?? 80 },
+    alignment: opts?.align,
+    spacing: {
+      line: LINE,
+      before: opts?.before ?? 0,
+      after: opts?.after ?? 40,
+    },
     children: [
       new TextRun({
         text,
         bold: opts?.bold,
         size: opts?.size ?? 20,
-        font: 'Calibri',
+        font: FONT,
+        color: opts?.color,
       }),
     ],
   });
 }
 
-function pRight(text: string, opts?: { bold?: boolean; size?: number }): Paragraph {
-  return new Paragraph({
-    alignment: AlignmentType.RIGHT,
-    spacing: { after: 80 },
-    children: [
-      new TextRun({
-        text,
-        bold: opts?.bold,
-        size: opts?.size ?? 20,
-        font: 'Calibri',
-      }),
-    ],
-  });
+function txtRight(text: string, opts?: TextOpts): Paragraph {
+  return txt(text, { ...opts, align: AlignmentType.RIGHT });
 }
 
-function pCenter(text: string, opts?: { bold?: boolean; size?: number }): Paragraph {
-  return new Paragraph({
-    alignment: AlignmentType.CENTER,
-    spacing: { after: 80 },
-    children: [
-      new TextRun({
-        text,
-        bold: opts?.bold,
-        size: opts?.size ?? 20,
-        font: 'Calibri',
-      }),
-    ],
-  });
-}
-
-function cell(text: string, opts?: { bold?: boolean; width?: number }): TableCell {
+function cell(
+  text: string,
+  opts?: { bold?: boolean; width?: number; size?: number }
+): TableCell {
   return new TableCell({
-    width: opts?.width ? { size: opts.width, type: WidthType.PERCENTAGE } : undefined,
+    width: opts?.width
+      ? { size: opts.width, type: WidthType.PERCENTAGE }
+      : undefined,
+    verticalAlign: VerticalAlign.CENTER,
+    margins: {
+      top: 30,
+      bottom: 30,
+      left: 60,
+      right: 60,
+    },
     children: [
       new Paragraph({
-        spacing: { after: 40 },
+        spacing: { line: LINE, after: 0, before: 0 },
         children: [
           new TextRun({
             text,
             bold: opts?.bold,
-            size: 20,
-            font: 'Calibri',
+            size: opts?.size ?? 18,
+            font: FONT,
           }),
         ],
       }),
@@ -112,7 +117,6 @@ export async function GET(
 
   const supabase = await createClient();
 
-  // Загружаем заявку
   const { data: order, error: orderErr } = await supabase
     .from('forwarding_orders')
     .select('*, clients(name)')
@@ -123,7 +127,6 @@ export async function GET(
     return NextResponse.json({ error: 'Заявка не найдена' }, { status: 404 });
   }
 
-  // Загружаем подрядчика заявки
   const { data: fc, error: fcErr } = await supabase
     .from('forwarding_contractors')
     .select('*, contractors(*)')
@@ -135,140 +138,117 @@ export async function GET(
   }
 
   const contractor = fc.contractors;
-  const clientName = Array.isArray(order.clients) ? order.clients[0]?.name : order.clients?.name;
-
   const paymentDays = fc.payment_days || 30;
   const terms = getTerms(paymentDays);
 
-  // Номер заявки подрядчику: {client_request_number}-{position}
   const zlecenieNumber = order.client_request_number
     ? `${order.client_request_number}-${fc.position || 1}`
     : `${order.order_number || '?'}-${fc.position || 1}`;
 
-  // Загружаем печать
   const stampBuf = await fetchImage(STAMP_URL);
 
   // ============================================================
-  // Формируем документ
+  // Формируем содержимое
   // ============================================================
   const children: any[] = [];
 
   // --- РЕКВИЗИТЫ ---
-  children.push(p(COMPANY.name, { bold: true, size: 24 }));
-  children.push(p(COMPANY.address, { size: 18 }));
-  children.push(p(`NIP ${COMPANY.nip} - REGON ${COMPANY.regon}`, { size: 18 }));
-  children.push(p(COMPANY.bank, { size: 18 }));
-  children.push(p(`EORI ${COMPANY.eori}`, { size: 18 }));
-  children.push(p(`${COMPANY.accountEur} (EUR)`, { size: 18 }));
-  children.push(p(`${COMPANY.accountPln} (PLN)`, { size: 18 }));
-
-  children.push(p('', { spacing: 200 }));
+  children.push(txt(COMPANY.name, { bold: true, size: 22, after: 20 }));
+  children.push(txt(COMPANY.address, { size: 18, after: 0 }));
+  children.push(txt(`NIP ${COMPANY.nip} - REGON ${COMPANY.regon}`, { size: 18, after: 0 }));
+  children.push(txt(COMPANY.bank, { size: 18, after: 0 }));
+  children.push(txt(`EORI ${COMPANY.eori}`, { size: 18, after: 0 }));
+  children.push(txt(`${COMPANY.accountEur} (EUR)`, { size: 18, after: 0 }));
+  children.push(txt(`${COMPANY.accountPln} (PLN)`, { size: 18, after: 0 }));
 
   // --- ДАТА И НОМЕР ---
-  children.push(pRight(`${COMPANY.city}, ${fmtDate(new Date().toISOString())}`, { size: 20 }));
-  children.push(p('', { spacing: 60 }));
+  children.push(txtRight(`${COMPANY.city}, ${fmtDate(new Date().toISOString())}`, { size: 20, before: 240 }));
+
   children.push(
     new Paragraph({
-      spacing: { after: 200 },
+      spacing: { line: LINE, before: 80, after: 160 },
       children: [
-        new TextRun({ text: 'ZLECENIE TRANSPORTOWE Nr: ', bold: true, size: 24, font: 'Calibri' }),
-        new TextRun({ text: zlecenieNumber, bold: true, size: 24, font: 'Calibri' }),
+        new TextRun({ text: 'ZLECENIE TRANSPORTOWE Nr: ', bold: true, size: 22, font: FONT }),
+        new TextRun({ text: zlecenieNumber, bold: true, size: 22, font: FONT }),
       ],
     })
   );
 
-  // --- ВСТУПИТЕЛЬНЫЙ ТЕКСТ ---
+  // --- ВСТУПЛЕНИЕ ---
   children.push(
-    p(
+    txt(
       'RAIBUILDING SP. Z O.O. działając w imieniu swoich Klientów oraz w oparciu o przepisy Konwencji CMR zleca wykonanie przewozu firmie:',
-      { size: 20 }
+      { size: 20, after: 120 }
     )
   );
-  children.push(p('', { spacing: 120 }));
 
   // --- ПОДРЯДЧИК ---
   if (contractor) {
-    children.push(p(contractor.full_name || contractor.name || '—', { bold: true, size: 22 }));
-    if (contractor.address) children.push(p(contractor.address, { size: 20 }));
-    if (contractor.tax_id) children.push(p(contractor.tax_id, { size: 20 }));
-    if (contractor.contact_person) children.push(p(contractor.contact_person, { size: 20 }));
-    if (contractor.phone) children.push(p(`tel. ${contractor.phone}`, { size: 20 }));
-    if (contractor.email) children.push(p(contractor.email, { size: 20 }));
+    children.push(txt(contractor.full_name || contractor.name || '—', { bold: true, size: 22, after: 40 }));
+    if (contractor.address) children.push(txt(contractor.address, { size: 20, after: 20 }));
+    if (contractor.tax_id) children.push(txt(contractor.tax_id, { size: 20, after: 20 }));
+    if (contractor.contact_person) children.push(txt(contractor.contact_person, { size: 20, after: 20 }));
+    if (contractor.phone) children.push(txt(`tel. ${contractor.phone}`, { size: 20, after: 20 }));
+    if (contractor.email) children.push(txt(contractor.email, { size: 20, after: 20 }));
   }
-  children.push(p('', { spacing: 120 }));
 
   // --- МАШИНА / ВОДИТЕЛЬ ---
   const truckDriver = [];
   if (fc.truck_number) truckDriver.push(`Numer auta: ${fc.truck_number}`);
   if (fc.driver_name) truckDriver.push(`Kierowca: ${fc.driver_name}`);
   if (truckDriver.length > 0) {
-    children.push(p(truckDriver.join(' '), { bold: true, size: 20 }));
-    children.push(p('', { spacing: 120 }));
+    children.push(
+      txt(truckDriver.join('  |  '), { bold: true, size: 20, before: 120, after: 200 })
+    );
   }
 
-  // --- УСЛОВИЯ ---
+  // --- УСЛОВИЯ (компактно) ---
   terms.forEach((t) => {
     children.push(
       new Paragraph({
-        spacing: { after: 100 },
+        spacing: { line: LINE, before: 0, after: 60 },
         children: [
           new TextRun({
             text: t,
             size: 18,
-            font: 'Calibri',
+            font: FONT,
           }),
         ],
       })
     );
   });
 
-  children.push(p('', { spacing: 200 }));
-
   // --- ТАБЛИЦА ---
-  // Место загрузки: route_from + reference
-  const loadingPlace = [order.route_from, order.loading_reference ? `Reference loading: ${order.loading_reference}` : null]
-    .filter(Boolean)
-    .join(', ');
+  const loadingPlace =
+    [order.route_from, order.loading_reference ? `Reference: ${order.loading_reference}` : null]
+      .filter(Boolean)
+      .join(', ') || '—';
 
-  // Место разгрузки: route_to
   const unloadingPlace = order.route_to || '—';
 
-  // Груз: cargo_type + cargo_quantity
-  const cargoText = [order.cargo_type, order.cargo_quantity].filter(Boolean).join(' ') || order.cargo_description || '—';
+  const cargoText =
+    [order.cargo_type, order.cargo_quantity].filter(Boolean).join(' ') ||
+    order.cargo_description ||
+    '—';
 
   const rows: TableRow[] = [
-    new TableRow({
-      children: [cell('0', { bold: true, width: 8 }), cell('Rodzaj transportu', { width: 32 }), cell(order.transport_type || '—', { width: 60 })],
-    }),
-    new TableRow({
-      children: [cell('1', { bold: true, width: 8 }), cell('Miejsce załadunku', { width: 32 }), cell(loadingPlace || '—', { width: 60 })],
-    }),
-    new TableRow({
-      children: [cell('2', { bold: true, width: 8 }), cell('Data załadunku', { width: 32 }), cell(fmtDate(order.load_date), { width: 60 })],
-    }),
-    new TableRow({
-      children: [cell('3', { bold: true, width: 8 }), cell('Urząd celny', { width: 32 }), cell(order.customs_loading || 'bez', { width: 60 })],
-    }),
-    new TableRow({
-      children: [cell('4', { bold: true, width: 8 }), cell('Rodzaj towaru', { width: 32 }), cell(cargoText, { width: 60 })],
-    }),
-    new TableRow({
-      children: [cell('5', { bold: true, width: 8 }), cell('Data rozładunku', { width: 32 }), cell(fmtDate(order.unload_date), { width: 60 })],
-    }),
-    new TableRow({
-      children: [cell('6', { bold: true, width: 8 }), cell('Odprawa celna', { width: 32 }), cell(order.customs_unloading ? `${order.customs_unloading} przy rozładunku` : 'bez przy rozładunku', { width: 60 })],
-    }),
-    new TableRow({
-      children: [cell('7', { bold: true, width: 8 }), cell('Miejsce rozładunku', { width: 32 }), cell(unloadingPlace, { width: 60 })],
-    }),
-    new TableRow({
-      children: [
-        cell('8', { bold: true, width: 8 }),
-        cell('Fracht', { width: 32 }),
-        cell(`${fc.original_price || 0} ${fc.currency || 'EUR'} ( vat = 0%)`, { bold: true, width: 60 }),
-      ],
-    }),
+    new TableRow({ children: [cell('0', { bold: true, width: 6 }), cell('Rodzaj transportu', { width: 32 }), cell(order.transport_type || '—', { width: 62 })] }),
+    new TableRow({ children: [cell('1', { bold: true, width: 6 }), cell('Miejsce załadunku', { width: 32 }), cell(loadingPlace, { width: 62 })] }),
+    new TableRow({ children: [cell('2', { bold: true, width: 6 }), cell('Data załadunku', { width: 32 }), cell(fmtDate(order.load_date), { width: 62 })] }),
+    new TableRow({ children: [cell('3', { bold: true, width: 6 }), cell('Urząd celny', { width: 32 }), cell(order.customs_loading || 'bez', { width: 62 })] }),
+    new TableRow({ children: [cell('4', { bold: true, width: 6 }), cell('Rodzaj towaru', { width: 32 }), cell(cargoText, { width: 62 })] }),
+    new TableRow({ children: [cell('5', { bold: true, width: 6 }), cell('Data rozładunku', { width: 32 }), cell(fmtDate(order.unload_date), { width: 62 })] }),
+    new TableRow({ children: [cell('6', { bold: true, width: 6 }), cell('Odprawa celna', { width: 32 }), cell(order.customs_unloading ? `${order.customs_unloading} przy rozładunku` : 'bez przy rozładunku', { width: 62 })] }),
+    new TableRow({ children: [cell('7', { bold: true, width: 6 }), cell('Miejsce rozładunku', { width: 32 }), cell(unloadingPlace, { width: 62 })] }),
+    new TableRow({ children: [cell('8', { bold: true, width: 6 }), cell('Fracht', { width: 32 }), cell(`${fc.original_price || 0} ${fc.currency || 'EUR'} ( vat = 0%)`, { bold: true, width: 62 })] }),
   ];
+
+  children.push(
+    new Paragraph({
+      spacing: { line: LINE, before: 200, after: 0 },
+      children: [new TextRun({ text: '', size: 2 })],
+    })
+  );
 
   children.push(
     new Table({
@@ -285,18 +265,16 @@ export async function GET(
     })
   );
 
-  children.push(p('', { spacing: 300 }));
-
-  // --- ПЕЧАТЬ + ПОДПИСЬ ---
+  // --- ПЕЧАТЬ ---
   if (stampBuf) {
     children.push(
       new Paragraph({
         alignment: AlignmentType.RIGHT,
-        spacing: { after: 100 },
+        spacing: { line: LINE, before: 200, after: 0 },
         children: [
           new ImageRun({
             data: stampBuf,
-            transformation: { width: 220, height: 220 },
+            transformation: { width: 180, height: 180 },
             type: 'png',
           }),
         ],
@@ -305,18 +283,22 @@ export async function GET(
   }
 
   // ============================================================
-  // Собираем документ
+  // Собираем
   // ============================================================
   const doc = new Document({
     sections: [
       {
         properties: {
           page: {
+            size: {
+              width: 11906,
+              height: 16838,
+            },
             margin: {
-              top: 720,
-              right: 720,
-              bottom: 720,
-              left: 720,
+              top: 500,
+              right: 500,
+              bottom: 500,
+              left: 500,
             },
           },
         },
@@ -327,7 +309,8 @@ export async function GET(
 
   const buffer = await Packer.toBuffer(doc);
 
-  const fileName = `Zlecenie_${zlecenieNumber}_${(contractor?.name || 'contractor').replace(/[^a-zA-Z0-9]/g, '_')}.docx`;
+  const safeContractor = (contractor?.name || 'contractor').replace(/[^a-zA-Z0-9]/g, '_');
+  const fileName = `Zlecenie_${zlecenieNumber}_${safeContractor}.docx`;
 
   return new NextResponse(new Uint8Array(buffer), {
     status: 200,
