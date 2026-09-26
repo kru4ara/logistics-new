@@ -21,7 +21,8 @@
     "react-leaflet": "^4.2.1",
     "react-leaflet-cluster": "^2.1.0",
     "tailwind-merge": "^2.5.0",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "docx": "^9.0.0"
   },
   "devDependencies": {
     "@types/node": "^20",
