@@ -26,10 +26,9 @@ export default async function EditForwardingPage({ params }: { params: Promise<{
   const { data: clients } = await supabase.from('clients').select('id, name').order('name');
   const { data: contractors } = await supabase.from('contractors').select('id, name').order('name');
 
-  // Загружаем текущих подрядчиков заявки
   const { data: initialContractors } = await supabase
     .from('forwarding_contractors')
-    .select('contractor_id, original_price, currency')
+    .select('*')
     .eq('forwarding_id', id)
     .order('position');
 
@@ -56,6 +55,10 @@ export default async function EditForwardingPage({ params }: { params: Promise<{
             contractor_id: c.contractor_id,
             original_price: c.original_price,
             currency: c.currency,
+            truck_number: c.truck_number,
+            driver_name: c.driver_name,
+            payment_days: c.payment_days,
+            notes: c.notes,
           }))}
         />
 
