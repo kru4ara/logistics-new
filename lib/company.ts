@@ -14,7 +14,18 @@ export const COMPANY = {
   email: 'raibuilding.pl@gmail.com',
 };
 
-// Ссылки на картинки (из Supabase Storage)
+// ============================================================
+// URL приложения (для QR-кода в заявках)
+// ============================================================
+export const APP_URL =
+  process.env.NEXT_PUBLIC_APP_URL ||
+  (process.env.NEXT_PUBLIC_VERCEL_URL
+    ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
+    : 'https://logistics-new-ebon.vercel.app');
+
+// ============================================================
+// Ссылки на картинки
+// ============================================================
 export const STAMP_URL =
   process.env.COMPANY_STAMP_URL ||
   'https://smodijsjwcvsscfgloh.supabase.co/storage/v1/object/public/documents/assets/stamp.png';
@@ -25,7 +36,6 @@ export const LOGO_URL =
 
 // ============================================================
 // Условия перевозки (8 пунктов)
-// Срок оплаты подставляется динамически
 // ============================================================
 export function getTerms(paymentDays: number): string[] {
   return [
