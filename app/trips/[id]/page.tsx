@@ -9,6 +9,10 @@ import CopyBlock from '../../components/CopyBlock';
 
 export const dynamic = 'force-dynamic';
 
+// Допуск отрицательного остатка топлива (в литрах).
+// Выше этого значения (ближе к нулю) — мягкое предупреждение, ниже — аварийное.
+const NEGATIVE_FUEL_TOLERANCE = -50;
+
 export default async function TripDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: tripId } = await params;
   if (!tripId) return <div className="p-8">Ошибка: ID рейса не передан</div>;
@@ -51,6 +55,10 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
 
   const refuelLiters = expenses?.filter((e) => e.category === 'fuel' && e.liters).reduce((sum, e) => sum + e.liters, 0) || 0;
   const fuelLeft = (trip.start_fuel_level || 0) + refuelLiters - (trip.actual_liters || 0);
+
+  // B + D: допуск отрицательного остатка, без блокировки сохранения
+  const fuelLeftIsNegative = fuelLeft < 0;
+  const fuelLeftIsCritical = fuelLeft < NEGATIVE_FUEL_TOLERANCE;
 
   const driver = trip.drivers;
   const truck = trip.trucks;
@@ -415,6 +423,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
               Сохранить
             </button>
           </form>
+
           {trip.actual_km && trip.actual_km > 0 && (
             <div className="mt-4 p-3 bg-slate-50 rounded-xl text-sm space-y-1">
               <p className="text-slate-700">
@@ -423,9 +432,26 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
               <p className="text-emerald-600 font-bold">
                 Средний расход: {((trip.actual_liters / trip.actual_km) * 100).toFixed(1)} л/100 км
               </p>
-              <p className="text-blue-600 font-bold">
+              <p className={`font-bold ${
+                fuelLeftIsCritical
+                  ? 'text-red-600'
+                  : fuelLeftIsNegative
+                    ? 'text-amber-600'
+                    : 'text-blue-600'
+              }`}>
                 Остаток в баке: {fuelLeft.toFixed(1)} л
               </p>
+              {fuelLeftIsNegative && (
+                <p className={`text-xs font-medium rounded-lg px-3 py-2 ${
+                  fuelLeftIsCritical
+                    ? 'text-red-700 bg-red-50 border border-red-200'
+                    : 'text-amber-700 bg-amber-50 border border-amber-200'
+                }`}>
+                  {fuelLeftIsCritical
+                    ? '🚨 Значительный недостаток топлива. Проверьте заправки и данные о расходе — цифры выглядят недостоверными.'
+                    : '⚠ Остаток отрицательный. Проверьте данные о заправках: возможно, часть топлива не внесена в расходы.'}
+                </p>
+              )}
             </div>
           )}
         </div>
