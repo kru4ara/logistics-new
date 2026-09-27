@@ -16,11 +16,11 @@ type Order = {
   client_request_number: string | null;
   client_request_date: string | null;
   transport_type: string | null;
+  transport_temperature: string | null;
   cargo_type: string | null;
   cargo_quantity: string | null;
   customs_loading: string | null;
   customs_unloading: string | null;
-  loading_reference: string | null;
 };
 
 type InitialContractor = {
@@ -77,6 +77,11 @@ const emptyPoint: PointEntry = {
   notes: '',
 };
 
+const TRANSPORT_TYPES = [
+  { value: 'Plandeka / Standart', label: 'Plandeka / Standart' },
+  { value: 'Chlodnia', label: 'Chłodnia' },
+];
+
 export default function EditForwardingForm({
   order,
   orderId,
@@ -96,7 +101,6 @@ export default function EditForwardingForm({
   initialContractors: InitialContractor[];
   initialPoints: InitialPoint[];
 }) {
-  // --- Подрядчики ---
   const startContractors: ContractorEntry[] =
     initialContractors.length > 0
       ? initialContractors.map((c) => ({
@@ -110,7 +114,6 @@ export default function EditForwardingForm({
         }))
       : [{ ...emptyContractor }];
 
-  // --- Точки ---
   const startLoading = initialPoints.filter((p) => p.type === 'loading');
   const startUnloading = initialPoints.filter((p) => p.type === 'unloading');
 
@@ -135,8 +138,8 @@ export default function EditForwardingForm({
         }))
       : [{ ...emptyPoint }]
   );
+  const [transportType, setTransportType] = useState(order.transport_type || '');
 
-  // --- Хелперы подрядчиков ---
   function addContractor() {
     if (contractorItems.length >= 10) return;
     setContractorItems([...contractorItems, { ...emptyContractor }]);
@@ -148,7 +151,6 @@ export default function EditForwardingForm({
     setContractorItems(contractorItems.map((it, i) => (i === idx ? { ...it, [field]: value } : it)));
   }
 
-  // --- Хелперы точек ---
   function addPoint(type: 'loading' | 'unloading') {
     const arr = type === 'loading' ? loadingPoints : unloadingPoints;
     const setter = type === 'loading' ? setLoadingPoints : setUnloadingPoints;
@@ -180,6 +182,8 @@ export default function EditForwardingForm({
 
   const allEur = contractorItems.every((i) => i.currency === 'EUR');
   const eurTotal = contractorItems.reduce((s, i) => s + (parseFloat(i.price) || 0), 0);
+
+  const isChlodnia = transportType === 'Chlodnia';
 
   function PointRow({
     type,
@@ -533,8 +537,32 @@ export default function EditForwardingForm({
         <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
           <div>
             <label className={labelClass}>Тип транспорта</label>
-            <input type="text" name="transport_type" defaultValue={order.transport_type || ''} className={inputClass} />
+            <select
+              name="transport_type"
+              value={transportType}
+              onChange={(e) => setTransportType(e.target.value)}
+              className={inputClass}
+            >
+              <option value="">— Выберите тип —</option>
+              {TRANSPORT_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
+            </select>
           </div>
+
+          {isChlodnia && (
+            <div>
+              <label className={labelClass}>Temperatura</label>
+              <input
+                type="text"
+                name="transport_temperature"
+                defaultValue={order.transport_temperature || ''}
+                placeholder="+15°C / -18°C"
+                className={inputClass}
+              />
+            </div>
+          )}
+
           <div>
             <label className={labelClass}>Тип груза</label>
             <input type="text" name="cargo_type" defaultValue={order.cargo_type || ''} className={inputClass} />
@@ -542,10 +570,6 @@ export default function EditForwardingForm({
           <div>
             <label className={labelClass}>Количество груза</label>
             <input type="text" name="cargo_quantity" defaultValue={order.cargo_quantity || ''} className={inputClass} />
-          </div>
-          <div>
-            <label className={labelClass}>Описание груза (внутр.)</label>
-            <input type="text" name="cargo_description" defaultValue={order.cargo_description || ''} className={inputClass} />
           </div>
           <div>
             <label className={labelClass}>Таможня при загрузке</label>
@@ -556,8 +580,8 @@ export default function EditForwardingForm({
             <input type="text" name="customs_unloading" defaultValue={order.customs_unloading || ''} className={inputClass} />
           </div>
           <div className="md:col-span-2">
-            <label className={labelClass}>Reference loading</label>
-            <input type="text" name="loading_reference" defaultValue={order.loading_reference || ''} className={inputClass} />
+            <label className={labelClass}>Описание груза (внутр.)</label>
+            <input type="text" name="cargo_description" defaultValue={order.cargo_description || ''} className={inputClass} />
           </div>
         </div>
       </div>
