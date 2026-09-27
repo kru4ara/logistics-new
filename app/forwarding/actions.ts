@@ -157,7 +157,7 @@ async function saveContractors(
 }
 
 // ============================================================
-// Парсинг точек погрузки/выгрузки
+// Парсинг точек
 // ============================================================
 type ParsedPoint = {
   type: 'loading' | 'unloading';
@@ -226,7 +226,7 @@ async function savePoints(
 }
 
 // ============================================================
-// СОЗДАНИЕ заявки
+// СОЗДАНИЕ
 // ============================================================
 export async function createForwarding(formData: FormData) {
   const supabase = await createClient();
@@ -242,11 +242,11 @@ export async function createForwarding(formData: FormData) {
   const clientRequestDate = (formData.get('client_request_date') as string) || null;
 
   const transportType = (formData.get('transport_type') as string)?.trim() || null;
+  const transportTemperature = (formData.get('transport_temperature') as string)?.trim() || null;
   const cargoType = (formData.get('cargo_type') as string)?.trim() || null;
   const cargoQuantity = (formData.get('cargo_quantity') as string)?.trim() || null;
   const customsLoading = (formData.get('customs_loading') as string)?.trim() || null;
   const customsUnloading = (formData.get('customs_unloading') as string)?.trim() || null;
-  const loadingReference = (formData.get('loading_reference') as string)?.trim() || null;
 
   const contractors = parseContractors(formData);
   const loadingPoints = parsePoints(formData, 'loading');
@@ -256,11 +256,9 @@ export async function createForwarding(formData: FormData) {
     throw new Error('Добавьте хотя бы одну точку погрузки');
   }
 
-  // Дата для расчёта курса — дата первой погрузки
   const firstLoadDate = loadingPoints[0]?.date || new Date().toISOString().split('T')[0];
   const clientPriceEur = await toEur(supabase, clientPrice, currency, firstLoadDate);
 
-  // Номер по дате первой погрузки
   const orderNumber = await findNumberForDate(supabase, firstLoadDate);
 
   const { data: existing } = await supabase
@@ -273,7 +271,6 @@ export async function createForwarding(formData: FormData) {
     await shiftNumbersFrom(supabase, orderNumber);
   }
 
-  // В load_date кладём дату первой погрузки для совместимости со старым кодом
   const loadDate = firstLoadDate;
   const unloadDate = unloadingPoints[unloadingPoints.length - 1]?.date || null;
 
@@ -298,11 +295,12 @@ export async function createForwarding(formData: FormData) {
       client_request_number: clientRequestNumber,
       client_request_date: clientRequestDate,
       transport_type: transportType,
+      transport_temperature: transportTemperature,
       cargo_type: cargoType,
       cargo_quantity: cargoQuantity,
       customs_loading: customsLoading,
       customs_unloading: customsUnloading,
-      loading_reference: loadingReference,
+      loading_reference: null,
     }])
     .select('id')
     .single();
@@ -319,7 +317,7 @@ export async function createForwarding(formData: FormData) {
 }
 
 // ============================================================
-// ОБНОВЛЕНИЕ заявки
+// ОБНОВЛЕНИЕ
 // ============================================================
 export async function updateForwarding(orderId: string, formData: FormData) {
   const supabase = await createClient();
@@ -335,11 +333,11 @@ export async function updateForwarding(orderId: string, formData: FormData) {
   const clientRequestDate = (formData.get('client_request_date') as string) || null;
 
   const transportType = (formData.get('transport_type') as string)?.trim() || null;
+  const transportTemperature = (formData.get('transport_temperature') as string)?.trim() || null;
   const cargoType = (formData.get('cargo_type') as string)?.trim() || null;
   const cargoQuantity = (formData.get('cargo_quantity') as string)?.trim() || null;
   const customsLoading = (formData.get('customs_loading') as string)?.trim() || null;
   const customsUnloading = (formData.get('customs_unloading') as string)?.trim() || null;
-  const loadingReference = (formData.get('loading_reference') as string)?.trim() || null;
 
   const contractors = parseContractors(formData);
   const loadingPoints = parsePoints(formData, 'loading');
@@ -372,11 +370,12 @@ export async function updateForwarding(orderId: string, formData: FormData) {
       client_request_number: clientRequestNumber,
       client_request_date: clientRequestDate,
       transport_type: transportType,
+      transport_temperature: transportTemperature,
       cargo_type: cargoType,
       cargo_quantity: cargoQuantity,
       customs_loading: customsLoading,
       customs_unloading: customsUnloading,
-      loading_reference: loadingReference,
+      loading_reference: null,
     })
     .eq('id', orderId);
 
@@ -393,7 +392,7 @@ export async function updateForwarding(orderId: string, formData: FormData) {
 }
 
 // ============================================================
-// УДАЛЕНИЕ заявки
+// УДАЛЕНИЕ
 // ============================================================
 export async function deleteForwarding(orderId: string) {
   const supabase = await createClient();
