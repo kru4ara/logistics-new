@@ -81,19 +81,26 @@ export default async function ForwardingDetailPage({ params }: { params: Promise
     return <div className="p-8 text-red-500">Заявка не найдена</div>;
   }
 
-  // Загружаем расходы
   const { data: expenses } = await supabase
     .from('forwarding_expenses')
     .select('*')
     .eq('forwarding_id', id)
     .order('expense_date', { ascending: false });
 
-  // Загружаем подрядчиков
   const { data: contractorsList } = await supabase
     .from('forwarding_contractors')
     .select('*, contractors(name, phone)')
     .eq('forwarding_id', id)
     .order('position');
+
+  const { data: pointsRaw } = await supabase
+    .from('forwarding_points')
+    .select('*, locations(name, city, country, company_name, postal_code, address, contact_person)')
+    .eq('forwarding_id', id)
+    .order('sequence');
+
+  const loadingPoints = (pointsRaw || []).filter((p) => p.type === 'loading');
+  const unloadingPoints = (pointsRaw || []).filter((p) => p.type === 'unloading');
 
   const clientPrice = order.client_price_eur || 0;
   const totalContractors = contractorsList?.reduce((sum, c) => sum + (c.price_eur || 0), 0) || 0;
@@ -233,6 +240,123 @@ export default async function ForwardingDetailPage({ params }: { params: Promise
           </div>
         </div>
 
+        {/* ТОЧКИ МАРШРУТА */}
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
+          <h2 className="text-lg font-bold text-slate-900 mb-4">📍 Точки маршрута</h2>
+
+          {/* Загрузка */}
+          <div className="mb-6">
+            <div className="text-sm font-semibold text-green-700 mb-3 flex items-center gap-2">
+              📍 Погрузка
+              {loadingPoints.length > 1 && (
+                <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
+                  {loadingPoints.length}
+                </span>
+              )}
+            </div>
+            {loadingPoints.length === 0 ? (
+              <div className="text-slate-400 text-sm pl-4">Не указано</div>
+            ) : (
+              <div className="space-y-3">
+                {loadingPoints.map((p, idx) => {
+                  const loc = Array.isArray(p.locations) ? p.locations[0] : p.locations;
+                  return (
+                    <div key={p.id} className="border-l-4 border-green-500 pl-4 py-2">
+                      <div className="flex flex-wrap items-baseline gap-2 mb-1">
+                        <span className="text-xs font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded">
+                          #{idx + 1}
+                        </span>
+                        <div className="font-bold text-slate-900 break-words">
+                          {loc?.name || '—'}
+                        </div>
+                        {p.date && (
+                          <span className="text-xs text-slate-500">
+                            📅 {new Date(p.date).toLocaleDateString('ru-RU')}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-sm text-slate-600 break-words">
+                        {[loc?.postal_code, loc?.city, loc?.address, loc?.country].filter(Boolean).join(', ') || '—'}
+                      </div>
+                      {(p.loading_number || loc?.contact_person) && (
+                        <div className="text-xs text-slate-500 mt-1 flex flex-wrap gap-x-3 gap-y-1">
+                          {p.loading_number && (
+                            <span>🚪 № погрузки: <b className="text-slate-700">{p.loading_number}</b></span>
+                          )}
+                          {loc?.contact_person && (
+                            <span>👤 {loc.contact_person}</span>
+                          )}
+                        </div>
+                      )}
+                      {p.notes && (
+                        <div className="text-xs text-slate-500 bg-slate-50 rounded-lg p-2 mt-2 break-words">
+                          📝 {p.notes}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Выгрузка */}
+          <div className="pt-4 border-t border-slate-100">
+            <div className="text-sm font-semibold text-red-700 mb-3 flex items-center gap-2">
+              🏁 Выгрузка
+              {unloadingPoints.length > 1 && (
+                <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium">
+                  {unloadingPoints.length}
+                </span>
+              )}
+            </div>
+            {unloadingPoints.length === 0 ? (
+              <div className="text-slate-400 text-sm pl-4">Не указано</div>
+            ) : (
+              <div className="space-y-3">
+                {unloadingPoints.map((p, idx) => {
+                  const loc = Array.isArray(p.locations) ? p.locations[0] : p.locations;
+                  return (
+                    <div key={p.id} className="border-l-4 border-red-500 pl-4 py-2">
+                      <div className="flex flex-wrap items-baseline gap-2 mb-1">
+                        <span className="text-xs font-bold text-red-700 bg-red-50 px-2 py-0.5 rounded">
+                          #{idx + 1}
+                        </span>
+                        <div className="font-bold text-slate-900 break-words">
+                          {loc?.name || '—'}
+                        </div>
+                        {p.date && (
+                          <span className="text-xs text-slate-500">
+                            📅 {new Date(p.date).toLocaleDateString('ru-RU')}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-sm text-slate-600 break-words">
+                        {[loc?.postal_code, loc?.city, loc?.address, loc?.country].filter(Boolean).join(', ') || '—'}
+                      </div>
+                      {(p.loading_number || loc?.contact_person) && (
+                        <div className="text-xs text-slate-500 mt-1 flex flex-wrap gap-x-3 gap-y-1">
+                          {p.loading_number && (
+                            <span>🚪 № погрузки: <b className="text-slate-700">{p.loading_number}</b></span>
+                          )}
+                          {loc?.contact_person && (
+                            <span>👤 {loc.contact_person}</span>
+                          )}
+                        </div>
+                      )}
+                      {p.notes && (
+                        <div className="text-xs text-slate-500 bg-slate-50 rounded-lg p-2 mt-2 break-words">
+                          📝 {p.notes}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Подрядчики */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
           <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
@@ -283,29 +407,20 @@ export default async function ForwardingDetailPage({ params }: { params: Promise
                       )}
                     </div>
 
-                    {/* № машины и водитель + срок оплаты */}
                     {(c.truck_number || c.driver_name || c.payment_days) && (
                       <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-slate-600">
-                        {c.truck_number && (
-                          <span>🚛 <b>{c.truck_number}</b></span>
-                        )}
-                        {c.driver_name && (
-                          <span>👤 {c.driver_name}</span>
-                        )}
-                        {c.payment_days && (
-                          <span>💶 {c.payment_days} дн.</span>
-                        )}
+                        {c.truck_number && <span>🚛 <b>{c.truck_number}</b></span>}
+                        {c.driver_name && <span>👤 {c.driver_name}</span>}
+                        {c.payment_days && <span>💶 {c.payment_days} дн.</span>}
                       </div>
                     )}
 
-                    {/* Заметки к подрядчику */}
                     {c.notes && (
                       <div className="text-xs text-slate-500 bg-slate-50 rounded-lg p-2 mt-2 break-words">
                         📝 {c.notes}
                       </div>
                     )}
 
-                    {/* Кнопка генерации DOCX */}
                     <div className="mt-3">
                       <ContractorDocxButton
                         forwardingId={id}
@@ -325,39 +440,6 @@ export default async function ForwardingDetailPage({ params }: { params: Promise
               )}
             </div>
           )}
-        </div>
-
-        {/* Маршрут */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
-          <h2 className="text-lg font-bold text-slate-900 mb-4">📍 Маршрут</h2>
-          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
-            <div>
-              <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Откуда</div>
-              <div className="text-slate-800 font-medium break-words">{order.route_from || '—'}</div>
-            </div>
-            <div>
-              <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Куда</div>
-              <div className="text-slate-800 font-medium break-words">{order.route_to || '—'}</div>
-            </div>
-            <div>
-              <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Дата загрузки</div>
-              <div className="text-slate-800 font-medium">
-                {order.load_date ? new Date(order.load_date).toLocaleDateString('ru-RU') : '—'}
-              </div>
-            </div>
-            <div>
-              <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Дата выгрузки</div>
-              <div className="text-slate-800 font-medium">
-                {order.unload_date ? new Date(order.unload_date).toLocaleDateString('ru-RU') : '—'}
-              </div>
-            </div>
-            {order.loading_reference && (
-              <div className="sm:col-span-2">
-                <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Reference loading</div>
-                <div className="text-slate-800 font-medium break-words">{order.loading_reference}</div>
-              </div>
-            )}
-          </div>
         </div>
 
         {/* Детали перевозки */}
@@ -393,6 +475,12 @@ export default async function ForwardingDetailPage({ params }: { params: Promise
                 <div>
                   <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Таможня (выгрузка)</div>
                   <div className="text-slate-800 font-medium break-words">{order.customs_unloading}</div>
+                </div>
+              )}
+              {order.loading_reference && (
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Reference loading</div>
+                  <div className="text-slate-800 font-medium break-words">{order.loading_reference}</div>
                 </div>
               )}
             </div>
