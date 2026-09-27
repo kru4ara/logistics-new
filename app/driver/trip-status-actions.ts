@@ -2,7 +2,6 @@
 
 import { createClient } from '../../lib/supabase-server';
 import { revalidatePath } from 'next/cache';
-import { syncTripFromLogisat } from '../../lib/logisat';
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
@@ -24,35 +23,51 @@ async function sendTelegramMessage(text: string) {
   }
 }
 
-export async function changeTripStatus(tripId: string, status: string) {
+export async function changeTripStatus(
+  tripId: string,
+  status: string,
+  endDate?: string
+) {
   const supabase = await createClient();
 
-  // 1. Получаем данные рейса
+  // 1. Получаем данные рейса перед обновлением
   const { data: trip } = await supabase
     .from('trips')
     .select('*, drivers(first_name, last_name), trucks(registration_number), clients(name)')
     .eq('id', tripId)
     .single();
 
-  // 2. Формируем обновление
   const updateData: Record<string, any> = { status };
-
   const todayDate = new Date().toISOString().split('T')[0];
 
-  // Начало рейса — если пусто
+  // 2. Старт рейса — если пусто, ставим сегодня
   if (status === 'active' && !trip?.start_date) {
     updateData.start_date = todayDate;
   }
 
-  // Завершение рейса — ставим end_date
+  // 3. Завершение — дата обязательна
   if (status === 'completed') {
-    updateData.end_date = todayDate;
+    const finalEndDate = endDate || todayDate;
+
+    // Проверка: end_date не может быть меньше start_date
+    if (trip?.start_date) {
+      const startTs = new Date(trip.start_date).getTime();
+      const endTs = new Date(finalEndDate).getTime();
+      if (endTs < startTs) {
+        throw new Error(
+          `Дата завершения (${finalEndDate}) не может быть раньше даты старта (${trip.start_date})`
+        );
+      }
+    }
+
+    updateData.end_date = finalEndDate;
+
     if (!trip?.start_date) {
-      updateData.start_date = todayDate;
+      updateData.start_date = finalEndDate;
     }
   }
 
-  // 3. Обновляем статус и даты
+  // 4. Обновляем
   const { error } = await supabase
     .from('trips')
     .update(updateData)
@@ -60,9 +75,10 @@ export async function changeTripStatus(tripId: string, status: string) {
 
   if (error) throw new Error(`Ошибка обновления: ${error.message}`);
 
-  // 4. Автосинхронизация Logisat при завершении
+  // 5. Автосинхронизация Logisat при завершении
   if (status === 'completed') {
     try {
+      const { syncTripFromLogisat } = await import('../../lib/logisat');
       const syncResult = await syncTripFromLogisat(tripId);
       if (syncResult.success) {
         console.log('[changeTripStatus] Logisat sync OK:', {
@@ -78,7 +94,7 @@ export async function changeTripStatus(tripId: string, status: string) {
     }
   }
 
-  // 5. Telegram
+  // 6. Telegram
   const statusEmoji: Record<string, string> = {
     active: '🚛',
     completed: '✅',
@@ -100,7 +116,7 @@ export async function changeTripStatus(tripId: string, status: string) {
     const truckNumber = trip.trucks?.registration_number || '—';
     const clientName = trip.clients?.name || '—';
 
-    const message = [
+    const lines = [
       `${statusEmoji[status] || '📋'} *Статус рейса изменён*`,
       '',
       `*Рейс:* № ${trip.trip_number || '—'}`,
@@ -110,9 +126,13 @@ export async function changeTripStatus(tripId: string, status: string) {
       `*Машина:* ${truckNumber}`,
       '',
       `*Новый статус:* ${statusText[status] || status}`,
-    ].join('\n');
+    ];
 
-    await sendTelegramMessage(message);
+    if (status === 'completed' && updateData.end_date) {
+      lines.push(`*Дата завершения:* ${updateData.end_date}`);
+    }
+
+    await sendTelegramMessage(lines.join('\n'));
   }
 
   revalidatePath(`/trips/${tripId}`);
