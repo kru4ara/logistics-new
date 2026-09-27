@@ -10,6 +10,8 @@ type Result = {
   fuelLiters?: number;
   consumption?: number;
   framesCount?: number;
+  truck?: string;
+  deviceId?: string | null;
 };
 
 export default function SyncLogisatButton({ tripId }: { tripId: string }) {
@@ -29,20 +31,15 @@ export default function SyncLogisatButton({ tripId }: { tripId: string }) {
         body: JSON.stringify({ tripId }),
       });
 
-      // ⚠️ СНАЧАЛА читаем текст, потом пытаемся парсить как JSON
       const text = await res.text();
 
       let data: Result;
       try {
         data = JSON.parse(text);
       } catch {
-        // Сервер вернул не JSON (HTML страница ошибки)
-        const isHtml = text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html');
         setResult({
           success: false,
-          error: isHtml
-            ? `Сервер вернул HTML вместо JSON (код ${res.status}). Endpoint /api/logisat/sync не найден или упал с ошибкой.`
-            : `Неверный ответ сервера (код ${res.status}): ${text.slice(0, 200)}`,
+          error: `Сервер вернул не-JSON (код ${res.status}): ${text.slice(0, 200)}`,
         });
         return;
       }
@@ -59,6 +56,9 @@ export default function SyncLogisatButton({ tripId }: { tripId: string }) {
       setResult({ success: false, error: (err as Error).message });
     }
   }
+
+  const hasDistance = result?.distanceKm != null;
+  const hasFuel = result?.fuelLiters != null;
 
   return (
     <>
@@ -91,16 +91,25 @@ export default function SyncLogisatButton({ tripId }: { tripId: string }) {
                 <div className="text-center">
                   <div className="text-5xl mb-2">✅</div>
                   <h3 className="text-lg font-bold text-slate-900">Данные обновлены</h3>
+                  {result.truck && (
+                    <div className="text-xs text-slate-400 mt-1">
+                      {result.truck} · {result.framesCount} кадров GPS
+                    </div>
+                  )}
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-slate-50 rounded-xl p-3 text-center">
                     <div className="text-xs text-slate-400 font-medium mb-1">Пробег</div>
-                    <div className="text-2xl font-bold text-slate-900">{result.distanceKm}</div>
+                    <div className="text-2xl font-bold text-slate-900">
+                      {hasDistance ? result.distanceKm : '—'}
+                    </div>
                     <div className="text-xs text-slate-500">км</div>
                   </div>
                   <div className="bg-slate-50 rounded-xl p-3 text-center">
                     <div className="text-xs text-slate-400 font-medium mb-1">Топливо</div>
-                    <div className="text-2xl font-bold text-slate-900">{result.fuelLiters}</div>
+                    <div className="text-2xl font-bold text-slate-900">
+                      {hasFuel ? result.fuelLiters : '—'}
+                    </div>
                     <div className="text-xs text-slate-500">л</div>
                   </div>
                 </div>
@@ -109,9 +118,16 @@ export default function SyncLogisatButton({ tripId }: { tripId: string }) {
                     Средний расход: <b className="text-slate-800">{result.consumption} л/100км</b>
                   </div>
                 )}
-                <div className="text-center text-xs text-slate-400">
-                  {result.framesCount} кадров GPS
-                </div>
+                {!hasDistance && (
+                  <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2">
+                    ⚠️ Одометр не передаёт данные — пробег не рассчитан
+                  </div>
+                )}
+                {!hasFuel && (
+                  <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2">
+                    ⚠️ Датчик топлива не передаёт данные
+                  </div>
+                )}
               </>
             ) : (
               <>
