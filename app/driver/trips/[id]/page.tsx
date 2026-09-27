@@ -51,9 +51,6 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
 
   const clientName = pickName(trip.clients) || 'Клиент не указан';
 
-  // ============================================================
-  // ТОЧКИ ПОГРУЗКИ
-  // ============================================================
   type LoadingPoint = {
     num: number;
     country: string | null;
@@ -147,7 +144,6 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
     <main className="min-h-screen bg-slate-50">
       <div className="max-w-[900px] mx-auto px-4 py-6 space-y-5">
 
-        {/* Назад */}
         <a href="/driver" className="inline-flex items-center gap-2 text-slate-600 hover:text-blue-600 transition-colors text-sm font-medium">
           ← Мои рейсы
         </a>
@@ -168,12 +164,26 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
               {statusLabels[trip.status] || trip.status}
             </span>
           </div>
-          <div className="flex items-start gap-2 text-sm text-slate-600 mb-2">
+
+          <div className="flex items-start gap-2 text-sm text-slate-600 mb-3">
             <span className="shrink-0">🛣</span>
             <span className="break-words">{trip.route || '—'}</span>
           </div>
-          <div className="text-xs text-slate-400">
-            📅 Старт: {trip.start_date ? new Date(trip.start_date).toLocaleDateString('ru-RU') : '—'}
+
+          {/* Даты старт / финиш */}
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+            <span className="text-slate-600">
+              🚀 Старт: <b className="text-slate-800">
+                {trip.start_date ? new Date(trip.start_date).toLocaleDateString('ru-RU') : '—'}
+              </b>
+            </span>
+            {trip.end_date ? (
+              <span className="text-emerald-700">
+                🏁 Финиш: <b>{new Date(trip.end_date).toLocaleDateString('ru-RU')}</b>
+              </span>
+            ) : (
+              <span className="text-slate-400">🏁 Финиш: —</span>
+            )}
           </div>
         </div>
 
@@ -292,7 +302,6 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
             <div className="space-y-2">
               {expenses?.map((exp) => (
                 <div key={exp.id} className="border border-slate-100 rounded-xl p-3 bg-slate-50/40">
-                  {/* Верхняя строка: emoji + категория + сумма */}
                   <div className="flex items-center gap-2 mb-2">
                     <span className="text-lg shrink-0">{categoryEmoji(exp.category)}</span>
                     <div className="font-semibold text-slate-800 text-sm flex-1 min-w-0 truncate">
@@ -308,14 +317,12 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
                     </div>
                   </div>
 
-                  {/* Описание */}
                   {exp.description && (
                     <div className="text-xs text-slate-600 mb-2 break-words">
                       {exp.description}
                     </div>
                   )}
 
-                  {/* Нижняя строка: дата + удалить */}
                   <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200/60">
                     <span className="text-xs text-slate-400">
                       📅 {exp.expense_date ? new Date(exp.expense_date).toLocaleDateString('ru-RU') : '—'}
