@@ -28,7 +28,6 @@ function fmtDate(d: string | null): string {
   return `${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')}/${dt.getFullYear()}`;
 }
 
-// Читаем размеры картинки любого формата (PNG, JPEG, WebP, GIF, SVG, BMP)
 function getImageDimensions(buffer: Buffer): { width: number; height: number } | null {
   try {
     const dims = imageSize(buffer);
@@ -42,7 +41,6 @@ function getImageDimensions(buffer: Buffer): { width: number; height: number } |
   }
 }
 
-// Масштабируем картинку с сохранением пропорций
 function scaleImage(
   dims: { width: number; height: number } | null,
   maxWidth: number,
@@ -112,6 +110,7 @@ const FONT = 'Calibri';
 const LINE = 240;
 const BLUE = '1E40AF';
 const RED = 'B91C1C';
+const GREEN = '15803D';
 const GRAY = '6B7280';
 
 type TextOpts = {
@@ -232,6 +231,15 @@ export async function GET(
     return NextResponse.json({ error: 'Подрядчик не найден' }, { status: 404 });
   }
 
+  const { data: pointsRaw } = await supabase
+    .from('forwarding_points')
+    .select('*, locations(name, city, country, postal_code, address, company_name)')
+    .eq('forwarding_id', forwardingId)
+    .order('sequence');
+
+  const loadingPoints = (pointsRaw || []).filter((p) => p.type === 'loading');
+  const unloadingPoints = (pointsRaw || []).filter((p) => p.type === 'unloading');
+
   const contractor = fc.contractors;
   const paymentDays = fc.payment_days || 30;
   const terms = getTerms(paymentDays);
@@ -248,26 +256,8 @@ export async function GET(
   const stampDims = stampBuf ? getImageDimensions(stampBuf) : null;
   const qrDims = qrBuf ? getImageDimensions(qrBuf) : null;
 
-  console.log('[DOCX] stamp dims:', stampDims, 'qr dims:', qrDims);
-
-  // Печать: max 180x200 (чуть выше, чем шире — под вертикальный овал).
-  // Fallback если не удалось прочитать размеры: 160x200 (вертикальный).
-  const stampSize = scaleImage(
-    stampDims,
-    180,
-    200,
-    { width: 160, height: 200 }
-  );
-
-  // QR: max 110x110 (квадратный)
-  const qrSize = scaleImage(
-    qrDims,
-    110,
-    110,
-    { width: 110, height: 110 }
-  );
-
-  console.log('[DOCX] stamp size:', stampSize, 'qr size:', qrSize);
+  const stampSize = scaleImage(stampDims, 180, 200, { width: 160, height: 200 });
+  const qrSize = scaleImage(qrDims, 110, 110, { width: 110, height: 110 });
 
   const children: any[] = [];
 
@@ -416,6 +406,7 @@ export async function GET(
 
   children.push(divider());
 
+  // --- МАШИНА / ВОДИТЕЛЬ ---
   const truckDriverChildren: Paragraph[] = [];
   if (fc.truck_number) {
     truckDriverChildren.push(
@@ -468,12 +459,189 @@ export async function GET(
 
   children.push(txt('', { after: 200 }));
 
-  const loadingPlace =
-    [order.route_from, order.loading_reference ? `Ref: ${order.loading_reference}` : null]
-      .filter(Boolean)
-      .join(' · ') || '—';
+  // ============================================================
+  // БЛОК TRASA / MARSZRUT
+  // ============================================================
+  const routeRows: TableRow[] = [];
 
-  const unloadingPlace = order.route_to || '—';
+  loadingPoints.forEach((p, idx) => {
+    const loc = Array.isArray(p.locations) ? p.locations[0] : p.locations;
+    const cityLine = [loc?.postal_code, loc?.city, loc?.country].filter(Boolean).join(', ') || '—';
+    const nameLine = loc?.name || loc?.company_name || '';
+    const addrLine = loc?.address || '';
+
+    const pointChildren: Paragraph[] = [
+      new Paragraph({
+        spacing: { line: LINE, after: 20, before: 0 },
+        children: [
+          new TextRun({ text: `#${idx + 1}   `, bold: true, size: 20, font: FONT, color: GREEN }),
+          new TextRun({ text: p.date ? fmtDate(p.date) : '—', bold: true, size: 20, font: FONT, color: BLUE }),
+          new TextRun({ text: '   ', size: 20, font: FONT }),
+          new TextRun({ text: nameLine, bold: true, size: 20, font: FONT, color: '0F172A' }),
+        ],
+      }),
+    ];
+
+    if (cityLine !== '—') {
+      pointChildren.push(
+        new Paragraph({
+          spacing: { line: LINE, after: 20, before: 0 },
+          children: [
+            new TextRun({ text: '      ' + cityLine, size: 18, font: FONT, color: '475569' }),
+          ],
+        })
+      );
+    }
+
+    if (addrLine) {
+      pointChildren.push(
+        new Paragraph({
+          spacing: { line: LINE, after: 20, before: 0 },
+          children: [
+            new TextRun({ text: '      ' + addrLine, size: 18, font: FONT, color: '475569' }),
+          ],
+        })
+      );
+    }
+
+    if (p.loading_number) {
+      pointChildren.push(
+        new Paragraph({
+          spacing: { line: LINE, after: 20, before: 0 },
+          children: [
+            new TextRun({ text: '      № погрузки: ', size: 18, font: FONT, color: '475569' }),
+            new TextRun({ text: p.loading_number, bold: true, size: 18, font: FONT, color: '334155' }),
+          ],
+        })
+      );
+    }
+
+    routeRows.push(
+      new TableRow({
+        children: [
+          new TableCell({
+            margins: { top: 60, bottom: 60, left: 0, right: 0 },
+            children: pointChildren,
+          }),
+        ],
+      })
+    );
+  });
+
+  // Разделитель между погрузкой и выгрузкой, если есть оба
+  if (loadingPoints.length > 0 && unloadingPoints.length > 0) {
+    routeRows.push(
+      new TableRow({
+        children: [
+          new TableCell({
+            margins: { top: 60, bottom: 60, left: 0, right: 0 },
+            children: [
+              new Paragraph({
+                spacing: { line: LINE, after: 0, before: 0 },
+                children: [
+                  new TextRun({ text: '▼', size: 18, font: FONT, color: '94A3B8' }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      })
+    );
+  }
+
+  unloadingPoints.forEach((p, idx) => {
+    const loc = Array.isArray(p.locations) ? p.locations[0] : p.locations;
+    const cityLine = [loc?.postal_code, loc?.city, loc?.country].filter(Boolean).join(', ') || '—';
+    const nameLine = loc?.name || loc?.company_name || '';
+    const addrLine = loc?.address || '';
+
+    const pointChildren: Paragraph[] = [
+      new Paragraph({
+        spacing: { line: LINE, after: 20, before: 0 },
+        children: [
+          new TextRun({ text: `#${idx + 1}   `, bold: true, size: 20, font: FONT, color: RED }),
+          new TextRun({ text: p.date ? fmtDate(p.date) : '—', bold: true, size: 20, font: FONT, color: BLUE }),
+          new TextRun({ text: '   ', size: 20, font: FONT }),
+          new TextRun({ text: nameLine, bold: true, size: 20, font: FONT, color: '0F172A' }),
+        ],
+      }),
+    ];
+
+    if (cityLine !== '—') {
+      pointChildren.push(
+        new Paragraph({
+          spacing: { line: LINE, after: 20, before: 0 },
+          children: [
+            new TextRun({ text: '      ' + cityLine, size: 18, font: FONT, color: '475569' }),
+          ],
+        })
+      );
+    }
+
+    if (addrLine) {
+      pointChildren.push(
+        new Paragraph({
+          spacing: { line: LINE, after: 20, before: 0 },
+          children: [
+            new TextRun({ text: '      ' + addrLine, size: 18, font: FONT, color: '475569' }),
+          ],
+        })
+      );
+    }
+
+    if (p.loading_number) {
+      pointChildren.push(
+        new Paragraph({
+          spacing: { line: LINE, after: 20, before: 0 },
+          children: [
+            new TextRun({ text: '      № погрузки: ', size: 18, font: FONT, color: '475569' }),
+            new TextRun({ text: p.loading_number, bold: true, size: 18, font: FONT, color: '334155' }),
+          ],
+        })
+      );
+    }
+
+    routeRows.push(
+      new TableRow({
+        children: [
+          new TableCell({
+            margins: { top: 60, bottom: 60, left: 0, right: 0 },
+            children: pointChildren,
+          }),
+        ],
+      })
+    );
+  });
+
+  if (routeRows.length > 0) {
+    children.push(
+      txt('TRASA / MARSZRUT', { bold: true, size: 22, after: 100, color: BLUE })
+    );
+
+    children.push(
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        borders: {
+          top: { style: BorderStyle.SINGLE, size: 6, color: 'CBD5E1' },
+          bottom: { style: BorderStyle.SINGLE, size: 6, color: 'CBD5E1' },
+          left: { style: BorderStyle.SINGLE, size: 6, color: 'CBD5E1' },
+          right: { style: BorderStyle.SINGLE, size: 6, color: 'CBD5E1' },
+          insideHorizontal: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+          insideVertical: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+        },
+        rows: routeRows,
+      })
+    );
+
+    children.push(txt('', { after: 200 }));
+  }
+
+  // ============================================================
+  // ТАБЛИЦА ДЕТАЛЕЙ
+  // ============================================================
+  const transportText = [order.transport_type, order.transport_temperature ? `(${order.transport_temperature})` : null]
+    .filter(Boolean)
+    .join(' ');
 
   const cargoText =
     [order.cargo_type, order.cargo_quantity].filter(Boolean).join(' ') ||
@@ -482,31 +650,19 @@ export async function GET(
 
   const rows: TableRow[] = [
     new TableRow({
-      children: [cellLabel('Rodzaj transportu'), cellValue(order.transport_type || '—', { bold: true })],
+      children: [cellLabel('Rodzaj transportu'), cellValue(transportText || '—', { bold: true })],
     }),
     new TableRow({
-      children: [cellLabel('Miejsce załadunku'), cellValue(loadingPlace, { bold: true })],
-    }),
-    new TableRow({
-      children: [cellLabel('Data załadunku'), cellValue(fmtDate(order.load_date), { bold: true, color: BLUE })],
-    }),
-    new TableRow({
-      children: [cellLabel('Urząd celny'), cellValue(order.customs_loading || 'bez')],
+      children: [cellLabel('Urząd celny (załadunek)'), cellValue(order.customs_loading || 'bez')],
     }),
     new TableRow({
       children: [cellLabel('Rodzaj towaru'), cellValue(cargoText, { bold: true })],
     }),
     new TableRow({
-      children: [cellLabel('Data rozładunku'), cellValue(fmtDate(order.unload_date), { bold: true, color: BLUE })],
-    }),
-    new TableRow({
       children: [
-        cellLabel('Odprawa celna'),
+        cellLabel('Odprawa celna (rozładunek)'),
         cellValue(order.customs_unloading ? `${order.customs_unloading} przy rozładunku` : 'bez przy rozładunku'),
       ],
-    }),
-    new TableRow({
-      children: [cellLabel('Miejsce rozładunku'), cellValue(unloadingPlace, { bold: true })],
     }),
     new TableRow({
       children: [
@@ -567,9 +723,6 @@ export async function GET(
 
   children.push(txt('', { after: 500 }));
 
-  // ============================================================
-  // БЛОК ПОДПИСИ
-  // ============================================================
   const signatureChildren: Paragraph[] = [
     new Paragraph({
       spacing: { line: LINE, after: 80, before: 0 },
