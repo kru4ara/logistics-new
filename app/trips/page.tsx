@@ -46,7 +46,6 @@ export default async function TripsPage({ searchParams }: { searchParams: { year
     return acc;
   }, {} as Record<string, number>) || {};
 
-  // Фильтруем по году и месяцу
   const filteredTrips = trips?.filter((t) => {
     const date = t.end_date || t.start_date;
     if (!date) return false;
@@ -56,7 +55,6 @@ export default async function TripsPage({ searchParams }: { searchParams: { year
     return true;
   }) || [];
 
-  // Группируем по месяцам
   const tripsByMonth: Record<string, { month: number; trips: any[] }> = {};
   filteredTrips.forEach((t) => {
     const date = t.end_date || t.start_date;
@@ -69,7 +67,6 @@ export default async function TripsPage({ searchParams }: { searchParams: { year
 
   const sortedMonthKeys = Object.keys(tripsByMonth).sort().reverse();
 
-  // Список годов
   const tripYears = new Set<number>();
   trips?.forEach((t) => {
     const date = t.end_date || t.start_date;
@@ -104,7 +101,6 @@ export default async function TripsPage({ searchParams }: { searchParams: { year
     paid: 'bg-emerald-500',
   };
 
-  // Статистика по текущему фильтру
   const filteredRevenue = filteredTrips.reduce((sum, t) => sum + (t.revenue_eur || 0), 0);
   const filteredExpenses = filteredTrips.reduce((sum, t) => sum + (expensesByTrip[t.id] || 0), 0);
   const filteredProfit = filteredRevenue - filteredExpenses;
@@ -113,7 +109,6 @@ export default async function TripsPage({ searchParams }: { searchParams: { year
     <main className="min-h-screen bg-slate-50">
       <div className="max-w-[1600px] mx-auto px-4 md:px-6 py-6 md:py-8 space-y-5 md:space-y-6">
 
-        {/* Заголовок */}
         <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:justify-between sm:items-center">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-slate-900">📋 Рейсы</h1>
@@ -133,9 +128,7 @@ export default async function TripsPage({ searchParams }: { searchParams: { year
           </div>
         </div>
 
-        {/* Фильтры */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-5 space-y-4">
-          {/* Годы */}
           <div>
             <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2">Год</div>
             <div className="flex flex-wrap gap-2">
@@ -154,7 +147,6 @@ export default async function TripsPage({ searchParams }: { searchParams: { year
             </div>
           </div>
 
-          {/* Месяцы */}
           <div>
             <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2">Месяц</div>
             <div className="flex flex-wrap gap-1.5 md:gap-2">
@@ -185,7 +177,6 @@ export default async function TripsPage({ searchParams }: { searchParams: { year
             </div>
           </div>
 
-          {/* Итоги по фильтру */}
           <div className="grid grid-cols-3 gap-3 pt-3 border-t border-slate-100">
             <div>
               <div className="text-xs text-slate-400 font-medium">Фрахт</div>
@@ -204,7 +195,6 @@ export default async function TripsPage({ searchParams }: { searchParams: { year
           </div>
         </div>
 
-        {/* Список рейсов */}
         {filteredTrips.length === 0 ? (
           <div className="bg-white rounded-2xl border border-slate-100 p-10 md:p-16 text-center">
             <div className="text-6xl mb-4">📭</div>
@@ -231,7 +221,6 @@ export default async function TripsPage({ searchParams }: { searchParams: { year
 
               return (
                 <div key={key}>
-                  {/* Заголовок месяца */}
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-3 md:mb-4 px-1">
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-blue-50 flex items-center justify-center text-lg md:text-xl shrink-0">
@@ -264,7 +253,6 @@ export default async function TripsPage({ searchParams }: { searchParams: { year
                     </div>
                   </div>
 
-                  {/* Карточки рейсов */}
                   <div className="grid gap-4 md:gap-5 md:grid-cols-2 lg:grid-cols-3">
                     {monthTrips.map((trip) => {
                       const tripExpenses = expensesByTrip[trip.id] || 0;
@@ -283,7 +271,6 @@ export default async function TripsPage({ searchParams }: { searchParams: { year
                           <div className={`h-1.5 ${statusStripColors[trip.status] || 'bg-slate-300'}`} />
 
                           <div className="p-4 md:p-5">
-                            {/* Заголовок: № + клиент + статус */}
                             <div className="flex items-start justify-between gap-2 mb-3">
                               <div className="min-w-0 flex-1">
                                 <div className="text-xs text-slate-400 font-medium">
@@ -299,36 +286,41 @@ export default async function TripsPage({ searchParams }: { searchParams: { year
                               </span>
                             </div>
 
-                            {/* Заявка клиента */}
                             {trip.client_request_number && (
                               <div className="text-xs text-slate-500 mb-2 break-words">
                                 📄 Заявка: <b className="text-slate-700">{trip.client_request_number}</b>
                               </div>
                             )}
 
-                            {/* Маршрут */}
                             <div className="flex items-start gap-2 text-sm text-slate-600 mb-2">
                               <span className="shrink-0">🛣</span>
                               <span className="break-words">{trip.route || '—'}</span>
                             </div>
 
-                            {/* Дата + водитель */}
-                            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400 mb-4">
-                              <span>
-                                📅 {trip.end_date
-                                  ? new Date(trip.end_date).toLocaleDateString('ru-RU')
-                                  : trip.start_date
-                                    ? new Date(trip.start_date).toLocaleDateString('ru-RU')
-                                    : '—'}
+                            {/* ДАТЫ СТАРТ / ФИНИШ */}
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs mb-2">
+                              <span className="text-slate-500">
+                                🚀 Старт: <b className="text-slate-700">
+                                  {trip.start_date ? new Date(trip.start_date).toLocaleDateString('ru-RU') : '—'}
+                                </b>
                               </span>
-                              {driver && (
-                                <span className="truncate max-w-[60%]">
-                                  🚛 {driver.first_name} {driver.last_name}
+                              {trip.end_date ? (
+                                <span className="text-emerald-700">
+                                  🏁 Финиш: <b>
+                                    {new Date(trip.end_date).toLocaleDateString('ru-RU')}
+                                  </b>
                                 </span>
+                              ) : (
+                                <span className="text-slate-400">🏁 Финиш: —</span>
                               )}
                             </div>
 
-                            {/* Экономика */}
+                            {driver && (
+                              <div className="text-xs text-slate-400 mb-4 truncate">
+                                🚛 {driver.first_name} {driver.last_name}
+                              </div>
+                            )}
+
                             <div className="pt-3 border-t border-slate-100 grid grid-cols-3 gap-2">
                               <div>
                                 <div className="text-[10px] uppercase tracking-wide text-slate-400 font-medium">Фрахт</div>
