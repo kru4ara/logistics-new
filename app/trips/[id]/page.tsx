@@ -3,6 +3,7 @@ import { addExpense, deleteExpense, deleteTrip } from '../../trip-actions';
 import FileUpload from '../../driver/FileUpload';
 import DocumentList from '../../driver/DocumentList';
 import TripStatusButtons from '../../driver/TripStatusButtons';
+import SyncLogisatButton from './SyncLogisatButton';
 import { saveTelemetry } from '../../telemetry-actions';
 import CopyBlock from '../../components/CopyBlock';
 
@@ -98,7 +99,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
   ].filter((p) => p.city || p.name || p.country || p.address);
 
   // ============================================================
-  // ТЕКСТ ЗАДАНИЯ
+  // ТЕКСТ ЗАДАНИЯ ДЛЯ ВОДИТЕЛЯ
   // ============================================================
   const taskLines: string[] = [];
   taskLines.push(`Тягач: ${truck?.registration_number || '—'}`);
@@ -184,7 +185,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
           ← Все рейсы
         </a>
 
-        {/* Заголовок */}
+        {/* ЗАГОЛОВОК */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-4">
             <div className="min-w-0">
@@ -212,7 +213,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
             </span>
           </div>
 
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-2">
             <a
               href={`/trips/${tripId}/edit`}
               className="flex-1 sm:flex-none text-center px-4 py-2 rounded-lg border border-slate-300 text-slate-700 font-medium
@@ -220,6 +221,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
             >
               ✏️ Редактировать
             </a>
+            <SyncLogisatButton tripId={tripId} />
             <form action={deleteTrip.bind(null, tripId)} className="flex-1 sm:flex-none">
               <button
                 type="submit"
@@ -232,23 +234,23 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
           </div>
         </div>
 
-        {/* Информация о рейсе */}
+        {/* ИНФОРМАЦИЯ */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
           <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
             <div className="col-span-2">
               <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Маршрут</div>
-              <div className="text-slate-800 font-medium text-sm">{trip.route || '—'}</div>
+              <div className="text-slate-800 font-medium text-sm break-words">{trip.route || '—'}</div>
             </div>
             <div>
               <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Тягач / Прицеп</div>
-              <div className="text-slate-800 font-medium text-sm">
+              <div className="text-slate-800 font-medium text-sm break-words">
                 {truck?.registration_number || '—'}
                 {trailerNumber && ` / ${trailerNumber}`}
               </div>
             </div>
             <div>
               <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Водитель</div>
-              <div className="text-slate-800 font-medium text-sm">
+              <div className="text-slate-800 font-medium text-sm break-words">
                 {driver ? `${driver.first_name} ${driver.last_name}` : '—'}
               </div>
             </div>
@@ -265,7 +267,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
           <div className="grid gap-4 grid-cols-3 mt-4 pt-4 border-t border-slate-100">
             <div>
               <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Фрахт</div>
-              <div className="text-lg md:text-xl font-bold text-green-600">
+              <div className="text-lg md:text-xl font-bold text-green-600 break-words">
                 {trip.revenue_eur ? `${trip.revenue_eur} €` : '—'}
               </div>
             </div>
@@ -282,7 +284,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
           </div>
         </div>
 
-        {/* Точки маршрута */}
+        {/* ТОЧКИ МАРШРУТА */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
           <h2 className="text-lg font-bold text-slate-900 mb-4">📍 Маршрутные точки</h2>
 
@@ -305,9 +307,9 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
                       <span className="text-xs font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded">
                         #{p.num}
                       </span>
-                      <span className="font-semibold text-slate-800 text-sm">{p.name || '—'}</span>
+                      <span className="font-semibold text-slate-800 text-sm break-words">{p.name || '—'}</span>
                     </div>
-                    <div className="text-sm text-slate-600 mt-1">
+                    <div className="text-sm text-slate-600 mt-1 break-words">
                       {[p.country, p.postal_code, p.city, p.address].filter(Boolean).join(', ') || '—'}
                     </div>
                     {p.loading_number && (
@@ -327,8 +329,8 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
             </div>
             {trip.receiver_city || trip.receiver_name ? (
               <div className="border-l-4 border-red-500 pl-4 py-1">
-                <div className="font-semibold text-slate-800 text-sm">{trip.receiver_name || '—'}</div>
-                <div className="text-sm text-slate-600 mt-1">
+                <div className="font-semibold text-slate-800 text-sm break-words">{trip.receiver_name || '—'}</div>
+                <div className="text-sm text-slate-600 mt-1 break-words">
                   {[trip.receiver_country, trip.receiver_postal_code, trip.receiver_city, trip.receiver_address]
                     .filter(Boolean).join(', ') || '—'}
                 </div>
@@ -344,13 +346,16 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
           </div>
         </div>
 
+        {/* ЗАДАНИЕ ДЛЯ ВОДИТЕЛЯ */}
         <CopyBlock text={taskText} />
 
+        {/* КНОПКИ СТАТУСА */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
           <h2 className="text-sm font-bold text-slate-700 mb-3">Действия по рейсу</h2>
           <TripStatusButtons tripId={tripId} currentStatus={trip.status} showAdminStatuses={true} />
         </div>
 
+        {/* ТЕЛЕМЕТРИЯ */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
           <h2 className="text-lg font-bold text-slate-900 mb-4">📊 Данные телеметрии</h2>
           <form action={async (formData: FormData) => {
@@ -386,16 +391,23 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
           )}
         </div>
 
+        {/* ЗАГРУЗКА ДОКУМЕНТОВ */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
           <h2 className="text-lg font-bold text-slate-900 mb-4">📎 Загрузить документы</h2>
           <FileUpload tripId={tripId} />
         </div>
 
+        {/* ЗАГРУЖЕННЫЕ ФАЙЛЫ */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
           <h2 className="text-lg font-bold text-slate-900 mb-4">📁 Загруженные файлы</h2>
-          <DocumentList documents={documents || []} tripId={tripId} canDelete={true} />
+          <DocumentList
+            documents={documents || []}
+            tripId={tripId}
+            canDelete={true}
+          />
         </div>
 
+        {/* РАСХОДЫ */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
           <h2 className="text-lg font-bold text-slate-900 mb-4">💸 Расходы по рейсу</h2>
 
@@ -403,6 +415,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
             <div className="text-center py-8 text-slate-400 text-sm">Пока нет расходов</div>
           ) : (
             <>
+              {/* Mobile: карточки */}
               <div className="md:hidden space-y-2">
                 {expenses?.map((exp) => (
                   <div key={exp.id} className="border border-slate-100 rounded-xl p-3 bg-slate-50/40">
@@ -444,6 +457,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
                 ))}
               </div>
 
+              {/* Desktop: таблица */}
               <div className="hidden md:block overflow-x-auto">
                 <table className="w-full">
                   <thead>
@@ -459,7 +473,9 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
                   <tbody>
                     {expenses?.map((exp) => (
                       <tr key={exp.id} className="border-b border-slate-50">
-                        <td className="py-3 text-sm">{categoryLabel(exp.category)}</td>
+                        <td className="py-3 text-sm">
+                          {categoryLabel(exp.category)}
+                        </td>
                         <td className="py-3 text-right text-sm font-medium">
                           {exp.original_amount} {exp.currency}
                         </td>
@@ -489,26 +505,28 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
           )}
         </div>
 
+        {/* ЭКОНОМИКА */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
           <h2 className="text-lg font-bold text-slate-900 mb-4">💰 Экономика рейса</h2>
           <div className="grid gap-4 grid-cols-3">
             <div>
               <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Фрахт</div>
-              <div className="text-lg md:text-xl font-bold text-green-600">{(trip.revenue_eur || 0).toFixed(2)} €</div>
+              <div className="text-lg md:text-xl font-bold text-green-600 break-words">{(trip.revenue_eur || 0).toFixed(2)} €</div>
             </div>
             <div>
               <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Расходы</div>
-              <div className="text-lg md:text-xl font-bold text-red-500">{totalExpenses.toFixed(2)} €</div>
+              <div className="text-lg md:text-xl font-bold text-red-500 break-words">{totalExpenses.toFixed(2)} €</div>
             </div>
             <div>
               <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Прибыль</div>
-              <div className={`text-lg md:text-xl font-bold ${profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+              <div className={`text-lg md:text-xl font-bold break-words ${profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                 {profit.toFixed(2)} €
               </div>
             </div>
           </div>
         </div>
 
+        {/* ДОБАВИТЬ РАСХОД */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
           <h2 className="text-lg font-bold text-slate-900 mb-4">➕ Добавить расход</h2>
           <form action={addExpense} className="space-y-4">
