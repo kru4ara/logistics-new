@@ -16,7 +16,6 @@ function parseLocationForm(formData: FormData) {
     postal_code: (formData.get('postal_code') as string)?.trim() || null,
     city: (formData.get('city') as string)?.trim() || null,
     address: (formData.get('address') as string)?.trim() || null,
-    default_loading_number: (formData.get('default_loading_number') as string)?.trim() || null,
     contact_person: (formData.get('contact_person') as string)?.trim() || null,
   };
 }
