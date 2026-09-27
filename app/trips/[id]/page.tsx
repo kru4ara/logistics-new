@@ -10,8 +10,9 @@ import CopyBlock from '../../components/CopyBlock';
 export const dynamic = 'force-dynamic';
 
 // Допуск отрицательного остатка топлива (в литрах).
-// Выше этого значения (ближе к нулю) — мягкое предупреждение, ниже — аварийное.
-const NEGATIVE_FUEL_TOLERANCE = -50;
+// Расхождение "факт в баке" vs "по бумагам" до этого значения считаем нормой.
+// Ниже — уже сигнал о серьёзной проблеме с данными.
+const NEGATIVE_FUEL_TOLERANCE = -200;
 
 export default async function TripDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: tripId } = await params;
@@ -449,7 +450,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
                 }`}>
                   {fuelLeftIsCritical
                     ? '🚨 Значительный недостаток топлива. Проверьте заправки и данные о расходе — цифры выглядят недостоверными.'
-                    : '⚠ Остаток отрицательный. Проверьте данные о заправках: возможно, часть топлива не внесена в расходы.'}
+                    : '⚠ Остаток отрицательный (в пределах нормы). Расхождение факта и учёта по топливу.'}
                 </p>
               )}
             </div>
