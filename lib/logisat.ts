@@ -11,6 +11,7 @@ export type SyncResult = {
   tripId: string;
   tripNumber?: number | null;
   truck?: string;
+  deviceId?: string | null;
   error?: string;
   period?: { from: string; to: string; days: number };
   framesCount?: number;
@@ -57,11 +58,30 @@ export async function syncTripFromLogisat(tripId: string): Promise<SyncResult> {
   }
 
   if (!trip.truck_id) {
-    return { success: false, tripId, tripNumber: trip.trip_number, error: 'У рейса нет тягача' };
+    return {
+      success: false,
+      tripId,
+      tripNumber: trip.trip_number,
+      error: 'У рейса нет назначенного тягача',
+    };
   }
 
   if (!trip.start_date) {
-    return { success: false, tripId, tripNumber: trip.trip_number, error: 'У рейса нет даты старта' };
+    return {
+      success: false,
+      tripId,
+      tripNumber: trip.trip_number,
+      error: 'У рейса нет даты старта. Заполните в редактировании рейса.',
+    };
+  }
+
+  if (!trip.end_date) {
+    return {
+      success: false,
+      tripId,
+      tripNumber: trip.trip_number,
+      error: 'У рейса нет даты финиша. Завершите рейс или укажите дату финиша в редактировании.',
+    };
   }
 
   // 2. Машина
@@ -72,24 +92,37 @@ export async function syncTripFromLogisat(tripId: string): Promise<SyncResult> {
     .single();
 
   if (truckErr || !truck) {
-    return { success: false, tripId, tripNumber: trip.trip_number, error: 'Машина не найдена' };
+    return {
+      success: false,
+      tripId,
+      tripNumber: trip.trip_number,
+      error: 'Машина не найдена',
+    };
   }
 
-  if (!truck.logisat_enabled || !truck.logisat_device_id) {
+  if (!truck.logisat_enabled) {
     return {
       success: false,
       tripId,
       tripNumber: trip.trip_number,
       truck: truck.registration_number,
-      error: `Машина ${truck.registration_number} не привязана к Logisat`,
+      error: `Машина ${truck.registration_number} не подключена к Logisat (logisat_enabled = false)`,
+    };
+  }
+
+  if (!truck.logisat_device_id) {
+    return {
+      success: false,
+      tripId,
+      tripNumber: trip.trip_number,
+      truck: truck.registration_number,
+      error: `У машины ${truck.registration_number} не указан Logisat deviceId. Добавь его в разделе Транспорт.`,
     };
   }
 
   // 3. Период
   const startTs = Math.floor(new Date(trip.start_date + 'T00:00:00Z').getTime() / 1000);
-  const endTs = trip.end_date
-    ? Math.floor(new Date(trip.end_date + 'T23:59:59Z').getTime() / 1000)
-    : Math.floor(Date.now() / 1000);
+  const endTs = Math.floor(new Date(trip.end_date + 'T23:59:59Z').getTime() / 1000);
 
   if (endTs <= startTs) {
     return {
@@ -97,35 +130,50 @@ export async function syncTripFromLogisat(tripId: string): Promise<SyncResult> {
       tripId,
       tripNumber: trip.trip_number,
       truck: truck.registration_number,
-      error: 'Неверный период',
+      deviceId: truck.logisat_device_id,
+      error: 'Дата финиша раньше даты старта',
     };
   }
 
   // 4. Запрос
   const windows = splitIntoWindows(startTs, endTs);
   const allFrames: any[] = [];
+  const windowErrors: string[] = [];
 
   for (const w of windows) {
     const url = `https://${SERVER}/atlas/${USERNAME}/historyextended/${truck.logisat_device_id}/${w.from}/${w.to}?password=${PASSWORD}`;
     try {
       const res = await fetch(url, { cache: 'no-store' });
-      if (!res.ok) continue;
+      if (!res.ok) {
+        windowErrors.push(`HTTP ${res.status}`);
+        continue;
+      }
       const data = await res.json();
       const positions = Array.isArray(data) ? data : (data.positionList || data.history || []);
       allFrames.push(...positions);
-    } catch {
-      // пропускаем окно
+    } catch (e) {
+      windowErrors.push((e as Error).message);
     }
     await new Promise((r) => setTimeout(r, 200));
   }
 
+  const periodDays = Math.round((endTs - startTs) / 8640) / 10;
+
   if (allFrames.length === 0) {
+    const windowErrorsText = windowErrors.length > 0 ? ` Ошибки: ${windowErrors.join('; ')}` : '';
     return {
       success: false,
       tripId,
       tripNumber: trip.trip_number,
       truck: truck.registration_number,
-      error: 'Logisat не вернул данные за этот период',
+      deviceId: truck.logisat_device_id,
+      period: {
+        from: new Date(startTs * 1000).toISOString(),
+        to: new Date(endTs * 1000).toISOString(),
+        days: periodDays,
+      },
+      framesCount: 0,
+      error: `Logisat не вернул GPS-кадры за период ${trip.start_date} → ${trip.end_date} (${periodDays} дн.). Возможно машина не ездила или GPS не работал.${windowErrorsText}`,
     };
   }
 
@@ -137,11 +185,9 @@ export async function syncTripFromLogisat(tripId: string): Promise<SyncResult> {
   const distDiffM = (last.totaldistance || 0) - (first.totaldistance || 0);
   const fuelDiffMl = (last.totalfuel || 0) - (first.totalfuel || 0);
 
-  // Одометр — в км (округление до целого)
   const startOdometer = Math.round((first.totaldistance || 0) / 1000);
   const endOdometer = Math.round((last.totaldistance || 0) / 1000);
 
-  // Пробег за рейс — с 1 знаком (метры → км)
   const distanceKm = Math.max(0, Math.round(distDiffM / 100) / 10);
   const fuelLiters = Math.max(0, Math.round(fuelDiffMl / 100) / 10);
   const consumption = distanceKm > 0
@@ -154,7 +200,14 @@ export async function syncTripFromLogisat(tripId: string): Promise<SyncResult> {
       tripId,
       tripNumber: trip.trip_number,
       truck: truck.registration_number,
-      error: 'Нет изменений — машина не двигалась в этот период',
+      deviceId: truck.logisat_device_id,
+      period: {
+        from: new Date(startTs * 1000).toISOString(),
+        to: new Date(endTs * 1000).toISOString(),
+        days: periodDays,
+      },
+      framesCount: allFrames.length,
+      error: `Получено ${allFrames.length} кадров, но пробег и расход = 0. Машина стояла весь период.`,
     };
   }
 
@@ -176,7 +229,8 @@ export async function syncTripFromLogisat(tripId: string): Promise<SyncResult> {
       tripId,
       tripNumber: trip.trip_number,
       truck: truck.registration_number,
-      error: `Ошибка сохранения: ${updateErr.message}`,
+      deviceId: truck.logisat_device_id,
+      error: `Ошибка сохранения в БД: ${updateErr.message}`,
     };
   }
 
@@ -185,10 +239,11 @@ export async function syncTripFromLogisat(tripId: string): Promise<SyncResult> {
     tripId,
     tripNumber: trip.trip_number,
     truck: truck.registration_number,
+    deviceId: truck.logisat_device_id,
     period: {
       from: new Date(startTs * 1000).toISOString(),
       to: new Date(endTs * 1000).toISOString(),
-      days: Math.round((endTs - startTs) / 8640) / 10,
+      days: periodDays,
     },
     framesCount: allFrames.length,
     distanceKm,
