@@ -509,7 +509,7 @@ export async function GET(
         new Paragraph({
           spacing: { line: LINE, after: 20, before: 0 },
           children: [
-            new TextRun({ text: '      № погрузки: ', size: 18, font: FONT, color: '475569' }),
+            new TextRun({ text: '      Nr załadunku: ', size: 18, font: FONT, color: '475569' }),
             new TextRun({ text: p.loading_number, bold: true, size: 18, font: FONT, color: '334155' }),
           ],
         })
@@ -528,7 +528,7 @@ export async function GET(
     );
   });
 
-  // Разделитель между погрузкой и выгрузкой, если есть оба
+  // Разделитель между погрузкой и выгрузкой
   if (loadingPoints.length > 0 && unloadingPoints.length > 0) {
     routeRows.push(
       new TableRow({
@@ -594,7 +594,7 @@ export async function GET(
         new Paragraph({
           spacing: { line: LINE, after: 20, before: 0 },
           children: [
-            new TextRun({ text: '      № погрузки: ', size: 18, font: FONT, color: '475569' }),
+            new TextRun({ text: '      Nr załadunku: ', size: 18, font: FONT, color: '475569' }),
             new TextRun({ text: p.loading_number, bold: true, size: 18, font: FONT, color: '334155' }),
           ],
         })
