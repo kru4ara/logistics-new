@@ -16,7 +16,7 @@ import {
 } from 'docx';
 import QRCode from 'qrcode';
 import { createClient } from '../../../../../../../lib/supabase-server';
-import { COMPANY, STAMP_URL, APP_URL, getTerms } from '../../../../../../../lib/company';
+import { COMPANY, APP_URL, getTerms } from '../../../../../../../lib/company';
 
 // ============================================================
 // Утилиты
@@ -27,13 +27,27 @@ function fmtDate(d: string | null): string {
   return `${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')}/${dt.getFullYear()}`;
 }
 
-async function fetchImage(url: string): Promise<Buffer | null> {
+// Скачиваем картинку ЧЕРЕЗ Supabase Client (обход проблем с fetch)
+async function downloadAsset(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  path: string,
+  label: string
+): Promise<Buffer | null> {
   try {
-    const res = await fetch(url, { cache: 'no-store' });
-    if (!res.ok) return null;
-    const ab = await res.arrayBuffer();
+    const { data, error } = await supabase.storage
+      .from('documents')
+      .download(path);
+
+    if (error || !data) {
+      console.error(`[DOCX] ${label} download error:`, error);
+      return null;
+    }
+
+    const ab = await data.arrayBuffer();
+    console.log(`[DOCX] ${label} downloaded: ${ab.byteLength} bytes`);
     return Buffer.from(ab);
-  } catch {
+  } catch (e) {
+    console.error(`[DOCX] ${label} exception:`, e);
     return null;
   }
 }
@@ -51,7 +65,8 @@ async function generateQrBuffer(text: string): Promise<Buffer | null> {
       },
     });
     return buf;
-  } catch {
+  } catch (e) {
+    console.error('[DOCX] QR generation error:', e);
     return null;
   }
 }
@@ -191,11 +206,13 @@ export async function GET(
     ? `${order.client_request_number}-${fc.position || 1}`
     : `${order.order_number || '?'}-${fc.position || 1}`;
 
-  // Загружаем печать и QR-код параллельно
+  // Загружаем печать (через Supabase) и QR-код (генерируем) параллельно
   const [stampBuf, qrBuf] = await Promise.all([
-    fetchImage(STAMP_URL),
+    downloadAsset(supabase, 'assets/stamp.png', 'STAMP'),
     generateQrBuffer(`${APP_URL}/forwarding/${forwardingId}`),
   ]);
+
+  console.log('[DOCX] stamp loaded:', !!stampBuf, 'qr loaded:', !!qrBuf);
 
   const children: any[] = [];
 
@@ -467,7 +484,7 @@ export async function GET(
     })
   );
 
-  // --- ПЕЧАТЬ (только справа, без таблицы, без QR) ---
+  // --- ПЕЧАТЬ ---
   if (stampBuf) {
     children.push(
       new Paragraph({
@@ -480,6 +497,16 @@ export async function GET(
             type: 'png',
           }),
         ],
+      })
+    );
+  } else {
+    // Fallback — если печать не загрузилась, покажем текст
+    children.push(
+      txt('(pieczęć nie załadowana)', {
+        size: 14,
+        color: 'DC2626',
+        align: AlignmentType.RIGHT,
+        before: 300,
       })
     );
   }
