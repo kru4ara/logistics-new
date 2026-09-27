@@ -32,6 +32,7 @@ type Trip = {
   trailer_id: string | null;
   driver_id: string | null;
   start_date: string | null;
+  end_date: string | null;
   revenue_eur: number | null;
   start_fuel_level: number | null;
   client_request_number: string | null;
@@ -177,7 +178,6 @@ export default function EditTripForm({
     );
   }
 
-  // text-base (16px) — iOS Safari не зумит при фокусе
   const inputClass =
     'w-full rounded-lg border border-slate-300 px-3 py-2.5 text-base text-slate-900 ' +
     'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-150';
@@ -226,6 +226,11 @@ export default function EditTripForm({
           <div>
             <label className={labelClass}>Дата старта</label>
             <input type="date" name="start_date" defaultValue={trip.start_date?.split('T')[0] || ''} required className={inputClass} />
+          </div>
+          <div>
+            <label className={labelClass}>Дата финиша</label>
+            <input type="date" name="end_date" defaultValue={trip.end_date?.split('T')[0] || ''} className={inputClass} />
+            <p className="text-xs text-slate-400 mt-1">Оставьте пустым, если рейс ещё не завершён</p>
           </div>
           <div>
             <label className={labelClass}>Фрахт (€)</label>
