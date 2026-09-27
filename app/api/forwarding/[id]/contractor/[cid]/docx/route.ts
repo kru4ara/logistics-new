@@ -200,24 +200,84 @@ export async function GET(
   const children: any[] = [];
 
   // ============================================================
-  // СТРАНИЦА 1 — ВЫРАЗИТЕЛЬНАЯ
+  // СТРАНИЦА 1
   // ============================================================
 
-  children.push(txt(COMPANY.name, { bold: true, size: 28, after: 20, color: BLUE }));
-  children.push(txt(COMPANY.address, { size: 20, after: 0 }));
-  children.push(
+  // --- ШАПКА: слева реквизиты, справа QR-код ---
+  const headerLeft: Paragraph[] = [
+    txt(COMPANY.name, { bold: true, size: 28, after: 20, color: BLUE }),
+    txt(COMPANY.address, { size: 20, after: 0 }),
     txt(`NIP ${COMPANY.nip}  ·  REGON ${COMPANY.regon}  ·  EORI ${COMPANY.eori}`, {
       size: 18,
       after: 0,
       color: GRAY,
-    })
-  );
-  children.push(txt(COMPANY.bank, { size: 18, after: 0, color: GRAY }));
+    }),
+    txt(COMPANY.bank, { size: 18, after: 0, color: GRAY }),
+    txt(`EUR: ${COMPANY.accountEur}`, { size: 18, after: 0, color: GRAY }),
+    txt(`PLN: ${COMPANY.accountPln}`, { size: 18, after: 0, color: GRAY }),
+  ];
+
+  const headerRight: Paragraph[] = [];
+  if (qrBuf) {
+    headerRight.push(
+      new Paragraph({
+        alignment: AlignmentType.RIGHT,
+        spacing: { line: LINE, after: 40, before: 0 },
+        children: [
+          new ImageRun({
+            data: qrBuf,
+            transformation: { width: 110, height: 110 },
+            type: 'png',
+          }),
+        ],
+      })
+    );
+    headerRight.push(
+      new Paragraph({
+        alignment: AlignmentType.RIGHT,
+        spacing: { line: LINE, after: 0, before: 0 },
+        children: [
+          new TextRun({
+            text: 'Skanuj po szczegóły',
+            size: 14,
+            font: FONT,
+            color: GRAY,
+            italics: true,
+          }),
+        ],
+      })
+    );
+  }
+
   children.push(
-    txt(`EUR: ${COMPANY.accountEur}  ·  PLN: ${COMPANY.accountPln}`, {
-      size: 18,
-      after: 0,
-      color: GRAY,
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      borders: {
+        top: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+        bottom: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+        left: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+        right: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+        insideHorizontal: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+        insideVertical: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+      },
+      rows: [
+        new TableRow({
+          children: [
+            new TableCell({
+              width: { size: 75, type: WidthType.PERCENTAGE },
+              verticalAlign: VerticalAlign.TOP,
+              margins: { top: 0, bottom: 0, left: 0, right: 100 },
+              children: headerLeft,
+            }),
+            new TableCell({
+              width: { size: 25, type: WidthType.PERCENTAGE },
+              verticalAlign: VerticalAlign.TOP,
+              margins: { top: 0, bottom: 0, left: 0, right: 0 },
+              children: headerRight.length > 0 ? headerRight : [txt('')],
+            }),
+          ],
+        }),
+      ],
     })
   );
 
@@ -263,6 +323,7 @@ export async function GET(
     )
   );
 
+  // --- ПОДРЯДЧИК ---
   if (contractor) {
     children.push(
       txt(contractor.full_name || contractor.name || '—', {
@@ -285,6 +346,7 @@ export async function GET(
 
   children.push(divider());
 
+  // --- МАШИНА / ВОДИТЕЛЬ ---
   const truckDriverChildren: Paragraph[] = [];
   if (fc.truck_number) {
     truckDriverChildren.push(
@@ -337,6 +399,7 @@ export async function GET(
 
   children.push(txt('', { after: 200 }));
 
+  // --- ОСНОВНАЯ ТАБЛИЦА ---
   const loadingPlace =
     [order.route_from, order.loading_reference ? `Ref: ${order.loading_reference}` : null]
       .filter(Boolean)
@@ -404,48 +467,12 @@ export async function GET(
     })
   );
 
-  // ============================================================
-  // НИЖНИЙ БЛОК: QR-код (слева) + печать (справа)
-  // ============================================================
-  const bottomLeftChildren: Paragraph[] = [];
-
-  if (qrBuf) {
-    bottomLeftChildren.push(
-      new Paragraph({
-        spacing: { line: LINE, after: 60, before: 0 },
-        alignment: AlignmentType.LEFT,
-        children: [
-          new ImageRun({
-            data: qrBuf,
-            transformation: { width: 130, height: 130 },
-            type: 'png',
-          }),
-        ],
-      })
-    );
-    bottomLeftChildren.push(
-      new Paragraph({
-        spacing: { line: LINE, after: 0, before: 0 },
-        alignment: AlignmentType.LEFT,
-        children: [
-          new TextRun({
-            text: 'Skanuj, aby zobaczyć szczegóły',
-            size: 16,
-            font: FONT,
-            color: GRAY,
-            italics: true,
-          }),
-        ],
-      })
-    );
-  }
-
-  const bottomRightChildren: Paragraph[] = [];
+  // --- ПЕЧАТЬ (только справа, без таблицы, без QR) ---
   if (stampBuf) {
-    bottomRightChildren.push(
+    children.push(
       new Paragraph({
         alignment: AlignmentType.RIGHT,
-        spacing: { line: LINE, after: 0, before: 0 },
+        spacing: { line: LINE, before: 300, after: 0 },
         children: [
           new ImageRun({
             data: stampBuf,
@@ -457,42 +484,8 @@ export async function GET(
     );
   }
 
-  if (bottomLeftChildren.length > 0 || bottomRightChildren.length > 0) {
-    children.push(
-      new Table({
-        width: { size: 100, type: WidthType.PERCENTAGE },
-        borders: {
-          top: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
-          bottom: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
-          left: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
-          right: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
-          insideHorizontal: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
-          insideVertical: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
-        },
-        rows: [
-          new TableRow({
-            children: [
-              new TableCell({
-                width: { size: 45, type: WidthType.PERCENTAGE },
-                verticalAlign: VerticalAlign.BOTTOM,
-                margins: { top: 200, bottom: 0, left: 0, right: 100 },
-                children: bottomLeftChildren,
-              }),
-              new TableCell({
-                width: { size: 55, type: WidthType.PERCENTAGE },
-                verticalAlign: VerticalAlign.BOTTOM,
-                margins: { top: 200, bottom: 0, left: 100, right: 0 },
-                children: bottomRightChildren,
-              }),
-            ],
-          }),
-        ],
-      })
-    );
-  }
-
   // ============================================================
-  // СТРАНИЦА 2 — УСЛОВИЯ (крупный шрифт)
+  // СТРАНИЦА 2 — УСЛОВИЯ
   // ============================================================
   children.push(new Paragraph({ children: [new PageBreak()] }));
 
