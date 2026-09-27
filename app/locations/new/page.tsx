@@ -84,19 +84,12 @@ export default function NewLocationPage() {
             <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
               <div className="md:col-span-2">
                 <label className={labelClass}>Страна</label>
-                <input
-                  type="text"
-                  name="country"
-                  list="countries-list"
-                  placeholder="Польша"
-                  autoComplete="off"
-                  className={inputClass}
-                />
-                <datalist id="countries-list">
+                <select name="country" className={inputClass} defaultValue="">
+                  <option value="">— Выберите страну —</option>
                   {EUROPEAN_COUNTRIES.map((c) => (
-                    <option key={c} value={c} />
+                    <option key={c} value={c}>{c}</option>
                   ))}
-                </datalist>
+                </select>
               </div>
 
               <div>
@@ -137,7 +130,7 @@ export default function NewLocationPage() {
                   placeholder="Ramp 4"
                   className={inputClass}
                 />
-                <p className="text-xs text-slate-400 mt-1">Будет подставляться в рейсы и экспедиции автоматически</p>
+                <p className="text-xs text-slate-400 mt-1">Будет подставляться автоматически</p>
               </div>
             </div>
           </div>
