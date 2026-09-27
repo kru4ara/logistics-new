@@ -15,6 +15,7 @@ import {
   PageBreak,
 } from 'docx';
 import QRCode from 'qrcode';
+import imageSize from 'image-size';
 import { createClient } from '../../../../../../../lib/supabase-server';
 import { COMPANY, APP_URL, getTerms } from '../../../../../../../lib/company';
 
@@ -27,17 +28,16 @@ function fmtDate(d: string | null): string {
   return `${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')}/${dt.getFullYear()}`;
 }
 
-// Читаем размеры PNG из первых 24 байт
-function getPngDimensions(buffer: Buffer): { width: number; height: number } | null {
+// Читаем размеры картинки любого формата (PNG, JPEG, WebP, GIF, SVG, BMP)
+function getImageDimensions(buffer: Buffer): { width: number; height: number } | null {
   try {
-    if (buffer.length < 24) return null;
-    if (buffer[0] !== 0x89 || buffer[1] !== 0x50 || buffer[2] !== 0x4e || buffer[3] !== 0x47) {
-      return null;
+    const dims = imageSize(buffer);
+    if (dims.width && dims.height) {
+      return { width: dims.width, height: dims.height };
     }
-    const width = buffer.readUInt32BE(16);
-    const height = buffer.readUInt32BE(20);
-    return { width, height };
-  } catch {
+    return null;
+  } catch (e) {
+    console.error('[DOCX] imageSize error:', e);
     return null;
   }
 }
@@ -46,10 +46,11 @@ function getPngDimensions(buffer: Buffer): { width: number; height: number } | n
 function scaleImage(
   dims: { width: number; height: number } | null,
   maxWidth: number,
-  maxHeight: number
+  maxHeight: number,
+  fallback: { width: number; height: number }
 ): { width: number; height: number } {
   if (!dims || dims.width === 0 || dims.height === 0) {
-    return { width: maxWidth, height: maxHeight };
+    return fallback;
   }
   const ratio = dims.width / dims.height;
   let w = maxWidth;
@@ -244,13 +245,27 @@ export async function GET(
     generateQrBuffer(`${APP_URL}/forwarding/${forwardingId}`),
   ]);
 
-  const stampDims = stampBuf ? getPngDimensions(stampBuf) : null;
-  const qrDims = qrBuf ? getPngDimensions(qrBuf) : null;
+  const stampDims = stampBuf ? getImageDimensions(stampBuf) : null;
+  const qrDims = qrBuf ? getImageDimensions(qrBuf) : null;
 
   console.log('[DOCX] stamp dims:', stampDims, 'qr dims:', qrDims);
 
-  const stampSize = scaleImage(stampDims, 200, 200);
-  const qrSize = scaleImage(qrDims, 110, 110);
+  // Печать: max 180x200 (чуть выше, чем шире — под вертикальный овал).
+  // Fallback если не удалось прочитать размеры: 160x200 (вертикальный).
+  const stampSize = scaleImage(
+    stampDims,
+    180,
+    200,
+    { width: 160, height: 200 }
+  );
+
+  // QR: max 110x110 (квадратный)
+  const qrSize = scaleImage(
+    qrDims,
+    110,
+    110,
+    { width: 110, height: 110 }
+  );
 
   console.log('[DOCX] stamp size:', stampSize, 'qr size:', qrSize);
 
@@ -520,8 +535,6 @@ export async function GET(
     })
   );
 
-  // ❌ ПЕЧАТЬ ЗДЕСЬ БОЛЬШЕ НЕ ВЫВОДИМ
-
   // ============================================================
   // СТРАНИЦА 2 — УСЛОВИЯ + ПОДПИСЬ + ПЕЧАТЬ
   // ============================================================
@@ -552,11 +565,10 @@ export async function GET(
     );
   });
 
-  // Отступ перед блоком подписи
   children.push(txt('', { after: 500 }));
 
   // ============================================================
-  // БЛОК: слева — место для подписи перевозчика, справа — наша печать
+  // БЛОК ПОДПИСИ
   // ============================================================
   const signatureChildren: Paragraph[] = [
     new Paragraph({
