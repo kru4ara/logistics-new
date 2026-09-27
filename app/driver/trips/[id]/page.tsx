@@ -9,9 +9,9 @@ import TripStatusButtons from '../../TripStatusButtons';
 export const dynamic = 'force-dynamic';
 
 // Допуск отрицательного остатка топлива (в литрах).
-// Всё, что выше этого значения (ближе к нулю), считаем допустимым и подсвечиваем мягко.
-// Всё, что ниже — аварийным и подсвечиваем красным.
-const NEGATIVE_FUEL_TOLERANCE = -50;
+// Расхождение "факт в баке" vs "по бумагам" до этого значения считаем нормой.
+// Ниже — уже сигнал о серьёзной проблеме с данными.
+const NEGATIVE_FUEL_TOLERANCE = -200;
 
 function pickName(rel: unknown): string | undefined {
   if (!rel) return undefined;
@@ -220,14 +220,10 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
           </div>
 
           {fuelLeftIsNegative && (
-            <div className={`mt-3 rounded-xl px-3 py-2 text-xs font-medium ${
-              fuelLeftIsCritical
-                ? 'bg-white/20 text-white'
-                : 'bg-white/15 text-white'
-            }`}>
+            <div className="mt-3 rounded-xl px-3 py-2 text-xs font-medium bg-white/15 text-white">
               {fuelLeftIsCritical
-                ? `🚨 Значительный недостаток топлива. Проверьте заправки и данные о расходе — цифры выглядят недостоверными.`
-                : `⚠ Остаток отрицательный. Проверьте данные о заправках: возможно, часть топлива не внесена в расходы.`}
+                ? '🚨 Значительный недостаток топлива. Проверьте заправки и данные о расходе — цифры выглядят недостоверными.'
+                : '⚠ Остаток отрицательный (в пределах нормы). Расхождение факта и учёта по топливу.'}
             </div>
           )}
 
