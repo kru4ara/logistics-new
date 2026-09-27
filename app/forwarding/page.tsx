@@ -73,17 +73,35 @@ export default async function ForwardingPage({
 
   const orderIds = orders?.map((o) => o.id) || [];
 
-  // Подрядчики по заявкам
+  // Подрядчики
   let contractorsByOrder: Record<string, number> = {};
   let contractorNamesByOrder: Record<string, string[]> = {};
 
-  if (orderIds.length > 0) {
-    const { data: allContractors } = await supabase
-      .from('forwarding_contractors')
-      .select('forwarding_id, price_eur, contractors(name)')
-      .in('forwarding_id', orderIds);
+  // Точки (маршрут)
+  let loadingCitiesByOrder: Record<string, string[]> = {};
+  let unloadingCitiesByOrder: Record<string, string[]> = {};
 
-    allContractors?.forEach((c) => {
+  // Расходы
+  let expensesByOrder: Record<string, number> = {};
+
+  if (orderIds.length > 0) {
+    const [allContractors, allPoints, allExp] = await Promise.all([
+      supabase
+        .from('forwarding_contractors')
+        .select('forwarding_id, price_eur, contractors(name)')
+        .in('forwarding_id', orderIds),
+      supabase
+        .from('forwarding_points')
+        .select('forwarding_id, type, sequence, locations(city, name)')
+        .in('forwarding_id', orderIds)
+        .order('sequence'),
+      supabase
+        .from('forwarding_expenses')
+        .select('forwarding_id, amount_eur')
+        .in('forwarding_id', orderIds),
+    ]);
+
+    allContractors.data?.forEach((c) => {
       if (!c.forwarding_id) return;
       contractorsByOrder[c.forwarding_id] =
         (contractorsByOrder[c.forwarding_id] || 0) + (c.price_eur || 0);
@@ -94,17 +112,23 @@ export default async function ForwardingPage({
         contractorNamesByOrder[c.forwarding_id].push(cName);
       }
     });
-  }
 
-  // Доп. расходы по заявкам
-  let expensesByOrder: Record<string, number> = {};
-  if (orderIds.length > 0) {
-    const { data: allExp } = await supabase
-      .from('forwarding_expenses')
-      .select('forwarding_id, amount_eur')
-      .in('forwarding_id', orderIds);
+    allPoints.data?.forEach((p) => {
+      if (!p.forwarding_id) return;
+      const loc = Array.isArray(p.locations) ? p.locations[0] : p.locations;
+      const city = loc?.city || loc?.name || null;
+      if (!city) return;
 
-    allExp?.forEach((e) => {
+      if (p.type === 'loading') {
+        if (!loadingCitiesByOrder[p.forwarding_id]) loadingCitiesByOrder[p.forwarding_id] = [];
+        loadingCitiesByOrder[p.forwarding_id].push(city);
+      } else {
+        if (!unloadingCitiesByOrder[p.forwarding_id]) unloadingCitiesByOrder[p.forwarding_id] = [];
+        unloadingCitiesByOrder[p.forwarding_id].push(city);
+      }
+    });
+
+    allExp.data?.forEach((e) => {
       if (!e.forwarding_id) return;
       expensesByOrder[e.forwarding_id] = (expensesByOrder[e.forwarding_id] || 0) + (e.amount_eur || 0);
     });
@@ -120,7 +144,6 @@ export default async function ForwardingPage({
     'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь',
   ];
 
-  // Список годов
   const years = [currentYear, currentYear - 1, currentYear - 2];
 
   // Группировка по месяцам загрузки
@@ -134,6 +157,23 @@ export default async function ForwardingPage({
   });
 
   const sortedMonthKeys = Object.keys(ordersByMonth).sort().reverse();
+
+  // Формируем короткое описание маршрута
+  function buildRouteText(orderId: string): string {
+    const loading = loadingCitiesByOrder[orderId] || [];
+    const unloading = unloadingCitiesByOrder[orderId] || [];
+
+    if (loading.length === 0 && unloading.length === 0) return '—';
+
+    const parts: string[] = [];
+    if (loading.length > 0) parts.push(loading.join(' → '));
+    if (unloading.length > 0) parts.push(unloading.join(' → '));
+
+    if (parts.length === 2) {
+      return `${parts[0]} → ${parts[1]}`;
+    }
+    return parts[0] || '—';
+  }
 
   return (
     <main className="min-h-screen bg-slate-50">
@@ -230,7 +270,7 @@ export default async function ForwardingPage({
           </div>
         </div>
 
-        {/* Список по месяцам */}
+        {/* Список */}
         {(!orders || orders.length === 0) ? (
           <div className="bg-white rounded-2xl border border-slate-100 p-10 md:p-16 text-center">
             <div className="text-6xl mb-4">📦</div>
@@ -307,6 +347,8 @@ export default async function ForwardingPage({
                             ? cNames[0]
                             : `${cNames[0]} +${cNames.length - 1}`;
 
+                      const routeText = buildRouteText(o.id);
+
                       return (
                         <a
                           key={o.id}
@@ -349,11 +391,7 @@ export default async function ForwardingPage({
                             {/* Маршрут */}
                             <div className="flex items-start gap-2 text-sm text-slate-600 mb-2">
                               <span className="shrink-0">🛣</span>
-                              <span className="break-words">
-                                {o.route_from || o.route_to
-                                  ? `${o.route_from || '?'} → ${o.route_to || '?'}`
-                                  : '—'}
-                              </span>
+                              <span className="break-words">{routeText}</span>
                             </div>
 
                             {/* Дата + подрядчики */}
@@ -390,7 +428,7 @@ export default async function ForwardingPage({
                               </div>
                             </div>
 
-                            {/* Доп. расходы (если есть) */}
+                            {/* Доп. расходы */}
                             {eSum > 0 && (
                               <div className="mt-2 pt-2 border-t border-slate-100 text-[10px] text-orange-600 font-medium">
                                 Доп. расходы: −{eSum.toFixed(0)} €
