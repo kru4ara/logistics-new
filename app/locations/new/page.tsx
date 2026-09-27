@@ -121,17 +121,6 @@ export default function NewLocationPage() {
                   className={inputClass}
                 />
               </div>
-
-              <div className="md:col-span-2">
-                <label className={labelClass}>Погрузочный номер по умолчанию</label>
-                <input
-                  type="text"
-                  name="default_loading_number"
-                  placeholder="Ramp 4"
-                  className={inputClass}
-                />
-                <p className="text-xs text-slate-400 mt-1">Будет подставляться автоматически</p>
-              </div>
             </div>
           </div>
 
