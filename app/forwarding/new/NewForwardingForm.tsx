@@ -39,6 +39,11 @@ const emptyPoint: PointEntry = {
   notes: '',
 };
 
+const TRANSPORT_TYPES = [
+  { value: 'Plandeka / Standart', label: 'Plandeka / Standart' },
+  { value: 'Chlodnia', label: 'Chłodnia' },
+];
+
 export default function NewForwardingForm({
   clients,
   contractors,
@@ -53,6 +58,7 @@ export default function NewForwardingForm({
   const [contractorItems, setContractorItems] = useState<ContractorEntry[]>([{ ...emptyContractor }]);
   const [loadingPoints, setLoadingPoints] = useState<PointEntry[]>([{ ...emptyPoint }]);
   const [unloadingPoints, setUnloadingPoints] = useState<PointEntry[]>([{ ...emptyPoint }]);
+  const [transportType, setTransportType] = useState('');
 
   // --- Подрядчики ---
   function addContractor() {
@@ -99,7 +105,8 @@ export default function NewForwardingForm({
   const allEur = contractorItems.every((i) => i.currency === 'EUR');
   const eurTotal = contractorItems.reduce((s, i) => s + (parseFloat(i.price) || 0), 0);
 
-  // Компонент одной точки (чтобы не дублировать код)
+  const isChlodnia = transportType === 'Chlodnia';
+
   function PointRow({
     type,
     point,
@@ -463,8 +470,31 @@ export default function NewForwardingForm({
         <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
           <div>
             <label className={labelClass}>Тип транспорта</label>
-            <input type="text" name="transport_type" placeholder="Chlodnia +15 LTL" className={inputClass} />
+            <select
+              name="transport_type"
+              value={transportType}
+              onChange={(e) => setTransportType(e.target.value)}
+              className={inputClass}
+            >
+              <option value="">— Выберите тип —</option>
+              {TRANSPORT_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
+            </select>
           </div>
+
+          {isChlodnia && (
+            <div>
+              <label className={labelClass}>Temperatura</label>
+              <input
+                type="text"
+                name="transport_temperature"
+                placeholder="+15°C / -18°C"
+                className={inputClass}
+              />
+            </div>
+          )}
+
           <div>
             <label className={labelClass}>Тип груза</label>
             <input type="text" name="cargo_type" placeholder="Czekolady" className={inputClass} />
@@ -472,10 +502,6 @@ export default function NewForwardingForm({
           <div>
             <label className={labelClass}>Количество груза</label>
             <input type="text" name="cargo_quantity" placeholder="22 epall" className={inputClass} />
-          </div>
-          <div>
-            <label className={labelClass}>Описание груза (внутр.)</label>
-            <input type="text" name="cargo_description" placeholder="Паллеты, 20т" className={inputClass} />
           </div>
           <div>
             <label className={labelClass}>Таможня при загрузке</label>
@@ -486,8 +512,8 @@ export default function NewForwardingForm({
             <input type="text" name="customs_unloading" placeholder="bez" className={inputClass} />
           </div>
           <div className="md:col-span-2">
-            <label className={labelClass}>Reference loading</label>
-            <input type="text" name="loading_reference" placeholder="vo27/02199" className={inputClass} />
+            <label className={labelClass}>Описание груза (внутр.)</label>
+            <input type="text" name="cargo_description" placeholder="Паллеты, 20т" className={inputClass} />
           </div>
         </div>
       </div>
