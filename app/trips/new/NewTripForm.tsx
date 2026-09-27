@@ -17,6 +17,8 @@ type Location = {
 
 type Option = { id: string; label: string };
 
+type LastEnd = { end_date: string; trip_number: number | null };
+
 type Props = {
   clients: Option[];
   tractors: Option[];
@@ -24,6 +26,7 @@ type Props = {
   drivers: Option[];
   loadingLocations: Location[];
   unloadingLocations: Location[];
+  lastEndDates: Record<string, LastEnd>;
 };
 
 const emptyAddr = {
@@ -37,6 +40,27 @@ const emptyAddr = {
 
 type AddrState = typeof emptyAddr;
 
+// Приводим дату к виду YYYY-MM-DD и прибавляем 1 день (UTC).
+function nextDayIso(raw: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(raw);
+  if (m) {
+    const dt = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
+    dt.setUTCDate(dt.getUTCDate() + 1);
+    return dt.toISOString().slice(0, 10);
+  }
+  const dt = new Date(raw);
+  if (isNaN(dt.getTime())) return '';
+  dt.setUTCDate(dt.getUTCDate() + 1);
+  return dt.toISOString().slice(0, 10);
+}
+
+// Формат для подсказки: 12.09.2026
+function formatRu(iso: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+  if (!m) return iso;
+  return `${m[3]}.${m[2]}.${m[1]}`;
+}
+
 export default function NewTripForm({
   clients,
   tractors,
@@ -44,10 +68,37 @@ export default function NewTripForm({
   drivers,
   loadingLocations,
   unloadingLocations,
+  lastEndDates,
 }: Props) {
   const [sender, setSender] = useState<AddrState>({ ...emptyAddr });
   const [receiver, setReceiver] = useState<AddrState>({ ...emptyAddr });
   const [extras, setExtras] = useState<AddrState[]>([]);
+
+  // Автоподстановка даты старта от предыдущего рейса машины
+  const [startDate, setStartDate] = useState('');
+  const [autoHint, setAutoHint] = useState<string | null>(null);
+
+  function handleTractorChange(newTruckId: string) {
+    if (!newTruckId) {
+      setStartDate('');
+      setAutoHint(null);
+      return;
+    }
+
+    const last = lastEndDates[newTruckId];
+    if (!last) {
+      // B3: нет завершённого рейса у этой машины — поле остаётся пустым
+      setStartDate('');
+      setAutoHint(null);
+      return;
+    }
+
+    const next = nextDayIso(last.end_date);
+    setStartDate(next);
+    setAutoHint(
+      `Автоматически: день после рейса №${last.trip_number ?? '—'} (финиш ${formatRu(last.end_date)})`
+    );
+  }
 
   function fillSender(locId: string) {
     if (!locId) return;
@@ -139,7 +190,12 @@ export default function NewTripForm({
           </div>
           <div>
             <label className={labelClass}>Тягач</label>
-            <select name="truck_id" className={inputClass}>
+            <select
+              name="truck_id"
+              className={inputClass}
+              onChange={(e) => handleTractorChange(e.target.value)}
+              defaultValue=""
+            >
               <option value="">Выберите тягач...</option>
               {tractors.map((t) => (
                 <option key={t.id} value={t.id}>{t.label}</option>
@@ -166,7 +222,20 @@ export default function NewTripForm({
           </div>
           <div>
             <label className={labelClass}>Дата старта</label>
-            <input type="date" name="start_date" required className={inputClass} />
+            <input
+              type="date"
+              name="start_date"
+              required
+              value={startDate}
+              onChange={(e) => {
+                setStartDate(e.target.value);
+                setAutoHint(null);
+              }}
+              className={inputClass}
+            />
+            {autoHint && (
+              <p className="text-xs text-slate-500 mt-1">{autoHint}</p>
+            )}
           </div>
           <div>
             <label className={labelClass}>Фрахт (€)</label>
