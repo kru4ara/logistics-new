@@ -15,6 +15,13 @@ type ContractorEntry = {
   notes: string;
 };
 
+type PointEntry = {
+  location_id: string;
+  date: string;
+  loading_number: string;
+  notes: string;
+};
+
 const emptyContractor: ContractorEntry = {
   contractor_id: '',
   price: '',
@@ -25,26 +32,61 @@ const emptyContractor: ContractorEntry = {
   notes: '',
 };
 
+const emptyPoint: PointEntry = {
+  location_id: '',
+  date: '',
+  loading_number: '',
+  notes: '',
+};
+
 export default function NewForwardingForm({
   clients,
   contractors,
+  loadingLocations,
+  unloadingLocations,
 }: {
   clients: Option[];
   contractors: Option[];
+  loadingLocations: Option[];
+  unloadingLocations: Option[];
 }) {
-  const [items, setItems] = useState<ContractorEntry[]>([{ ...emptyContractor }]);
+  const [contractorItems, setContractorItems] = useState<ContractorEntry[]>([{ ...emptyContractor }]);
+  const [loadingPoints, setLoadingPoints] = useState<PointEntry[]>([{ ...emptyPoint }]);
+  const [unloadingPoints, setUnloadingPoints] = useState<PointEntry[]>([{ ...emptyPoint }]);
 
-  function addItem() {
-    if (items.length >= 10) return;
-    setItems([...items, { ...emptyContractor }]);
+  // --- Подрядчики ---
+  function addContractor() {
+    if (contractorItems.length >= 10) return;
+    setContractorItems([...contractorItems, { ...emptyContractor }]);
+  }
+  function removeContractor(idx: number) {
+    setContractorItems(contractorItems.filter((_, i) => i !== idx));
+  }
+  function updateContractor<K extends keyof ContractorEntry>(idx: number, field: K, value: string) {
+    setContractorItems(contractorItems.map((it, i) => (i === idx ? { ...it, [field]: value } : it)));
   }
 
-  function removeItem(idx: number) {
-    setItems(items.filter((_, i) => i !== idx));
+  // --- Точки ---
+  function addPoint(type: 'loading' | 'unloading') {
+    const arr = type === 'loading' ? loadingPoints : unloadingPoints;
+    const setter = type === 'loading' ? setLoadingPoints : setUnloadingPoints;
+    if (arr.length >= 10) return;
+    setter([...arr, { ...emptyPoint }]);
   }
-
-  function updateItem<K extends keyof ContractorEntry>(idx: number, field: K, value: string) {
-    setItems(items.map((it, i) => (i === idx ? { ...it, [field]: value } : it)));
+  function removePoint(type: 'loading' | 'unloading', idx: number) {
+    const arr = type === 'loading' ? loadingPoints : unloadingPoints;
+    const setter = type === 'loading' ? setLoadingPoints : setUnloadingPoints;
+    setter(arr.filter((_, i) => i !== idx));
+  }
+  function updatePoint<K extends keyof PointEntry>(
+    type: 'loading' | 'unloading',
+    idx: number,
+    field: K,
+    value: string
+  ) {
+    const arr = type === 'loading' ? loadingPoints : unloadingPoints;
+    const setter = type === 'loading' ? setLoadingPoints : setUnloadingPoints;
+    setter(arr.map((it, i) => (i === idx ? { ...it, [field]: value } : it)));
   }
 
   const inputClass =
@@ -54,8 +96,97 @@ export default function NewForwardingForm({
   const sectionClass = 'bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-6 space-y-4';
   const sectionTitleClass = 'text-base md:text-lg font-bold text-slate-900 mb-2 flex items-center gap-2';
 
-  const allEur = items.every((i) => i.currency === 'EUR');
-  const eurTotal = items.reduce((s, i) => s + (parseFloat(i.price) || 0), 0);
+  const allEur = contractorItems.every((i) => i.currency === 'EUR');
+  const eurTotal = contractorItems.reduce((s, i) => s + (parseFloat(i.price) || 0), 0);
+
+  // Компонент одной точки (чтобы не дублировать код)
+  function PointRow({
+    type,
+    point,
+    idx,
+    locations,
+  }: {
+    type: 'loading' | 'unloading';
+    point: PointEntry;
+    idx: number;
+    locations: Option[];
+  }) {
+    const icon = type === 'loading' ? '📍' : '🏁';
+    const label = type === 'loading' ? 'Погрузка' : 'Выгрузка';
+    const color = type === 'loading' ? 'border-green-500' : 'border-red-500';
+
+    return (
+      <div className={`border-l-4 ${color} rounded-xl p-3 md:p-4 bg-slate-50/40 space-y-3`}>
+        <div className="flex items-center justify-between gap-2">
+          <div className="text-sm font-semibold text-slate-700">
+            {icon} {label} #{idx + 1}
+          </div>
+          {(type === 'loading' ? loadingPoints.length : unloadingPoints.length) > 1 && (
+            <button
+              type="button"
+              onClick={() => removePoint(type, idx)}
+              className="text-red-600 hover:text-red-700 text-xs md:text-sm font-medium px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 transition-colors"
+            >
+              ✕ Удалить
+            </button>
+          )}
+        </div>
+
+        <div className="grid gap-3 grid-cols-1 md:grid-cols-2">
+          <div className="md:col-span-2">
+            <label className={labelClass}>Локация *</label>
+            <select
+              name={`${type}_${idx}_location_id`}
+              required
+              value={point.location_id}
+              onChange={(e) => updatePoint(type, idx, 'location_id', e.target.value)}
+              className={inputClass}
+            >
+              <option value="">— Выберите локацию —</option>
+              {locations.map((loc) => (
+                <option key={loc.id} value={loc.id}>{loc.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className={labelClass}>Дата</label>
+            <input
+              type="date"
+              name={`${type}_${idx}_date`}
+              value={point.date}
+              onChange={(e) => updatePoint(type, idx, 'date', e.target.value)}
+              className={inputClass}
+            />
+          </div>
+
+          <div>
+            <label className={labelClass}>Погрузочный номер</label>
+            <input
+              type="text"
+              name={`${type}_${idx}_loading_number`}
+              value={point.loading_number}
+              onChange={(e) => updatePoint(type, idx, 'loading_number', e.target.value)}
+              placeholder="Ramp 4"
+              className={inputClass}
+            />
+          </div>
+
+          <div className="md:col-span-2">
+            <label className={labelClass}>Заметки к точке</label>
+            <input
+              type="text"
+              name={`${type}_${idx}_notes`}
+              value={point.notes}
+              onChange={(e) => updatePoint(type, idx, 'notes', e.target.value)}
+              placeholder="Контакт на месте, доп. инфо"
+              className={inputClass}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <form action={createForwarding} className="space-y-4 md:space-y-6">
@@ -112,9 +243,9 @@ export default function NewForwardingForm({
       <div className={sectionClass}>
         <h2 className={sectionTitleClass}>
           🚛 Подрядчики
-          {items.length > 0 && (
+          {contractorItems.length > 0 && (
             <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">
-              {items.length}
+              {contractorItems.length}
             </span>
           )}
         </h2>
@@ -127,16 +258,14 @@ export default function NewForwardingForm({
         )}
 
         <div className="space-y-3">
-          {items.map((item, idx) => (
+          {contractorItems.map((item, idx) => (
             <div key={idx} className="border border-slate-200 rounded-xl p-3 md:p-4 bg-slate-50/40 space-y-3">
               <div className="flex items-center justify-between gap-2">
-                <div className="text-sm font-semibold text-slate-700">
-                  Подрядчик #{idx + 1}
-                </div>
-                {items.length > 1 && (
+                <div className="text-sm font-semibold text-slate-700">Подрядчик #{idx + 1}</div>
+                {contractorItems.length > 1 && (
                   <button
                     type="button"
-                    onClick={() => removeItem(idx)}
+                    onClick={() => removeContractor(idx)}
                     className="text-red-600 hover:text-red-700 text-xs md:text-sm font-medium px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 transition-colors"
                   >
                     ✕ Удалить
@@ -151,7 +280,7 @@ export default function NewForwardingForm({
                     name={`contractor_${idx}_id`}
                     required
                     value={item.contractor_id}
-                    onChange={(e) => updateItem(idx, 'contractor_id', e.target.value)}
+                    onChange={(e) => updateContractor(idx, 'contractor_id', e.target.value)}
                     className={inputClass}
                   >
                     <option value="">— Выберите подрядчика —</option>
@@ -166,7 +295,7 @@ export default function NewForwardingForm({
                   <input
                     type="number" step="0.01" required placeholder="1500"
                     value={item.price}
-                    onChange={(e) => updateItem(idx, 'price', e.target.value)}
+                    onChange={(e) => updateContractor(idx, 'price', e.target.value)}
                     name={`contractor_${idx}_price`}
                     className={inputClass}
                   />
@@ -177,7 +306,7 @@ export default function NewForwardingForm({
                   <select
                     name={`contractor_${idx}_currency`}
                     value={item.currency}
-                    onChange={(e) => updateItem(idx, 'currency', e.target.value)}
+                    onChange={(e) => updateContractor(idx, 'currency', e.target.value)}
                     className={inputClass}
                   >
                     <option value="EUR">EUR €</option>
@@ -192,7 +321,7 @@ export default function NewForwardingForm({
                     type="text"
                     name={`contractor_${idx}_truck_number`}
                     value={item.truck_number}
-                    onChange={(e) => updateItem(idx, 'truck_number', e.target.value)}
+                    onChange={(e) => updateContractor(idx, 'truck_number', e.target.value)}
                     placeholder="WSI42316 / WLS73FF"
                     className={inputClass}
                   />
@@ -204,7 +333,7 @@ export default function NewForwardingForm({
                     type="text"
                     name={`contractor_${idx}_driver_name`}
                     value={item.driver_name}
-                    onChange={(e) => updateItem(idx, 'driver_name', e.target.value)}
+                    onChange={(e) => updateContractor(idx, 'driver_name', e.target.value)}
                     placeholder="Daniel Wojtczuk"
                     className={inputClass}
                   />
@@ -216,7 +345,7 @@ export default function NewForwardingForm({
                     type="number"
                     name={`contractor_${idx}_payment_days`}
                     value={item.payment_days}
-                    onChange={(e) => updateItem(idx, 'payment_days', e.target.value)}
+                    onChange={(e) => updateContractor(idx, 'payment_days', e.target.value)}
                     placeholder="30"
                     className={inputClass}
                   />
@@ -228,7 +357,7 @@ export default function NewForwardingForm({
                     type="text"
                     name={`contractor_${idx}_notes`}
                     value={item.notes}
-                    onChange={(e) => updateItem(idx, 'notes', e.target.value)}
+                    onChange={(e) => updateContractor(idx, 'notes', e.target.value)}
                     placeholder="Доп. инфо"
                     className={inputClass}
                   />
@@ -238,10 +367,10 @@ export default function NewForwardingForm({
           ))}
         </div>
 
-        {items.length < 10 && (
+        {contractorItems.length < 10 && (
           <button
             type="button"
-            onClick={addItem}
+            onClick={addContractor}
             className="w-full py-3 rounded-xl border-2 border-dashed border-blue-300 text-blue-600 font-medium
                        hover:bg-blue-50 hover:border-blue-400 transition-all duration-150
                        text-sm md:text-base active:scale-[0.99]"
@@ -258,31 +387,74 @@ export default function NewForwardingForm({
         )}
       </div>
 
-      {/* МАРШРУТ */}
+      {/* ТОЧКИ ПОГРУЗКИ */}
       <div className={sectionClass}>
-        <h2 className={sectionTitleClass}>📍 Маршрут</h2>
-        <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
-          <div>
-            <label className={labelClass}>Откуда</label>
-            <input type="text" name="route_from" placeholder="Vrasene, BE" className={inputClass} />
+        <h2 className={sectionTitleClass}>
+          📍 Погрузка
+          <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
+            {loadingPoints.length}
+          </span>
+        </h2>
+
+        {loadingLocations.length === 0 && (
+          <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">
+            ⚠️ У вас нет локаций для погрузки. Добавьте в разделе{' '}
+            <a href="/locations/new" className="font-semibold underline">Локации</a>.
           </div>
-          <div>
-            <label className={labelClass}>Куда</label>
-            <input type="text" name="route_to" placeholder="Siedlce, PL" className={inputClass} />
-          </div>
-          <div>
-            <label className={labelClass}>Дата загрузки *</label>
-            <input type="date" name="load_date" required className={inputClass} />
-          </div>
-          <div>
-            <label className={labelClass}>Дата выгрузки</label>
-            <input type="date" name="unload_date" className={inputClass} />
-          </div>
-          <div className="md:col-span-2">
-            <label className={labelClass}>Reference loading</label>
-            <input type="text" name="loading_reference" placeholder="vo27/02199" className={inputClass} />
-          </div>
+        )}
+
+        <div className="space-y-3">
+          {loadingPoints.map((p, idx) => (
+            <PointRow key={idx} type="loading" point={p} idx={idx} locations={loadingLocations} />
+          ))}
         </div>
+
+        {loadingPoints.length < 10 && (
+          <button
+            type="button"
+            onClick={() => addPoint('loading')}
+            className="w-full py-3 rounded-xl border-2 border-dashed border-green-300 text-green-600 font-medium
+                       hover:bg-green-50 hover:border-green-400 transition-all duration-150
+                       text-sm md:text-base active:scale-[0.99]"
+          >
+            + Добавить точку погрузки
+          </button>
+        )}
+      </div>
+
+      {/* ТОЧКИ ВЫГРУЗКИ */}
+      <div className={sectionClass}>
+        <h2 className={sectionTitleClass}>
+          🏁 Выгрузка
+          <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium">
+            {unloadingPoints.length}
+          </span>
+        </h2>
+
+        {unloadingLocations.length === 0 && (
+          <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">
+            ⚠️ У вас нет локаций для выгрузки. Добавьте в разделе{' '}
+            <a href="/locations/new" className="font-semibold underline">Локации</a>.
+          </div>
+        )}
+
+        <div className="space-y-3">
+          {unloadingPoints.map((p, idx) => (
+            <PointRow key={idx} type="unloading" point={p} idx={idx} locations={unloadingLocations} />
+          ))}
+        </div>
+
+        {unloadingPoints.length < 10 && (
+          <button
+            type="button"
+            onClick={() => addPoint('unloading')}
+            className="w-full py-3 rounded-xl border-2 border-dashed border-red-300 text-red-600 font-medium
+                       hover:bg-red-50 hover:border-red-400 transition-all duration-150
+                       text-sm md:text-base active:scale-[0.99]"
+          >
+            + Добавить точку выгрузки
+          </button>
+        )}
       </div>
 
       {/* ДЕТАЛИ ПЕРЕВОЗКИ */}
@@ -291,57 +463,31 @@ export default function NewForwardingForm({
         <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
           <div>
             <label className={labelClass}>Тип транспорта</label>
-            <input
-              type="text"
-              name="transport_type"
-              placeholder="Chlodnia +15 LTL"
-              className={inputClass}
-            />
+            <input type="text" name="transport_type" placeholder="Chlodnia +15 LTL" className={inputClass} />
           </div>
           <div>
             <label className={labelClass}>Тип груза</label>
-            <input
-              type="text"
-              name="cargo_type"
-              placeholder="Czekolady"
-              className={inputClass}
-            />
+            <input type="text" name="cargo_type" placeholder="Czekolady" className={inputClass} />
           </div>
           <div>
             <label className={labelClass}>Количество груза</label>
-            <input
-              type="text"
-              name="cargo_quantity"
-              placeholder="22 epall"
-              className={inputClass}
-            />
+            <input type="text" name="cargo_quantity" placeholder="22 epall" className={inputClass} />
           </div>
           <div>
             <label className={labelClass}>Описание груза (внутр.)</label>
-            <input
-              type="text"
-              name="cargo_description"
-              placeholder="Паллеты, 20т"
-              className={inputClass}
-            />
+            <input type="text" name="cargo_description" placeholder="Паллеты, 20т" className={inputClass} />
           </div>
           <div>
             <label className={labelClass}>Таможня при загрузке</label>
-            <input
-              type="text"
-              name="customs_loading"
-              placeholder="bez"
-              className={inputClass}
-            />
+            <input type="text" name="customs_loading" placeholder="bez" className={inputClass} />
           </div>
           <div>
             <label className={labelClass}>Таможня при разгрузке</label>
-            <input
-              type="text"
-              name="customs_unloading"
-              placeholder="bez"
-              className={inputClass}
-            />
+            <input type="text" name="customs_unloading" placeholder="bez" className={inputClass} />
+          </div>
+          <div className="md:col-span-2">
+            <label className={labelClass}>Reference loading</label>
+            <input type="text" name="loading_reference" placeholder="vo27/02199" className={inputClass} />
           </div>
         </div>
       </div>
