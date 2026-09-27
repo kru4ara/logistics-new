@@ -4,7 +4,9 @@ import { createClient } from '../lib/supabase-server';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 
+// ============================================================
 // Добавление расхода
+// ============================================================
 export async function addExpense(formData: FormData) {
   const supabase = await createClient();
 
@@ -59,7 +61,9 @@ export async function addExpense(formData: FormData) {
   revalidatePath('/trips');
 }
 
+// ============================================================
 // Удаление расхода
+// ============================================================
 export async function deleteExpense(expenseId: string, tripId: string) {
   const supabase = await createClient();
 
@@ -72,7 +76,9 @@ export async function deleteExpense(expenseId: string, tripId: string) {
   revalidatePath('/trips');
 }
 
+// ============================================================
 // Редактирование рейса
+// ============================================================
 export async function updateTrip(tripId: string, formData: FormData) {
   const supabase = await createClient();
 
@@ -81,6 +87,7 @@ export async function updateTrip(tripId: string, formData: FormData) {
   const trailerId = formData.get('trailer_id') as string;
   const driverId = formData.get('driver_id') as string;
   const startDate = formData.get('start_date') as string;
+  const endDate = (formData.get('end_date') as string) || null;
   const revenueEur = parseFloat(formData.get('revenue_eur') as string) || 0;
   const startFuelLevel = parseFloat(formData.get('start_fuel_level') as string) || 0;
 
@@ -117,9 +124,16 @@ export async function updateTrip(tripId: string, formData: FormData) {
 
   const route = `${senderCity || ''}, ${senderCountry || ''} → ${receiverCity || ''}, ${receiverCountry || ''}`;
 
-  // ============================================================
-  // ГЕОКОДИРОВАНИЕ — пересчитываем, если адреса изменились
-  // ============================================================
+  // Проверка: end_date не может быть раньше start_date
+  if (endDate && startDate) {
+    const s = new Date(startDate).getTime();
+    const e = new Date(endDate).getTime();
+    if (e < s) {
+      throw new Error('Дата финиша не может быть раньше даты старта');
+    }
+  }
+
+  // Геокодирование
   const { data: existing } = await supabase
     .from('trips')
     .select('start_lat, start_lng, end_lat, end_lng, sender_city, sender_country, receiver_city, receiver_country')
@@ -180,6 +194,7 @@ export async function updateTrip(tripId: string, formData: FormData) {
       trailer_id: trailerId || null,
       driver_id: driverId || null,
       start_date: startDate,
+      end_date: endDate,
       revenue_eur: revenueEur,
       start_fuel_level: startFuelLevel,
       client_request_number: clientRequestNumber || null,
@@ -226,7 +241,9 @@ export async function updateTrip(tripId: string, formData: FormData) {
   redirect(`/trips/${tripId}`);
 }
 
+// ============================================================
 // Удаление рейса
+// ============================================================
 export async function deleteTrip(tripId: string) {
   const supabase = await createClient();
 
