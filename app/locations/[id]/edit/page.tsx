@@ -24,7 +24,6 @@ export default async function EditLocationPage({ params }: { params: Promise<{ i
     return <div className="p-8 text-red-500">Локация не найдена</div>;
   }
 
-  // Если в БД страна не из списка — добавим её отдельно
   const currentCountry = location.country || '';
   const isKnownCountry = EUROPEAN_COUNTRIES.includes(currentCountry);
 
@@ -104,7 +103,6 @@ export default async function EditLocationPage({ params }: { params: Promise<{ i
                 <select name="country" className={inputClass} defaultValue={currentCountry}>
                   <option value="">— Выберите страну —</option>
 
-                  {/* Если текущая страна не из списка (старая запись) — показываем её первой */}
                   {!isKnownCountry && currentCountry && (
                     <option value={currentCountry}>{currentCountry} (текущая)</option>
                   )}
@@ -144,16 +142,6 @@ export default async function EditLocationPage({ params }: { params: Promise<{ i
                   className={inputClass}
                 />
               </div>
-
-              <div className="md:col-span-2">
-                <label className={labelClass}>Погрузочный номер по умолчанию</label>
-                <input
-                  type="text"
-                  name="default_loading_number"
-                  defaultValue={location.default_loading_number || ''}
-                  className={inputClass}
-                />
-              </div>
             </div>
           </div>
 
@@ -172,7 +160,7 @@ export default async function EditLocationPage({ params }: { params: Promise<{ i
             <button
               type="submit"
               className="w-full sm:flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl
-                          shadow-md shadow-blue-600/20 transition-all active:scale-[0.98]"
+                         shadow-md shadow-blue-600/20 transition-all active:scale-[0.98]"
             >
               ✅ Сохранить изменения
             </button>
