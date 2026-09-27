@@ -23,6 +23,19 @@ export type SyncResult = {
   endOdometer?: number;
 };
 
+export type SummaryResult = {
+  success: boolean;
+  error?: string;
+  stage?: string;
+  period?: { from: string; to: string; days: number };
+  framesCount?: number;
+  distanceKm?: number;
+  fuelLiters?: number;
+  consumption?: number;
+  startOdometer?: number;
+  endOdometer?: number;
+};
+
 function splitIntoWindows(fromTs: number, toTs: number): Array<{ from: number; to: number }> {
   const windows: Array<{ from: number; to: number }> = [];
   if (!Number.isFinite(fromTs) || !Number.isFinite(toTs)) return windows;
@@ -35,7 +48,7 @@ function splitIntoWindows(fromTs: number, toTs: number): Array<{ from: number; t
   return windows;
 }
 
-// Надёжно приводим значение даты из БД (строка "YYYY-MM-DD", ISO, Date) к UTC-секундам.
+// Надёжно приводим значение даты из БД или из формы (строка "YYYY-MM-DD", ISO, Date) к UTC-секундам.
 // isEnd=false → начало дня (00:00:00 UTC), isEnd=true → конец дня (23:59:59 UTC).
 function toUtcSeconds(raw: unknown, isEnd: boolean): number {
   if (raw == null) return NaN;
@@ -85,6 +98,93 @@ function frameDate(f: any): number {
   return Number.isFinite(ts) ? ts : 0;
 }
 
+// Общая функция: тянет кадры Logisat за период и считает метрики.
+async function fetchFramesAndCompute(
+  deviceId: string,
+  startTs: number,
+  endTs: number
+): Promise<{
+  frames: any[];
+  fetchedOk: number;
+  fetchedErr: number;
+  distanceKm: number | null;
+  fuelLiters: number | null;
+  consumption: number | null;
+  startOdometer: number | null;
+  endOdometer: number | null;
+  windowsCount: number;
+}> {
+  const windows = splitIntoWindows(startTs, endTs);
+  const allFrames: any[] = [];
+  let fetchedOk = 0;
+  let fetchedErr = 0;
+
+  for (const w of windows) {
+    const url = `https://${SERVER}/atlas/${USERNAME}/historyextended/${deviceId}/${w.from}/${w.to}?password=${PASSWORD}`;
+    try {
+      const res = await fetch(url, { cache: 'no-store' });
+      if (!res.ok) {
+        fetchedErr++;
+        continue;
+      }
+      const data = await res.json();
+      const positions = Array.isArray(data) ? data : (data.positionList || data.history || []);
+      if (Array.isArray(positions)) {
+        allFrames.push(...positions);
+        fetchedOk++;
+      }
+    } catch (e) {
+      fetchedErr++;
+      console.error('[logisat] fetch error', w, e);
+    }
+    await new Promise((r) => setTimeout(r, 200));
+  }
+
+  allFrames.sort((a, b) => frameDate(a) - frameDate(b));
+
+  const framesWithDistance = allFrames.filter((f) => f.totaldistance != null && f.totaldistance > 0);
+  const framesWithFuel = allFrames.filter((f) => f.totalfuel != null && f.totalfuel > 0);
+
+  let distanceKm: number | null = null;
+  let fuelLiters: number | null = null;
+  let consumption: number | null = null;
+  let startOdometer: number | null = null;
+  let endOdometer: number | null = null;
+
+  if (framesWithDistance.length >= 2) {
+    const fFirst = framesWithDistance[0];
+    const fLast = framesWithDistance[framesWithDistance.length - 1];
+    startOdometer = Math.round(fFirst.totaldistance / 1000);
+    endOdometer = Math.round(fLast.totaldistance / 1000);
+    distanceKm = Math.max(0, Math.round((fLast.totaldistance - fFirst.totaldistance) / 100) / 10);
+  }
+
+  if (framesWithFuel.length >= 2) {
+    const fFirst = framesWithFuel[0];
+    const fLast = framesWithFuel[framesWithFuel.length - 1];
+    fuelLiters = Math.max(0, Math.round((fLast.totalfuel - fFirst.totalfuel) / 100) / 10);
+  }
+
+  if (distanceKm != null && distanceKm > 0 && fuelLiters != null) {
+    consumption = Math.round((fuelLiters / distanceKm) * 1000) / 10;
+  }
+
+  return {
+    frames: allFrames,
+    fetchedOk,
+    fetchedErr,
+    distanceKm,
+    fuelLiters,
+    consumption,
+    startOdometer,
+    endOdometer,
+    windowsCount: windows.length,
+  };
+}
+
+// ============================================================
+// Синхронизация рейса (сохраняет в trips) — используется из SyncLogisatButton
+// ============================================================
 export async function syncTripFromLogisat(tripId: string): Promise<SyncResult> {
   if (!SERVER || !USERNAME || !PASSWORD) {
     return { success: false, tripId, stage: 'env', error: 'Logisat не настроен (env переменные)' };
@@ -92,7 +192,6 @@ export async function syncTripFromLogisat(tripId: string): Promise<SyncResult> {
 
   const supabase = await createClient();
 
-  // 1. Рейс
   const { data: trip, error: tripErr } = await supabase
     .from('trips')
     .select('id, truck_id, start_date, end_date, trip_number')
@@ -115,7 +214,6 @@ export async function syncTripFromLogisat(tripId: string): Promise<SyncResult> {
     return { success: false, tripId, tripNumber: trip.trip_number, stage: 'trip_validate', error: 'У рейса нет даты финиша. Завершите рейс или укажите дату финиша в редактировании.' };
   }
 
-  // 2. Машина
   const { data: truck, error: truckErr } = await supabase
     .from('trucks')
     .select('id, registration_number, logisat_device_id, logisat_enabled')
@@ -134,7 +232,6 @@ export async function syncTripFromLogisat(tripId: string): Promise<SyncResult> {
     return { success: false, tripId, tripNumber: trip.trip_number, truck: truck.registration_number, stage: 'truck_validate', error: `У машины ${truck.registration_number} нет Logisat deviceId` };
   }
 
-  // 3. Период — надёжный парсинг
   const startTs = toUtcSeconds(trip.start_date, false);
   const endTs = toUtcSeconds(trip.end_date, true);
 
@@ -162,32 +259,7 @@ export async function syncTripFromLogisat(tripId: string): Promise<SyncResult> {
     };
   }
 
-  // 4. Запрос к Logisat
-  const windows = splitIntoWindows(startTs, endTs);
-  const allFrames: any[] = [];
-  let fetchedOk = 0;
-  let fetchedErr = 0;
-
-  for (const w of windows) {
-    const url = `https://${SERVER}/atlas/${USERNAME}/historyextended/${truck.logisat_device_id}/${w.from}/${w.to}?password=${PASSWORD}`;
-    try {
-      const res = await fetch(url, { cache: 'no-store' });
-      if (!res.ok) {
-        fetchedErr++;
-        continue;
-      }
-      const data = await res.json();
-      const positions = Array.isArray(data) ? data : (data.positionList || data.history || []);
-      if (Array.isArray(positions)) {
-        allFrames.push(...positions);
-        fetchedOk++;
-      }
-    } catch (e) {
-      fetchedErr++;
-      console.error('[logisat] fetch error', w, e);
-    }
-    await new Promise((r) => setTimeout(r, 200));
-  }
+  const computed = await fetchFramesAndCompute(truck.logisat_device_id, startTs, endTs);
 
   const periodDays = Math.round((endTs - startTs) / 8640) / 10;
   const period = {
@@ -196,7 +268,7 @@ export async function syncTripFromLogisat(tripId: string): Promise<SyncResult> {
     days: periodDays,
   };
 
-  if (allFrames.length === 0) {
+  if (computed.frames.length === 0) {
     return {
       success: false,
       tripId,
@@ -206,45 +278,11 @@ export async function syncTripFromLogisat(tripId: string): Promise<SyncResult> {
       period,
       framesCount: 0,
       stage: 'no_frames',
-      error: `Logisat не вернул GPS-кадры за период ${period.from.slice(0, 10)} → ${period.to.slice(0, 10)} (${periodDays} дн.). Окна: ${windows.length}, успешных: ${fetchedOk}, с ошибкой: ${fetchedErr}.`,
+      error: `Logisat не вернул GPS-кадры за период ${period.from.slice(0, 10)} → ${period.to.slice(0, 10)} (${periodDays} дн.). Окна: ${computed.windowsCount}, успешных: ${computed.fetchedOk}, с ошибкой: ${computed.fetchedErr}.`,
     };
   }
 
-  allFrames.sort((a, b) => frameDate(a) - frameDate(b));
-
-  const framesWithDistance = allFrames.filter((f) => f.totaldistance != null && f.totaldistance > 0);
-  const framesWithFuel = allFrames.filter((f) => f.totalfuel != null && f.totalfuel > 0);
-
-  const hasDistance = framesWithDistance.length >= 2;
-  const hasFuel = framesWithFuel.length >= 2;
-
-  let distanceKm: number | null = null;
-  let fuelLiters: number | null = null;
-  let startOdometer: number | null = null;
-  let endOdometer: number | null = null;
-  let consumption: number | null = null;
-
-  if (hasDistance) {
-    const fFirst = framesWithDistance[0];
-    const fLast = framesWithDistance[framesWithDistance.length - 1];
-    const distDiffM = fLast.totaldistance - fFirst.totaldistance;
-    startOdometer = Math.round(fFirst.totaldistance / 1000);
-    endOdometer = Math.round(fLast.totaldistance / 1000);
-    distanceKm = Math.max(0, Math.round(distDiffM / 100) / 10);
-  }
-
-  if (hasFuel) {
-    const fFirst = framesWithFuel[0];
-    const fLast = framesWithFuel[framesWithFuel.length - 1];
-    const fuelDiffMl = fLast.totalfuel - fFirst.totalfuel;
-    fuelLiters = Math.max(0, Math.round(fuelDiffMl / 100) / 10);
-  }
-
-  if (distanceKm != null && distanceKm > 0 && fuelLiters != null) {
-    consumption = Math.round((fuelLiters / distanceKm) * 1000) / 10;
-  }
-
-  if (distanceKm === null && fuelLiters === null) {
+  if (computed.distanceKm === null && computed.fuelLiters === null) {
     return {
       success: false,
       tripId,
@@ -252,9 +290,9 @@ export async function syncTripFromLogisat(tripId: string): Promise<SyncResult> {
       truck: truck.registration_number,
       deviceId: truck.logisat_device_id,
       period,
-      framesCount: allFrames.length,
+      framesCount: computed.frames.length,
       stage: 'no_sensors',
-      error: `Получено ${allFrames.length} кадров, но датчик одометра/топлива не передаёт данные (totaldistance и totalfuel = null). Проверь CAN-модуль на машине.`,
+      error: `Получено ${computed.frames.length} кадров, но датчик одометра/топлива не передаёт данные (totaldistance и totalfuel = null). Проверь CAN-модуль на машине.`,
     };
   }
 
@@ -262,10 +300,10 @@ export async function syncTripFromLogisat(tripId: string): Promise<SyncResult> {
     logisat_synced_at: new Date().toISOString(),
   };
 
-  if (distanceKm != null) updateData.actual_km = distanceKm;
-  if (fuelLiters != null) updateData.actual_liters = fuelLiters;
-  if (startOdometer != null) updateData.start_odometer = startOdometer;
-  if (endOdometer != null) updateData.end_odometer = endOdometer;
+  if (computed.distanceKm != null) updateData.actual_km = computed.distanceKm;
+  if (computed.fuelLiters != null) updateData.actual_liters = computed.fuelLiters;
+  if (computed.startOdometer != null) updateData.start_odometer = computed.startOdometer;
+  if (computed.endOdometer != null) updateData.end_odometer = computed.endOdometer;
 
   const { error: updateErr } = await supabase
     .from('trips')
@@ -291,11 +329,84 @@ export async function syncTripFromLogisat(tripId: string): Promise<SyncResult> {
     truck: truck.registration_number,
     deviceId: truck.logisat_device_id,
     period,
-    framesCount: allFrames.length,
-    distanceKm: distanceKm ?? undefined,
-    fuelLiters: fuelLiters ?? undefined,
-    consumption: consumption ?? undefined,
-    startOdometer: startOdometer ?? undefined,
-    endOdometer: endOdometer ?? undefined,
+    framesCount: computed.frames.length,
+    distanceKm: computed.distanceKm ?? undefined,
+    fuelLiters: computed.fuelLiters ?? undefined,
+    consumption: computed.consumption ?? undefined,
+    startOdometer: computed.startOdometer ?? undefined,
+    endOdometer: computed.endOdometer ?? undefined,
+  };
+}
+
+// ============================================================
+// Только чтение (без записи в БД) — для страницы водителя /driver/logisat
+// ============================================================
+export async function fetchLogisatSummary(
+  deviceId: string,
+  fromIso: string,
+  toIso: string
+): Promise<SummaryResult> {
+  if (!SERVER || !USERNAME || !PASSWORD) {
+    return { success: false, stage: 'env', error: 'Logisat не настроен (env переменные)' };
+  }
+  if (!deviceId) {
+    return { success: false, stage: 'device', error: 'Не указан deviceId машины' };
+  }
+  if (!fromIso || !toIso) {
+    return { success: false, stage: 'period', error: 'Укажите период: с и по' };
+  }
+
+  const startTs = toUtcSeconds(fromIso, false);
+  const endTs = toUtcSeconds(toIso, true);
+
+  if (!Number.isFinite(startTs) || !Number.isFinite(endTs)) {
+    return {
+      success: false,
+      stage: 'period_parse',
+      error: `Не удалось распарсить период (from="${fromIso}", to="${toIso}")`,
+    };
+  }
+  if (endTs <= startTs) {
+    return { success: false, stage: 'period_validate', error: 'Дата конца раньше даты начала' };
+  }
+
+  const computed = await fetchFramesAndCompute(deviceId, startTs, endTs);
+
+  const periodDays = Math.round((endTs - startTs) / 8640) / 10;
+  const period = {
+    from: safeIsoFromSeconds(startTs),
+    to: safeIsoFromSeconds(endTs),
+    days: periodDays,
+  };
+
+  if (computed.frames.length === 0) {
+    return {
+      success: false,
+      stage: 'no_frames',
+      period,
+      framesCount: 0,
+      error: `Logisat не вернул GPS-кадры за период ${period.from.slice(0, 10)} → ${period.to.slice(0, 10)}. Машина не ездила или GPS не работал.`,
+    };
+  }
+
+  if (computed.distanceKm === null && computed.fuelLiters === null) {
+    return {
+      success: false,
+      stage: 'no_sensors',
+      period,
+      framesCount: computed.frames.length,
+      error: `Получено ${computed.frames.length} кадров, но датчик одометра/топлива не передаёт данные. Проверьте CAN-модуль на машине.`,
+    };
+  }
+
+  return {
+    success: true,
+    period,
+    framesCount: computed.frames.length,
+    distanceKm: computed.distanceKm ?? undefined,
+    fuelLiters: computed.fuelLiters ?? undefined,
+    consumption: computed.consumption ?? undefined,
+    startOdometer: computed.startOdometer ?? undefined,
+    endOdometer: computed.endOdometer ?? undefined,
   };
 }
