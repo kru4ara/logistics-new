@@ -443,7 +443,7 @@ export default async function ForwardingDetailPage({ params }: { params: Promise
         </div>
 
         {/* Детали перевозки */}
-        {(order.transport_type || order.cargo_type || order.cargo_quantity || order.customs_loading || order.customs_unloading) && (
+        {(order.transport_type || order.transport_temperature || order.cargo_type || order.cargo_quantity || order.customs_loading || order.customs_unloading) && (
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
             <h2 className="text-lg font-bold text-slate-900 mb-4">📦 Детали перевозки</h2>
             <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
@@ -451,6 +451,12 @@ export default async function ForwardingDetailPage({ params }: { params: Promise
                 <div>
                   <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Тип транспорта</div>
                   <div className="text-slate-800 font-medium break-words">{order.transport_type}</div>
+                </div>
+              )}
+              {order.transport_temperature && (
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Temperatura</div>
+                  <div className="text-slate-800 font-medium break-words">🌡 {order.transport_temperature}</div>
                 </div>
               )}
               {order.cargo_type && (
@@ -475,12 +481,6 @@ export default async function ForwardingDetailPage({ params }: { params: Promise
                 <div>
                   <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Таможня (выгрузка)</div>
                   <div className="text-slate-800 font-medium break-words">{order.customs_unloading}</div>
-                </div>
-              )}
-              {order.loading_reference && (
-                <div>
-                  <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Reference loading</div>
-                  <div className="text-slate-800 font-medium break-words">{order.loading_reference}</div>
                 </div>
               )}
             </div>
