@@ -27,7 +27,40 @@ function fmtDate(d: string | null): string {
   return `${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')}/${dt.getFullYear()}`;
 }
 
-// Скачиваем картинку ЧЕРЕЗ Supabase Client (обход проблем с fetch)
+// Читаем размеры PNG из первых 24 байт
+function getPngDimensions(buffer: Buffer): { width: number; height: number } | null {
+  try {
+    if (buffer.length < 24) return null;
+    if (buffer[0] !== 0x89 || buffer[1] !== 0x50 || buffer[2] !== 0x4e || buffer[3] !== 0x47) {
+      return null;
+    }
+    const width = buffer.readUInt32BE(16);
+    const height = buffer.readUInt32BE(20);
+    return { width, height };
+  } catch {
+    return null;
+  }
+}
+
+// Масштабируем картинку с сохранением пропорций
+function scaleImage(
+  dims: { width: number; height: number } | null,
+  maxWidth: number,
+  maxHeight: number
+): { width: number; height: number } {
+  if (!dims || dims.width === 0 || dims.height === 0) {
+    return { width: maxWidth, height: maxHeight };
+  }
+  const ratio = dims.width / dims.height;
+  let w = maxWidth;
+  let h = Math.round(maxWidth / ratio);
+  if (h > maxHeight) {
+    h = maxHeight;
+    w = Math.round(maxHeight * ratio);
+  }
+  return { width: w, height: h };
+}
+
 async function downloadAsset(
   supabase: Awaited<ReturnType<typeof createClient>>,
   path: string,
@@ -206,13 +239,20 @@ export async function GET(
     ? `${order.client_request_number}-${fc.position || 1}`
     : `${order.order_number || '?'}-${fc.position || 1}`;
 
-  // Загружаем печать (через Supabase) и QR-код (генерируем) параллельно
   const [stampBuf, qrBuf] = await Promise.all([
     downloadAsset(supabase, 'assets/stamp.png', 'STAMP'),
     generateQrBuffer(`${APP_URL}/forwarding/${forwardingId}`),
   ]);
 
-  console.log('[DOCX] stamp loaded:', !!stampBuf, 'qr loaded:', !!qrBuf);
+  const stampDims = stampBuf ? getPngDimensions(stampBuf) : null;
+  const qrDims = qrBuf ? getPngDimensions(qrBuf) : null;
+
+  console.log('[DOCX] stamp dims:', stampDims, 'qr dims:', qrDims);
+
+  const stampSize = scaleImage(stampDims, 200, 200);
+  const qrSize = scaleImage(qrDims, 110, 110);
+
+  console.log('[DOCX] stamp size:', stampSize, 'qr size:', qrSize);
 
   const children: any[] = [];
 
@@ -220,7 +260,6 @@ export async function GET(
   // СТРАНИЦА 1
   // ============================================================
 
-  // --- ШАПКА: слева реквизиты, справа QR-код ---
   const headerLeft: Paragraph[] = [
     txt(COMPANY.name, { bold: true, size: 28, after: 20, color: BLUE }),
     txt(COMPANY.address, { size: 20, after: 0 }),
@@ -243,7 +282,7 @@ export async function GET(
         children: [
           new ImageRun({
             data: qrBuf,
-            transformation: { width: 110, height: 110 },
+            transformation: { width: qrSize.width, height: qrSize.height },
             type: 'png',
           }),
         ],
@@ -340,7 +379,6 @@ export async function GET(
     )
   );
 
-  // --- ПОДРЯДЧИК ---
   if (contractor) {
     children.push(
       txt(contractor.full_name || contractor.name || '—', {
@@ -363,7 +401,6 @@ export async function GET(
 
   children.push(divider());
 
-  // --- МАШИНА / ВОДИТЕЛЬ ---
   const truckDriverChildren: Paragraph[] = [];
   if (fc.truck_number) {
     truckDriverChildren.push(
@@ -416,7 +453,6 @@ export async function GET(
 
   children.push(txt('', { after: 200 }));
 
-  // --- ОСНОВНАЯ ТАБЛИЦА ---
   const loadingPlace =
     [order.route_from, order.loading_reference ? `Ref: ${order.loading_reference}` : null]
       .filter(Boolean)
@@ -484,35 +520,10 @@ export async function GET(
     })
   );
 
-  // --- ПЕЧАТЬ ---
-  if (stampBuf) {
-    children.push(
-      new Paragraph({
-        alignment: AlignmentType.RIGHT,
-        spacing: { line: LINE, before: 300, after: 0 },
-        children: [
-          new ImageRun({
-            data: stampBuf,
-            transformation: { width: 170, height: 170 },
-            type: 'png',
-          }),
-        ],
-      })
-    );
-  } else {
-    // Fallback — если печать не загрузилась, покажем текст
-    children.push(
-      txt('(pieczęć nie załadowana)', {
-        size: 14,
-        color: 'DC2626',
-        align: AlignmentType.RIGHT,
-        before: 300,
-      })
-    );
-  }
+  // ❌ ПЕЧАТЬ ЗДЕСЬ БОЛЬШЕ НЕ ВЫВОДИМ
 
   // ============================================================
-  // СТРАНИЦА 2 — УСЛОВИЯ
+  // СТРАНИЦА 2 — УСЛОВИЯ + ПОДПИСЬ + ПЕЧАТЬ
   // ============================================================
   children.push(new Paragraph({ children: [new PageBreak()] }));
 
@@ -541,12 +552,127 @@ export async function GET(
     );
   });
 
+  // Отступ перед блоком подписи
   children.push(txt('', { after: 500 }));
+
+  // ============================================================
+  // БЛОК: слева — место для подписи перевозчика, справа — наша печать
+  // ============================================================
+  const signatureChildren: Paragraph[] = [
+    new Paragraph({
+      spacing: { line: LINE, after: 80, before: 0 },
+      children: [
+        new TextRun({
+          text: 'Podpis przewoźnika / akceptacja zlecenia:',
+          bold: true,
+          size: 22,
+          font: FONT,
+          color: '334155',
+        }),
+      ],
+    }),
+    new Paragraph({
+      spacing: { line: LINE, after: 40, before: 0 },
+      children: [
+        new TextRun({
+          text: '_______________________________________',
+          size: 22,
+          font: FONT,
+          color: '94A3B8',
+        }),
+      ],
+    }),
+    new Paragraph({
+      spacing: { line: LINE, after: 0, before: 60 },
+      children: [
+        new TextRun({
+          text: '(data / podpis / pieczątka)',
+          size: 16,
+          font: FONT,
+          color: GRAY,
+          italics: true,
+        }),
+      ],
+    }),
+  ];
+
+  const stampChildren: Paragraph[] = [];
+  if (stampBuf) {
+    stampChildren.push(
+      new Paragraph({
+        alignment: AlignmentType.RIGHT,
+        spacing: { line: LINE, after: 60, before: 0 },
+        children: [
+          new ImageRun({
+            data: stampBuf,
+            transformation: { width: stampSize.width, height: stampSize.height },
+            type: 'png',
+          }),
+        ],
+      })
+    );
+    stampChildren.push(
+      new Paragraph({
+        alignment: AlignmentType.RIGHT,
+        spacing: { line: LINE, after: 0, before: 0 },
+        children: [
+          new TextRun({
+            text: COMPANY.name,
+            bold: true,
+            size: 18,
+            font: FONT,
+            color: BLUE,
+          }),
+        ],
+      })
+    );
+  } else {
+    stampChildren.push(
+      new Paragraph({
+        alignment: AlignmentType.RIGHT,
+        spacing: { line: LINE, after: 0, before: 0 },
+        children: [
+          new TextRun({
+            text: '(pieczęć nie załadowana)',
+            size: 14,
+            font: FONT,
+            color: 'DC2626',
+          }),
+        ],
+      })
+    );
+  }
+
   children.push(
-    txt(
-      'Podpis przewoźnika / akceptacja zlecenia:  ______________________________',
-      { size: 20, color: GRAY }
-    )
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      borders: {
+        top: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+        bottom: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+        left: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+        right: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+        insideHorizontal: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+        insideVertical: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+      },
+      rows: [
+        new TableRow({
+          children: [
+            new TableCell({
+              width: { size: 55, type: WidthType.PERCENTAGE },
+              verticalAlign: VerticalAlign.TOP,
+              margins: { top: 0, bottom: 0, left: 0, right: 200 },
+              children: signatureChildren,
+            }),
+            new TableCell({
+              width: { size: 45, type: WidthType.PERCENTAGE },
+              verticalAlign: VerticalAlign.TOP,
+              margins: { top: 0, bottom: 0, left: 200, right: 0 },
+              children: stampChildren,
+            }),
+          ],
+        }),
+      ],
+    })
   );
 
   // ============================================================
