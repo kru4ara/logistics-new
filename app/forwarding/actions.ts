@@ -38,7 +38,7 @@ async function toEur(
 }
 
 // ============================================================
-// Поиск номера для новой заявки по её дате загрузки
+// Номер заявки по дате первой погрузки
 // ============================================================
 async function findNumberForDate(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -78,7 +78,7 @@ async function shiftNumbersFrom(
 }
 
 // ============================================================
-// Парсинг подрядчиков из formData
+// Парсинг подрядчиков
 // ============================================================
 type ParsedContractor = {
   contractor_id: string;
@@ -157,6 +157,75 @@ async function saveContractors(
 }
 
 // ============================================================
+// Парсинг точек погрузки/выгрузки
+// ============================================================
+type ParsedPoint = {
+  type: 'loading' | 'unloading';
+  sequence: number;
+  location_id: string | null;
+  date: string | null;
+  loading_number: string | null;
+  notes: string | null;
+};
+
+function parsePoints(formData: FormData, type: 'loading' | 'unloading'): ParsedPoint[] {
+  const indices = new Set<number>();
+  Array.from(formData.keys()).forEach((key) => {
+    const m = key.match(new RegExp(`^${type}_(\\d+)_location_id$`));
+    if (m) indices.add(parseInt(m[1]));
+  });
+
+  const sorted = Array.from(indices).sort((a, b) => a - b);
+  const result: ParsedPoint[] = [];
+
+  for (let i = 0; i < sorted.length; i++) {
+    const idx = sorted[i];
+    const locId = (formData.get(`${type}_${idx}_location_id`) as string) || '';
+    if (!locId) continue;
+
+    result.push({
+      type,
+      sequence: result.length + 1,
+      location_id: locId,
+      date: (formData.get(`${type}_${idx}_date`) as string) || null,
+      loading_number: (formData.get(`${type}_${idx}_loading_number`) as string)?.trim() || null,
+      notes: (formData.get(`${type}_${idx}_notes`) as string)?.trim() || null,
+    });
+  }
+
+  return result;
+}
+
+async function savePoints(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  forwardingId: string,
+  points: ParsedPoint[]
+) {
+  await supabase
+    .from('forwarding_points')
+    .delete()
+    .eq('forwarding_id', forwardingId);
+
+  if (points.length === 0) return;
+
+  const rows = points.map((p) => ({
+    forwarding_id: forwardingId,
+    type: p.type,
+    sequence: p.sequence,
+    location_id: p.location_id,
+    date: p.date,
+    loading_number: p.loading_number,
+    notes: p.notes,
+  }));
+
+  const { error } = await supabase
+    .from('forwarding_points')
+    .insert(rows);
+
+  if (error) throw new Error(`Ошибка сохранения точек: ${error.message}`);
+}
+
+// ============================================================
 // СОЗДАНИЕ заявки
 // ============================================================
 export async function createForwarding(formData: FormData) {
@@ -165,10 +234,6 @@ export async function createForwarding(formData: FormData) {
   const clientId = formData.get('client_id') as string;
   const currency = (formData.get('currency') as string) || 'EUR';
   const clientPrice = parseFloat(formData.get('client_price') as string) || 0;
-  const routeFrom = (formData.get('route_from') as string)?.trim() || null;
-  const routeTo = (formData.get('route_to') as string)?.trim() || null;
-  const loadDate = (formData.get('load_date') as string) || null;
-  const unloadDate = (formData.get('unload_date') as string) || null;
   const cargoDescription = (formData.get('cargo_description') as string)?.trim() || null;
   const notes = (formData.get('notes') as string)?.trim() || null;
   const status = (formData.get('status') as string) || 'planned';
@@ -176,7 +241,6 @@ export async function createForwarding(formData: FormData) {
   const clientRequestNumber = (formData.get('client_request_number') as string)?.trim() || null;
   const clientRequestDate = (formData.get('client_request_date') as string) || null;
 
-  // НОВЫЕ ПОЛЯ
   const transportType = (formData.get('transport_type') as string)?.trim() || null;
   const cargoType = (formData.get('cargo_type') as string)?.trim() || null;
   const cargoQuantity = (formData.get('cargo_quantity') as string)?.trim() || null;
@@ -185,25 +249,33 @@ export async function createForwarding(formData: FormData) {
   const loadingReference = (formData.get('loading_reference') as string)?.trim() || null;
 
   const contractors = parseContractors(formData);
+  const loadingPoints = parsePoints(formData, 'loading');
+  const unloadingPoints = parsePoints(formData, 'unloading');
 
-  const dateForRate = loadDate || new Date().toISOString().split('T')[0];
-  const clientPriceEur = await toEur(supabase, clientPrice, currency, dateForRate);
-
-  // Номер по дате загрузки
-  let orderNumber = 1;
-  if (loadDate) {
-    orderNumber = await findNumberForDate(supabase, loadDate);
-
-    const { data: existing } = await supabase
-      .from('forwarding_orders')
-      .select('id')
-      .eq('order_number', orderNumber)
-      .maybeSingle();
-
-    if (existing) {
-      await shiftNumbersFrom(supabase, orderNumber);
-    }
+  if (loadingPoints.length === 0) {
+    throw new Error('Добавьте хотя бы одну точку погрузки');
   }
+
+  // Дата для расчёта курса — дата первой погрузки
+  const firstLoadDate = loadingPoints[0]?.date || new Date().toISOString().split('T')[0];
+  const clientPriceEur = await toEur(supabase, clientPrice, currency, firstLoadDate);
+
+  // Номер по дате первой погрузки
+  const orderNumber = await findNumberForDate(supabase, firstLoadDate);
+
+  const { data: existing } = await supabase
+    .from('forwarding_orders')
+    .select('id')
+    .eq('order_number', orderNumber)
+    .maybeSingle();
+
+  if (existing) {
+    await shiftNumbersFrom(supabase, orderNumber);
+  }
+
+  // В load_date кладём дату первой погрузки для совместимости со старым кодом
+  const loadDate = firstLoadDate;
+  const unloadDate = unloadingPoints[unloadingPoints.length - 1]?.date || null;
 
   const { data: created, error } = await supabase
     .from('forwarding_orders')
@@ -216,8 +288,8 @@ export async function createForwarding(formData: FormData) {
       original_currency: currency,
       original_client_price: clientPrice,
       original_contractor_price: 0,
-      route_from: routeFrom,
-      route_to: routeTo,
+      route_from: null,
+      route_to: null,
       load_date: loadDate,
       unload_date: unloadDate,
       cargo_description: cargoDescription,
@@ -237,7 +309,8 @@ export async function createForwarding(formData: FormData) {
 
   if (error || !created) throw new Error(`Ошибка создания: ${error?.message || 'unknown'}`);
 
-  await saveContractors(supabase, created.id, contractors, dateForRate);
+  await saveContractors(supabase, created.id, contractors, firstLoadDate);
+  await savePoints(supabase, created.id, [...loadingPoints, ...unloadingPoints]);
 
   revalidatePath('/forwarding');
   revalidatePath('/statistics');
@@ -254,10 +327,6 @@ export async function updateForwarding(orderId: string, formData: FormData) {
   const clientId = formData.get('client_id') as string;
   const currency = (formData.get('currency') as string) || 'EUR';
   const clientPrice = parseFloat(formData.get('client_price') as string) || 0;
-  const routeFrom = (formData.get('route_from') as string)?.trim() || null;
-  const routeTo = (formData.get('route_to') as string)?.trim() || null;
-  const loadDate = (formData.get('load_date') as string) || null;
-  const unloadDate = (formData.get('unload_date') as string) || null;
   const cargoDescription = (formData.get('cargo_description') as string)?.trim() || null;
   const notes = (formData.get('notes') as string)?.trim() || null;
   const status = (formData.get('status') as string) || 'planned';
@@ -265,7 +334,6 @@ export async function updateForwarding(orderId: string, formData: FormData) {
   const clientRequestNumber = (formData.get('client_request_number') as string)?.trim() || null;
   const clientRequestDate = (formData.get('client_request_date') as string) || null;
 
-  // НОВЫЕ ПОЛЯ
   const transportType = (formData.get('transport_type') as string)?.trim() || null;
   const cargoType = (formData.get('cargo_type') as string)?.trim() || null;
   const cargoQuantity = (formData.get('cargo_quantity') as string)?.trim() || null;
@@ -274,9 +342,18 @@ export async function updateForwarding(orderId: string, formData: FormData) {
   const loadingReference = (formData.get('loading_reference') as string)?.trim() || null;
 
   const contractors = parseContractors(formData);
+  const loadingPoints = parsePoints(formData, 'loading');
+  const unloadingPoints = parsePoints(formData, 'unloading');
 
-  const dateForRate = loadDate || new Date().toISOString().split('T')[0];
-  const clientPriceEur = await toEur(supabase, clientPrice, currency, dateForRate);
+  if (loadingPoints.length === 0) {
+    throw new Error('Добавьте хотя бы одну точку погрузки');
+  }
+
+  const firstLoadDate = loadingPoints[0]?.date || new Date().toISOString().split('T')[0];
+  const clientPriceEur = await toEur(supabase, clientPrice, currency, firstLoadDate);
+
+  const loadDate = firstLoadDate;
+  const unloadDate = unloadingPoints[unloadingPoints.length - 1]?.date || null;
 
   const { error } = await supabase
     .from('forwarding_orders')
@@ -285,8 +362,8 @@ export async function updateForwarding(orderId: string, formData: FormData) {
       client_price_eur: clientPriceEur,
       original_currency: currency,
       original_client_price: clientPrice,
-      route_from: routeFrom,
-      route_to: routeTo,
+      route_from: null,
+      route_to: null,
       load_date: loadDate,
       unload_date: unloadDate,
       cargo_description: cargoDescription,
@@ -305,7 +382,8 @@ export async function updateForwarding(orderId: string, formData: FormData) {
 
   if (error) throw new Error(`Ошибка обновления: ${error.message}`);
 
-  await saveContractors(supabase, orderId, contractors, dateForRate);
+  await saveContractors(supabase, orderId, contractors, firstLoadDate);
+  await savePoints(supabase, orderId, [...loadingPoints, ...unloadingPoints]);
 
   revalidatePath('/forwarding');
   revalidatePath(`/forwarding/${orderId}`);
