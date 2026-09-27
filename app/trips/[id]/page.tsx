@@ -264,7 +264,8 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
             </div>
           </div>
 
-          <div className="grid gap-4 grid-cols-3 mt-4 pt-4 border-t border-slate-100">
+          {/* Фрахт / Топливо / Старт / Финиш */}
+          <div className="grid gap-4 grid-cols-2 lg:grid-cols-4 mt-4 pt-4 border-t border-slate-100">
             <div>
               <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Фрахт</div>
               <div className="text-lg md:text-xl font-bold text-green-600 break-words">
@@ -281,7 +282,45 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
                 {trip.start_date ? new Date(trip.start_date).toLocaleDateString('ru-RU') : '—'}
               </div>
             </div>
+            <div>
+              <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Финиш</div>
+              <div className={`text-lg md:text-xl font-bold ${
+                trip.end_date ? 'text-emerald-600' : 'text-slate-400'
+              }`}>
+                {trip.end_date ? new Date(trip.end_date).toLocaleDateString('ru-RU') : '—'}
+              </div>
+            </div>
           </div>
+
+          {/* Logisat: одометр и пробег */}
+          {(trip.start_odometer || trip.end_odometer || trip.actual_km) && (
+            <div className="grid gap-4 grid-cols-2 lg:grid-cols-3 mt-4 pt-4 border-t border-slate-100">
+              <div>
+                <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Одометр старта</div>
+                <div className="text-lg md:text-xl font-bold text-slate-700">
+                  {trip.start_odometer ? `${trip.start_odometer} км` : '—'}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Одометр финиша</div>
+                <div className="text-lg md:text-xl font-bold text-slate-700">
+                  {trip.end_odometer ? `${trip.end_odometer} км` : '—'}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Пробег за рейс</div>
+                <div className="text-lg md:text-xl font-bold text-emerald-600">
+                  {trip.actual_km ? `${trip.actual_km} км` : '—'}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {trip.logisat_synced_at && (
+            <div className="text-xs text-slate-400 mt-3 text-right">
+              📡 Logisat синхронизирован: {new Date(trip.logisat_synced_at).toLocaleString('ru-RU')}
+            </div>
+          )}
         </div>
 
         {/* ТОЧКИ МАРШРУТА */}
@@ -415,7 +454,6 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
             <div className="text-center py-8 text-slate-400 text-sm">Пока нет расходов</div>
           ) : (
             <>
-              {/* Mobile: карточки */}
               <div className="md:hidden space-y-2">
                 {expenses?.map((exp) => (
                   <div key={exp.id} className="border border-slate-100 rounded-xl p-3 bg-slate-50/40">
@@ -457,7 +495,6 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
                 ))}
               </div>
 
-              {/* Desktop: таблица */}
               <div className="hidden md:block overflow-x-auto">
                 <table className="w-full">
                   <thead>
