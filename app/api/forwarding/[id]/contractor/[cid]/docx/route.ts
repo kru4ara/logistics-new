@@ -14,8 +14,9 @@ import {
   VerticalAlign,
   PageBreak,
 } from 'docx';
+import QRCode from 'qrcode';
 import { createClient } from '../../../../../../../lib/supabase-server';
-import { COMPANY, STAMP_URL, getTerms } from '../../../../../../../lib/company';
+import { COMPANY, STAMP_URL, APP_URL, getTerms } from '../../../../../../../lib/company';
 
 // ============================================================
 // Утилиты
@@ -32,6 +33,24 @@ async function fetchImage(url: string): Promise<Buffer | null> {
     if (!res.ok) return null;
     const ab = await res.arrayBuffer();
     return Buffer.from(ab);
+  } catch {
+    return null;
+  }
+}
+
+async function generateQrBuffer(text: string): Promise<Buffer | null> {
+  try {
+    const buf = await QRCode.toBuffer(text, {
+      type: 'png',
+      width: 400,
+      margin: 1,
+      errorCorrectionLevel: 'M',
+      color: {
+        dark: '#1E40AF',
+        light: '#FFFFFF',
+      },
+    });
+    return buf;
   } catch {
     return null;
   }
@@ -75,7 +94,6 @@ function txt(text: string, opts?: TextOpts): Paragraph {
   });
 }
 
-// Разделительная линия
 function divider(): Paragraph {
   return new Paragraph({
     spacing: { line: LINE, before: 80, after: 80 },
@@ -86,9 +104,6 @@ function divider(): Paragraph {
   });
 }
 
-// ============================================================
-// Ячейки таблицы
-// ============================================================
 function cellLabel(text: string, width = 38): TableCell {
   return new TableCell({
     width: { size: width, type: WidthType.PERCENTAGE },
@@ -176,7 +191,11 @@ export async function GET(
     ? `${order.client_request_number}-${fc.position || 1}`
     : `${order.order_number || '?'}-${fc.position || 1}`;
 
-  const stampBuf = await fetchImage(STAMP_URL);
+  // Загружаем печать и QR-код параллельно
+  const [stampBuf, qrBuf] = await Promise.all([
+    fetchImage(STAMP_URL),
+    generateQrBuffer(`${APP_URL}/forwarding/${forwardingId}`),
+  ]);
 
   const children: any[] = [];
 
@@ -184,7 +203,6 @@ export async function GET(
   // СТРАНИЦА 1 — ВЫРАЗИТЕЛЬНАЯ
   // ============================================================
 
-  // --- ШАПКА КОМПАНИИ (компактно, но крупно) ---
   children.push(txt(COMPANY.name, { bold: true, size: 28, after: 20, color: BLUE }));
   children.push(txt(COMPANY.address, { size: 20, after: 0 }));
   children.push(
@@ -205,7 +223,6 @@ export async function GET(
 
   children.push(divider());
 
-  // --- ДАТА И НОМЕР ---
   children.push(
     txt(`${COMPANY.city}, ${fmtDate(new Date().toISOString())}`, {
       size: 20,
@@ -239,7 +256,6 @@ export async function GET(
 
   children.push(divider());
 
-  // --- ВСТУПЛЕНИЕ (мелко) ---
   children.push(
     txt(
       'RAIBUILDING SP. Z O.O. działając w imieniu swoich Klientów oraz w oparciu o przepisy Konwencji CMR zleca wykonanie przewozu firmie:',
@@ -247,7 +263,6 @@ export async function GET(
     )
   );
 
-  // --- ПОДРЯДЧИК (крупно) ---
   if (contractor) {
     children.push(
       txt(contractor.full_name || contractor.name || '—', {
@@ -270,14 +285,13 @@ export async function GET(
 
   children.push(divider());
 
-  // --- МАШИНА / ВОДИТЕЛЬ (в рамке, очень крупно) ---
   const truckDriverChildren: Paragraph[] = [];
   if (fc.truck_number) {
     truckDriverChildren.push(
       new Paragraph({
         spacing: { line: LINE, after: 40, before: 0 },
         children: [
-          new TextRun({ text: '🚛  Numer auta:  ', bold: true, size: 22, font: FONT, color: '334155' }),
+          new TextRun({ text: 'Numer auta:  ', bold: true, size: 22, font: FONT, color: '334155' }),
           new TextRun({ text: fc.truck_number, bold: true, size: 28, font: FONT, color: RED }),
         ],
       })
@@ -288,7 +302,7 @@ export async function GET(
       new Paragraph({
         spacing: { line: LINE, after: 40, before: 0 },
         children: [
-          new TextRun({ text: '👤  Kierowca:  ', bold: true, size: 22, font: FONT, color: '334155' }),
+          new TextRun({ text: 'Kierowca:  ', bold: true, size: 22, font: FONT, color: '334155' }),
           new TextRun({ text: fc.driver_name, bold: true, size: 28, font: FONT, color: RED }),
         ],
       })
@@ -323,7 +337,6 @@ export async function GET(
 
   children.push(txt('', { after: 200 }));
 
-  // --- ТАБЛИЦА МАРШРУТА (крупно) ---
   const loadingPlace =
     [order.route_from, order.loading_reference ? `Ref: ${order.loading_reference}` : null]
       .filter(Boolean)
@@ -391,16 +404,52 @@ export async function GET(
     })
   );
 
-  // --- ПЕЧАТЬ ---
+  // ============================================================
+  // НИЖНИЙ БЛОК: QR-код (слева) + печать (справа)
+  // ============================================================
+  const bottomLeftChildren: Paragraph[] = [];
+
+  if (qrBuf) {
+    bottomLeftChildren.push(
+      new Paragraph({
+        spacing: { line: LINE, after: 60, before: 0 },
+        alignment: AlignmentType.LEFT,
+        children: [
+          new ImageRun({
+            data: qrBuf,
+            transformation: { width: 130, height: 130 },
+            type: 'png',
+          }),
+        ],
+      })
+    );
+    bottomLeftChildren.push(
+      new Paragraph({
+        spacing: { line: LINE, after: 0, before: 0 },
+        alignment: AlignmentType.LEFT,
+        children: [
+          new TextRun({
+            text: 'Skanuj, aby zobaczyć szczegóły',
+            size: 16,
+            font: FONT,
+            color: GRAY,
+            italics: true,
+          }),
+        ],
+      })
+    );
+  }
+
+  const bottomRightChildren: Paragraph[] = [];
   if (stampBuf) {
-    children.push(
+    bottomRightChildren.push(
       new Paragraph({
         alignment: AlignmentType.RIGHT,
-        spacing: { line: LINE, before: 300, after: 0 },
+        spacing: { line: LINE, after: 0, before: 0 },
         children: [
           new ImageRun({
             data: stampBuf,
-            transformation: { width: 180, height: 180 },
+            transformation: { width: 170, height: 170 },
             type: 'png',
           }),
         ],
@@ -408,16 +457,50 @@ export async function GET(
     );
   }
 
+  if (bottomLeftChildren.length > 0 || bottomRightChildren.length > 0) {
+    children.push(
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        borders: {
+          top: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+          bottom: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+          left: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+          right: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+          insideHorizontal: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+          insideVertical: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+        },
+        rows: [
+          new TableRow({
+            children: [
+              new TableCell({
+                width: { size: 45, type: WidthType.PERCENTAGE },
+                verticalAlign: VerticalAlign.BOTTOM,
+                margins: { top: 200, bottom: 0, left: 0, right: 100 },
+                children: bottomLeftChildren,
+              }),
+              new TableCell({
+                width: { size: 55, type: WidthType.PERCENTAGE },
+                verticalAlign: VerticalAlign.BOTTOM,
+                margins: { top: 200, bottom: 0, left: 100, right: 0 },
+                children: bottomRightChildren,
+              }),
+            ],
+          }),
+        ],
+      })
+    );
+  }
+
   // ============================================================
-  // СТРАНИЦА 2 — УСЛОВИЯ
+  // СТРАНИЦА 2 — УСЛОВИЯ (крупный шрифт)
   // ============================================================
   children.push(new Paragraph({ children: [new PageBreak()] }));
 
   children.push(
     txt('WARUNKI ZLECENIA', {
       bold: true,
-      size: 24,
-      after: 200,
+      size: 28,
+      after: 240,
       color: BLUE,
     })
   );
@@ -425,25 +508,24 @@ export async function GET(
   terms.forEach((t) => {
     children.push(
       new Paragraph({
-        spacing: { line: LINE, before: 0, after: 60 },
+        spacing: { line: 276, before: 0, after: 120 },
         children: [
           new TextRun({
             text: t,
-            size: 16,
+            size: 22,
             font: FONT,
-            color: '334155',
+            color: '1F2937',
           }),
         ],
       })
     );
   });
 
-  // --- МЕСТО ДЛЯ ПОДПИСИ ---
-  children.push(txt('', { after: 400 }));
+  children.push(txt('', { after: 500 }));
   children.push(
     txt(
       'Podpis przewoźnika / akceptacja zlecenia:  ______________________________',
-      { size: 18, color: GRAY }
+      { size: 20, color: GRAY }
     )
   );
 
