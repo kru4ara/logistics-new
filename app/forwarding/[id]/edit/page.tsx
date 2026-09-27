@@ -26,11 +26,36 @@ export default async function EditForwardingPage({ params }: { params: Promise<{
   const { data: clients } = await supabase.from('clients').select('id, name').order('name');
   const { data: contractors } = await supabase.from('contractors').select('id, name').order('name');
 
+  const { data: loadingLocations } = await supabase
+    .from('locations')
+    .select('id, name, city, country')
+    .in('type', ['loading', 'both'])
+    .order('name');
+
+  const { data: unloadingLocations } = await supabase
+    .from('locations')
+    .select('id, name, city, country')
+    .in('type', ['unloading', 'both'])
+    .order('name');
+
   const { data: initialContractors } = await supabase
     .from('forwarding_contractors')
     .select('*')
     .eq('forwarding_id', id)
     .order('position');
+
+  const { data: initialPoints } = await supabase
+    .from('forwarding_points')
+    .select('*')
+    .eq('forwarding_id', id)
+    .order('sequence');
+
+  const formatLocLabel = (l: any) => {
+    const parts = [l.name];
+    if (l.city) parts.push(l.city);
+    if (l.country) parts.push(l.country);
+    return parts.join(' · ');
+  };
 
   return (
     <main className="min-h-screen bg-slate-50">
@@ -51,6 +76,8 @@ export default async function EditForwardingPage({ params }: { params: Promise<{
           orderId={id}
           clients={(clients || []).map((c) => ({ id: c.id, label: c.name }))}
           contractors={(contractors || []).map((c) => ({ id: c.id, label: c.name }))}
+          loadingLocations={(loadingLocations || []).map((l) => ({ id: l.id, label: formatLocLabel(l) }))}
+          unloadingLocations={(unloadingLocations || []).map((l) => ({ id: l.id, label: formatLocLabel(l) }))}
           initialContractors={(initialContractors || []).map((c) => ({
             contractor_id: c.contractor_id,
             original_price: c.original_price,
@@ -59,6 +86,15 @@ export default async function EditForwardingPage({ params }: { params: Promise<{
             driver_name: c.driver_name,
             payment_days: c.payment_days,
             notes: c.notes,
+          }))}
+          initialPoints={(initialPoints || []).map((p) => ({
+            id: p.id,
+            type: p.type as 'loading' | 'unloading',
+            sequence: p.sequence,
+            location_id: p.location_id,
+            date: p.date,
+            loading_number: p.loading_number,
+            notes: p.notes,
           }))}
         />
 
