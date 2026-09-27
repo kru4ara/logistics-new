@@ -27,7 +27,6 @@ export default async function DriverPage() {
 
   const supabase = await createClient();
 
-  // Все рейсы водителя
   const { data: trips, error } = await supabase
     .from('trips')
     .select('*, clients(name)')
@@ -38,7 +37,6 @@ export default async function DriverPage() {
     return <div className="p-6 text-red-500">Ошибка загрузки рейсов: {error.message}</div>;
   }
 
-  // Зарплата водителя
   const tripIds = trips?.map((t) => t.id) || [];
   let salaryTotal = 0;
   if (tripIds.length > 0) {
@@ -50,7 +48,6 @@ export default async function DriverPage() {
     salaryTotal = salaryExpenses?.reduce((sum, e) => sum + (e.amount_eur || 0), 0) || 0;
   }
 
-  // Текущий месяц
   const now = new Date();
   const currentMonth = now.getMonth();
   const currentYear = now.getFullYear();
@@ -64,7 +61,6 @@ export default async function DriverPage() {
   const monthKm = monthTrips.reduce((sum, t) => sum + (t.actual_km || 0), 0);
   const monthLiters = monthTrips.reduce((sum, t) => sum + (t.actual_liters || 0), 0);
 
-  // Зарплата за текущий месяц
   let monthSalary = 0;
   if (monthTrips.length > 0) {
     const monthTripIds = monthTrips.map((t) => t.id);
@@ -114,6 +110,24 @@ export default async function DriverPage() {
             Всего рейсов: <span className="font-bold text-white">{trips?.length || 0}</span>
           </div>
         </div>
+
+        {/* Ссылка на Logisat */}
+        <a
+          href="/driver/logisat"
+          className="block bg-white rounded-2xl border border-slate-100 shadow-sm p-5
+                     hover:shadow-lg hover:border-blue-200 transition-all active:scale-[0.99]"
+        >
+          <div className="flex items-center gap-4">
+            <div className="text-4xl shrink-0">📡</div>
+            <div className="min-w-0 flex-1">
+              <div className="text-lg font-bold text-slate-900">Logisat — расход топлива</div>
+              <div className="text-sm text-slate-500 mt-0.5">
+                Проверить пробег и расход по машине за период
+              </div>
+            </div>
+            <div className="text-blue-600 font-semibold text-sm shrink-0">Открыть →</div>
+          </div>
+        </a>
 
         {/* Статистика за месяц */}
         <div>
@@ -168,7 +182,6 @@ export default async function DriverPage() {
                     <div className={`h-1.5 ${statusStripColors[trip.status] || 'bg-slate-300'}`} />
 
                     <div className="p-4 sm:p-5">
-                      {/* Заголовок карточки */}
                       <div className="flex flex-wrap items-start justify-between gap-2 mb-3">
                         <div className="min-w-0 flex-1">
                           <div className="text-xs text-slate-400 font-medium">
@@ -184,7 +197,6 @@ export default async function DriverPage() {
                         </span>
                       </div>
 
-                      {/* Маршрут */}
                       <div className="bg-slate-50 rounded-xl p-3 mb-3">
                         <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Маршрут</div>
                         <div className="flex items-start gap-2 text-slate-800 font-semibold text-sm">
@@ -193,7 +205,6 @@ export default async function DriverPage() {
                         </div>
                       </div>
 
-                      {/* Точки */}
                       <div className="space-y-2 text-sm">
                         {trip.sender_city && (
                           <div className="flex items-start gap-2">
@@ -219,7 +230,6 @@ export default async function DriverPage() {
                         )}
                       </div>
 
-                      {/* Футер */}
                       <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-100">
                         <span className="text-xs text-slate-400">
                           📅 {trip.start_date ? new Date(trip.start_date).toLocaleDateString('ru-RU') : '—'}
