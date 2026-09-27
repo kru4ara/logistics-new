@@ -106,7 +106,7 @@ export async function syncTripFromLogisat(tripId: string): Promise<SyncResult> {
       tripId,
       tripNumber: trip.trip_number,
       truck: truck.registration_number,
-      error: `Машина ${truck.registration_number} не подключена к Logisat (logisat_enabled = false)`,
+      error: `Машина ${truck.registration_number} не подключена к Logisat`,
     };
   }
 
@@ -116,7 +116,7 @@ export async function syncTripFromLogisat(tripId: string): Promise<SyncResult> {
       tripId,
       tripNumber: trip.trip_number,
       truck: truck.registration_number,
-      error: `У машины ${truck.registration_number} не указан Logisat deviceId. Добавь его в разделе Транспорт.`,
+      error: `У машины ${truck.registration_number} нет Logisat deviceId`,
     };
   }
 
@@ -138,89 +138,107 @@ export async function syncTripFromLogisat(tripId: string): Promise<SyncResult> {
   // 4. Запрос
   const windows = splitIntoWindows(startTs, endTs);
   const allFrames: any[] = [];
-  const windowErrors: string[] = [];
 
   for (const w of windows) {
     const url = `https://${SERVER}/atlas/${USERNAME}/historyextended/${truck.logisat_device_id}/${w.from}/${w.to}?password=${PASSWORD}`;
     try {
       const res = await fetch(url, { cache: 'no-store' });
-      if (!res.ok) {
-        windowErrors.push(`HTTP ${res.status}`);
-        continue;
-      }
+      if (!res.ok) continue;
       const data = await res.json();
       const positions = Array.isArray(data) ? data : (data.positionList || data.history || []);
       allFrames.push(...positions);
-    } catch (e) {
-      windowErrors.push((e as Error).message);
+    } catch {
+      // пропускаем
     }
     await new Promise((r) => setTimeout(r, 200));
   }
 
   const periodDays = Math.round((endTs - startTs) / 8640) / 10;
+  const period = {
+    from: new Date(startTs * 1000).toISOString(),
+    to: new Date(endTs * 1000).toISOString(),
+    days: periodDays,
+  };
 
   if (allFrames.length === 0) {
-    const windowErrorsText = windowErrors.length > 0 ? ` Ошибки: ${windowErrors.join('; ')}` : '';
     return {
       success: false,
       tripId,
       tripNumber: trip.trip_number,
       truck: truck.registration_number,
       deviceId: truck.logisat_device_id,
-      period: {
-        from: new Date(startTs * 1000).toISOString(),
-        to: new Date(endTs * 1000).toISOString(),
-        days: periodDays,
-      },
+      period,
       framesCount: 0,
-      error: `Logisat не вернул GPS-кадры за период ${trip.start_date} → ${trip.end_date} (${periodDays} дн.). Возможно машина не ездила или GPS не работал.${windowErrorsText}`,
+      error: `Logisat не вернул GPS-кадры за период ${trip.start_date} → ${trip.end_date} (${periodDays} дн.). Машина не ездила или GPS не работал.`,
     };
   }
 
   allFrames.sort((a, b) => frameDate(a) - frameDate(b));
 
-  const first = allFrames[0];
-  const last = allFrames[allFrames.length - 1];
+  // ============================================================
+  // ВАЖНО: ищем первый и последний кадр с ВАЛИДНЫМ totaldistance
+  // (пропускаем кадры с null, которые часто бывают при старте/конце рейса)
+  // ============================================================
+  const framesWithDistance = allFrames.filter((f) => f.totaldistance != null && f.totaldistance > 0);
+  const framesWithFuel = allFrames.filter((f) => f.totalfuel != null && f.totalfuel > 0);
 
-  const distDiffM = (last.totaldistance || 0) - (first.totaldistance || 0);
-  const fuelDiffMl = (last.totalfuel || 0) - (first.totalfuel || 0);
+  const hasDistance = framesWithDistance.length >= 2;
+  const hasFuel = framesWithFuel.length >= 2;
 
-  const startOdometer = Math.round((first.totaldistance || 0) / 1000);
-  const endOdometer = Math.round((last.totaldistance || 0) / 1000);
+  let distanceKm: number | null = null;
+  let fuelLiters: number | null = null;
+  let startOdometer: number | null = null;
+  let endOdometer: number | null = null;
+  let consumption: number | null = null;
 
-  const distanceKm = Math.max(0, Math.round(distDiffM / 100) / 10);
-  const fuelLiters = Math.max(0, Math.round(fuelDiffMl / 100) / 10);
-  const consumption = distanceKm > 0
-    ? Math.round((fuelLiters / distanceKm) * 1000) / 10
-    : 0;
+  if (hasDistance) {
+    const fFirst = framesWithDistance[0];
+    const fLast = framesWithDistance[framesWithDistance.length - 1];
+    const distDiffM = fLast.totaldistance - fFirst.totaldistance;
 
-  if (distanceKm === 0 && fuelLiters === 0) {
+    startOdometer = Math.round(fFirst.totaldistance / 1000);
+    endOdometer = Math.round(fLast.totaldistance / 1000);
+    distanceKm = Math.max(0, Math.round(distDiffM / 100) / 10);
+  }
+
+  if (hasFuel) {
+    const fFirst = framesWithFuel[0];
+    const fLast = framesWithFuel[framesWithFuel.length - 1];
+    const fuelDiffMl = fLast.totalfuel - fFirst.totalfuel;
+    fuelLiters = Math.max(0, Math.round(fuelDiffMl / 100) / 10);
+  }
+
+  if (distanceKm != null && distanceKm > 0 && fuelLiters != null) {
+    consumption = Math.round((fuelLiters / distanceKm) * 1000) / 10;
+  }
+
+  // Если ничего не посчитали — ошибка
+  if (distanceKm === null && fuelLiters === null) {
     return {
       success: false,
       tripId,
       tripNumber: trip.trip_number,
       truck: truck.registration_number,
       deviceId: truck.logisat_device_id,
-      period: {
-        from: new Date(startTs * 1000).toISOString(),
-        to: new Date(endTs * 1000).toISOString(),
-        days: periodDays,
-      },
+      period,
       framesCount: allFrames.length,
-      error: `Получено ${allFrames.length} кадров, но пробег и расход = 0. Машина стояла весь период.`,
+      error: `Получено ${allFrames.length} кадров, но датчик одометра/топлива не передаёт данные (totaldistance и totalfuel = null). Проверь CAN-модуль на машине.`,
     };
   }
 
-  // 5. Сохраняем
+  // 4. Сохраняем — что есть, то и пишем (не перезаписываем null-ом)
+  const updateData: Record<string, any> = {
+    logisat_synced_at: new Date().toISOString(),
+  };
+
+  if (distanceKm != null) updateData.actual_km = distanceKm;
+  if (fuelLiters != null) updateData.actual_liters = fuelLiters;
+  if (startOdometer != null) updateData.start_odometer = startOdometer;
+  if (endOdometer != null) updateData.end_odometer = endOdometer;
+
   const { error: updateErr } = await supabase
     .from('trips')
-    .update({
-      actual_km: distanceKm,
-      actual_liters: fuelLiters,
-      start_odometer: startOdometer,
-      end_odometer: endOdometer,
-      logisat_synced_at: new Date().toISOString(),
-    })
+    .update(updateData)
     .eq('id', tripId);
 
   if (updateErr) {
@@ -240,16 +258,12 @@ export async function syncTripFromLogisat(tripId: string): Promise<SyncResult> {
     tripNumber: trip.trip_number,
     truck: truck.registration_number,
     deviceId: truck.logisat_device_id,
-    period: {
-      from: new Date(startTs * 1000).toISOString(),
-      to: new Date(endTs * 1000).toISOString(),
-      days: periodDays,
-    },
+    period,
     framesCount: allFrames.length,
-    distanceKm,
-    fuelLiters,
-    consumption,
-    startOdometer,
-    endOdometer,
+    distanceKm: distanceKm ?? undefined,
+    fuelLiters: fuelLiters ?? undefined,
+    consumption: consumption ?? undefined,
+    startOdometer: startOdometer ?? undefined,
+    endOdometer: endOdometer ?? undefined,
   };
 }
