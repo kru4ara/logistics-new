@@ -24,6 +24,10 @@ export default async function EditLocationPage({ params }: { params: Promise<{ i
     return <div className="p-8 text-red-500">Локация не найдена</div>;
   }
 
+  // Если в БД страна не из списка — добавим её отдельно
+  const currentCountry = location.country || '';
+  const isKnownCountry = EUROPEAN_COUNTRIES.includes(currentCountry);
+
   const inputClass =
     'w-full rounded-lg border border-slate-300 px-3 py-2.5 text-base text-slate-900 ' +
     'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all';
@@ -97,19 +101,18 @@ export default async function EditLocationPage({ params }: { params: Promise<{ i
             <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
               <div className="md:col-span-2">
                 <label className={labelClass}>Страна</label>
-                <input
-                  type="text"
-                  name="country"
-                  list="countries-list"
-                  defaultValue={location.country || ''}
-                  autoComplete="off"
-                  className={inputClass}
-                />
-                <datalist id="countries-list">
+                <select name="country" className={inputClass} defaultValue={currentCountry}>
+                  <option value="">— Выберите страну —</option>
+
+                  {/* Если текущая страна не из списка (старая запись) — показываем её первой */}
+                  {!isKnownCountry && currentCountry && (
+                    <option value={currentCountry}>{currentCountry} (текущая)</option>
+                  )}
+
                   {EUROPEAN_COUNTRIES.map((c) => (
-                    <option key={c} value={c} />
+                    <option key={c} value={c}>{c}</option>
                   ))}
-                </datalist>
+                </select>
               </div>
 
               <div>
@@ -169,7 +172,7 @@ export default async function EditLocationPage({ params }: { params: Promise<{ i
             <button
               type="submit"
               className="w-full sm:flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl
-                         shadow-md shadow-blue-600/20 transition-all active:scale-[0.98]"
+                          shadow-md shadow-blue-600/20 transition-all active:scale-[0.98]"
             >
               ✅ Сохранить изменения
             </button>
