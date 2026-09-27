@@ -37,6 +37,35 @@ export default async function NewTripPage() {
     .in('type', ['unloading', 'both'])
     .order('name');
 
+  // ============================================================
+  // Последний рейс каждой машины → для авто-подстановки даты старта.
+  // Логика (B3): если у последнего рейса нет end_date (рейс ещё в работе) —
+  // ничего не подставляем, поле остаётся пустым.
+  // ============================================================
+  const tractorIds = (tractors || []).map((t) => t.id);
+  const lastEndDates: Record<string, { end_date: string; trip_number: number | null }> = {};
+
+  if (tractorIds.length > 0) {
+    const { data: trips } = await supabase
+      .from('trips')
+      .select('truck_id, start_date, end_date, trip_number')
+      .in('truck_id', tractorIds)
+      .order('start_date', { ascending: false });
+
+    const seen = new Set<string>();
+    for (const t of trips || []) {
+      if (!t.truck_id || seen.has(t.truck_id)) continue;
+      seen.add(t.truck_id);
+      if (t.end_date) {
+        lastEndDates[t.truck_id] = {
+          end_date: t.end_date,
+          trip_number: t.trip_number ?? null,
+        };
+      }
+      // Иначе — не добавляем, форма оставит поле пустым
+    }
+  }
+
   return (
     <main className="min-h-screen bg-slate-50">
       <div className="max-w-[900px] mx-auto px-6 py-8 space-y-6">
@@ -57,6 +86,7 @@ export default async function NewTripPage() {
           drivers={(drivers || []).map((d) => ({ id: d.id, label: `${d.first_name} ${d.last_name}` }))}
           loadingLocations={loadingLocations || []}
           unloadingLocations={unloadingLocations || []}
+          lastEndDates={lastEndDates}
         />
 
       </div>
