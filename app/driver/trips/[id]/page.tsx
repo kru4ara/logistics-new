@@ -8,6 +8,11 @@ import TripStatusButtons from '../../TripStatusButtons';
 
 export const dynamic = 'force-dynamic';
 
+// Допуск отрицательного остатка топлива (в литрах).
+// Всё, что выше этого значения (ближе к нулю), считаем допустимым и подсвечиваем мягко.
+// Всё, что ниже — аварийным и подсвечиваем красным.
+const NEGATIVE_FUEL_TOLERANCE = -50;
+
 function pickName(rel: unknown): string | undefined {
   if (!rel) return undefined;
   if (Array.isArray(rel)) return rel[0]?.name;
@@ -48,6 +53,10 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
 
   const refuelLiters = expenses?.filter(e => e.category === 'fuel' && e.liters).reduce((sum, e) => sum + e.liters, 0) || 0;
   const fuelLeft = (trip.start_fuel_level || 0) + refuelLiters - (trip.actual_liters || 0);
+
+  // B + D: допуск отрицательного остатка, без блокировки сохранения
+  const fuelLeftIsNegative = fuelLeft < 0;
+  const fuelLeftIsCritical = fuelLeft < NEGATIVE_FUEL_TOLERANCE;
 
   const clientName = pickName(trip.clients) || 'Клиент не указан';
 
@@ -140,6 +149,13 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
     "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-150";
   const labelClass = "block text-sm font-medium text-slate-700 mb-1";
 
+  // Цвета карточки остатка топлива с учётом минуса
+  const fuelCardClass = fuelLeftIsCritical
+    ? 'bg-gradient-to-br from-red-600 to-red-800'
+    : fuelLeftIsNegative
+      ? 'bg-gradient-to-br from-amber-500 to-amber-700'
+      : 'bg-gradient-to-br from-blue-600 to-blue-800';
+
   return (
     <main className="min-h-screen bg-slate-50">
       <div className="max-w-[900px] mx-auto px-4 py-6 space-y-5">
@@ -194,16 +210,29 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
         </div>
 
         {/* Остаток топлива */}
-        <div className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-2xl p-5 shadow-lg text-white">
+        <div className={`${fuelCardClass} rounded-2xl p-5 shadow-lg text-white`}>
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <div className="text-sm text-blue-200">Остаток топлива в баке</div>
+              <div className="text-sm text-white/80">Остаток топлива в баке</div>
               <div className="text-3xl font-bold mt-1">{fuelLeft.toFixed(1)} л</div>
             </div>
             <div className="text-5xl shrink-0">⛽</div>
           </div>
+
+          {fuelLeftIsNegative && (
+            <div className={`mt-3 rounded-xl px-3 py-2 text-xs font-medium ${
+              fuelLeftIsCritical
+                ? 'bg-white/20 text-white'
+                : 'bg-white/15 text-white'
+            }`}>
+              {fuelLeftIsCritical
+                ? `🚨 Значительный недостаток топлива. Проверьте заправки и данные о расходе — цифры выглядят недостоверными.`
+                : `⚠ Остаток отрицательный. Проверьте данные о заправках: возможно, часть топлива не внесена в расходы.`}
+            </div>
+          )}
+
           {trip.actual_liters && trip.actual_km ? (
-            <div className="text-xs text-blue-200 mt-3">
+            <div className="text-xs text-white/80 mt-3">
               Последние данные: {trip.actual_km} км / {trip.actual_liters} л · Расход: {((trip.actual_liters / trip.actual_km) * 100).toFixed(1)} л/100 км
             </div>
           ) : null}
