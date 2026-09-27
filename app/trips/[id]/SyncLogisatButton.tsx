@@ -29,7 +29,24 @@ export default function SyncLogisatButton({ tripId }: { tripId: string }) {
         body: JSON.stringify({ tripId }),
       });
 
-      const data: Result = await res.json();
+      // ⚠️ СНАЧАЛА читаем текст, потом пытаемся парсить как JSON
+      const text = await res.text();
+
+      let data: Result;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        // Сервер вернул не JSON (HTML страница ошибки)
+        const isHtml = text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html');
+        setResult({
+          success: false,
+          error: isHtml
+            ? `Сервер вернул HTML вместо JSON (код ${res.status}). Endpoint /api/logisat/sync не найден или упал с ошибкой.`
+            : `Неверный ответ сервера (код ${res.status}): ${text.slice(0, 200)}`,
+        });
+        return;
+      }
+
       setResult(data);
 
       if (data.success) {
@@ -102,7 +119,7 @@ export default function SyncLogisatButton({ tripId }: { tripId: string }) {
                   <div className="text-5xl mb-2">❌</div>
                   <h3 className="text-lg font-bold text-slate-900">Не удалось</h3>
                 </div>
-                <div className="text-sm text-slate-600 bg-red-50 border border-red-200 rounded-xl p-3 text-center">
+                <div className="text-sm text-slate-700 bg-red-50 border border-red-200 rounded-xl p-3 break-words">
                   {result.error}
                 </div>
                 <button
