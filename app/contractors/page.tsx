@@ -95,6 +95,11 @@ export default async function ContractorsPage() {
                             {c.full_name}
                           </div>
                         )}
+                        {c.country && (
+                          <div className="text-xs text-slate-500 mt-1">
+                            🌍 {c.country}
+                          </div>
+                        )}
                       </div>
                     </div>
 
