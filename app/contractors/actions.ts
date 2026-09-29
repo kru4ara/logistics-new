@@ -9,6 +9,7 @@ export async function createContractor(formData: FormData) {
 
   const name = (formData.get('name') as string)?.trim();
   const fullName = (formData.get('full_name') as string)?.trim() || null;
+  const country = (formData.get('country') as string)?.trim() || null;
   const address = (formData.get('address') as string)?.trim() || null;
   const taxId = (formData.get('tax_id') as string)?.trim() || null;
   const contactPerson = (formData.get('contact_person') as string)?.trim() || null;
@@ -23,6 +24,7 @@ export async function createContractor(formData: FormData) {
     .insert([{
       name,
       full_name: fullName,
+      country,
       address,
       tax_id: taxId,
       contact_person: contactPerson,
@@ -41,6 +43,7 @@ export async function updateContractor(contractorId: string, formData: FormData)
 
   const name = (formData.get('name') as string)?.trim();
   const fullName = (formData.get('full_name') as string)?.trim() || null;
+  const country = (formData.get('country') as string)?.trim() || null;
   const address = (formData.get('address') as string)?.trim() || null;
   const taxId = (formData.get('tax_id') as string)?.trim() || null;
   const contactPerson = (formData.get('contact_person') as string)?.trim() || null;
@@ -55,6 +58,7 @@ export async function updateContractor(contractorId: string, formData: FormData)
     .update({
       name,
       full_name: fullName,
+      country,
       address,
       tax_id: taxId,
       contact_person: contactPerson,
