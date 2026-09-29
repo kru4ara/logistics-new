@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createContractor } from '../actions';
+import { EUROPEAN_COUNTRIES } from '../../../lib/countries';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,6 +56,16 @@ export default function NewContractorPage() {
                   className={inputClass}
                 />
                 <p className="text-xs text-slate-400 mt-1">Для печати в заявке подрядчику</p>
+              </div>
+
+              <div>
+                <label className={labelClass}>Страна</label>
+                <select name="country" className={inputClass} defaultValue="">
+                  <option value="">— Выберите страну —</option>
+                  {EUROPEAN_COUNTRIES.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
               </div>
 
               <div>
