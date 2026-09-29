@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../../../lib/supabase-server';
 import { updateContractor } from '../../actions';
+import { EUROPEAN_COUNTRIES } from '../../../../lib/countries';
 
 export const dynamic = 'force-dynamic';
 
@@ -70,6 +71,20 @@ export default async function EditContractorPage({ params }: { params: Promise<{
                   defaultValue={contractor.full_name || ''}
                   className={inputClass}
                 />
+              </div>
+
+              <div>
+                <label className={labelClass}>Страна</label>
+                <select
+                  name="country"
+                  className={inputClass}
+                  defaultValue={contractor.country || ''}
+                >
+                  <option value="">— Выберите страну —</option>
+                  {EUROPEAN_COUNTRIES.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
               </div>
 
               <div>
