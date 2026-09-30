@@ -44,6 +44,110 @@ const TRANSPORT_TYPES = [
   { value: 'Chlodnia', label: 'Chłodnia' },
 ];
 
+// ============================================================
+// ВАЖНО: PointRow объявлен СНАРУЖИ основного компонента.
+// Если он объявлен внутри, React на каждый setState пересоздаёт
+// компонент → input теряет фокус → ввод по одной букве.
+// ============================================================
+function PointRow({
+  type,
+  point,
+  idx,
+  locations,
+  isRemovable,
+  onUpdate,
+  onRemove,
+}: {
+  type: 'loading' | 'unloading';
+  point: PointEntry;
+  idx: number;
+  locations: Option[];
+  isRemovable: boolean;
+  onUpdate: (idx: number, field: keyof PointEntry, value: string) => void;
+  onRemove: (idx: number) => void;
+}) {
+  const icon = type === 'loading' ? '📍' : '🏁';
+  const label = type === 'loading' ? 'Погрузка' : 'Выгрузка';
+  const color = type === 'loading' ? 'border-green-500' : 'border-red-500';
+
+  const inputClass =
+    'w-full rounded-lg border border-slate-300 px-3 py-2.5 text-base text-slate-900 ' +
+    'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-150';
+  const labelClass = 'block text-sm font-medium text-slate-700 mb-1';
+
+  return (
+    <div className={`border-l-4 ${color} rounded-xl p-3 md:p-4 bg-slate-50/40 space-y-3`}>
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-sm font-semibold text-slate-700">
+          {icon} {label} #{idx + 1}
+        </div>
+        {isRemovable && (
+          <button
+            type="button"
+            onClick={() => onRemove(idx)}
+            className="text-red-600 hover:text-red-700 text-xs md:text-sm font-medium px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 transition-colors"
+          >
+            ✕ Удалить
+          </button>
+        )}
+      </div>
+
+      <div className="grid gap-3 grid-cols-1 md:grid-cols-2">
+        <div className="md:col-span-2">
+          <label className={labelClass}>Локация *</label>
+          <select
+            name={`${type}_${idx}_location_id`}
+            required
+            value={point.location_id}
+            onChange={(e) => onUpdate(idx, 'location_id', e.target.value)}
+            className={inputClass}
+          >
+            <option value="">— Выберите локацию —</option>
+            {locations.map((loc) => (
+              <option key={loc.id} value={loc.id}>{loc.label}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className={labelClass}>Дата</label>
+          <input
+            type="date"
+            name={`${type}_${idx}_date`}
+            value={point.date}
+            onChange={(e) => onUpdate(idx, 'date', e.target.value)}
+            className={inputClass}
+          />
+        </div>
+
+        <div>
+          <label className={labelClass}>Погрузочный номер</label>
+          <input
+            type="text"
+            name={`${type}_${idx}_loading_number`}
+            value={point.loading_number}
+            onChange={(e) => onUpdate(idx, 'loading_number', e.target.value)}
+            placeholder="Ramp 4"
+            className={inputClass}
+          />
+        </div>
+
+        <div className="md:col-span-2">
+          <label className={labelClass}>Заметки к точке</label>
+          <input
+            type="text"
+            name={`${type}_${idx}_notes`}
+            value={point.notes}
+            onChange={(e) => onUpdate(idx, 'notes', e.target.value)}
+            placeholder="Контакт на месте, доп. инфо"
+            className={inputClass}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function NewForwardingForm({
   clients,
   contractors,
@@ -84,10 +188,10 @@ export default function NewForwardingForm({
     const setter = type === 'loading' ? setLoadingPoints : setUnloadingPoints;
     setter(arr.filter((_, i) => i !== idx));
   }
-  function updatePoint<K extends keyof PointEntry>(
+  function updatePoint(
     type: 'loading' | 'unloading',
     idx: number,
-    field: K,
+    field: keyof PointEntry,
     value: string
   ) {
     const arr = type === 'loading' ? loadingPoints : unloadingPoints;
@@ -106,94 +210,6 @@ export default function NewForwardingForm({
   const eurTotal = contractorItems.reduce((s, i) => s + (parseFloat(i.price) || 0), 0);
 
   const isChlodnia = transportType === 'Chlodnia';
-
-  function PointRow({
-    type,
-    point,
-    idx,
-    locations,
-  }: {
-    type: 'loading' | 'unloading';
-    point: PointEntry;
-    idx: number;
-    locations: Option[];
-  }) {
-    const icon = type === 'loading' ? '📍' : '🏁';
-    const label = type === 'loading' ? 'Погрузка' : 'Выгрузка';
-    const color = type === 'loading' ? 'border-green-500' : 'border-red-500';
-
-    return (
-      <div className={`border-l-4 ${color} rounded-xl p-3 md:p-4 bg-slate-50/40 space-y-3`}>
-        <div className="flex items-center justify-between gap-2">
-          <div className="text-sm font-semibold text-slate-700">
-            {icon} {label} #{idx + 1}
-          </div>
-          {(type === 'loading' ? loadingPoints.length : unloadingPoints.length) > 1 && (
-            <button
-              type="button"
-              onClick={() => removePoint(type, idx)}
-              className="text-red-600 hover:text-red-700 text-xs md:text-sm font-medium px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 transition-colors"
-            >
-              ✕ Удалить
-            </button>
-          )}
-        </div>
-
-        <div className="grid gap-3 grid-cols-1 md:grid-cols-2">
-          <div className="md:col-span-2">
-            <label className={labelClass}>Локация *</label>
-            <select
-              name={`${type}_${idx}_location_id`}
-              required
-              value={point.location_id}
-              onChange={(e) => updatePoint(type, idx, 'location_id', e.target.value)}
-              className={inputClass}
-            >
-              <option value="">— Выберите локацию —</option>
-              {locations.map((loc) => (
-                <option key={loc.id} value={loc.id}>{loc.label}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className={labelClass}>Дата</label>
-            <input
-              type="date"
-              name={`${type}_${idx}_date`}
-              value={point.date}
-              onChange={(e) => updatePoint(type, idx, 'date', e.target.value)}
-              className={inputClass}
-            />
-          </div>
-
-          <div>
-            <label className={labelClass}>Погрузочный номер</label>
-            <input
-              type="text"
-              name={`${type}_${idx}_loading_number`}
-              value={point.loading_number}
-              onChange={(e) => updatePoint(type, idx, 'loading_number', e.target.value)}
-              placeholder="Ramp 4"
-              className={inputClass}
-            />
-          </div>
-
-          <div className="md:col-span-2">
-            <label className={labelClass}>Заметки к точке</label>
-            <input
-              type="text"
-              name={`${type}_${idx}_notes`}
-              value={point.notes}
-              onChange={(e) => updatePoint(type, idx, 'notes', e.target.value)}
-              placeholder="Контакт на месте, доп. инфо"
-              className={inputClass}
-            />
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <form action={createForwarding} className="space-y-4 md:space-y-6">
@@ -412,7 +428,16 @@ export default function NewForwardingForm({
 
         <div className="space-y-3">
           {loadingPoints.map((p, idx) => (
-            <PointRow key={idx} type="loading" point={p} idx={idx} locations={loadingLocations} />
+            <PointRow
+              key={`loading-${idx}`}
+              type="loading"
+              point={p}
+              idx={idx}
+              locations={loadingLocations}
+              isRemovable={loadingPoints.length > 1}
+              onUpdate={(i, field, value) => updatePoint('loading', i, field, value)}
+              onRemove={(i) => removePoint('loading', i)}
+            />
           ))}
         </div>
 
@@ -447,7 +472,16 @@ export default function NewForwardingForm({
 
         <div className="space-y-3">
           {unloadingPoints.map((p, idx) => (
-            <PointRow key={idx} type="unloading" point={p} idx={idx} locations={unloadingLocations} />
+            <PointRow
+              key={`unloading-${idx}`}
+              type="unloading"
+              point={p}
+              idx={idx}
+              locations={unloadingLocations}
+              isRemovable={unloadingPoints.length > 1}
+              onUpdate={(i, field, value) => updatePoint('unloading', i, field, value)}
+              onRemove={(i) => removePoint('unloading', i)}
+            />
           ))}
         </div>
 
