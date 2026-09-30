@@ -104,6 +104,94 @@ async function generateQrBuffer(text: string): Promise<Buffer | null> {
 }
 
 // ============================================================
+// Безопасное чтение значений с fallback по разным именам полей
+// ============================================================
+type AnyRec = Record<string, any>;
+
+function pickString(...vals: unknown[]): string | null {
+  for (const v of vals) {
+    if (v === null || v === undefined) continue;
+    const s = String(v).trim();
+    if (s) return s;
+  }
+  return null;
+}
+
+function pickNumber(...vals: unknown[]): number | null {
+  for (const v of vals) {
+    if (v === null || v === undefined || v === '') continue;
+    const n = Number(v);
+    if (Number.isFinite(n)) return n;
+  }
+  return null;
+}
+
+// GPS из точки или локации — пробуем разные имена полей
+function extractGps(point: AnyRec, loc: AnyRec | null): string | null {
+  const direct = pickString(
+    point?.gps,
+    point?.gps_coords,
+    point?.gps_coordinates,
+    point?.coordinates
+  );
+  if (direct) return direct;
+
+  const lat = pickNumber(
+    point?.gps_lat,
+    point?.latitude,
+    point?.lat,
+    loc?.gps_lat,
+    loc?.latitude,
+    loc?.lat
+  );
+  const lng = pickNumber(
+    point?.gps_lng,
+    point?.gps_lon,
+    point?.longitude,
+    point?.lng,
+    point?.lon,
+    loc?.gps_lng,
+    loc?.gps_lon,
+    loc?.longitude,
+    loc?.lng,
+    loc?.lon
+  );
+  if (lat != null && lng != null) return `${lat}, ${lng}`;
+  return null;
+}
+
+// Телефон и контакт локации — тоже с fallback
+function extractPhone(point: AnyRec, loc: AnyRec | null): string | null {
+  return pickString(
+    point?.contact_phone,
+    point?.phone,
+    point?.warehouse_phone,
+    loc?.contact_phone,
+    loc?.warehouse_phone,
+    loc?.phone
+  );
+}
+
+function extractContactPerson(point: AnyRec, loc: AnyRec | null): string | null {
+  return pickString(
+    point?.contact_person,
+    point?.warehouse_manager,
+    point?.manager_name,
+    loc?.contact_person,
+    loc?.warehouse_manager,
+    loc?.manager_name
+  );
+}
+
+function extractPointNotes(point: AnyRec): string | null {
+  return pickString(point?.notes, point?.note, point?.comment);
+}
+
+function extractLoadingNumber(point: AnyRec): string | null {
+  return pickString(point?.loading_number, point?.loading_no, point?.pogruzka_number);
+}
+
+// ============================================================
 // Константы
 // ============================================================
 const FONT = 'Calibri';
@@ -201,6 +289,118 @@ function cellValue(
 }
 
 // ============================================================
+// Блок одной точки маршрута (для DOCX)
+// ============================================================
+function buildPointChildren(
+  point: AnyRec,
+  loc: AnyRec | null,
+  idx: number,
+  kind: 'loading' | 'unloading'
+): Paragraph[] {
+  const cityLine =
+    [loc?.postal_code, loc?.city, loc?.country].filter(Boolean).join(', ') || '—';
+  const nameLine = pickString(loc?.name, loc?.company_name) || '';
+  const addrLine = pickString(loc?.address) || '';
+  const loadingNumber = extractLoadingNumber(point);
+  const gps = extractGps(point, loc);
+  const phone = extractPhone(point, loc);
+  const contactPerson = extractContactPerson(point, loc);
+  const notes = extractPointNotes(point);
+
+  const numberColor = kind === 'loading' ? GREEN : RED;
+
+  const children: Paragraph[] = [
+    new Paragraph({
+      spacing: { line: LINE, after: 20, before: 0 },
+      children: [
+        new TextRun({ text: `#${idx + 1}   `, bold: true, size: 20, font: FONT, color: numberColor }),
+        new TextRun({ text: point.date ? fmtDate(point.date) : '—', bold: true, size: 20, font: FONT, color: BLUE }),
+        new TextRun({ text: '   ', size: 20, font: FONT }),
+        new TextRun({ text: nameLine || '—', bold: true, size: 20, font: FONT, color: '0F172A' }),
+      ],
+    }),
+  ];
+
+  if (cityLine !== '—') {
+    children.push(
+      new Paragraph({
+        spacing: { line: LINE, after: 20, before: 0 },
+        children: [
+          new TextRun({ text: '      ' + cityLine, size: 18, font: FONT, color: '475569' }),
+        ],
+      })
+    );
+  }
+
+  if (addrLine) {
+    children.push(
+      new Paragraph({
+        spacing: { line: LINE, after: 20, before: 0 },
+        children: [
+          new TextRun({ text: '      ' + addrLine, size: 18, font: FONT, color: '475569' }),
+        ],
+      })
+    );
+  }
+
+  if (loadingNumber) {
+    children.push(
+      new Paragraph({
+        spacing: { line: LINE, after: 20, before: 0 },
+        children: [
+          new TextRun({ text: '      Nr załadunku: ', size: 18, font: FONT, color: '475569' }),
+          new TextRun({ text: loadingNumber, bold: true, size: 18, font: FONT, color: '334155' }),
+        ],
+      })
+    );
+  }
+
+  // GPS координаты
+  if (gps) {
+    children.push(
+      new Paragraph({
+        spacing: { line: LINE, after: 20, before: 0 },
+        children: [
+          new TextRun({ text: '      GPS: ', size: 18, font: FONT, color: '475569' }),
+          new TextRun({ text: gps, size: 18, font: FONT, color: '334155' }),
+        ],
+      })
+    );
+  }
+
+  // Контактное лицо + телефон
+  if (contactPerson || phone) {
+    const parts: string[] = [];
+    if (contactPerson) parts.push(contactPerson);
+    if (phone) parts.push(phone);
+    children.push(
+      new Paragraph({
+        spacing: { line: LINE, after: 20, before: 0 },
+        children: [
+          new TextRun({ text: '      Kontakt: ', size: 18, font: FONT, color: '475569' }),
+          new TextRun({ text: parts.join(' · '), size: 18, font: FONT, color: '334155' }),
+        ],
+      })
+    );
+  }
+
+  // Заметки точки
+  if (notes) {
+    children.push(
+      new Paragraph({
+        spacing: { line: LINE, after: 20, before: 0 },
+        children: [
+          new TextRun({ text: '      Uwagi: ', size: 18, font: FONT, color: '475569' }),
+          new TextRun({ text: notes, size: 18, font: FONT, color: '334155' }),
+        ],
+      })
+    );
+  }
+
+  return children;
+}
+
+// ============================================================
 // GET
 // ============================================================
 export async function GET(
@@ -231,9 +431,10 @@ export async function GET(
     return NextResponse.json({ error: 'Подрядчик не найден' }, { status: 404 });
   }
 
+  // Важно: locations(*) — чтобы пришли и gps/phone-поля, если они есть.
   const { data: pointsRaw } = await supabase
     .from('forwarding_points')
-    .select('*, locations(name, city, country, postal_code, address, company_name)')
+    .select('*, locations(*)')
     .eq('forwarding_id', forwardingId)
     .order('sequence');
 
@@ -384,6 +585,7 @@ export async function GET(
     )
   );
 
+  // --- Блок подрядчика (добавлена страна) ---
   if (contractor) {
     children.push(
       txt(contractor.full_name || contractor.name || '—', {
@@ -393,6 +595,18 @@ export async function GET(
         color: BLUE,
       })
     );
+
+    // Строка «Kraj: ...» — отдельно, чтобы не ломать привычный формат адреса
+    if (contractor.country) {
+      children.push(
+        txt(`Kraj: ${contractor.country}`, {
+          size: 22,
+          after: 20,
+          color: '334155',
+        })
+      );
+    }
+
     if (contractor.address) children.push(txt(contractor.address, { size: 22, after: 20 }));
     if (contractor.tax_id)
       children.push(txt(`NIP: ${contractor.tax_id}`, { size: 22, after: 20, color: '334155' }));
@@ -465,70 +679,22 @@ export async function GET(
   const routeRows: TableRow[] = [];
 
   loadingPoints.forEach((p, idx) => {
-    const loc = Array.isArray(p.locations) ? p.locations[0] : p.locations;
-    const cityLine = [loc?.postal_code, loc?.city, loc?.country].filter(Boolean).join(', ') || '—';
-    const nameLine = loc?.name || loc?.company_name || '';
-    const addrLine = loc?.address || '';
-
-    const pointChildren: Paragraph[] = [
-      new Paragraph({
-        spacing: { line: LINE, after: 20, before: 0 },
-        children: [
-          new TextRun({ text: `#${idx + 1}   `, bold: true, size: 20, font: FONT, color: GREEN }),
-          new TextRun({ text: p.date ? fmtDate(p.date) : '—', bold: true, size: 20, font: FONT, color: BLUE }),
-          new TextRun({ text: '   ', size: 20, font: FONT }),
-          new TextRun({ text: nameLine, bold: true, size: 20, font: FONT, color: '0F172A' }),
-        ],
-      }),
-    ];
-
-    if (cityLine !== '—') {
-      pointChildren.push(
-        new Paragraph({
-          spacing: { line: LINE, after: 20, before: 0 },
-          children: [
-            new TextRun({ text: '      ' + cityLine, size: 18, font: FONT, color: '475569' }),
-          ],
-        })
-      );
-    }
-
-    if (addrLine) {
-      pointChildren.push(
-        new Paragraph({
-          spacing: { line: LINE, after: 20, before: 0 },
-          children: [
-            new TextRun({ text: '      ' + addrLine, size: 18, font: FONT, color: '475569' }),
-          ],
-        })
-      );
-    }
-
-    if (p.loading_number) {
-      pointChildren.push(
-        new Paragraph({
-          spacing: { line: LINE, after: 20, before: 0 },
-          children: [
-            new TextRun({ text: '      Nr załadunku: ', size: 18, font: FONT, color: '475569' }),
-            new TextRun({ text: p.loading_number, bold: true, size: 18, font: FONT, color: '334155' }),
-          ],
-        })
-      );
-    }
-
+    const loc = Array.isArray((p as any).locations)
+      ? (p as any).locations[0]
+      : (p as any).locations;
+    const children = buildPointChildren(p as any, loc, idx, 'loading');
     routeRows.push(
       new TableRow({
         children: [
           new TableCell({
             margins: { top: 60, bottom: 60, left: 0, right: 0 },
-            children: pointChildren,
+            children,
           }),
         ],
       })
     );
   });
 
-  // Разделитель между погрузкой и выгрузкой
   if (loadingPoints.length > 0 && unloadingPoints.length > 0) {
     routeRows.push(
       new TableRow({
@@ -550,63 +716,16 @@ export async function GET(
   }
 
   unloadingPoints.forEach((p, idx) => {
-    const loc = Array.isArray(p.locations) ? p.locations[0] : p.locations;
-    const cityLine = [loc?.postal_code, loc?.city, loc?.country].filter(Boolean).join(', ') || '—';
-    const nameLine = loc?.name || loc?.company_name || '';
-    const addrLine = loc?.address || '';
-
-    const pointChildren: Paragraph[] = [
-      new Paragraph({
-        spacing: { line: LINE, after: 20, before: 0 },
-        children: [
-          new TextRun({ text: `#${idx + 1}   `, bold: true, size: 20, font: FONT, color: RED }),
-          new TextRun({ text: p.date ? fmtDate(p.date) : '—', bold: true, size: 20, font: FONT, color: BLUE }),
-          new TextRun({ text: '   ', size: 20, font: FONT }),
-          new TextRun({ text: nameLine, bold: true, size: 20, font: FONT, color: '0F172A' }),
-        ],
-      }),
-    ];
-
-    if (cityLine !== '—') {
-      pointChildren.push(
-        new Paragraph({
-          spacing: { line: LINE, after: 20, before: 0 },
-          children: [
-            new TextRun({ text: '      ' + cityLine, size: 18, font: FONT, color: '475569' }),
-          ],
-        })
-      );
-    }
-
-    if (addrLine) {
-      pointChildren.push(
-        new Paragraph({
-          spacing: { line: LINE, after: 20, before: 0 },
-          children: [
-            new TextRun({ text: '      ' + addrLine, size: 18, font: FONT, color: '475569' }),
-          ],
-        })
-      );
-    }
-
-    if (p.loading_number) {
-      pointChildren.push(
-        new Paragraph({
-          spacing: { line: LINE, after: 20, before: 0 },
-          children: [
-            new TextRun({ text: '      Nr załadunku: ', size: 18, font: FONT, color: '475569' }),
-            new TextRun({ text: p.loading_number, bold: true, size: 18, font: FONT, color: '334155' }),
-          ],
-        })
-      );
-    }
-
+    const loc = Array.isArray((p as any).locations)
+      ? (p as any).locations[0]
+      : (p as any).locations;
+    const children = buildPointChildren(p as any, loc, idx, 'unloading');
     routeRows.push(
       new TableRow({
         children: [
           new TableCell({
             margins: { top: 60, bottom: 60, left: 0, right: 0 },
-            children: pointChildren,
+            children,
           }),
         ],
       })
