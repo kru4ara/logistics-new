@@ -9,6 +9,7 @@ export async function deleteReminder(id: string) {
   const { error } = await supabase.from('reminders').delete().eq('id', id);
   if (error) throw new Error(`Ошибка удаления: ${error.message}`);
   revalidatePath('/reminders');
+  redirect('/reminders?toast=reminder_deleted');
 }
 
 export async function markReminderDone(id: string) {
@@ -19,6 +20,7 @@ export async function markReminderDone(id: string) {
     .eq('id', id);
   if (error) throw new Error(`Ошибка: ${error.message}`);
   revalidatePath('/reminders');
+  redirect('/reminders?toast=reminder_done');
 }
 
 export async function reopenReminder(id: string) {
@@ -29,6 +31,7 @@ export async function reopenReminder(id: string) {
     .eq('id', id);
   if (error) throw new Error(`Ошибка: ${error.message}`);
   revalidatePath('/reminders');
+  redirect('/reminders?toast=reminder_reopened');
 }
 
 export async function updateReminder(id: string, formData: FormData) {
@@ -51,7 +54,7 @@ export async function updateReminder(id: string, formData: FormData) {
 
   if (error) throw new Error(`Ошибка обновления: ${error.message}`);
   revalidatePath('/reminders');
-  redirect('/reminders');
+  redirect('/reminders?toast=reminder_updated');
 }
 
 export async function createReminder(formData: FormData) {
@@ -78,5 +81,5 @@ export async function createReminder(formData: FormData) {
 
   if (error) throw new Error(`Ошибка добавления: ${error.message}`);
   revalidatePath('/reminders');
-  redirect('/reminders');
+  redirect('/reminders?toast=reminder_created');
 }
