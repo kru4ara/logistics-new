@@ -310,7 +310,7 @@ export async function createForwarding(formData: FormData) {
   revalidatePath('/forwarding');
   revalidatePath('/statistics');
   revalidatePath('/');
-  redirect('/forwarding');
+  redirect('/forwarding?toast=forwarding_created');
 }
 
 // ============================================================
@@ -385,7 +385,7 @@ export async function updateForwarding(orderId: string, formData: FormData) {
   revalidatePath(`/forwarding/${orderId}`);
   revalidatePath('/statistics');
   revalidatePath('/');
-  redirect(`/forwarding/${orderId}`);
+  redirect(`/forwarding/${orderId}?toast=forwarding_updated`);
 }
 
 // ============================================================
@@ -403,7 +403,7 @@ export async function deleteForwarding(orderId: string) {
   revalidatePath('/forwarding');
   revalidatePath('/statistics');
   revalidatePath('/');
-  redirect('/forwarding');
+  redirect('/forwarding?toast=forwarding_deleted');
 }
 
 // ============================================================
