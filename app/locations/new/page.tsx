@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createLocation } from '../actions';
 import { EUROPEAN_COUNTRIES } from '../../../lib/countries';
+import SubmitButton from '../../components/SubmitButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -136,13 +137,12 @@ export default function NewLocationPage() {
             >
               Отмена
             </a>
-            <button
-              type="submit"
-              className="w-full sm:flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl
-                         shadow-md shadow-blue-600/20 transition-all active:scale-[0.98]"
+            <SubmitButton
+              className="w-full sm:flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl shadow-md shadow-blue-600/20 transition-all active:scale-[0.98]"
+              pendingText="⏳ Создаю локацию…"
             >
               ✅ Создать локацию
-            </button>
+            </SubmitButton>
           </div>
 
         </form>
