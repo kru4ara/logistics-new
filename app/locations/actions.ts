@@ -33,7 +33,7 @@ export async function createLocation(formData: FormData) {
 
   if (error) throw new Error(`Ошибка добавления: ${error.message}`);
   revalidatePath('/locations');
-  redirect('/locations');
+  redirect('/locations?toast=location_created');
 }
 
 // ============================================================
@@ -52,7 +52,7 @@ export async function updateLocation(locationId: string, formData: FormData) {
 
   if (error) throw new Error(`Ошибка обновления: ${error.message}`);
   revalidatePath('/locations');
-  redirect('/locations');
+  redirect('/locations?toast=location_updated');
 }
 
 // ============================================================
@@ -68,4 +68,5 @@ export async function deleteLocation(locationId: string) {
 
   if (error) throw new Error(`Ошибка удаления: ${error.message}`);
   revalidatePath('/locations');
+  redirect('/locations?toast=location_deleted');
 }
