@@ -35,7 +35,7 @@ export async function createContractor(formData: FormData) {
 
   if (error) throw new Error(`Ошибка создания: ${error.message}`);
   revalidatePath('/contractors');
-  redirect('/contractors');
+  redirect('/contractors?toast=contractor_created');
 }
 
 export async function updateContractor(contractorId: string, formData: FormData) {
@@ -70,7 +70,7 @@ export async function updateContractor(contractorId: string, formData: FormData)
 
   if (error) throw new Error(`Ошибка обновления: ${error.message}`);
   revalidatePath('/contractors');
-  redirect('/contractors');
+  redirect('/contractors?toast=contractor_updated');
 }
 
 export async function deleteContractor(contractorId: string) {
@@ -83,4 +83,5 @@ export async function deleteContractor(contractorId: string) {
 
   if (error) throw new Error(`Ошибка удаления: ${error.message}`);
   revalidatePath('/contractors');
+  redirect('/contractors?toast=contractor_deleted');
 }
