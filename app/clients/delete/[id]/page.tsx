@@ -1,4 +1,4 @@
-import { supabase } from '../../../../lib/supabaseClient';
+import { createClient } from '../../../../lib/supabase-server';
 import { redirect } from 'next/navigation';
 
 export default async function DeleteClientPage({ params }: { params: Promise<{ id: string }> }) {
@@ -7,6 +7,8 @@ export default async function DeleteClientPage({ params }: { params: Promise<{ i
   if (!clientId) {
     return <div>Ошибка: ID клиента не передан</div>;
   }
+
+  const supabase = await createClient();
 
   const { error } = await supabase
     .from('clients')
