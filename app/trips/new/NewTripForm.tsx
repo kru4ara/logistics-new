@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { addTripWithAddress } from '../../geocode-actions';
+import SubmitButton from '../../components/SubmitButton';
 
 type Location = {
   id: string;
@@ -40,7 +41,6 @@ const emptyAddr = {
 
 type AddrState = typeof emptyAddr;
 
-// Приводим дату к виду YYYY-MM-DD и прибавляем 1 день (UTC).
 function nextDayIso(raw: string): string {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(raw);
   if (m) {
@@ -54,7 +54,6 @@ function nextDayIso(raw: string): string {
   return dt.toISOString().slice(0, 10);
 }
 
-// Формат для подсказки: 12.09.2026
 function formatRu(iso: string): string {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
   if (!m) return iso;
@@ -74,7 +73,6 @@ export default function NewTripForm({
   const [receiver, setReceiver] = useState<AddrState>({ ...emptyAddr });
   const [extras, setExtras] = useState<AddrState[]>([]);
 
-  // Автоподстановка даты старта от предыдущего рейса машины
   const [startDate, setStartDate] = useState('');
   const [autoHint, setAutoHint] = useState<string | null>(null);
 
@@ -87,7 +85,6 @@ export default function NewTripForm({
 
     const last = lastEndDates[newTruckId];
     if (!last) {
-      // B3: нет завершённого рейса у этой машины — поле остаётся пустым
       setStartDate('');
       setAutoHint(null);
       return;
@@ -161,7 +158,6 @@ export default function NewTripForm({
     );
   }
 
-  // text-base (16px) — чтобы iOS Safari не зумил inputs при фокусе
   const inputClass =
     'w-full rounded-lg border border-slate-300 px-3 py-2.5 text-base text-slate-900 ' +
     'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-150';
@@ -481,13 +477,12 @@ export default function NewTripForm({
         >
           Отмена
         </a>
-        <button
-          type="submit"
-          className="w-full sm:flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl
-                     shadow-md shadow-blue-600/20 transition-all duration-150 active:scale-[0.98]"
+        <SubmitButton
+          className="w-full sm:flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl shadow-md shadow-blue-600/20 transition-all duration-150 active:scale-[0.98]"
+          pendingText="⏳ Создаю рейс…"
         >
           ✅ Создать рейс
-        </button>
+        </SubmitButton>
       </div>
 
     </form>
