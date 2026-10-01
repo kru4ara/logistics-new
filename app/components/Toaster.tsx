@@ -60,6 +60,13 @@ const MESSAGES: Record<string, ToastConfig> = {
   // Документы
   document_uploaded: { type: 'success', text: '✅ Документ загружен' },
 
+  // Напоминания
+  reminder_created: { type: 'success', text: '✅ Напоминание создано' },
+  reminder_updated: { type: 'success', text: '✅ Напоминание обновлено' },
+  reminder_deleted: { type: 'success', text: '🗑 Напоминание удалено' },
+  reminder_done: { type: 'success', text: '✅ Отмечено как выполнено' },
+  reminder_reopened: { type: 'info', text: '↩️ Напоминание возвращено в работу' },
+
   // Общие ошибки
   error: { type: 'error', text: 'Что-то пошло не так' },
 };
@@ -129,7 +136,6 @@ export default function Toaster() {
         {visible.text}
       </div>
 
-      {/* Инлайн-стили для анимации — Next/Tailwind arbitrary values не всегда работают */}
       <style>{`
         @keyframes toast-slide-in {
           from { opacity: 0; transform: translateY(-10px); }
