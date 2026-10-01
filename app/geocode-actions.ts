@@ -190,5 +190,5 @@ export async function addTripWithAddress(formData: FormData) {
 
   if (error) throw new Error(`Ошибка создания рейса: ${error.message}`);
   revalidatePath('/trips');
-  redirect('/trips');
+  redirect('/trips?toast=trip_created');
 }
