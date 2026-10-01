@@ -2,6 +2,7 @@
 
 import { createClient } from '../lib/supabase-server';
 import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
 
 export async function deleteClient(clientId: string) {
   const supabase = await createClient();
@@ -15,6 +16,7 @@ export async function deleteClient(clientId: string) {
     throw new Error(`Ошибка удаления клиента: ${error.message}`);
   }
   revalidatePath('/clients');
+  redirect('/clients?toast=client_deleted');
 }
 
 export async function deleteDriver(driverId: string) {
@@ -29,4 +31,5 @@ export async function deleteDriver(driverId: string) {
     throw new Error(`Ошибка удаления водителя: ${error.message}`);
   }
   revalidatePath('/drivers');
+  redirect('/drivers?toast=driver_deleted');
 }
