@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createContractor } from '../actions';
 import { EUROPEAN_COUNTRIES } from '../../../lib/countries';
+import SubmitButton from '../../components/SubmitButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,7 +32,6 @@ export default function NewContractorPage() {
 
         <form action={createContractor} className="space-y-4 md:space-y-6">
 
-          {/* ОСНОВНОЕ */}
           <div className={sectionClass}>
             <h2 className={sectionTitleClass}>🏢 Данные фирмы</h2>
             <div className="space-y-3">
@@ -90,7 +90,6 @@ export default function NewContractorPage() {
             </div>
           </div>
 
-          {/* КОНТАКТЫ */}
           <div className={sectionClass}>
             <h2 className={sectionTitleClass}>📞 Контакты</h2>
             <div className="space-y-3">
@@ -126,7 +125,6 @@ export default function NewContractorPage() {
             </div>
           </div>
 
-          {/* ЗАМЕТКИ */}
           <div className={sectionClass}>
             <h2 className={sectionTitleClass}>📝 Заметки</h2>
             <textarea
@@ -137,7 +135,6 @@ export default function NewContractorPage() {
             />
           </div>
 
-          {/* КНОПКИ */}
           <div className="flex flex-col-reverse sm:flex-row gap-3 sticky bottom-3 sm:static
                           bg-slate-50/95 sm:bg-transparent backdrop-blur-sm sm:backdrop-blur-none
                           -mx-4 px-4 sm:mx-0 sm:px-0 py-3 sm:py-0
@@ -149,13 +146,12 @@ export default function NewContractorPage() {
             >
               Отмена
             </a>
-            <button
-              type="submit"
-              className="w-full sm:flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl
-                         shadow-md shadow-blue-600/20 transition-all active:scale-[0.98]"
+            <SubmitButton
+              className="w-full sm:flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl shadow-md shadow-blue-600/20 transition-all active:scale-[0.98]"
+              pendingText="⏳ Создаю…"
             >
               ✅ Создать
-            </button>
+            </SubmitButton>
           </div>
 
         </form>
