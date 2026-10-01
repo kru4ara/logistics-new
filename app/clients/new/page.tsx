@@ -1,6 +1,7 @@
 import { createClient as createSupabaseClient } from '../../../lib/supabase-server';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
+import SubmitButton from '../../components/SubmitButton';
 
 async function createClient(formData: FormData) {
   'use server';
@@ -73,13 +74,12 @@ export default function NewClientPage() {
           </div>
 
           <div className="flex gap-3">
-            <button
-              type="submit"
-              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl
-                         shadow-md shadow-blue-600/20 transition-all duration-150 active:scale-[0.98]"
+            <SubmitButton
+              className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl shadow-md shadow-blue-600/20 transition-all duration-150 active:scale-[0.98]"
+              pendingText="⏳ Сохраняю клиента…"
             >
               ✅ Сохранить клиента
-            </button>
+            </SubmitButton>
             <a
               href="/clients"
               className="px-6 py-3 rounded-xl border border-slate-300 text-slate-700 font-semibold
