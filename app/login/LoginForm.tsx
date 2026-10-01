@@ -19,7 +19,7 @@ function SubmitButton() {
 }
 
 export default function LoginForm() {
-    const [state, formAction] = useFormState<LoginState, FormData>(login, null);
+  const [state, formAction] = useFormState<LoginState, FormData>(login, null);
 
   return (
     <form action={formAction} className="space-y-4">
