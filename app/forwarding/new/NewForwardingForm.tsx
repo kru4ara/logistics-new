@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { createForwarding } from '../actions';
+import SubmitButton from '../../components/SubmitButton';
 
 type Option = { id: string; label: string };
 
@@ -44,11 +45,6 @@ const TRANSPORT_TYPES = [
   { value: 'Chlodnia', label: 'Chłodnia' },
 ];
 
-// ============================================================
-// ВАЖНО: PointRow объявлен СНАРУЖИ основного компонента.
-// Если он объявлен внутри, React на каждый setState пересоздаёт
-// компонент → input теряет фокус → ввод по одной букве.
-// ============================================================
 function PointRow({
   type,
   point,
@@ -164,7 +160,6 @@ export default function NewForwardingForm({
   const [unloadingPoints, setUnloadingPoints] = useState<PointEntry[]>([{ ...emptyPoint }]);
   const [transportType, setTransportType] = useState('');
 
-  // --- Подрядчики ---
   function addContractor() {
     if (contractorItems.length >= 10) return;
     setContractorItems([...contractorItems, { ...emptyContractor }]);
@@ -176,7 +171,6 @@ export default function NewForwardingForm({
     setContractorItems(contractorItems.map((it, i) => (i === idx ? { ...it, [field]: value } : it)));
   }
 
-  // --- Точки ---
   function addPoint(type: 'loading' | 'unloading') {
     const arr = type === 'loading' ? loadingPoints : unloadingPoints;
     const setter = type === 'loading' ? setLoadingPoints : setUnloadingPoints;
@@ -585,13 +579,12 @@ export default function NewForwardingForm({
         >
           Отмена
         </a>
-        <button
-          type="submit"
-          className="w-full sm:flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl
-                     shadow-md shadow-blue-600/20 transition-all duration-150 active:scale-[0.98]"
+        <SubmitButton
+          className="w-full sm:flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl shadow-md shadow-blue-600/20 transition-all duration-150 active:scale-[0.98]"
+          pendingText="⏳ Создаю заявку…"
         >
           ✅ Создать заявку
-        </button>
+        </SubmitButton>
       </div>
 
     </form>
