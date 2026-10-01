@@ -1,14 +1,16 @@
 'use server';
 
-import { supabase } from '../lib/supabaseClient';
+import { createClient } from '../lib/supabase-server';
 import { revalidatePath } from 'next/cache';
 
 export async function saveTelemetry(tripId: string, km: number, liters: number) {
+  const supabase = await createClient();
+
   const { error } = await supabase
     .from('trips')
     .update({
       actual_km: km,
-      actual_liters: liters
+      actual_liters: liters,
     })
     .eq('id', tripId);
 
