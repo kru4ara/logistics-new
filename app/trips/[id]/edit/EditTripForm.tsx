@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { updateTrip } from '../../../trip-actions';
+import SubmitButton from '../../../components/SubmitButton';
 
 type Location = {
   id: string;
@@ -191,7 +192,6 @@ export default function EditTripForm({
   return (
     <form action={updateTrip.bind(null, tripId)} className="space-y-4 md:space-y-6">
 
-      {/* ОСНОВНЫЕ ДАННЫЕ */}
       <div className={sectionClass}>
         <h2 className={sectionTitleClass}>🚛 Основные данные</h2>
         <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-3">
@@ -243,7 +243,6 @@ export default function EditTripForm({
         </div>
       </div>
 
-      {/* ЗАЯВКА КЛИЕНТА */}
       <div className={sectionClass}>
         <h2 className={sectionTitleClass}>📄 Заявка клиента</h2>
         <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
@@ -258,7 +257,6 @@ export default function EditTripForm({
         </div>
       </div>
 
-      {/* ЗАГРУЗКА */}
       <div className={sectionClass}>
         <h2 className={sectionTitleClass}>📍 Отправитель (основная загрузка)</h2>
 
@@ -310,7 +308,6 @@ export default function EditTripForm({
           </div>
         </div>
 
-        {/* ДОП. ТОЧКИ */}
         {extras.map((extra, idx) => {
           const n = idx + 2;
           return (
@@ -389,7 +386,6 @@ export default function EditTripForm({
         )}
       </div>
 
-      {/* ВЫГРУЗКА */}
       <div className={sectionClass}>
         <h2 className={sectionTitleClass}>🏁 Получатель (выгрузка)</h2>
 
@@ -442,7 +438,6 @@ export default function EditTripForm({
         </div>
       </div>
 
-      {/* КНОПКИ */}
       <div className="flex flex-col-reverse sm:flex-row gap-3 sticky bottom-3 sm:static
                       bg-slate-50/95 sm:bg-transparent backdrop-blur-sm sm:backdrop-blur-none
                       -mx-4 px-4 sm:mx-0 sm:px-0 py-3 sm:py-0
@@ -454,13 +449,12 @@ export default function EditTripForm({
         >
           Отмена
         </a>
-        <button
-          type="submit"
-          className="w-full sm:flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl
-                     shadow-md shadow-blue-600/20 transition-all duration-150 active:scale-[0.98]"
+        <SubmitButton
+          className="w-full sm:flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl shadow-md shadow-blue-600/20 transition-all duration-150 active:scale-[0.98]"
+          pendingText="⏳ Сохраняю изменения…"
         >
           ✅ Сохранить изменения
-        </button>
+        </SubmitButton>
       </div>
 
     </form>
