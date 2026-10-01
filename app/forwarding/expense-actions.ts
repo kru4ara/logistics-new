@@ -2,6 +2,7 @@
 
 import { createClient } from '../../lib/supabase-server';
 import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
 
 // ============================================================
 // Добавление расхода
@@ -59,6 +60,7 @@ export async function addForwardingExpense(formData: FormData) {
   revalidatePath('/forwarding');
   revalidatePath('/statistics');
   revalidatePath('/');
+  redirect(`/forwarding/${forwardingId}?toast=expense_added`);
 }
 
 // ============================================================
@@ -78,4 +80,5 @@ export async function deleteForwardingExpense(expenseId: string, forwardingId: s
   revalidatePath('/forwarding');
   revalidatePath('/statistics');
   revalidatePath('/');
+  redirect(`/forwarding/${forwardingId}?toast=expense_deleted`);
 }
