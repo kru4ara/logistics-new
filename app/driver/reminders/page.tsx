@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { supabase } from '../../../lib/supabaseClient';
+import { createClient } from '../../../lib/supabase-server';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,6 +10,8 @@ export default async function DriverRemindersPage() {
   const driverId = cookieStore.get('driver_id')?.value;
 
   if (role !== 'driver' || !driverId) redirect('/login');
+
+  const supabase = await createClient();
 
   // Информация о водителе
   const { data: driver } = await supabase
