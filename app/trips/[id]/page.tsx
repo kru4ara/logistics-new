@@ -6,6 +6,7 @@ import TripStatusButtons from '../../driver/TripStatusButtons';
 import SyncLogisatButton from './SyncLogisatButton';
 import { saveTelemetry } from '../../telemetry-actions';
 import CopyBlock from '../../components/CopyBlock';
+import SubmitButton from '../../components/SubmitButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -420,9 +421,12 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
               <label className="block text-sm font-medium text-slate-700 mb-1">Топливо (л)</label>
               <input type="number" name="liters" step="0.01" placeholder={trip.actual_liters || '0'} className="w-full rounded-lg border border-slate-300 px-3 py-2" />
             </div>
-            <button type="submit" className="w-full sm:w-auto px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg transition-all">
+            <SubmitButton
+              className="w-full sm:w-auto px-5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-all"
+              pendingText="⏳ Сохраняю…"
+            >
               Сохранить
-            </button>
+            </SubmitButton>
           </form>
 
           {trip.actual_km && trip.actual_km > 0 && (
@@ -636,13 +640,12 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
               </div>
             </div>
 
-            <button
-              type="submit"
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl
-                         shadow-md shadow-blue-600/20 transition-all duration-150 active:scale-[0.98]"
+            <SubmitButton
+              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl shadow-md shadow-blue-600/20 transition-all duration-150 active:scale-[0.98]"
+              pendingText="⏳ Добавляю расход…"
             >
               ✅ Добавить расход
-            </button>
+            </SubmitButton>
           </form>
         </div>
 
