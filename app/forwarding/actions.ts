@@ -279,12 +279,9 @@ export async function createForwarding(formData: FormData) {
     .insert([{
       order_number: orderNumber,
       client_id: clientId || null,
-      contractor_id: null,
       client_price_eur: clientPriceEur,
-      contractor_price_eur: 0,
       original_currency: currency,
       original_client_price: clientPrice,
-      original_contractor_price: 0,
       route_from: null,
       route_to: null,
       load_date: loadDate,
