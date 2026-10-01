@@ -105,3 +105,11 @@ export async function login(
   await delay(FAIL_DELAY_MS);
   return { error: 'Неверный логин или пароль' };
 }
+
+export async function logout() {
+  const cookieStore = cookies();
+  cookieStore.delete('role');
+  cookieStore.delete('driver_id');
+  cookieStore.delete('user_name');
+  redirect('/login');
+}
