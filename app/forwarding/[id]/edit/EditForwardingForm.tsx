@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { updateForwarding } from '../../actions';
+import SubmitButton from '../../../components/SubmitButton';
 
 type Option = { id: string; label: string };
 
@@ -81,6 +82,109 @@ const TRANSPORT_TYPES = [
   { value: 'Plandeka / Standart', label: 'Plandeka / Standart' },
   { value: 'Chlodnia', label: 'Chłodnia' },
 ];
+
+// ============================================================
+// ВАЖНО: PointRow объявлен СНАРУЖИ основного компонента.
+// Иначе при вводе в поля React пересоздаёт компонент → input теряет фокус.
+// ============================================================
+function PointRow({
+  type,
+  point,
+  idx,
+  locations,
+  isRemovable,
+  onUpdate,
+  onRemove,
+}: {
+  type: 'loading' | 'unloading';
+  point: PointEntry;
+  idx: number;
+  locations: Option[];
+  isRemovable: boolean;
+  onUpdate: (idx: number, field: keyof PointEntry, value: string) => void;
+  onRemove: (idx: number) => void;
+}) {
+  const icon = type === 'loading' ? '📍' : '🏁';
+  const label = type === 'loading' ? 'Погрузка' : 'Выгрузка';
+  const color = type === 'loading' ? 'border-green-500' : 'border-red-500';
+
+  const inputClass =
+    'w-full rounded-lg border border-slate-300 px-3 py-2.5 text-base text-slate-900 ' +
+    'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-150';
+  const labelClass = 'block text-sm font-medium text-slate-700 mb-1';
+
+  return (
+    <div className={`border-l-4 ${color} rounded-xl p-3 md:p-4 bg-slate-50/40 space-y-3`}>
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-sm font-semibold text-slate-700">
+          {icon} {label} #{idx + 1}
+        </div>
+        {isRemovable && (
+          <button
+            type="button"
+            onClick={() => onRemove(idx)}
+            className="text-red-600 hover:text-red-700 text-xs md:text-sm font-medium px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 transition-colors"
+          >
+            ✕ Удалить
+          </button>
+        )}
+      </div>
+
+      <div className="grid gap-3 grid-cols-1 md:grid-cols-2">
+        <div className="md:col-span-2">
+          <label className={labelClass}>Локация *</label>
+          <select
+            name={`${type}_${idx}_location_id`}
+            required
+            value={point.location_id}
+            onChange={(e) => onUpdate(idx, 'location_id', e.target.value)}
+            className={inputClass}
+          >
+            <option value="">— Выберите локацию —</option>
+            {locations.map((loc) => (
+              <option key={loc.id} value={loc.id}>{loc.label}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className={labelClass}>Дата</label>
+          <input
+            type="date"
+            name={`${type}_${idx}_date`}
+            value={point.date}
+            onChange={(e) => onUpdate(idx, 'date', e.target.value)}
+            className={inputClass}
+          />
+        </div>
+
+        <div>
+          <label className={labelClass}>Погрузочный номер</label>
+          <input
+            type="text"
+            name={`${type}_${idx}_loading_number`}
+            value={point.loading_number}
+            onChange={(e) => onUpdate(idx, 'loading_number', e.target.value)}
+            placeholder="Ramp 4"
+            className={inputClass}
+          />
+        </div>
+
+        <div className="md:col-span-2">
+          <label className={labelClass}>Заметки к точке</label>
+          <input
+            type="text"
+            name={`${type}_${idx}_notes`}
+            value={point.notes}
+            onChange={(e) => onUpdate(idx, 'notes', e.target.value)}
+            placeholder="Контакт на месте, доп. инфо"
+            className={inputClass}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function EditForwardingForm({
   order,
@@ -162,10 +266,10 @@ export default function EditForwardingForm({
     const setter = type === 'loading' ? setLoadingPoints : setUnloadingPoints;
     setter(arr.filter((_, i) => i !== idx));
   }
-  function updatePoint<K extends keyof PointEntry>(
+  function updatePoint(
     type: 'loading' | 'unloading',
     idx: number,
-    field: K,
+    field: keyof PointEntry,
     value: string
   ) {
     const arr = type === 'loading' ? loadingPoints : unloadingPoints;
@@ -185,98 +289,9 @@ export default function EditForwardingForm({
 
   const isChlodnia = transportType === 'Chlodnia';
 
-  function PointRow({
-    type,
-    point,
-    idx,
-    locations,
-  }: {
-    type: 'loading' | 'unloading';
-    point: PointEntry;
-    idx: number;
-    locations: Option[];
-  }) {
-    const icon = type === 'loading' ? '📍' : '🏁';
-    const label = type === 'loading' ? 'Погрузка' : 'Выгрузка';
-    const color = type === 'loading' ? 'border-green-500' : 'border-red-500';
-
-    return (
-      <div className={`border-l-4 ${color} rounded-xl p-3 md:p-4 bg-slate-50/40 space-y-3`}>
-        <div className="flex items-center justify-between gap-2">
-          <div className="text-sm font-semibold text-slate-700">
-            {icon} {label} #{idx + 1}
-          </div>
-          {(type === 'loading' ? loadingPoints.length : unloadingPoints.length) > 1 && (
-            <button
-              type="button"
-              onClick={() => removePoint(type, idx)}
-              className="text-red-600 hover:text-red-700 text-xs md:text-sm font-medium px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 transition-colors"
-            >
-              ✕ Удалить
-            </button>
-          )}
-        </div>
-
-        <div className="grid gap-3 grid-cols-1 md:grid-cols-2">
-          <div className="md:col-span-2">
-            <label className={labelClass}>Локация *</label>
-            <select
-              name={`${type}_${idx}_location_id`}
-              required
-              value={point.location_id}
-              onChange={(e) => updatePoint(type, idx, 'location_id', e.target.value)}
-              className={inputClass}
-            >
-              <option value="">— Выберите локацию —</option>
-              {locations.map((loc) => (
-                <option key={loc.id} value={loc.id}>{loc.label}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className={labelClass}>Дата</label>
-            <input
-              type="date"
-              name={`${type}_${idx}_date`}
-              value={point.date}
-              onChange={(e) => updatePoint(type, idx, 'date', e.target.value)}
-              className={inputClass}
-            />
-          </div>
-
-          <div>
-            <label className={labelClass}>Погрузочный номер</label>
-            <input
-              type="text"
-              name={`${type}_${idx}_loading_number`}
-              value={point.loading_number}
-              onChange={(e) => updatePoint(type, idx, 'loading_number', e.target.value)}
-              placeholder="Ramp 4"
-              className={inputClass}
-            />
-          </div>
-
-          <div className="md:col-span-2">
-            <label className={labelClass}>Заметки к точке</label>
-            <input
-              type="text"
-              name={`${type}_${idx}_notes`}
-              value={point.notes}
-              onChange={(e) => updatePoint(type, idx, 'notes', e.target.value)}
-              placeholder="Контакт на месте, доп. инфо"
-              className={inputClass}
-            />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <form action={updateForwarding.bind(null, orderId)} className="space-y-4 md:space-y-6">
 
-      {/* КЛИЕНТ */}
       <div className={sectionClass}>
         <h2 className={sectionTitleClass}>🤝 Клиент</h2>
         <div>
@@ -290,7 +305,6 @@ export default function EditForwardingForm({
         </div>
       </div>
 
-      {/* ЗАЯВКА КЛИЕНТА */}
       <div className={sectionClass}>
         <h2 className={sectionTitleClass}>📄 Заявка клиента</h2>
         <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
@@ -313,7 +327,6 @@ export default function EditForwardingForm({
         </div>
       </div>
 
-      {/* ЭКОНОМИКА КЛИЕНТА */}
       <div className={sectionClass}>
         <h2 className={sectionTitleClass}>💰 Сколько платит клиент</h2>
         <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
@@ -336,7 +349,6 @@ export default function EditForwardingForm({
         </div>
       </div>
 
-      {/* ПОДРЯДЧИКИ */}
       <div className={sectionClass}>
         <h2 className={sectionTitleClass}>
           🚛 Подрядчики
@@ -475,7 +487,6 @@ export default function EditForwardingForm({
         )}
       </div>
 
-      {/* ТОЧКИ ПОГРУЗКИ */}
       <div className={sectionClass}>
         <h2 className={sectionTitleClass}>
           📍 Погрузка
@@ -486,7 +497,16 @@ export default function EditForwardingForm({
 
         <div className="space-y-3">
           {loadingPoints.map((p, idx) => (
-            <PointRow key={idx} type="loading" point={p} idx={idx} locations={loadingLocations} />
+            <PointRow
+              key={`loading-${idx}`}
+              type="loading"
+              point={p}
+              idx={idx}
+              locations={loadingLocations}
+              isRemovable={loadingPoints.length > 1}
+              onUpdate={(i, field, value) => updatePoint('loading', i, field, value)}
+              onRemove={(i) => removePoint('loading', i)}
+            />
           ))}
         </div>
 
@@ -503,7 +523,6 @@ export default function EditForwardingForm({
         )}
       </div>
 
-      {/* ТОЧКИ ВЫГРУЗКИ */}
       <div className={sectionClass}>
         <h2 className={sectionTitleClass}>
           🏁 Выгрузка
@@ -514,7 +533,16 @@ export default function EditForwardingForm({
 
         <div className="space-y-3">
           {unloadingPoints.map((p, idx) => (
-            <PointRow key={idx} type="unloading" point={p} idx={idx} locations={unloadingLocations} />
+            <PointRow
+              key={`unloading-${idx}`}
+              type="unloading"
+              point={p}
+              idx={idx}
+              locations={unloadingLocations}
+              isRemovable={unloadingPoints.length > 1}
+              onUpdate={(i, field, value) => updatePoint('unloading', i, field, value)}
+              onRemove={(i) => removePoint('unloading', i)}
+            />
           ))}
         </div>
 
@@ -531,7 +559,6 @@ export default function EditForwardingForm({
         )}
       </div>
 
-      {/* ДЕТАЛИ ПЕРЕВОЗКИ */}
       <div className={sectionClass}>
         <h2 className={sectionTitleClass}>📦 Детали перевозки</h2>
         <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
@@ -586,7 +613,6 @@ export default function EditForwardingForm({
         </div>
       </div>
 
-      {/* СТАТУС И ЗАМЕТКИ */}
       <div className={sectionClass}>
         <h2 className={sectionTitleClass}>📋 Статус</h2>
         <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
@@ -607,7 +633,6 @@ export default function EditForwardingForm({
         </div>
       </div>
 
-      {/* КНОПКИ */}
       <div className="flex flex-col-reverse sm:flex-row gap-3 sticky bottom-3 sm:static
                       bg-slate-50/95 sm:bg-transparent backdrop-blur-sm sm:backdrop-blur-none
                       -mx-4 px-4 sm:mx-0 sm:px-0 py-3 sm:py-0
@@ -619,13 +644,12 @@ export default function EditForwardingForm({
         >
           Отмена
         </a>
-        <button
-          type="submit"
-          className="w-full sm:flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl
-                     shadow-md shadow-blue-600/20 transition-all duration-150 active:scale-[0.98]"
+        <SubmitButton
+          className="w-full sm:flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl shadow-md shadow-blue-600/20 transition-all duration-150 active:scale-[0.98]"
+          pendingText="⏳ Сохраняю…"
         >
           ✅ Сохранить изменения
-        </button>
+        </SubmitButton>
       </div>
 
     </form>
