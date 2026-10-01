@@ -59,6 +59,7 @@ export async function addExpense(formData: FormData) {
   if (error) throw new Error(`Ошибка добавления: ${error.message}`);
   revalidatePath(`/trips/${tripId}`);
   revalidatePath('/trips');
+  redirect(`/trips/${tripId}?toast=expense_added`);
 }
 
 // ============================================================
@@ -74,6 +75,7 @@ export async function deleteExpense(expenseId: string, tripId: string) {
   if (error) throw new Error(`Ошибка удаления: ${error.message}`);
   revalidatePath(`/trips/${tripId}`);
   revalidatePath('/trips');
+  redirect(`/trips/${tripId}?toast=expense_deleted`);
 }
 
 // ============================================================
@@ -238,7 +240,7 @@ export async function updateTrip(tripId: string, formData: FormData) {
 
   if (error) throw new Error(`Ошибка обновления: ${error.message}`);
   revalidatePath(`/trips/${tripId}`);
-  redirect(`/trips/${tripId}`);
+  redirect(`/trips/${tripId}?toast=trip_updated`);
 }
 
 // ============================================================
@@ -266,5 +268,5 @@ export async function deleteTrip(tripId: string) {
   if (error) throw new Error(`Ошибка удаления рейса: ${error.message}`);
 
   revalidatePath('/trips');
-  redirect('/trips');
+  redirect('/trips?toast=trip_deleted');
 }
