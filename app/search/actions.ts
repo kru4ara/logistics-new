@@ -24,6 +24,16 @@ export type SearchResult = {
 
 const LIMIT_PER_DOMAIN = 8;
 
+// Supabase возвращает связь как массив — вытаскиваем name из первого элемента
+function pickName(rel: unknown): string | undefined {
+  if (!rel) return undefined;
+  if (Array.isArray(rel)) return rel[0]?.name;
+  if (typeof rel === 'object' && 'name' in rel) {
+    return (rel as { name?: string }).name;
+  }
+  return undefined;
+}
+
 export async function globalSearch(rawQuery: string): Promise<SearchResult> {
   const query = (rawQuery ?? '').trim();
 
@@ -60,10 +70,11 @@ export async function globalSearch(rawQuery: string): Promise<SearchResult> {
       .limit(LIMIT_PER_DOMAIN);
 
     for (const t of data || []) {
+      const clientName = pickName(t.clients);
       tripsById.push({
         domain: 'trip',
         id: t.id,
-        title: `Рейс №${t.trip_number ?? '—'}${t.clients?.name ? ' · ' + t.clients.name : ''}`,
+        title: `Рейс №${t.trip_number ?? '—'}${clientName ? ' · ' + clientName : ''}`,
         subtitle: t.route || null,
         icon: '📋',
         href: `/trips/${t.id}`,
@@ -91,10 +102,11 @@ export async function globalSearch(rawQuery: string): Promise<SearchResult> {
 
   for (const t of [...(tripsByRoute || []), ...(tripsByCity || [])]) {
     if (tripsMap.has(t.id)) continue;
+    const clientName = pickName(t.clients);
     tripsMap.set(t.id, {
       domain: 'trip',
       id: t.id,
-      title: `Рейс №${t.trip_number ?? '—'}${t.clients?.name ? ' · ' + t.clients.name : ''}`,
+      title: `Рейс №${t.trip_number ?? '—'}${clientName ? ' · ' + clientName : ''}`,
       subtitle: t.route || null,
       icon: '📋',
       href: `/trips/${t.id}`,
@@ -141,7 +153,7 @@ export async function globalSearch(rawQuery: string): Promise<SearchResult> {
   }));
 
   // ============================================================
-  // ПОДРЯДЧИКИ: name + full_name + tax_id → ведут на /contractors/[id]/edit
+  // ПОДРЯДЧИКИ: name + full_name + tax_id
   // ============================================================
   const { data: contractorsData } = await supabase
     .from('contractors')
@@ -172,10 +184,11 @@ export async function globalSearch(rawQuery: string): Promise<SearchResult> {
       .limit(LIMIT_PER_DOMAIN);
 
     for (const o of data || []) {
+      const clientName = pickName(o.clients);
       fwdMap.set(o.id, {
         domain: 'forwarding',
         id: o.id,
-        title: `Заявка #${o.order_number ?? '—'}${o.clients?.name ? ' · ' + o.clients.name : ''}`,
+        title: `Заявка #${o.order_number ?? '—'}${clientName ? ' · ' + clientName : ''}`,
         subtitle: o.load_date ? new Date(o.load_date).toLocaleDateString('ru-RU') : null,
         icon: '📦',
         href: `/forwarding/${o.id}`,
@@ -192,10 +205,11 @@ export async function globalSearch(rawQuery: string): Promise<SearchResult> {
 
   for (const o of fwdByReq || []) {
     if (fwdMap.has(o.id)) continue;
+    const clientName = pickName(o.clients);
     fwdMap.set(o.id, {
       domain: 'forwarding',
       id: o.id,
-      title: `Заявка #${o.order_number ?? '—'}${o.clients?.name ? ' · ' + o.clients.name : ''}`,
+      title: `Заявка #${o.order_number ?? '—'}${clientName ? ' · ' + clientName : ''}`,
       subtitle: o.client_request_number
         ? `Заявка клиента № ${o.client_request_number}`
         : o.load_date
