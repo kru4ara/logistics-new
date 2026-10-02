@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { logout } from '../login/actions';
 
@@ -35,8 +35,10 @@ type Props = {
 export default function NavbarClient({ role, userName }: Props) {
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [menuOpen, setMenuOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [searchValue, setSearchValue] = useState(searchParams.get('q') ?? '');
 
   useEffect(() => {
     setMenuOpen(false);
@@ -64,6 +66,14 @@ export default function NavbarClient({ role, userName }: Props) {
     }
   }
 
+  function handleSearchSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const q = searchValue.trim();
+    if (q.length < 2) return;
+    setMenuOpen(false);
+    router.push(`/search?q=${encodeURIComponent(q)}`);
+  }
+
   if (!role) return null;
 
   const navItems = role === 'driver' ? driverNavItems : adminNavItems;
@@ -74,6 +84,7 @@ export default function NavbarClient({ role, userName }: Props) {
     .join('')
     .slice(0, 2)
     .toUpperCase();
+  const isAdmin = role === 'admin';
 
   function isActive(href: string): boolean {
     if (href === '/' || href === '/driver') return pathname === href;
@@ -90,7 +101,7 @@ export default function NavbarClient({ role, userName }: Props) {
             className="flex items-center gap-2 shrink-0"
           >
             <span className="text-2xl">🚛</span>
-            <span className="text-white font-bold text-lg">Logistics CRM</span>
+            <span className="text-white font-bold text-lg hidden sm:inline">Logistics CRM</span>
           </Link>
 
           <div className="hidden md:flex items-center gap-1 flex-wrap flex-1">
@@ -110,6 +121,21 @@ export default function NavbarClient({ role, userName }: Props) {
           </div>
 
           <div className="hidden md:flex items-center gap-3 ml-auto shrink-0">
+            {isAdmin && (
+              <form onSubmit={handleSearchSubmit} className="relative">
+                <input
+                  value={searchValue}
+                  onChange={(e) => setSearchValue(e.target.value)}
+                  placeholder="Поиск…"
+                  className="w-48 lg:w-64 rounded-lg bg-slate-800 border border-slate-700 text-slate-100
+                             placeholder:text-slate-500 pl-9 pr-3 py-2 text-sm
+                             focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  aria-label="Глобальный поиск"
+                />
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">🔍</span>
+              </form>
+            )}
+
             <div className="flex items-center gap-2">
               <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-bold text-xs">
                 {initials}
@@ -156,6 +182,21 @@ export default function NavbarClient({ role, userName }: Props) {
                   </div>
                 </div>
               </div>
+
+              {isAdmin && (
+                <form onSubmit={handleSearchSubmit} className="mt-4 relative">
+                  <input
+                    value={searchValue}
+                    onChange={(e) => setSearchValue(e.target.value)}
+                    placeholder="Поиск…"
+                    className="w-full rounded-lg bg-slate-800 border border-slate-700 text-slate-100
+                               placeholder:text-slate-500 pl-9 pr-3 py-2 text-sm
+                               focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    aria-label="Глобальный поиск"
+                  />
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">🔍</span>
+                </form>
+              )}
             </div>
 
             <div className="p-3 space-y-1">
