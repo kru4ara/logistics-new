@@ -28,7 +28,7 @@
 - Логин: server action `app/login/actions.ts` + bcrypt.compare + httpOnly cookie (role, driver_id, user_name) + задержка 500 мс при ошибке.
 - Logout: server action.
 - Навбар: серверный (`app/components/Navbar.tsx`) + клиентская часть (`app/components/NavbarClient.tsx`).
-- RLS включён, все публичные политики на `drivers` и `users` удалены.
+- RLS включён на всех 18 таблицах. **Все открытые публичные политики удалены** (инспекция 02.10).
 - `app/components/DocumentUpload.tsx` — на server action.
 - `app/driver/telegram-actions.ts` — мёртвый импорт убран.
 
@@ -40,7 +40,7 @@
 - Индексы на FK: `trips.*`, `trip_expenses.trip_id`, `trip_documents.trip_id`, `documents.*`, `forwarding_points.location_id` (11 штук).
 
 ### UI / UX
-- `app/components/SubmitButton.tsx` — универсальная submit-кнопка с pending-состоянием. Подключена во все ключевые формы (создание/редактирование рейсов, клиентов, подрядчиков, локаций, экспедирования, расходов, телеметрии).
+- `app/components/SubmitButton.tsx` — универсальная submit-кнопка с pending-состоянием. Подключена во все ключевые формы.
 - `app/components/Toaster.tsx` + `app/error.tsx` + `app/global-error.tsx`.
 - Тосты через `?toast=...` в редиректах server actions. Словарь ключей в `Toaster.tsx`.
 - `app/search/` — глобальный поиск (`/search?q=...`) по рейсам, экспедированию, клиентам, подрядчикам, водителям. Поле поиска в навбаре, только для офиса.
@@ -53,11 +53,23 @@
 - Подрядчики: поле `country` (селект из `EUROPEAN_COUNTRIES`).
 - Форма экспедирования: `PointRow` вынесен наружу — баг «по 1 букве» устранён.
 
-## Открытые задачи
-- Шаг 11: автообновление курсов PLN/BYN (NBP API + cron в Vercel).
+### Инспекция 02.10.2026 — фиксы
+- Удалены мёртвые файлы: `app/rates-actions.ts`, `app/LogoutButton.tsx`, `app/Map.tsx`.
+- Проверены живые «подозрительные»: `app/reminder-actions.ts` (syncReminders), `app/client-actions.ts`, `app/driver-actions.ts`, `app/truck-actions.ts`, `app/trip-actions.tsx` — все используются, оставлены.
+- Удалены ВСЕ открытые публичные RLS-политики с `clients`, `contractors`, `documents`, `fixed_costs`, `forwarding_*`, `locations`, `rates`, `reminders`, `trip_*`, `trips`, `trucks`. Осталось 0 политик на `public`.
+
+## Cron (Vercel `vercel.json`)
+- `/api/update-rates` — `0 6 * * *` — обновляет курсы PLN/BYN через `open.er-api.com`
+- `/api/cron/reminders` — `0 9 * * *` — рассылка напоминаний через Telegram
+
+## Открытые задачи (что осталось)
+- Экспорт в Excel (рейсы, расходы, экспедирование, прибыльность) — библиотека `xlsx` в зависимостях, не используется.
+- Аудит-лог (кто и когда менял данные) — на будущее.
+- Telegram-уведомления по событиям (начат/завершён рейс, загружен CMR).
+- PWA + камера для водителя (фото CMR прямо из приложения).
+- Тесты на критичные места (расчёт топлива, Logisat, DOCX).
+- Унификация дублей: `client-actions.ts` + `clients/new/page.tsx` (встроенный `createClient`) — два места для создания клиента.
 - Опционально: `trips.start_date` / `end_date` → тип `date`.
-- Опционально: дашборд с KPI на главной.
-- Опционально: экспорт в Excel (библиотека `xlsx` уже в зависимостях).
 
 ## Что НЕ трогать без причины
 - `lib/supabase-server.ts` — service_role, обходит RLS. Импортировать только на сервере.
