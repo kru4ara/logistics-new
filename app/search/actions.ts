@@ -103,7 +103,7 @@ export async function globalSearch(rawQuery: string): Promise<SearchResult> {
   const trips = Array.from(tripsMap.values()).slice(0, LIMIT_PER_DOMAIN);
 
   // ============================================================
-  // КЛИЕНТЫ: name + contact_person
+  // КЛИЕНТЫ: name + contact_person → ведут на /clients/[id]
   // ============================================================
   const { data: clientsData } = await supabase
     .from('clients')
@@ -118,11 +118,11 @@ export async function globalSearch(rawQuery: string): Promise<SearchResult> {
     title: c.name,
     subtitle: c.contact_person || c.phone || c.email || null,
     icon: '🤝',
-    href: `/clients`,
+    href: `/clients/${c.id}`,
   }));
 
   // ============================================================
-  // ВОДИТЕЛИ: first_name + last_name
+  // ВОДИТЕЛИ: first_name + last_name → ведут на /drivers/[id]
   // ============================================================
   const { data: driversData } = await supabase
     .from('drivers')
@@ -137,11 +137,11 @@ export async function globalSearch(rawQuery: string): Promise<SearchResult> {
     title: `${d.first_name} ${d.last_name}`,
     subtitle: d.phone || null,
     icon: '🚛',
-    href: `/drivers`,
+    href: `/drivers/${d.id}`,
   }));
 
   // ============================================================
-  // ПОДРЯДЧИКИ: name + full_name + tax_id
+  // ПОДРЯДЧИКИ: name + full_name + tax_id → ведут на /contractors/[id]/edit
   // ============================================================
   const { data: contractorsData } = await supabase
     .from('contractors')
@@ -156,7 +156,7 @@ export async function globalSearch(rawQuery: string): Promise<SearchResult> {
     title: c.name,
     subtitle: [c.full_name, c.country, c.phone].filter(Boolean).join(' · ') || null,
     icon: '🏢',
-    href: `/contractors`,
+    href: `/contractors/${c.id}/edit`,
   }));
 
   // ============================================================
