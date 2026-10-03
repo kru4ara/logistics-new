@@ -23,29 +23,30 @@ type LogInput = {
   summary?: string;
 };
 
+/**
+ * Пишет запись в audit_log.
+ *
+ * Не бросает исключений наружу — если логирование упало, бизнес-логика
+ * продолжает работать. Ошибки пишутся в console.error и видны в Vercel Logs.
+ */
 export async function logAudit(input: LogInput): Promise<void> {
-  console.error('[audit] START', JSON.stringify(input));
+  try {
+    const cookieStore = cookies();
+    const role = cookieStore.get('role')?.value || 'unknown';
+    const driverId = cookieStore.get('driver_id')?.value || null;
+    const rawName = cookieStore.get('user_name')?.value;
 
-  const cookieStore = cookies();
-  const role = cookieStore.get('role')?.value || 'unknown';
-  const driverId = cookieStore.get('driver_id')?.value || null;
-  const rawName = cookieStore.get('user_name')?.value;
+    const userName = rawName
+      ? decodeURIComponent(rawName)
+      : role === 'admin'
+        ? 'Офис'
+        : role === 'driver'
+          ? 'Водитель'
+          : 'Неизвестно';
 
-  const userName = rawName
-    ? decodeURIComponent(rawName)
-    : role === 'admin'
-      ? 'Офис'
-      : role === 'driver'
-        ? 'Водитель'
-        : 'Неизвестно';
+    const supabase = await createClient();
 
-  const supabase = await createClient();
-
-  console.error('[audit] insert:', input.entity_type, input.entity_id, input.action);
-
-  const { data, error } = await supabase
-    .from('audit_log')
-    .insert([
+    const { error } = await supabase.from('audit_log').insert([
       {
         user_role: role,
         user_id: driverId,
@@ -56,17 +57,20 @@ export async function logAudit(input: LogInput): Promise<void> {
         changes: input.changes || null,
         summary: input.summary || null,
       },
-    ])
-    .select('id');
+    ]);
 
-  if (error) {
-    console.error('[audit] FAILED', error.message, error.details, error.hint);
-    throw new Error(`[audit] failed: ${error.message}`);
+    if (error) {
+      console.error('[audit] insert failed:', error.message, error.details, error.hint);
+    }
+  } catch (e) {
+    console.error('[audit] exception:', e);
   }
-
-  console.error('[audit] OK', data);
 }
 
+/**
+ * Сравнивает два объекта и возвращает только изменённые поля.
+ * Используется для update-событий, чтобы не засорять лог.
+ */
 export function diffFields<T extends Record<string, unknown>>(
   before: T,
   after: T,
