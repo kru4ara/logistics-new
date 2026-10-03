@@ -2,6 +2,7 @@ import { createClient as createSupabaseClient } from '../../../lib/supabase-serv
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import SubmitButton from '../../components/SubmitButton';
+import { logAudit } from '../../../lib/audit';
 
 async function createClient(formData: FormData) {
   'use server';
@@ -13,7 +14,7 @@ async function createClient(formData: FormData) {
   const phone = formData.get('phone') as string;
   const email = formData.get('email') as string;
 
-  const { error } = await supabase
+  const { data: created, error } = await supabase
     .from('clients')
     .insert([
       {
@@ -22,9 +23,21 @@ async function createClient(formData: FormData) {
         phone: phone || null,
         email: email || null
       }
-    ]);
+    ])
+    .select('id')
+    .single();
 
   if (error) throw new Error(`Ошибка добавления: ${error.message}`);
+
+  if (created?.id) {
+    await logAudit({
+      entity_type: 'client',
+      entity_id: created.id,
+      action: 'create',
+      summary: `Создан клиент «${name}»`,
+    });
+  }
+
   revalidatePath('/clients');
   redirect('/clients');
 }
