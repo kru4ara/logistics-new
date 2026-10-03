@@ -25,6 +25,7 @@ const ACTION_LABELS: Record<string, { text: string; color: string }> = {
 };
 
 const FIELD_LABELS: Record<string, string> = {
+  // Рейс
   revenue_eur: 'Фрахт (€)',
   driver_id: 'Водитель',
   truck_id: 'Тягач',
@@ -35,6 +36,11 @@ const FIELD_LABELS: Record<string, string> = {
   client_request_number: '№ заявки клиента',
   start_fuel_level: 'Остаток топлива (л)',
   status: 'Статус',
+  // Клиент
+  name: 'Название',
+  contact_person: 'Контактное лицо',
+  phone: 'Телефон',
+  email: 'Email',
 };
 
 function formatFieldValue(field: string, value: unknown): string {
