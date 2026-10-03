@@ -42,7 +42,7 @@ async function buildTripsSheet(
   let query = supabase
     .from('trips')
     .select(`
-      trip_number, start_date, end_date, route, status, revenue_eur, actual_km,
+      id, trip_number, start_date, end_date, route, status, revenue_eur, actual_km,
       clients(name),
       drivers!driver_id(first_name, last_name),
       trucks!truck_id(registration_number)
@@ -52,39 +52,25 @@ async function buildTripsSheet(
   if (from) query = query.gte('start_date', from);
   if (to) query = query.lte('start_date', to);
 
-  const { data: trips } = await query;
+  const { data: trips, error } = await query;
+  if (error) console.error('[export/trips] trips error:', error);
 
-  const tripIds = (trips || []).map((t) => (t as any).id).filter(Boolean) as string[];
+  const tripIds = (trips || []).map((t: any) => t.id).filter(Boolean) as string[];
 
-  // Расходы одним запросом
   const expensesByTrip: Record<string, number> = {};
   if (tripIds.length > 0) {
-    const { data: exp } = await supabase
+    const { data: exp, error: expErr } = await supabase
       .from('trip_expenses')
-      .select('trip_id, amount_eur');
-    (exp || []).forEach((e) => {
+      .select('trip_id, amount_eur')
+      .in('trip_id', tripIds);
+    if (expErr) console.error('[export/trips] expenses error:', expErr);
+    (exp || []).forEach((e: any) => {
       if (!e.trip_id) return;
       expensesByTrip[e.trip_id] = (expensesByTrip[e.trip_id] || 0) + toNumber(e.amount_eur);
     });
   }
 
-  // Нужны id — приходится тянуть отдельно, потому что select их не включил
-  let query2 = supabase
-    .from('trips')
-    .select(`
-      id, trip_number, start_date, end_date, route, status, revenue_eur, actual_km,
-      clients(name),
-      drivers!driver_id(first_name, last_name),
-      trucks!truck_id(registration_number)
-    `)
-    .order('trip_number', { ascending: true });
-
-  if (from) query2 = query2.gte('start_date', from);
-  if (to) query2 = query2.lte('start_date', to);
-
-  const { data: tripsFull } = await query2;
-
-  const rows = (tripsFull || []).map((t: any) => {
+  const rows = (trips || []).map((t: any) => {
     const exp = expensesByTrip[t.id] || 0;
     const revenue = toNumber(t.revenue_eur);
     const driver = t.drivers
@@ -99,8 +85,8 @@ async function buildTripsSheet(
       'Водитель': driver,
       'Маршрут': t.route || '',
       'Фрахт (EUR)': revenue,
-      'Расходы (EUR)': exp,
-      'Прибыль (EUR)': revenue - exp,
+      'Расходы (EUR)': Math.round(exp * 100) / 100,
+      'Прибыль (EUR)': Math.round((revenue - exp) * 100) / 100,
       'Пробег (км)': toNumber(t.actual_km),
       'Статус': t.status || '',
     };
@@ -134,7 +120,8 @@ async function buildExpensesSheet(
   if (from) query = query.gte('expense_date', from);
   if (to) query = query.lte('expense_date', to);
 
-  const { data } = await query;
+  const { data, error } = await query;
+  if (error) console.error('[export/expenses] error:', error);
 
   const rows = (data || []).map((e: any) => ({
     'Дата': isoDate(e.expense_date),
@@ -143,7 +130,7 @@ async function buildExpensesSheet(
     'Описание': e.description || '',
     'Сумма': toNumber(e.original_amount),
     'Валюта': e.currency || '',
-    'В EUR': toNumber(e.amount_eur),
+    'В EUR': Math.round(toNumber(e.amount_eur) * 100) / 100,
     'Литры': e.liters != null ? toNumber(e.liters) : '',
   }));
 
@@ -166,7 +153,7 @@ async function buildForwardingSheet(
   let query = supabase
     .from('forwarding_orders')
     .select(`
-      order_number, load_date, unload_date, status,
+      id, order_number, load_date, unload_date, status,
       client_price_eur, original_client_price, original_currency,
       clients(name)
     `)
@@ -175,49 +162,40 @@ async function buildForwardingSheet(
   if (from) query = query.gte('load_date', from);
   if (to) query = query.lte('load_date', to);
 
-  const { data: orders } = await query;
+  const { data: orders, error } = await query;
+  if (error) console.error('[export/forwarding] orders error:', error);
+
   const ids = (orders || []).map((o: any) => o.id).filter(Boolean) as string[];
 
-  // Подрядчики
+  // Подрядчики одним запросом
   const contractorsByFwd: Record<string, number> = {};
   if (ids.length > 0) {
-    const { data: fc } = await supabase
+    const { data: fc, error: fcErr } = await supabase
       .from('forwarding_contractors')
-      .select('forwarding_id, price_eur');
+      .select('forwarding_id, price_eur')
+      .in('forwarding_id', ids);
+    if (fcErr) console.error('[export/forwarding] contractors error:', fcErr);
     (fc || []).forEach((c: any) => {
       if (!c.forwarding_id) return;
       contractorsByFwd[c.forwarding_id] = (contractorsByFwd[c.forwarding_id] || 0) + toNumber(c.price_eur);
     });
   }
 
-  // Доп. расходы
+  // Доп. расходы одним запросом
   const expensesByFwd: Record<string, number> = {};
   if (ids.length > 0) {
-    const { data: fe } = await supabase
+    const { data: fe, error: feErr } = await supabase
       .from('forwarding_expenses')
-      .select('forwarding_id, amount_eur');
+      .select('forwarding_id, amount_eur')
+      .in('forwarding_id', ids);
+    if (feErr) console.error('[export/forwarding] expenses error:', feErr);
     (fe || []).forEach((e: any) => {
       if (!e.forwarding_id) return;
       expensesByFwd[e.forwarding_id] = (expensesByFwd[e.forwarding_id] || 0) + toNumber(e.amount_eur);
     });
   }
 
-  // Ещё раз тянуть с id
-  let query2 = supabase
-    .from('forwarding_orders')
-    .select(`
-      id, order_number, load_date, unload_date, status,
-      client_price_eur, original_client_price, original_currency,
-      clients(name)
-    `)
-    .order('order_number', { ascending: true });
-
-  if (from) query2 = query2.gte('load_date', from);
-  if (to) query2 = query2.lte('load_date', to);
-
-  const { data: ordersFull } = await query2;
-
-  const rows = (ordersFull || []).map((o: any) => {
+  const rows = (orders || []).map((o: any) => {
     const clientPrice = toNumber(o.client_price_eur);
     const cSum = contractorsByFwd[o.id] || 0;
     const eSum = expensesByFwd[o.id] || 0;
@@ -226,10 +204,10 @@ async function buildForwardingSheet(
       'Дата загрузки': isoDate(o.load_date),
       'Дата выгрузки': isoDate(o.unload_date),
       'Клиент': pickName(o.clients),
-      'Клиент платит (EUR)': clientPrice,
-      'Подрядчикам (EUR)': cSum,
-      'Доп. расходы (EUR)': eSum,
-      'Маржа (EUR)': clientPrice - cSum - eSum,
+      'Клиент платит (EUR)': Math.round(clientPrice * 100) / 100,
+      'Подрядчикам (EUR)': Math.round(cSum * 100) / 100,
+      'Доп. расходы (EUR)': Math.round(eSum * 100) / 100,
+      'Маржа (EUR)': Math.round((clientPrice - cSum - eSum) * 100) / 100,
       'Статус': o.status || '',
     };
   });
@@ -283,7 +261,7 @@ async function buildClientsSheet(
       'Клиент': s.name,
       'Тип': s.type,
       'Сделок': s.count,
-      'Доход (EUR)': s.revenue,
+      'Доход (EUR)': Math.round(s.revenue * 100) / 100,
     }));
 
   const ws = XLSX.utils.json_to_sheet(rows);
