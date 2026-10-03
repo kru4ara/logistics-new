@@ -2,9 +2,18 @@
 
 import { createClient } from '../../lib/supabase-server';
 import { revalidatePath } from 'next/cache';
+import { logAudit } from '../../lib/audit';
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+
+const STATUS_LABELS: Record<string, string> = {
+  planned: 'Планируется',
+  active: 'В пути',
+  completed: 'Завершён',
+  invoiced: 'Выставлен счёт',
+  paid: 'Оплачен',
+};
 
 async function sendTelegramMessage(text: string) {
   if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) return;
@@ -37,6 +46,8 @@ export async function changeTripStatus(
     .eq('id', tripId)
     .single();
 
+  const oldStatus = trip?.status || null;
+
   const updateData: Record<string, any> = { status };
   const todayDate = new Date().toISOString().split('T')[0];
 
@@ -49,7 +60,6 @@ export async function changeTripStatus(
   if (status === 'completed') {
     const finalEndDate = endDate || todayDate;
 
-    // Проверка: end_date не может быть меньше start_date
     if (trip?.start_date) {
       const startTs = new Date(trip.start_date).getTime();
       const endTs = new Date(finalEndDate).getTime();
@@ -74,6 +84,22 @@ export async function changeTripStatus(
     .eq('id', tripId);
 
   if (error) throw new Error(`Ошибка обновления: ${error.message}`);
+
+  // 4.1. Логируем смену статуса в журнал
+  if (trip && oldStatus !== status) {
+    const fromLabel = STATUS_LABELS[oldStatus || ''] || oldStatus || '—';
+    const toLabel = STATUS_LABELS[status] || status;
+
+    await logAudit({
+      entity_type: 'trip',
+      entity_id: tripId,
+      action: 'status_change',
+      summary: `Рейс №${trip.trip_number || '—'}: статус «${fromLabel}» → «${toLabel}»`,
+      changes: {
+        status: { before: oldStatus, after: status },
+      },
+    });
+  }
 
   // 5. Автосинхронизация Logisat при завершении
   if (status === 'completed') {
