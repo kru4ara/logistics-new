@@ -23,30 +23,33 @@ type LogInput = {
   summary?: string;
 };
 
-/**
- * Пишет запись в audit_log.
- *
- * ВАЖНО: не бросает исключений — если логирование упало, бизнес-логика
- * должна продолжать работать. Просто напишет ошибку в console.error.
- */
 export async function logAudit(input: LogInput): Promise<void> {
-  try {
-    const cookieStore = cookies();
-    const role = cookieStore.get('role')?.value || 'unknown';
-    const driverId = cookieStore.get('driver_id')?.value || null;
-    const rawName = cookieStore.get('user_name')?.value;
+  const cookieStore = cookies();
+  const role = cookieStore.get('role')?.value || 'unknown';
+  const driverId = cookieStore.get('driver_id')?.value || null;
+  const rawName = cookieStore.get('user_name')?.value;
 
-    const userName = rawName
-      ? decodeURIComponent(rawName)
-      : role === 'admin'
-        ? 'Офис'
-        : role === 'driver'
-          ? 'Водитель'
-          : 'Неизвестно';
+  const userName = rawName
+    ? decodeURIComponent(rawName)
+    : role === 'admin'
+      ? 'Офис'
+      : role === 'driver'
+        ? 'Водитель'
+        : 'Неизвестно';
 
-    const supabase = await createClient();
+  const supabase = await createClient();
 
-    const { error } = await supabase.from('audit_log').insert([
+  console.log('[audit] writing:', {
+    entity_type: input.entity_type,
+    entity_id: input.entity_id,
+    action: input.action,
+    user_role: role,
+    user_name: userName,
+  });
+
+  const { data, error } = await supabase
+    .from('audit_log')
+    .insert([
       {
         user_role: role,
         user_id: driverId,
@@ -57,20 +60,16 @@ export async function logAudit(input: LogInput): Promise<void> {
         changes: input.changes || null,
         summary: input.summary || null,
       },
-    ]);
+    ])
+    .select('id');
 
-    if (error) {
-      console.error('[audit] insert failed:', error.message);
-    }
-  } catch (e) {
-    console.error('[audit] log exception:', e);
+  console.log('[audit] insert result:', { data, error });
+
+  if (error) {
+    throw new Error(`[audit] failed: ${error.message}`);
   }
 }
 
-/**
- * Сравнивает два объекта и возвращает только изменённые поля.
- * Используется для update-событий, чтобы не засорять лог.
- */
 export function diffFields<T extends Record<string, unknown>>(
   before: T,
   after: T,
@@ -81,12 +80,8 @@ export function diffFields<T extends Record<string, unknown>>(
   for (const field of fieldsToTrack) {
     const beforeVal = before[field];
     const afterVal = after[field];
-
-    // Приводим к строкам для сравнения — обходит разницу типов
-    // (например, 100 и '100', null и undefined)
     const beforeStr = beforeVal === null || beforeVal === undefined ? '' : String(beforeVal);
     const afterStr = afterVal === null || afterVal === undefined ? '' : String(afterVal);
-
     if (beforeStr !== afterStr) {
       changes[String(field)] = { before: beforeVal, after: afterVal };
     }
