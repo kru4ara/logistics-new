@@ -1,5 +1,6 @@
 import { createClient } from '../../../lib/supabase-server';
 import DocumentUpload from '../../components/DocumentUpload';
+import TelegramLinkCard from './TelegramLinkCard';
 
 export const dynamic = 'force-dynamic';
 
@@ -106,6 +107,12 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
             </div>
           </div>
         </div>
+
+        {/* Telegram */}
+        <TelegramLinkCard
+          driverId={driverId}
+          isConnected={Boolean(driver.telegram_chat_id)}
+        />
 
         {/* Сроки документов */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
