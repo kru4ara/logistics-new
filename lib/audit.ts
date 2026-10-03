@@ -24,10 +24,14 @@ type LogInput = {
 };
 
 export async function logAudit(input: LogInput): Promise<void> {
+  console.log('[audit] === START ===', JSON.stringify(input));
+
   const cookieStore = cookies();
   const role = cookieStore.get('role')?.value || 'unknown';
   const driverId = cookieStore.get('driver_id')?.value || null;
   const rawName = cookieStore.get('user_name')?.value;
+
+  console.log('[audit] cookies:', { role, driverId, rawName });
 
   const userName = rawName
     ? decodeURIComponent(rawName)
@@ -39,7 +43,7 @@ export async function logAudit(input: LogInput): Promise<void> {
 
   const supabase = await createClient();
 
-  console.log('[audit] writing:', {
+  console.log('[audit] about to insert:', {
     entity_type: input.entity_type,
     entity_id: input.entity_id,
     action: input.action,
@@ -66,8 +70,11 @@ export async function logAudit(input: LogInput): Promise<void> {
   console.log('[audit] insert result:', { data, error });
 
   if (error) {
+    console.error('[audit] INSERT FAILED:', error.message, error.details, error.hint);
     throw new Error(`[audit] failed: ${error.message}`);
   }
+
+  console.log('[audit] === DONE ===');
 }
 
 export function diffFields<T extends Record<string, unknown>>(
