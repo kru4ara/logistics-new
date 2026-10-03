@@ -37,6 +37,8 @@ export async function changeTripStatus(
   status: string,
   endDate?: string
 ) {
+  console.error('[changeTripStatus] CALLED', { tripId, status, endDate });
+
   const supabase = await createClient();
 
   // 1. Получаем данные рейса перед обновлением
@@ -47,16 +49,15 @@ export async function changeTripStatus(
     .single();
 
   const oldStatus = trip?.status || null;
+  console.error('[changeTripStatus] oldStatus =', oldStatus, 'new =', status);
 
   const updateData: Record<string, any> = { status };
   const todayDate = new Date().toISOString().split('T')[0];
 
-  // 2. Старт рейса — если пусто, ставим сегодня
   if (status === 'active' && !trip?.start_date) {
     updateData.start_date = todayDate;
   }
 
-  // 3. Завершение — дата обязательна
   if (status === 'completed') {
     const finalEndDate = endDate || todayDate;
 
@@ -77,50 +78,78 @@ export async function changeTripStatus(
     }
   }
 
-  // 4. Обновляем
+  // 2. Обновляем
   const { error } = await supabase
     .from('trips')
     .update(updateData)
     .eq('id', tripId);
 
   if (error) throw new Error(`Ошибка обновления: ${error.message}`);
+  console.error('[changeTripStatus] UPDATE OK');
 
-  // 4.1. Логируем смену статуса в журнал
+  // 3. Логируем смену статуса в журнал (с двух уровней — лог + прямой insert)
   if (trip && oldStatus !== status) {
+    console.error('[changeTripStatus] === ENTERING AUDIT BLOCK ===');
+
     const fromLabel = STATUS_LABELS[oldStatus || ''] || oldStatus || '—';
     const toLabel = STATUS_LABELS[status] || status;
 
-    await logAudit({
-      entity_type: 'trip',
-      entity_id: tripId,
-      action: 'status_change',
-      summary: `Рейс №${trip.trip_number || '—'}: статус «${fromLabel}» → «${toLabel}»`,
-      changes: {
-        status: { before: oldStatus, after: status },
-      },
-    });
+    try {
+      // Прямой insert — изолированно от logAudit
+      const { data: directInsert, error: directError } = await supabase
+        .from('audit_log')
+        .insert([
+          {
+            user_role: 'admin',
+            user_id: null,
+            user_name: 'Офис',
+            entity_type: 'trip',
+            entity_id: tripId,
+            action: 'status_change',
+            summary: `Рейс №${trip.trip_number || '—'}: статус «${fromLabel}» → «${toLabel}»`,
+            changes: { status: { before: oldStatus, after: status } },
+          },
+        ])
+        .select('id');
+
+      console.error('[changeTripStatus] DIRECT INSERT:', directInsert, directError);
+    } catch (e) {
+      console.error('[changeTripStatus] DIRECT INSERT EXCEPTION:', e);
+    }
+
+    // И вызываем logAudit — если он работает, дубля не будет (разные записи)
+    try {
+      await logAudit({
+        entity_type: 'trip',
+        entity_id: tripId,
+        action: 'status_change',
+        summary: `Рейс №${trip.trip_number || '—'}: статус «${fromLabel}» → «${toLabel}»`,
+        changes: { status: { before: oldStatus, after: status } },
+      });
+      console.error('[changeTripStatus] logAudit OK');
+    } catch (e) {
+      console.error('[changeTripStatus] logAudit EXCEPTION:', e);
+    }
+  } else {
+    console.error('[changeTripStatus] AUDIT SKIPPED', { hasTrip: !!trip, oldStatus, status });
   }
 
-  // 5. Автосинхронизация Logisat при завершении
+  // 4. Logisat sync при завершении
   if (status === 'completed') {
     try {
       const { syncTripFromLogisat } = await import('../../lib/logisat');
       const syncResult = await syncTripFromLogisat(tripId);
       if (syncResult.success) {
-        console.log('[changeTripStatus] Logisat sync OK:', {
-          tripId,
-          km: syncResult.distanceKm,
-          liters: syncResult.fuelLiters,
-        });
+        console.error('[changeTripStatus] Logisat sync OK');
       } else {
-        console.log('[changeTripStatus] Logisat sync failed:', syncResult.error);
+        console.error('[changeTripStatus] Logisat sync failed:', syncResult.error);
       }
     } catch (e) {
       console.error('[changeTripStatus] Logisat sync exception:', e);
     }
   }
 
-  // 6. Telegram
+  // 5. Telegram
   const statusEmoji: Record<string, string> = {
     active: '🚛',
     completed: '✅',
