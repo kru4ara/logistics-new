@@ -82,6 +82,27 @@ export default async function ReportsPage() {
           <DownloadButton data={tripsWithExpenses} />
         </div>
 
+        {/* ЭКСПОРТ В EXCEL */}
+        <a
+          href="/reports/excel"
+          className="block bg-gradient-to-br from-emerald-600 to-emerald-800 rounded-2xl shadow-lg p-5 md:p-6
+                     text-white hover:shadow-xl hover:from-emerald-500 hover:to-emerald-700
+                     transition-all duration-200 active:scale-[0.99]"
+        >
+          <div className="flex items-center gap-4">
+            <div className="text-4xl md:text-5xl shrink-0">📥</div>
+            <div className="min-w-0 flex-1">
+              <div className="text-lg md:text-xl font-bold">Экспорт в Excel</div>
+              <div className="text-sm text-emerald-100 mt-1">
+                Рейсы · Расходы · Экспедирование · Прибыльность клиентов
+              </div>
+            </div>
+            <div className="text-emerald-100 font-semibold text-sm shrink-0 hidden sm:block">
+              Открыть →
+            </div>
+          </div>
+        </a>
+
         {/* Счётчики */}
         <div className="grid gap-3 md:gap-5 grid-cols-2 md:grid-cols-3">
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-6">
