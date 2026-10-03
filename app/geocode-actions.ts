@@ -3,10 +3,8 @@
 import { createClient } from '../lib/supabase-server';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+import { logAudit } from '../lib/audit';
 
-// ============================================================
-// Уведомление водителя о новом рейсе в Telegram
-// ============================================================
 async function notifyDriverAboutNewTrip(
   supabase: Awaited<ReturnType<typeof createClient>>,
   driverId: string,
@@ -18,7 +16,6 @@ async function notifyDriverAboutNewTrip(
   receiver: { name: string | null; city: string | null; country: string | null }
 ) {
   try {
-    // 1. Получаем chat_id водителя
     const { data: driver } = await supabase
       .from('drivers')
       .select('first_name, telegram_chat_id')
@@ -30,7 +27,6 @@ async function notifyDriverAboutNewTrip(
     const token = process.env.TELEGRAM_BOT_TOKEN;
     if (!token) return;
 
-    // 2. Формируем текст
     const senderLine = [sender.country, sender.city].filter(Boolean).join(', ') || '—';
     const receiverLine = [receiver.country, receiver.city].filter(Boolean).join(', ') || '—';
 
@@ -50,7 +46,6 @@ async function notifyDriverAboutNewTrip(
       `Подробности: https://logistics-new-ebon.vercel.app/driver`,
     ];
 
-    // 3. Отправляем
     const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -116,9 +111,6 @@ export async function addTripWithAddress(formData: FormData) {
 
   const route = `${senderCity || ''}, ${senderCountry || ''} → ${receiverCity || ''}, ${receiverCountry || ''}`;
 
-  // ============================================================
-  // 1. НОМЕР РЕЙСА — ищем НАИМЕНЬШИЙ СВОБОДНЫЙ номер
-  // ============================================================
   const { data: existingTrips } = await supabase
     .from('trips')
     .select('trip_number')
@@ -133,9 +125,6 @@ export async function addTripWithAddress(formData: FormData) {
     nextNumber++;
   }
 
-  // ============================================================
-  // 2. ОСТАТОК ТОПЛИВА — берём из предыдущего рейса этой машины
-  // ============================================================
   let startFuelLevel = manualFuel;
 
   if (truckId) {
@@ -168,9 +157,6 @@ export async function addTripWithAddress(formData: FormData) {
     }
   }
 
-  // ============================================================
-  // 3. ГЕОКОДИРОВАНИЕ (Nominatim: загрузка + выгрузка)
-  // ============================================================
   async function geocode(city: string, country: string): Promise<{ lat: number; lng: number } | null> {
     if (!city || !country) return null;
     try {
@@ -201,9 +187,6 @@ export async function addTripWithAddress(formData: FormData) {
   const endLat = receiverCoords?.lat ?? 0;
   const endLng = receiverCoords?.lng ?? 0;
 
-  // ============================================================
-  // 4. ИМЯ КЛИЕНТА (для уведомления водителю)
-  // ============================================================
   let clientName = '';
   if (clientId) {
     const { data: cl } = await supabase
@@ -214,10 +197,7 @@ export async function addTripWithAddress(formData: FormData) {
     clientName = cl?.name || '';
   }
 
-  // ============================================================
-  // 5. СОЗДАЁМ РЕЙС
-  // ============================================================
-  const { error } = await supabase
+  const { data: created, error } = await supabase
     .from('trips')
     .insert([
       {
@@ -267,13 +247,21 @@ export async function addTripWithAddress(formData: FormData) {
         trip_number: nextNumber,
         status: 'planned',
       },
-    ]);
+    ])
+    .select('id')
+    .single();
 
   if (error) throw new Error(`Ошибка создания рейса: ${error.message}`);
 
-  // ============================================================
-  // 6. УВЕДОМЛЕНИЕ ВОДИТЕЛЮ В TELEGRAM (не блокирует создание)
-  // ============================================================
+  if (created?.id) {
+    await logAudit({
+      entity_type: 'trip',
+      entity_id: created.id,
+      action: 'create',
+      summary: `Создан рейс №${nextNumber}${clientName ? ' · ' + clientName : ''}${route ? ' · ' + route : ''}`,
+    });
+  }
+
   if (driverId) {
     await notifyDriverAboutNewTrip(
       supabase,
