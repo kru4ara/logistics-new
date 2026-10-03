@@ -4,6 +4,74 @@ import { createClient } from '../lib/supabase-server';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 
+// ============================================================
+// Уведомление водителя о новом рейсе в Telegram
+// ============================================================
+async function notifyDriverAboutNewTrip(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  driverId: string,
+  tripNumber: number,
+  clientName: string,
+  route: string,
+  startDate: string,
+  sender: { name: string | null; city: string | null; country: string | null },
+  receiver: { name: string | null; city: string | null; country: string | null }
+) {
+  try {
+    // 1. Получаем chat_id водителя
+    const { data: driver } = await supabase
+      .from('drivers')
+      .select('first_name, telegram_chat_id')
+      .eq('id', driverId)
+      .maybeSingle();
+
+    if (!driver?.telegram_chat_id) return;
+
+    const token = process.env.TELEGRAM_BOT_TOKEN;
+    if (!token) return;
+
+    // 2. Формируем текст
+    const senderLine = [sender.country, sender.city].filter(Boolean).join(', ') || '—';
+    const receiverLine = [receiver.country, receiver.city].filter(Boolean).join(', ') || '—';
+
+    const lines = [
+      `🚛 *Новый рейс №${tripNumber}*`,
+      '',
+      `*Клиент:* ${clientName || '—'}`,
+      `*Маршрут:* ${route || '—'}`,
+      `*Дата старта:* ${startDate || '—'}`,
+      '',
+      `📍 *Загрузка:* ${sender.name || '—'}`,
+      `   ${senderLine}`,
+      '',
+      `🏁 *Выгрузка:* ${receiver.name || '—'}`,
+      `   ${receiverLine}`,
+      '',
+      `Подробности: https://logistics-new-ebon.vercel.app/driver`,
+    ];
+
+    // 3. Отправляем
+    const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: driver.telegram_chat_id,
+        text: lines.join('\n'),
+        parse_mode: 'Markdown',
+        disable_web_page_preview: true,
+      }),
+      cache: 'no-store',
+    });
+
+    if (!res.ok) {
+      const body = await res.text();
+      console.error('[notifyDriver] send failed:', res.status, body);
+    }
+  } catch (e) {
+    console.error('[notifyDriver] exception:', e);
+  }
+}
+
 export async function addTripWithAddress(formData: FormData) {
   const supabase = await createClient();
 
@@ -134,7 +202,20 @@ export async function addTripWithAddress(formData: FormData) {
   const endLng = receiverCoords?.lng ?? 0;
 
   // ============================================================
-  // 4. СОЗДАЁМ РЕЙС
+  // 4. ИМЯ КЛИЕНТА (для уведомления водителю)
+  // ============================================================
+  let clientName = '';
+  if (clientId) {
+    const { data: cl } = await supabase
+      .from('clients')
+      .select('name')
+      .eq('id', clientId)
+      .maybeSingle();
+    clientName = cl?.name || '';
+  }
+
+  // ============================================================
+  // 5. СОЗДАЁМ РЕЙС
   // ============================================================
   const { error } = await supabase
     .from('trips')
@@ -189,6 +270,23 @@ export async function addTripWithAddress(formData: FormData) {
     ]);
 
   if (error) throw new Error(`Ошибка создания рейса: ${error.message}`);
+
+  // ============================================================
+  // 6. УВЕДОМЛЕНИЕ ВОДИТЕЛЮ В TELEGRAM (не блокирует создание)
+  // ============================================================
+  if (driverId) {
+    await notifyDriverAboutNewTrip(
+      supabase,
+      driverId,
+      nextNumber,
+      clientName,
+      route,
+      startDate,
+      { name: senderName, city: senderCity, country: senderCountry },
+      { name: receiverName, city: receiverCity, country: receiverCountry }
+    );
+  }
+
   revalidatePath('/trips');
   redirect('/trips?toast=trip_created');
 }
