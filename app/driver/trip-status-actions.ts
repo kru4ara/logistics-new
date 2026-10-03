@@ -37,27 +37,34 @@ export async function changeTripStatus(
   status: string,
   endDate?: string
 ) {
-  console.error('[changeTripStatus] CALLED', { tripId, status, endDate });
-
   const supabase = await createClient();
 
-  // 1. Получаем данные рейса перед обновлением
-  const { data: trip } = await supabase
+  // 1. Получаем данные рейса перед обновлением.
+  // ВАЖНО: используем явные FK-алиасы (!driver_id и !truck_id),
+  // потому что у trips ДВА внешних ключа на trucks (truck_id и trailer_id),
+  // и без явного указания PostgREST вернёт ошибку "more than one relationship found",
+  // из-за которой data = null и логика молча ломается.
+  const { data: trip, error: tripError } = await supabase
     .from('trips')
-    .select('*, drivers(first_name, last_name), trucks(registration_number), clients(name)')
+    .select('*, drivers!driver_id(first_name, last_name), trucks!truck_id(registration_number), clients(name)')
     .eq('id', tripId)
     .single();
 
+  if (tripError) {
+    console.error('[changeTripStatus] failed to load trip:', tripError.message);
+  }
+
   const oldStatus = trip?.status || null;
-  console.error('[changeTripStatus] oldStatus =', oldStatus, 'new =', status);
 
   const updateData: Record<string, any> = { status };
   const todayDate = new Date().toISOString().split('T')[0];
 
+  // 2. Старт рейса — если пусто, ставим сегодня
   if (status === 'active' && !trip?.start_date) {
     updateData.start_date = todayDate;
   }
 
+  // 3. Завершение — дата обязательна
   if (status === 'completed') {
     const finalEndDate = endDate || todayDate;
 
@@ -78,78 +85,54 @@ export async function changeTripStatus(
     }
   }
 
-  // 2. Обновляем
+  // 4. Обновляем
   const { error } = await supabase
     .from('trips')
     .update(updateData)
     .eq('id', tripId);
 
   if (error) throw new Error(`Ошибка обновления: ${error.message}`);
-  console.error('[changeTripStatus] UPDATE OK');
 
-  // 3. Логируем смену статуса в журнал (с двух уровней — лог + прямой insert)
+  // 5. Логируем смену статуса
   if (trip && oldStatus !== status) {
-    console.error('[changeTripStatus] === ENTERING AUDIT BLOCK ===');
-
     const fromLabel = STATUS_LABELS[oldStatus || ''] || oldStatus || '—';
     const toLabel = STATUS_LABELS[status] || status;
 
-    try {
-      // Прямой insert — изолированно от logAudit
-      const { data: directInsert, error: directError } = await supabase
-        .from('audit_log')
-        .insert([
-          {
-            user_role: 'admin',
-            user_id: null,
-            user_name: 'Офис',
-            entity_type: 'trip',
-            entity_id: tripId,
-            action: 'status_change',
-            summary: `Рейс №${trip.trip_number || '—'}: статус «${fromLabel}» → «${toLabel}»`,
-            changes: { status: { before: oldStatus, after: status } },
-          },
-        ])
-        .select('id');
-
-      console.error('[changeTripStatus] DIRECT INSERT:', directInsert, directError);
-    } catch (e) {
-      console.error('[changeTripStatus] DIRECT INSERT EXCEPTION:', e);
-    }
-
-    // И вызываем logAudit — если он работает, дубля не будет (разные записи)
     try {
       await logAudit({
         entity_type: 'trip',
         entity_id: tripId,
         action: 'status_change',
         summary: `Рейс №${trip.trip_number || '—'}: статус «${fromLabel}» → «${toLabel}»`,
-        changes: { status: { before: oldStatus, after: status } },
+        changes: {
+          status: { before: oldStatus, after: status },
+        },
       });
-      console.error('[changeTripStatus] logAudit OK');
     } catch (e) {
-      console.error('[changeTripStatus] logAudit EXCEPTION:', e);
+      console.error('[changeTripStatus] audit failed:', e);
     }
-  } else {
-    console.error('[changeTripStatus] AUDIT SKIPPED', { hasTrip: !!trip, oldStatus, status });
   }
 
-  // 4. Logisat sync при завершении
+  // 6. Автосинхронизация Logisat при завершении
   if (status === 'completed') {
     try {
       const { syncTripFromLogisat } = await import('../../lib/logisat');
       const syncResult = await syncTripFromLogisat(tripId);
       if (syncResult.success) {
-        console.error('[changeTripStatus] Logisat sync OK');
+        console.log('[changeTripStatus] Logisat sync OK:', {
+          tripId,
+          km: syncResult.distanceKm,
+          liters: syncResult.fuelLiters,
+        });
       } else {
-        console.error('[changeTripStatus] Logisat sync failed:', syncResult.error);
+        console.log('[changeTripStatus] Logisat sync failed:', syncResult.error);
       }
     } catch (e) {
       console.error('[changeTripStatus] Logisat sync exception:', e);
     }
   }
 
-  // 5. Telegram
+  // 7. Telegram
   const statusEmoji: Record<string, string> = {
     active: '🚛',
     completed: '✅',
