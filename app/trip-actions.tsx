@@ -3,6 +3,7 @@
 import { createClient } from '../lib/supabase-server';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+import { logAudit, diffFields } from '../lib/audit';
 
 // ============================================================
 // Добавление расхода
@@ -41,7 +42,7 @@ export async function addExpense(formData: FormData) {
     amountEur = originalAmount * (rate?.byn_to_eur ?? 0.30);
   }
 
-  const { error } = await supabase
+  const { data: created, error } = await supabase
     .from('trip_expenses')
     .insert([
       {
@@ -54,9 +55,21 @@ export async function addExpense(formData: FormData) {
         description: description,
         expense_date: expenseDate || null
       }
-    ]);
+    ])
+    .select('id')
+    .single();
 
   if (error) throw new Error(`Ошибка добавления: ${error.message}`);
+
+  if (created?.id) {
+    await logAudit({
+      entity_type: 'trip_expense',
+      entity_id: created.id,
+      action: 'create',
+      summary: `Добавлен расход по рейсу: ${category} · ${originalAmount} ${currency} (≈ ${Math.round(amountEur * 100) / 100} €)`,
+    });
+  }
+
   revalidatePath(`/trips/${tripId}`);
   revalidatePath('/trips');
   redirect(`/trips/${tripId}?toast=expense_added`);
@@ -68,11 +81,28 @@ export async function addExpense(formData: FormData) {
 export async function deleteExpense(expenseId: string, tripId: string) {
   const supabase = await createClient();
 
+  // Забираем данные до удаления
+  const { data: before } = await supabase
+    .from('trip_expenses')
+    .select('category, amount_eur, original_amount, currency')
+    .eq('id', expenseId)
+    .maybeSingle();
+
   const { error } = await supabase
     .from('trip_expenses')
     .delete()
     .eq('id', expenseId);
   if (error) throw new Error(`Ошибка удаления: ${error.message}`);
+
+  await logAudit({
+    entity_type: 'trip_expense',
+    entity_id: expenseId,
+    action: 'delete',
+    summary: before
+      ? `Удалён расход: ${before.category} · ${before.original_amount} ${before.currency}`
+      : 'Удалён расход (данные не сохранились)',
+  });
+
   revalidatePath(`/trips/${tripId}`);
   revalidatePath('/trips');
   redirect(`/trips/${tripId}?toast=expense_deleted`);
@@ -126,7 +156,6 @@ export async function updateTrip(tripId: string, formData: FormData) {
 
   const route = `${senderCity || ''}, ${senderCountry || ''} → ${receiverCity || ''}, ${receiverCountry || ''}`;
 
-  // Проверка: end_date не может быть раньше start_date
   if (endDate && startDate) {
     const s = new Date(startDate).getTime();
     const e = new Date(endDate).getTime();
@@ -135,10 +164,10 @@ export async function updateTrip(tripId: string, formData: FormData) {
     }
   }
 
-  // Геокодирование
-  const { data: existing } = await supabase
+  // Забираем старые значения для audit
+  const { data: before } = await supabase
     .from('trips')
-    .select('start_lat, start_lng, end_lat, end_lng, sender_city, sender_country, receiver_city, receiver_country')
+    .select('trip_number, revenue_eur, driver_id, truck_id, client_id, start_date, end_date, route, client_request_number, start_fuel_level, start_lat, start_lng, end_lat, end_lng, sender_city, sender_country, receiver_city, receiver_country')
     .eq('id', tripId)
     .single();
 
@@ -161,22 +190,22 @@ export async function updateTrip(tripId: string, formData: FormData) {
     return null;
   }
 
-  let startLat = existing?.start_lat ?? 0;
-  let startLng = existing?.start_lng ?? 0;
-  let endLat = existing?.end_lat ?? 0;
-  let endLng = existing?.end_lng ?? 0;
+  let startLat = before?.start_lat ?? 0;
+  let startLng = before?.start_lng ?? 0;
+  let endLat = before?.end_lat ?? 0;
+  let endLng = before?.end_lng ?? 0;
 
   const senderChanged =
-    !existing ||
-    existing.sender_city !== senderCity ||
-    existing.sender_country !== senderCountry ||
-    !existing.start_lat;
+    !before ||
+    before.sender_city !== senderCity ||
+    before.sender_country !== senderCountry ||
+    !before.start_lat;
 
   const receiverChanged =
-    !existing ||
-    existing.receiver_city !== receiverCity ||
-    existing.receiver_country !== receiverCountry ||
-    !existing.end_lat;
+    !before ||
+    before.receiver_city !== receiverCity ||
+    before.receiver_country !== receiverCountry ||
+    !before.end_lat;
 
   if (senderChanged) {
     const c = await geocode(senderCity, senderCountry);
@@ -239,6 +268,47 @@ export async function updateTrip(tripId: string, formData: FormData) {
     .eq('id', tripId);
 
   if (error) throw new Error(`Ошибка обновления: ${error.message}`);
+
+  // Audit: логируем только значимые изменения
+  if (before) {
+    const changes = diffFields(
+      {
+        revenue_eur: before.revenue_eur,
+        driver_id: before.driver_id,
+        truck_id: before.truck_id,
+        client_id: before.client_id,
+        start_date: before.start_date,
+        end_date: before.end_date,
+        route: before.route,
+        client_request_number: before.client_request_number,
+        start_fuel_level: before.start_fuel_level,
+      },
+      {
+        revenue_eur: revenueEur,
+        driver_id: driverId || null,
+        truck_id: truckId || null,
+        client_id: clientId || null,
+        start_date: startDate,
+        end_date: endDate,
+        route: route || null,
+        client_request_number: clientRequestNumber || null,
+        start_fuel_level: startFuelLevel,
+      },
+      ['revenue_eur', 'driver_id', 'truck_id', 'client_id', 'start_date', 'end_date', 'route', 'client_request_number', 'start_fuel_level']
+    );
+
+    const changedCount = Object.keys(changes).length;
+    if (changedCount > 0) {
+      await logAudit({
+        entity_type: 'trip',
+        entity_id: tripId,
+        action: 'update',
+        summary: `Рейс №${before.trip_number ?? '—'}: изменено ${changedCount} ${changedCount === 1 ? 'поле' : 'полей'}`,
+        changes,
+      });
+    }
+  }
+
   revalidatePath(`/trips/${tripId}`);
   redirect(`/trips/${tripId}?toast=trip_updated`);
 }
@@ -248,6 +318,12 @@ export async function updateTrip(tripId: string, formData: FormData) {
 // ============================================================
 export async function deleteTrip(tripId: string) {
   const supabase = await createClient();
+
+  const { data: tripInfo } = await supabase
+    .from('trips')
+    .select('trip_number, route, revenue_eur')
+    .eq('id', tripId)
+    .maybeSingle();
 
   const { error: expensesError } = await supabase
     .from('trip_expenses')
@@ -266,6 +342,15 @@ export async function deleteTrip(tripId: string) {
     .delete()
     .eq('id', tripId);
   if (error) throw new Error(`Ошибка удаления рейса: ${error.message}`);
+
+  await logAudit({
+    entity_type: 'trip',
+    entity_id: tripId,
+    action: 'delete',
+    summary: tripInfo
+      ? `Удалён рейс №${tripInfo.trip_number ?? '—'}${tripInfo.route ? ' · ' + tripInfo.route : ''} (фрахт ${tripInfo.revenue_eur ?? 0} €)`
+      : 'Удалён рейс',
+  });
 
   revalidatePath('/trips');
   redirect('/trips?toast=trip_deleted');
