@@ -20,6 +20,7 @@ const adminNavItems = [
   { href: '/reminders', label: 'Напоминания', icon: '⏰' },
   { href: '/map', label: 'Карта', icon: '🗺' },
   { href: '/fixed-costs', label: 'Общие расходы', icon: '💶' },
+  { href: '/audit', label: 'Аудит', icon: '📜' },
 ];
 
 const driverNavItems = [
