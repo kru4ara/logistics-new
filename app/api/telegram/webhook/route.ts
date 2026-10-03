@@ -6,6 +6,7 @@ export const dynamic = 'force-dynamic';
 const WEBHOOK_SECRET = process.env.TELEGRAM_WEBHOOK_SECRET;
 
 export async function POST(request: Request) {
+  // 1. Проверка секрета от Telegram
   if (WEBHOOK_SECRET) {
     const incoming = request.headers.get('x-telegram-bot-api-secret-token');
     if (incoming !== WEBHOOK_SECRET) {
@@ -28,14 +29,12 @@ export async function POST(request: Request) {
 
   const chatId = String(message.chat?.id || '');
   const text = String(message.text || '').trim();
-  const firstName = message.from?.first_name || '';
-  const lastName = message.from?.last_name || '';
-  const fromName = [firstName, lastName].filter(Boolean).join(' ') || 'Водитель';
 
-  if (!chatId || !text) {
+  if (!chatId) {
     return NextResponse.json({ ok: true });
   }
 
+  // 2. Команда /start <driver_id>
   if (text.startsWith('/start')) {
     const parts = text.split(/\s+/);
     const driverId = parts[1];
@@ -43,7 +42,7 @@ export async function POST(request: Request) {
     if (!driverId) {
       await sendMessage(
         chatId,
-        '👋 Привет! Я бот Logistics CRM.\n\nЧтобы получать уведомления о новых рейсах, попросите ссылку у офиса.'
+        '👋 Привет! Я бот Logistics CRM.\n\nЧтобы получать уведомления о новых рейсах, попросите у офиса персональную ссылку.'
       );
       return NextResponse.json({ ok: true });
     }
@@ -76,19 +75,27 @@ export async function POST(request: Request) {
 
     await sendMessage(
       chatId,
-      `✅ Готово, ${driver.first_name || fromName}!\n\nТеперь вы будете получать уведомления о новых рейсах.`
+      `✅ Готово, ${driver.first_name || 'водитель'}!\n\nТеперь вы будете получать уведомления о новых рейсах.`
     );
     return NextResponse.json({ ok: true });
   }
 
+  // 3. Любое другое сообщение — короткая подсказка
+  await sendMessage(
+    chatId,
+    '🤖 Я бот Logistics CRM.\n\nПрисылаю уведомления о новых рейсах. Чтобы подключиться, попросите у офиса персональную ссылку и нажмите её.'
+  );
   return NextResponse.json({ ok: true });
 }
 
 async function sendMessage(chatId: string, text: string) {
   const token = process.env.TELEGRAM_BOT_TOKEN;
-  if (!token) return;
+  if (!token) {
+    console.warn('[telegram/webhook] TELEGRAM_BOT_TOKEN not set');
+    return;
+  }
   try {
-    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -98,7 +105,12 @@ async function sendMessage(chatId: string, text: string) {
       }),
       cache: 'no-store',
     });
+
+    if (!res.ok) {
+      const body = await res.text();
+      console.error('[telegram/webhook] sendMessage failed:', res.status, body);
+    }
   } catch (e) {
-    console.error('[telegram/webhook] sendMessage error:', e);
+    console.error('[telegram/webhook] sendMessage exception:', e);
   }
 }
