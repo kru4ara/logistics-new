@@ -3,6 +3,7 @@
 import { createClient } from '../../lib/supabase-server';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+import { logAudit } from '../../lib/audit';
 
 // ============================================================
 // Добавление расхода
@@ -40,7 +41,7 @@ export async function addForwardingExpense(formData: FormData) {
     amountEur = originalAmount * (rate?.byn_to_eur ?? 0.30);
   }
 
-  const { error } = await supabase
+  const { data: created, error } = await supabase
     .from('forwarding_expenses')
     .insert([
       {
@@ -52,9 +53,20 @@ export async function addForwardingExpense(formData: FormData) {
         description: description || null,
         expense_date: expenseDate || null,
       },
-    ]);
+    ])
+    .select('id')
+    .single();
 
   if (error) throw new Error(`Ошибка добавления: ${error.message}`);
+
+  if (created?.id) {
+    await logAudit({
+      entity_type: 'forwarding_expense',
+      entity_id: created.id,
+      action: 'create',
+      summary: `Добавлен расход экспедиции: ${category} · ${originalAmount} ${currency} (≈ ${Math.round(amountEur * 100) / 100} €)`,
+    });
+  }
 
   revalidatePath(`/forwarding/${forwardingId}`);
   revalidatePath('/forwarding');
@@ -69,12 +81,27 @@ export async function addForwardingExpense(formData: FormData) {
 export async function deleteForwardingExpense(expenseId: string, forwardingId: string) {
   const supabase = await createClient();
 
+  const { data: before } = await supabase
+    .from('forwarding_expenses')
+    .select('category, original_amount, currency, amount_eur')
+    .eq('id', expenseId)
+    .maybeSingle();
+
   const { error } = await supabase
     .from('forwarding_expenses')
     .delete()
     .eq('id', expenseId);
 
   if (error) throw new Error(`Ошибка удаления: ${error.message}`);
+
+  await logAudit({
+    entity_type: 'forwarding_expense',
+    entity_id: expenseId,
+    action: 'delete',
+    summary: before
+      ? `Удалён расход экспедиции: ${before.category} · ${before.original_amount} ${before.currency}`
+      : 'Удалён расход экспедиции',
+  });
 
   revalidatePath(`/forwarding/${forwardingId}`);
   revalidatePath('/forwarding');
