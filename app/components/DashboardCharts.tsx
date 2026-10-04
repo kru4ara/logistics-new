@@ -34,12 +34,23 @@ function formatTick(v: number): string {
   return sign + String(abs);
 }
 
+function formatFull(v: number): string {
+  const sign = v < 0 ? '−' : '';
+  return sign + Math.abs(v).toLocaleString('ru-RU');
+}
+
 // ============================================================
-// BAR CHART — компактный, с осями и сеткой
+// BAR CHART
 // ============================================================
 export function MonthlyBars({ data }: { data: MonthPoint[] }) {
   if (data.length === 0) return null;
 
+  // Максимум по модулю для расчёта полос в мобильном виде
+  const maxAbsMobile = Math.max(...data.map((d) => Math.abs(d.profit)), 1);
+
+  // ============================================================
+  // Геометрия SVG для десктопа
+  // ============================================================
   const W = 800;
   const H = 200;
   const PAD_L = 56;
@@ -74,7 +85,7 @@ export function MonthlyBars({ data }: { data: MonthPoint[] }) {
 
   return (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-6">
-      <div className="flex flex-wrap items-baseline justify-between gap-3 mb-3">
+      <div className="flex flex-wrap items-baseline justify-between gap-3 mb-4">
         <div>
           <h2 className="text-base md:text-lg font-bold text-slate-900">
             📈 Прибыль по месяцам
@@ -95,95 +106,129 @@ export function MonthlyBars({ data }: { data: MonthPoint[] }) {
         </div>
       </div>
 
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" preserveAspectRatio="xMidYMid meet">
-        {yTicks.map((tick) => {
-          const y = PAD_T + ((maxPos - tick) / range) * chartH;
-          const isZero = tick === 0;
+      {/* ================= МОБИЛЬНАЯ ВЕРСИЯ — ГОРИЗОНТАЛЬНЫЕ ПОЛОСЫ ================= */}
+      <div className="md:hidden space-y-2.5">
+        {data.map((m) => {
+          const isPos = m.profit >= 0;
+          const widthPct = (Math.abs(m.profit) / maxAbsMobile) * 100;
           return (
-            <g key={tick}>
-              <line
-                x1={PAD_L}
-                y1={y}
-                x2={W - PAD_R}
-                y2={y}
-                stroke={isZero ? '#94a3b8' : '#e2e8f0'}
-                strokeWidth={isZero ? 1.2 : 1}
-                strokeDasharray={isZero ? '0' : '3 3'}
-              />
-              <text
-                x={PAD_L - 8}
-                y={y + 4}
-                textAnchor="end"
-                style={{ fontSize: '11px', fontFamily: 'system-ui, sans-serif' }}
-                fill="#64748b"
+            <div key={m.key} className="flex items-center gap-2">
+              <div className="w-9 shrink-0 text-xs font-medium text-slate-500 capitalize">
+                {m.label}
+              </div>
+              <div className="flex-1 h-6 bg-slate-100 rounded-md overflow-hidden relative">
+                <div
+                  className={`h-full rounded-md transition-all ${
+                    isPos ? 'bg-emerald-500' : 'bg-red-500'
+                  }`}
+                  style={{ width: `${Math.max(widthPct, 3)}%` }}
+                />
+              </div>
+              <div
+                className={`w-16 shrink-0 text-right text-xs font-bold tabular-nums whitespace-nowrap ${
+                  isPos ? 'text-emerald-600' : 'text-red-500'
+                }`}
               >
-                {formatTick(tick)}
-              </text>
-            </g>
+                {isPos ? '+' : '−'}
+                {formatTick(Math.abs(m.profit))}
+              </div>
+            </div>
           );
         })}
+      </div>
 
-        {data.map((m, i) => {
-          const cx = PAD_L + slotW * i + slotW / 2;
-          const val = m.profit;
-          const isPos = val >= 0;
-          const absH = (Math.abs(val) / range) * chartH;
-          const x = cx - barW / 2;
-          const y = isPos ? zeroY - absH : zeroY;
-          const fill = isPos ? '#10b981' : '#ef4444';
+      {/* ================= ДЕСКТОПНАЯ ВЕРСИЯ — SVG С ОСЯМИ ================= */}
+      <div className="hidden md:block">
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" preserveAspectRatio="xMidYMid meet">
+          {yTicks.map((tick) => {
+            const y = PAD_T + ((maxPos - tick) / range) * chartH;
+            const isZero = tick === 0;
+            return (
+              <g key={tick}>
+                <line
+                  x1={PAD_L}
+                  y1={y}
+                  x2={W - PAD_R}
+                  y2={y}
+                  stroke={isZero ? '#94a3b8' : '#e2e8f0'}
+                  strokeWidth={isZero ? 1.2 : 1}
+                  strokeDasharray={isZero ? '0' : '3 3'}
+                />
+                <text
+                  x={PAD_L - 8}
+                  y={y + 4}
+                  textAnchor="end"
+                  style={{ fontSize: '11px', fontFamily: 'system-ui, sans-serif' }}
+                  fill="#64748b"
+                >
+                  {formatTick(tick)}
+                </text>
+              </g>
+            );
+          })}
 
-          const showLabel = Math.abs(val) > range * 0.08;
+          {data.map((m, i) => {
+            const cx = PAD_L + slotW * i + slotW / 2;
+            const val = m.profit;
+            const isPos = val >= 0;
+            const absH = (Math.abs(val) / range) * chartH;
+            const x = cx - barW / 2;
+            const y = isPos ? zeroY - absH : zeroY;
+            const fill = isPos ? '#10b981' : '#ef4444';
 
-          return (
-            <g key={m.key}>
-              <rect
-                x={x}
-                y={y}
-                width={barW}
-                height={Math.max(absH, 1.5)}
-                rx={4}
-                ry={4}
-                fill={fill}
-                opacity={val === 0 ? 0.35 : 1}
-              >
-                <title>
-                  {m.label}: {val >= 0 ? '+' : ''}
-                  {val.toFixed(0)} €
-                </title>
-              </rect>
+            const showLabel = Math.abs(val) > range * 0.08;
 
-              {showLabel && (
+            return (
+              <g key={m.key}>
+                <rect
+                  x={x}
+                  y={y}
+                  width={barW}
+                  height={Math.max(absH, 1.5)}
+                  rx={4}
+                  ry={4}
+                  fill={fill}
+                  opacity={val === 0 ? 0.35 : 1}
+                >
+                  <title>
+                    {m.label}: {val >= 0 ? '+' : ''}
+                    {val.toFixed(0)} €
+                  </title>
+                </rect>
+
+                {showLabel && (
+                  <text
+                    x={cx}
+                    y={isPos ? y - 4 : y + absH + 12}
+                    textAnchor="middle"
+                    style={{ fontSize: '10px', fontFamily: 'system-ui, sans-serif' }}
+                    fill={isPos ? '#059669' : '#dc2626'}
+                    fontWeight="600"
+                  >
+                    {formatTick(val)}
+                  </text>
+                )}
+
                 <text
                   x={cx}
-                  y={isPos ? y - 4 : y + absH + 12}
+                  y={H - PAD_B + 18}
                   textAnchor="middle"
-                  style={{ fontSize: '10px', fontFamily: 'system-ui, sans-serif' }}
-                  fill={isPos ? '#059669' : '#dc2626'}
-                  fontWeight="600"
+                  style={{ fontSize: '11px', fontFamily: 'system-ui, sans-serif' }}
+                  fill="#64748b"
                 >
-                  {formatTick(val)}
+                  {m.label}
                 </text>
-              )}
-
-              <text
-                x={cx}
-                y={H - PAD_B + 18}
-                textAnchor="middle"
-                style={{ fontSize: '11px', fontFamily: 'system-ui, sans-serif' }}
-                fill="#64748b"
-              >
-                {m.label}
-              </text>
-            </g>
-          );
-        })}
-      </svg>
+              </g>
+            );
+          })}
+        </svg>
+      </div>
     </div>
   );
 }
 
 // ============================================================
-// DONUT — все категории, палитра из 16 контрастных цветов
+// DONUT — все категории
 // ============================================================
 export function ExpenseDonut({
   data,
@@ -201,7 +246,6 @@ export function ExpenseDonut({
 
   let cursor = 0;
 
-  // Разделяем легенду на 2 колонки, если категорий больше 8
   const useTwoCols = data.length > 8;
   const half = Math.ceil(data.length / 2);
   const left = useTwoCols ? data.slice(0, half) : data;
