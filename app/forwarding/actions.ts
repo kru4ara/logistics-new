@@ -3,6 +3,7 @@
 import { createClient } from '../../lib/supabase-server';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+import { logAudit, diffFields } from '../../lib/audit';
 
 // ============================================================
 // Конвертация в EUR по курсу на дату
@@ -226,6 +227,35 @@ async function savePoints(
 }
 
 // ============================================================
+// Поля, которые отслеживаются в audit при update
+// ============================================================
+const FORWARDING_TRACKED_FIELDS = [
+  'client_id',
+  'client_price_eur',
+  'original_currency',
+  'original_client_price',
+  'load_date',
+  'unload_date',
+  'status',
+  'client_request_number',
+  'cargo_description',
+  'transport_type',
+  'transport_temperature',
+  'cargo_type',
+  'cargo_quantity',
+  'customs_loading',
+  'customs_unloading',
+] as const;
+
+const FORWARDING_STATUS_LABELS: Record<string, string> = {
+  planned: 'Планируется',
+  active: 'В пути',
+  completed: 'Завершена',
+  invoiced: 'Выставлен счёт',
+  paid: 'Оплачена',
+};
+
+// ============================================================
 // СОЗДАНИЕ
 // ============================================================
 export async function createForwarding(formData: FormData) {
@@ -307,6 +337,24 @@ export async function createForwarding(formData: FormData) {
   await saveContractors(supabase, created.id, contractors, firstLoadDate);
   await savePoints(supabase, created.id, [...loadingPoints, ...unloadingPoints]);
 
+  // Audit
+  let clientName = '';
+  if (clientId) {
+    const { data: cl } = await supabase
+      .from('clients')
+      .select('name')
+      .eq('id', clientId)
+      .maybeSingle();
+    clientName = cl?.name || '';
+  }
+
+  await logAudit({
+    entity_type: 'forwarding_order',
+    entity_id: created.id,
+    action: 'create',
+    summary: `Создана заявка #${orderNumber}${clientName ? ' · ' + clientName : ''}${unloadDate ? ' · до ' + unloadDate : ''}`,
+  });
+
   revalidatePath('/forwarding');
   revalidatePath('/statistics');
   revalidatePath('/');
@@ -350,6 +398,13 @@ export async function updateForwarding(orderId: string, formData: FormData) {
   const loadDate = firstLoadDate;
   const unloadDate = unloadingPoints[unloadingPoints.length - 1]?.date || null;
 
+  // Старые значения для audit
+  const { data: before } = await supabase
+    .from('forwarding_orders')
+    .select('order_number, client_id, client_price_eur, original_currency, original_client_price, load_date, unload_date, status, client_request_number, cargo_description, transport_type, transport_temperature, cargo_type, cargo_quantity, customs_loading, customs_unloading')
+    .eq('id', orderId)
+    .maybeSingle();
+
   const { error } = await supabase
     .from('forwarding_orders')
     .update({
@@ -381,6 +436,42 @@ export async function updateForwarding(orderId: string, formData: FormData) {
   await saveContractors(supabase, orderId, contractors, firstLoadDate);
   await savePoints(supabase, orderId, [...loadingPoints, ...unloadingPoints]);
 
+  // Audit
+  if (before) {
+    const changes = diffFields(
+      before as Record<string, unknown>,
+      {
+        client_id: clientId || null,
+        client_price_eur: clientPriceEur,
+        original_currency: currency,
+        original_client_price: clientPrice,
+        load_date: loadDate,
+        unload_date: unloadDate,
+        status,
+        client_request_number: clientRequestNumber,
+        cargo_description: cargoDescription,
+        transport_type: transportType,
+        transport_temperature: transportTemperature,
+        cargo_type: cargoType,
+        cargo_quantity: cargoQuantity,
+        customs_loading: customsLoading,
+        customs_unloading: customsUnloading,
+      } as Record<string, unknown>,
+      [...FORWARDING_TRACKED_FIELDS]
+    );
+
+    const changedCount = Object.keys(changes).length;
+    if (changedCount > 0) {
+      await logAudit({
+        entity_type: 'forwarding_order',
+        entity_id: orderId,
+        action: 'update',
+        summary: `Заявка #${before.order_number || '—'}: изменено ${changedCount} ${changedCount === 1 ? 'поле' : 'полей'}`,
+        changes,
+      });
+    }
+  }
+
   revalidatePath('/forwarding');
   revalidatePath(`/forwarding/${orderId}`);
   revalidatePath('/statistics');
@@ -394,12 +485,28 @@ export async function updateForwarding(orderId: string, formData: FormData) {
 export async function deleteForwarding(orderId: string) {
   const supabase = await createClient();
 
+  const { data: before } = await supabase
+    .from('forwarding_orders')
+    .select('order_number, client_price_eur, original_currency')
+    .eq('id', orderId)
+    .maybeSingle();
+
   const { error } = await supabase
     .from('forwarding_orders')
     .delete()
     .eq('id', orderId);
 
   if (error) throw new Error(`Ошибка удаления: ${error.message}`);
+
+  await logAudit({
+    entity_type: 'forwarding_order',
+    entity_id: orderId,
+    action: 'delete',
+    summary: before
+      ? `Удалена заявка #${before.order_number || '—'} (${before.client_price_eur || 0} €)`
+      : 'Удалена заявка',
+  });
+
   revalidatePath('/forwarding');
   revalidatePath('/statistics');
   revalidatePath('/');
@@ -412,12 +519,36 @@ export async function deleteForwarding(orderId: string) {
 export async function setForwardingStatus(orderId: string, status: string) {
   const supabase = await createClient();
 
+  const { data: before } = await supabase
+    .from('forwarding_orders')
+    .select('order_number, status')
+    .eq('id', orderId)
+    .maybeSingle();
+
+  const oldStatus = before?.status || null;
+
   const { error } = await supabase
     .from('forwarding_orders')
     .update({ status })
     .eq('id', orderId);
 
   if (error) throw new Error(`Ошибка смены статуса: ${error.message}`);
+
+  if (before && oldStatus !== status) {
+    const fromLabel = FORWARDING_STATUS_LABELS[oldStatus || ''] || oldStatus || '—';
+    const toLabel = FORWARDING_STATUS_LABELS[status] || status;
+
+    await logAudit({
+      entity_type: 'forwarding_order',
+      entity_id: orderId,
+      action: 'status_change',
+      summary: `Заявка #${before.order_number || '—'}: статус «${fromLabel}» → «${toLabel}»`,
+      changes: {
+        status: { before: oldStatus, after: status },
+      },
+    });
+  }
+
   revalidatePath('/forwarding');
   revalidatePath(`/forwarding/${orderId}`);
 }
