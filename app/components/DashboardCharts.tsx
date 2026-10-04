@@ -13,7 +13,7 @@ type CategorySlice = {
 };
 
 // ============================================================
-// Красивое округление максимума вверх: 1234 → 2000, 5678 → 10000
+// Красивое округление максимума вверх
 // ============================================================
 function niceMax(n: number): number {
   if (n <= 0) return 0;
@@ -35,18 +35,17 @@ function formatTick(v: number): string {
 }
 
 // ============================================================
-// BAR CHART — SVG с осями и сеткой
+// BAR CHART — компактный, с осями и сеткой
 // ============================================================
 export function MonthlyBars({ data }: { data: MonthPoint[] }) {
   if (data.length === 0) return null;
 
-  // Геометрия SVG
   const W = 800;
-  const H = 260;
-  const PAD_L = 60;
+  const H = 200;
+  const PAD_L = 56;
   const PAD_R = 12;
-  const PAD_T = 16;
-  const PAD_B = 40;
+  const PAD_T = 24;
+  const PAD_B = 28;
   const chartW = W - PAD_L - PAD_R;
   const chartH = H - PAD_T - PAD_B;
 
@@ -57,13 +56,11 @@ export function MonthlyBars({ data }: { data: MonthPoint[] }) {
   const maxNeg = niceMax(maxNegRaw);
   const range = maxPos + maxNeg || 1;
 
-  // Y-координата нулевой линии
   const zeroY = PAD_T + (maxPos / range) * chartH;
 
   const slotW = chartW / data.length;
-  const barW = Math.min(slotW * 0.55, 42);
+  const barW = Math.min(slotW * 0.5, 36);
 
-  // Метки Y-оси
   const yTicks: number[] = [];
   if (maxPos > 0) {
     yTicks.push(maxPos);
@@ -77,13 +74,13 @@ export function MonthlyBars({ data }: { data: MonthPoint[] }) {
 
   return (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-6">
-      <div className="flex flex-wrap items-baseline justify-between gap-3 mb-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-3 mb-3">
         <div>
           <h2 className="text-base md:text-lg font-bold text-slate-900">
             📈 Прибыль по месяцам
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
-            Последние 12 месяцев · наведите курсор на столбик для деталей
+            Последние 12 месяцев
           </p>
         </div>
         <div className="flex items-center gap-3 text-xs text-slate-500">
@@ -99,7 +96,6 @@ export function MonthlyBars({ data }: { data: MonthPoint[] }) {
       </div>
 
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" preserveAspectRatio="xMidYMid meet">
-        {/* Горизонтальные линии сетки и подписи Y */}
         {yTicks.map((tick) => {
           const y = PAD_T + ((maxPos - tick) / range) * chartH;
           const isZero = tick === 0;
@@ -127,7 +123,6 @@ export function MonthlyBars({ data }: { data: MonthPoint[] }) {
           );
         })}
 
-        {/* Столбики */}
         {data.map((m, i) => {
           const cx = PAD_L + slotW * i + slotW / 2;
           const val = m.profit;
@@ -137,12 +132,10 @@ export function MonthlyBars({ data }: { data: MonthPoint[] }) {
           const y = isPos ? zeroY - absH : zeroY;
           const fill = isPos ? '#10b981' : '#ef4444';
 
-          // Подпись значения над/под столбиком — только для заметных
           const showLabel = Math.abs(val) > range * 0.08;
 
           return (
             <g key={m.key}>
-              {/* Столбик */}
               <rect
                 x={x}
                 y={y}
@@ -159,11 +152,10 @@ export function MonthlyBars({ data }: { data: MonthPoint[] }) {
                 </title>
               </rect>
 
-              {/* Значение над/под столбиком */}
               {showLabel && (
                 <text
                   x={cx}
-                  y={isPos ? y - 6 : y + absH + 14}
+                  y={isPos ? y - 4 : y + absH + 12}
                   textAnchor="middle"
                   style={{ fontSize: '10px', fontFamily: 'system-ui, sans-serif' }}
                   fill={isPos ? '#059669' : '#dc2626'}
@@ -173,10 +165,9 @@ export function MonthlyBars({ data }: { data: MonthPoint[] }) {
                 </text>
               )}
 
-              {/* Подпись месяца */}
               <text
                 x={cx}
-                y={H - PAD_B + 22}
+                y={H - PAD_B + 18}
                 textAnchor="middle"
                 style={{ fontSize: '11px', fontFamily: 'system-ui, sans-serif' }}
                 fill="#64748b"
@@ -192,7 +183,7 @@ export function MonthlyBars({ data }: { data: MonthPoint[] }) {
 }
 
 // ============================================================
-// DONUT — палитра из разных цветов + легенда с прогресс-барами
+// DONUT — все категории, палитра из 16 контрастных цветов
 // ============================================================
 export function ExpenseDonut({
   data,
@@ -210,6 +201,45 @@ export function ExpenseDonut({
 
   let cursor = 0;
 
+  // Разделяем легенду на 2 колонки, если категорий больше 8
+  const useTwoCols = data.length > 8;
+  const half = Math.ceil(data.length / 2);
+  const left = useTwoCols ? data.slice(0, half) : data;
+  const right = useTwoCols ? data.slice(half) : [];
+
+  const renderLegendItem = (s: CategorySlice) => {
+    const pct = (s.amount / total) * 100;
+    return (
+      <div key={s.key}>
+        <div className="flex items-center gap-2 text-sm mb-1">
+          <span
+            className="inline-block w-3 h-3 rounded-sm shrink-0"
+            style={{ backgroundColor: s.color }}
+          />
+          <span className="shrink-0">{s.emoji}</span>
+          <span className="flex-1 text-slate-700 truncate min-w-0">
+            {s.label}
+          </span>
+          <span className="font-semibold text-slate-800 whitespace-nowrap tabular-nums">
+            {s.amount.toFixed(0)} €
+          </span>
+          <span className="text-xs text-slate-400 w-12 text-right whitespace-nowrap tabular-nums">
+            {pct.toFixed(1)}%
+          </span>
+        </div>
+        <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all"
+            style={{
+              width: `${pct}%`,
+              backgroundColor: s.color,
+            }}
+          />
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-6">
       <div className="flex flex-wrap items-baseline justify-between gap-3 mb-4">
@@ -218,14 +248,13 @@ export function ExpenseDonut({
             💸 Структура расходов
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
-            Все расходы по рейсам за всё время
+            Все категории по рейсам за всё время
           </p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] gap-6 items-center">
-        {/* Круг */}
-        <div className="relative mx-auto w-48 h-48">
+      <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] gap-6 items-start">
+        <div className="relative mx-auto w-48 h-48 md:sticky md:top-4">
           <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
             <circle
               cx={CX}
@@ -266,41 +295,14 @@ export function ExpenseDonut({
           </div>
         </div>
 
-        {/* Легенда с прогресс-барами */}
-        <div className="space-y-3 min-w-0">
-          {data.map((s) => {
-            const pct = (s.amount / total) * 100;
-            return (
-              <div key={s.key}>
-                <div className="flex items-center gap-2 text-sm mb-1">
-                  <span
-                    className="inline-block w-3 h-3 rounded-sm shrink-0"
-                    style={{ backgroundColor: s.color }}
-                  />
-                  <span className="shrink-0">{s.emoji}</span>
-                  <span className="flex-1 text-slate-700 truncate min-w-0">
-                    {s.label}
-                  </span>
-                  <span className="font-semibold text-slate-800 whitespace-nowrap">
-                    {s.amount.toFixed(0)} €
-                  </span>
-                  <span className="text-xs text-slate-400 w-12 text-right whitespace-nowrap tabular-nums">
-                    {pct.toFixed(1)}%
-                  </span>
-                </div>
-                <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all"
-                    style={{
-                      width: `${pct}%`,
-                      backgroundColor: s.color,
-                    }}
-                  />
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        {useTwoCols ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-6 gap-y-3">
+            <div className="space-y-3">{left.map(renderLegendItem)}</div>
+            <div className="space-y-3">{right.map(renderLegendItem)}</div>
+          </div>
+        ) : (
+          <div className="space-y-3">{data.map(renderLegendItem)}</div>
+        )}
       </div>
     </div>
   );
