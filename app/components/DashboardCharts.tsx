@@ -12,10 +12,68 @@ type CategorySlice = {
   amount: number;
 };
 
+// ============================================================
+// Красивое округление максимума вверх: 1234 → 2000, 5678 → 10000
+// ============================================================
+function niceMax(n: number): number {
+  if (n <= 0) return 0;
+  const pow = Math.pow(10, Math.floor(Math.log10(n)));
+  const mantissa = n / pow;
+  if (mantissa <= 1) return pow;
+  if (mantissa <= 2) return 2 * pow;
+  if (mantissa <= 5) return 5 * pow;
+  return 10 * pow;
+}
+
+function formatTick(v: number): string {
+  if (v === 0) return '0';
+  const abs = Math.abs(v);
+  const sign = v < 0 ? '−' : '';
+  if (abs >= 1000000) return sign + (abs / 1000000).toFixed(1).replace('.0', '') + 'М';
+  if (abs >= 1000) return sign + (abs / 1000).toFixed(abs >= 10000 ? 0 : 1).replace('.0', '') + 'к';
+  return sign + String(abs);
+}
+
+// ============================================================
+// BAR CHART — SVG с осями и сеткой
+// ============================================================
 export function MonthlyBars({ data }: { data: MonthPoint[] }) {
   if (data.length === 0) return null;
 
-  const maxAbs = Math.max(...data.map((d) => Math.abs(d.profit)), 1);
+  // Геометрия SVG
+  const W = 800;
+  const H = 260;
+  const PAD_L = 60;
+  const PAD_R = 12;
+  const PAD_T = 16;
+  const PAD_B = 40;
+  const chartW = W - PAD_L - PAD_R;
+  const chartH = H - PAD_T - PAD_B;
+
+  const values = data.map((d) => d.profit);
+  const maxPosRaw = Math.max(0, ...values);
+  const maxNegRaw = Math.max(0, ...values.map((v) => -v));
+  const maxPos = niceMax(maxPosRaw);
+  const maxNeg = niceMax(maxNegRaw);
+  const range = maxPos + maxNeg || 1;
+
+  // Y-координата нулевой линии
+  const zeroY = PAD_T + (maxPos / range) * chartH;
+
+  const slotW = chartW / data.length;
+  const barW = Math.min(slotW * 0.55, 42);
+
+  // Метки Y-оси
+  const yTicks: number[] = [];
+  if (maxPos > 0) {
+    yTicks.push(maxPos);
+    yTicks.push(maxPos / 2);
+  }
+  yTicks.push(0);
+  if (maxNeg > 0) {
+    yTicks.push(-maxNeg / 2);
+    yTicks.push(-maxNeg);
+  }
 
   return (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-6">
@@ -25,62 +83,117 @@ export function MonthlyBars({ data }: { data: MonthPoint[] }) {
             📈 Прибыль по месяцам
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
-            За последние 12 месяцев
+            Последние 12 месяцев · наведите курсор на столбик для деталей
           </p>
         </div>
         <div className="flex items-center gap-3 text-xs text-slate-500">
           <span className="flex items-center gap-1.5">
-            <span className="inline-block w-3 h-3 rounded bg-emerald-500" />
+            <span className="inline-block w-3 h-3 rounded-sm bg-emerald-500" />
             Прибыль
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="inline-block w-3 h-3 rounded bg-red-500" />
+            <span className="inline-block w-3 h-3 rounded-sm bg-red-500" />
             Убыток
           </span>
         </div>
       </div>
 
-      <div className="relative h-40 md:h-56">
-        <div className="absolute left-0 right-0 top-1/2 border-t border-dashed border-slate-200" />
-        <div className="absolute inset-0 flex items-stretch gap-0.5 md:gap-1">
-          {data.map((m) => {
-            const pct = (Math.abs(m.profit) / maxAbs) * 50;
-            const isPos = m.profit >= 0;
-            return (
-              <div key={m.key} className="flex-1 relative">
-                {isPos ? (
-                  <div
-                    className="absolute left-[1px] right-[1px] bottom-1/2 rounded-t bg-emerald-500 hover:bg-emerald-600 transition-colors"
-                    style={{ height: `${Math.max(pct, 1)}%` }}
-                    title={`${m.label}: ${m.profit.toFixed(0)} €`}
-                  />
-                ) : (
-                  <div
-                    className="absolute left-[1px] right-[1px] top-1/2 rounded-b bg-red-500 hover:bg-red-600 transition-colors"
-                    style={{ height: `${Math.max(pct, 1)}%` }}
-                    title={`${m.label}: ${m.profit.toFixed(0)} €`}
-                  />
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" preserveAspectRatio="xMidYMid meet">
+        {/* Горизонтальные линии сетки и подписи Y */}
+        {yTicks.map((tick) => {
+          const y = PAD_T + ((maxPos - tick) / range) * chartH;
+          const isZero = tick === 0;
+          return (
+            <g key={tick}>
+              <line
+                x1={PAD_L}
+                y1={y}
+                x2={W - PAD_R}
+                y2={y}
+                stroke={isZero ? '#94a3b8' : '#e2e8f0'}
+                strokeWidth={isZero ? 1.2 : 1}
+                strokeDasharray={isZero ? '0' : '3 3'}
+              />
+              <text
+                x={PAD_L - 8}
+                y={y + 4}
+                textAnchor="end"
+                style={{ fontSize: '11px', fontFamily: 'system-ui, sans-serif' }}
+                fill="#64748b"
+              >
+                {formatTick(tick)}
+              </text>
+            </g>
+          );
+        })}
 
-      <div className="flex items-stretch gap-0.5 md:gap-1 mt-2">
-        {data.map((m) => (
-          <div
-            key={`lbl-${m.key}`}
-            className="flex-1 text-center text-[10px] md:text-xs text-slate-500 font-medium"
-          >
-            {m.label}
-          </div>
-        ))}
-      </div>
+        {/* Столбики */}
+        {data.map((m, i) => {
+          const cx = PAD_L + slotW * i + slotW / 2;
+          const val = m.profit;
+          const isPos = val >= 0;
+          const absH = (Math.abs(val) / range) * chartH;
+          const x = cx - barW / 2;
+          const y = isPos ? zeroY - absH : zeroY;
+          const fill = isPos ? '#10b981' : '#ef4444';
+
+          // Подпись значения над/под столбиком — только для заметных
+          const showLabel = Math.abs(val) > range * 0.08;
+
+          return (
+            <g key={m.key}>
+              {/* Столбик */}
+              <rect
+                x={x}
+                y={y}
+                width={barW}
+                height={Math.max(absH, 1.5)}
+                rx={4}
+                ry={4}
+                fill={fill}
+                opacity={val === 0 ? 0.35 : 1}
+              >
+                <title>
+                  {m.label}: {val >= 0 ? '+' : ''}
+                  {val.toFixed(0)} €
+                </title>
+              </rect>
+
+              {/* Значение над/под столбиком */}
+              {showLabel && (
+                <text
+                  x={cx}
+                  y={isPos ? y - 6 : y + absH + 14}
+                  textAnchor="middle"
+                  style={{ fontSize: '10px', fontFamily: 'system-ui, sans-serif' }}
+                  fill={isPos ? '#059669' : '#dc2626'}
+                  fontWeight="600"
+                >
+                  {formatTick(val)}
+                </text>
+              )}
+
+              {/* Подпись месяца */}
+              <text
+                x={cx}
+                y={H - PAD_B + 22}
+                textAnchor="middle"
+                style={{ fontSize: '11px', fontFamily: 'system-ui, sans-serif' }}
+                fill="#64748b"
+              >
+                {m.label}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
     </div>
   );
 }
 
+// ============================================================
+// DONUT — палитра из разных цветов + легенда с прогресс-барами
+// ============================================================
 export function ExpenseDonut({
   data,
   total,
@@ -99,12 +212,20 @@ export function ExpenseDonut({
 
   return (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-6">
-      <h2 className="text-base md:text-lg font-bold text-slate-900 mb-4">
-        💸 Расходы по категориям
-      </h2>
+      <div className="flex flex-wrap items-baseline justify-between gap-3 mb-4">
+        <div>
+          <h2 className="text-base md:text-lg font-bold text-slate-900">
+            💸 Структура расходов
+          </h2>
+          <p className="text-xs text-slate-400 mt-0.5">
+            Все расходы по рейсам за всё время
+          </p>
+        </div>
+      </div>
 
-      <div className="flex flex-col md:flex-row md:items-center gap-5">
-        <div className="relative mx-auto md:mx-0 w-40 h-40 md:w-48 md:h-48 shrink-0">
+      <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] gap-6 items-center">
+        {/* Круг */}
+        <div className="relative mx-auto w-48 h-48">
           <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
             <circle
               cx={CX}
@@ -112,7 +233,7 @@ export function ExpenseDonut({
               r={R}
               fill="none"
               stroke="#f1f5f9"
-              strokeWidth="20"
+              strokeWidth="22"
             />
             {data.map((s) => {
               const frac = s.amount / total;
@@ -128,42 +249,54 @@ export function ExpenseDonut({
                   r={R}
                   fill="none"
                   stroke={s.color}
-                  strokeWidth="20"
+                  strokeWidth="22"
                   strokeDasharray={dash}
                   strokeDashoffset={offset}
                 />
               );
             })}
           </svg>
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <div className="text-[10px] md:text-xs text-slate-400 uppercase tracking-wide">
+          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+            <div className="text-[10px] text-slate-400 uppercase tracking-wide">
               Всего
             </div>
-            <div className="text-base md:text-xl font-bold text-slate-800">
+            <div className="text-lg md:text-xl font-bold text-slate-800">
               {total.toFixed(0)} €
             </div>
           </div>
         </div>
 
-        <div className="flex-1 space-y-2 min-w-0">
+        {/* Легенда с прогресс-барами */}
+        <div className="space-y-3 min-w-0">
           {data.map((s) => {
             const pct = (s.amount / total) * 100;
             return (
-              <div key={s.key} className="flex items-center gap-2 text-sm">
-                <span
-                  className="inline-block w-3 h-3 rounded shrink-0"
-                  style={{ backgroundColor: s.color }}
-                />
-                <span className="shrink-0">{s.emoji}</span>
-                <span className="flex-1 text-slate-700 truncate min-w-0">
-                  {s.label}
-                </span>
-                <span className="font-semibold text-slate-800 whitespace-nowrap">
-                  {s.amount.toFixed(0)} €
-                </span>
-                <span className="text-xs text-slate-400 w-12 text-right whitespace-nowrap">
-                  {pct.toFixed(1)}%
-                </span>
+              <div key={s.key}>
+                <div className="flex items-center gap-2 text-sm mb-1">
+                  <span
+                    className="inline-block w-3 h-3 rounded-sm shrink-0"
+                    style={{ backgroundColor: s.color }}
+                  />
+                  <span className="shrink-0">{s.emoji}</span>
+                  <span className="flex-1 text-slate-700 truncate min-w-0">
+                    {s.label}
+                  </span>
+                  <span className="font-semibold text-slate-800 whitespace-nowrap">
+                    {s.amount.toFixed(0)} €
+                  </span>
+                  <span className="text-xs text-slate-400 w-12 text-right whitespace-nowrap tabular-nums">
+                    {pct.toFixed(1)}%
+                  </span>
+                </div>
+                <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{
+                      width: `${pct}%`,
+                      backgroundColor: s.color,
+                    }}
+                  />
+                </div>
               </div>
             );
           })}
