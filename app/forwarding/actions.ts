@@ -227,7 +227,7 @@ async function savePoints(
 }
 
 // ============================================================
-// Поля, которые отслеживаются в audit при update
+// Поля для audit
 // ============================================================
 const FORWARDING_TRACKED_FIELDS = [
   'client_id',
@@ -254,6 +254,15 @@ const FORWARDING_STATUS_LABELS: Record<string, string> = {
   invoiced: 'Выставлен счёт',
   paid: 'Оплачена',
 };
+
+function fmtDateRu(d: string | null | undefined): string {
+  if (!d) return '';
+  try {
+    return new Date(d).toLocaleDateString('ru-RU');
+  } catch {
+    return d;
+  }
+}
 
 // ============================================================
 // СОЗДАНИЕ
@@ -348,11 +357,13 @@ export async function createForwarding(formData: FormData) {
     clientName = cl?.name || '';
   }
 
+  const unloadPart = unloadDate ? ` · до ${fmtDateRu(unloadDate)}` : '';
+
   await logAudit({
     entity_type: 'forwarding_order',
     entity_id: created.id,
     action: 'create',
-    summary: `Создана заявка #${orderNumber}${clientName ? ' · ' + clientName : ''}${unloadDate ? ' · до ' + unloadDate : ''}`,
+    summary: `Создана заявка #${orderNumber}${clientName ? ' · ' + clientName : ''}${unloadPart}`,
   });
 
   revalidatePath('/forwarding');
@@ -398,7 +409,6 @@ export async function updateForwarding(orderId: string, formData: FormData) {
   const loadDate = firstLoadDate;
   const unloadDate = unloadingPoints[unloadingPoints.length - 1]?.date || null;
 
-  // Старые значения для audit
   const { data: before } = await supabase
     .from('forwarding_orders')
     .select('order_number, client_id, client_price_eur, original_currency, original_client_price, load_date, unload_date, status, client_request_number, cargo_description, transport_type, transport_temperature, cargo_type, cargo_quantity, customs_loading, customs_unloading')
