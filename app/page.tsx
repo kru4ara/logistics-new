@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '../lib/supabase-server';
+import { MonthlyBars, ExpenseDonut } from './components/DashboardCharts';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,6 +13,25 @@ function pickName(rel: unknown): string | undefined {
   }
   return undefined;
 }
+
+const CATEGORY_META: Record<string, { label: string; emoji: string; color: string }> = {
+  fuel: { label: 'Топливо', emoji: '⛽', color: '#ef4444' },
+  epi: { label: 'EPI', emoji: '📄', color: '#f59e0b' },
+  etoll: { label: 'e-TOLL', emoji: '🛣', color: '#3b82f6' },
+  border: { label: 'Граница', emoji: '🛂', color: '#8b5cf6' },
+  salary: { label: 'ЗП водителя', emoji: '💶', color: '#10b981' },
+  contractor: { label: 'Подрядчик', emoji: '🚛', color: '#6366f1' },
+  permit: { label: 'Дозвол', emoji: '📋', color: '#0891b2' },
+  tlc: { label: 'ТЛЦ', emoji: '🏭', color: '#d97706' },
+  waiting: { label: 'Зона ожидания', emoji: '⏳', color: '#64748b' },
+  repair: { label: 'Ремонт', emoji: '🔧', color: '#a855f7' },
+  parking: { label: 'Паркинг', emoji: '🅿️', color: '#14b8a6' },
+  disinfection: { label: 'Дезинфекция', emoji: '🧴', color: '#ec4899' },
+  ex1: { label: 'ЕХ-1', emoji: '🧾', color: '#f97316' },
+  otkat: { label: 'Откат', emoji: '🔄', color: '#7c3aed' },
+  gps_seal: { label: 'GPS пломба', emoji: '📡', color: '#06b6d4' },
+  other: { label: 'Другое', emoji: '📌', color: '#94a3b8' },
+};
 
 const statusStripColors: Record<string, string> = {
   planned: 'bg-slate-300',
@@ -42,7 +62,7 @@ export default async function Home() {
 
   const { data: tripExpenses } = await supabase
     .from('trip_expenses')
-    .select('trip_id, amount_eur');
+    .select('trip_id, amount_eur, category');
 
   const expensesByTrip = tripExpenses?.reduce((acc, e) => {
     if (!e.trip_id) return acc;
@@ -108,7 +128,6 @@ export default async function Home() {
   const totalForwardingExpenses = Object.values(expensesByForwarding).reduce((s, v) => s + v, 0);
   const forwardingMarginTotal = totalForwardingClient - totalForwardingContractor - totalForwardingExpenses;
 
-  // За всё время — просто сумма всех fixed_costs (без размазывания)
   const totalFixedCosts = fixedCosts?.reduce((sum, fc) => sum + (fc.amount_eur || 0), 0) || 0;
 
   const combinedIncome = totalTripRevenue + totalForwardingClient;
@@ -149,7 +168,6 @@ export default async function Home() {
     0
   );
 
-  // Фиксированные расходы за текущий месяц (с размазыванием годовых как в статистике)
   let monthFixedCosts = 0;
   fixedCosts?.forEach((fc) => {
     const amount = fc.amount_eur || 0;
@@ -184,6 +202,98 @@ export default async function Home() {
     monthForwardingExpenses +
     monthFixedCosts;
   const monthTotalProfit = monthTotalIncome - monthTotalExpenses;
+
+  // ============================================================
+  // ДАННЫЕ ДЛЯ ГРАФИКА ПО МЕСЯЦАМ (последние 12)
+  // ============================================================
+  const monthlyData: { key: string; label: string; profit: number }[] = [];
+
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(currentYear, currentMonth - i, 1);
+    const y = d.getFullYear();
+    const m = d.getMonth();
+    const key = `${y}-${String(m + 1).padStart(2, '0')}`;
+    const label = d.toLocaleDateString('ru-RU', { month: 'short' }).replace('.', '');
+
+    let income = 0;
+    let expenses = 0;
+
+    trips?.forEach((t) => {
+      if (!t.start_date) return;
+      const td = new Date(t.start_date);
+      if (td.getFullYear() !== y || td.getMonth() !== m) return;
+      income += t.revenue_eur || 0;
+      expenses += expensesByTrip[t.id] || 0;
+    });
+
+    forwarding?.forEach((f) => {
+      if (!f.load_date) return;
+      const fd = new Date(f.load_date);
+      if (fd.getFullYear() !== y || fd.getMonth() !== m) return;
+      income += f.client_price_eur || 0;
+      expenses += (contractorsByForwarding[f.id] || 0) + (expensesByForwarding[f.id] || 0);
+    });
+
+    fixedCosts?.forEach((fc) => {
+      const amount = fc.amount_eur || 0;
+      if (amount === 0) return;
+
+      if (fc.cost_type === 'yearly') {
+        let startDate: Date | null = null;
+        if (fc.expense_date) startDate = new Date(fc.expense_date);
+        else if (fc.month_key) startDate = new Date(fc.month_key + '-01');
+        if (!startDate) return;
+        const monthlyPart = amount / 12;
+        const targetDate = new Date(y, m, 1);
+        const diffMonths =
+          (targetDate.getFullYear() - startDate.getFullYear()) * 12 +
+          (targetDate.getMonth() - startDate.getMonth());
+        if (diffMonths >= 0 && diffMonths < 12) {
+          expenses += monthlyPart;
+        }
+      } else {
+        if (fc.month_key === key) {
+          expenses += amount;
+        }
+      }
+    });
+
+    monthlyData.push({ key, label, profit: Math.round(income - expenses) });
+  }
+
+  // ============================================================
+  // ДАННЫЕ ДЛЯ ДОНАТА ПО КАТЕГОРИЯМ РАСХОДОВ (всего за всё время)
+  // ============================================================
+  const catAgg: Record<string, number> = {};
+  tripExpenses?.forEach((e) => {
+    const cat = e.category || 'other';
+    catAgg[cat] = (catAgg[cat] || 0) + (e.amount_eur || 0);
+  });
+
+  const sortedCats = Object.entries(catAgg).sort((a, b) => b[1] - a[1]);
+  const topCats = sortedCats.slice(0, 5);
+  const otherSum = sortedCats.slice(5).reduce((s, [, v]) => s + v, 0);
+
+  const donutData: { key: string; label: string; emoji: string; color: string; amount: number }[] =
+    topCats.map(([key, amount]) => ({
+      key,
+      label: CATEGORY_META[key]?.label || key,
+      emoji: CATEGORY_META[key]?.emoji || '📌',
+      color: CATEGORY_META[key]?.color || '#94a3b8',
+      amount,
+    }));
+
+  if (otherSum > 0) {
+    donutData.push({
+      key: 'rest',
+      label: 'Прочее',
+      emoji: '📌',
+      color: '#cbd5e1',
+      amount: otherSum,
+    });
+  }
+
+  const donutTotal = donutData.reduce((s, c) => s + c.amount, 0);
 
   // ============================================================
   // ТОП-5
@@ -322,6 +432,10 @@ export default async function Home() {
             </div>
           </div>
         </div>
+
+        {/* ГРАФИКИ */}
+        <MonthlyBars data={monthlyData} />
+        <ExpenseDonut data={donutData} total={donutTotal} />
 
         {/* ТОП-5 КЛИЕНТОВ И МАРШРУТОВ */}
         <div className="grid gap-5 lg:grid-cols-2">
