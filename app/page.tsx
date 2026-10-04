@@ -15,22 +15,22 @@ function pickName(rel: unknown): string | undefined {
 }
 
 const CATEGORY_META: Record<string, { label: string; emoji: string; color: string }> = {
-  fuel: { label: 'Топливо', emoji: '⛽', color: '#ef4444' },
-  epi: { label: 'EPI', emoji: '📄', color: '#f59e0b' },
-  etoll: { label: 'e-TOLL', emoji: '🛣', color: '#3b82f6' },
-  border: { label: 'Граница', emoji: '🛂', color: '#8b5cf6' },
-  salary: { label: 'ЗП водителя', emoji: '💶', color: '#10b981' },
-  contractor: { label: 'Подрядчик', emoji: '🚛', color: '#6366f1' },
-  permit: { label: 'Дозвол', emoji: '📋', color: '#0891b2' },
-  tlc: { label: 'ТЛЦ', emoji: '🏭', color: '#d97706' },
-  waiting: { label: 'Зона ожидания', emoji: '⏳', color: '#64748b' },
-  repair: { label: 'Ремонт', emoji: '🔧', color: '#a855f7' },
-  parking: { label: 'Паркинг', emoji: '🅿️', color: '#14b8a6' },
-  disinfection: { label: 'Дезинфекция', emoji: '🧴', color: '#ec4899' },
-  ex1: { label: 'ЕХ-1', emoji: '🧾', color: '#f97316' },
-  otkat: { label: 'Откат', emoji: '🔄', color: '#7c3aed' },
-  gps_seal: { label: 'GPS пломба', emoji: '📡', color: '#06b6d4' },
-  other: { label: 'Другое', emoji: '📌', color: '#94a3b8' },
+  fuel:          { label: 'Топливо',       emoji: '⛽', color: '#ef4444' },
+  salary:        { label: 'ЗП водителя',   emoji: '💶', color: '#10b981' },
+  contractor:    { label: 'Подрядчик',     emoji: '🚛', color: '#3b82f6' },
+  border:        { label: 'Граница',       emoji: '🛂', color: '#f97316' },
+  permit:        { label: 'Дозвол',        emoji: '📋', color: '#8b5cf6' },
+  tlc:           { label: 'ТЛЦ',           emoji: '🏭', color: '#d97706' },
+  waiting:       { label: 'Зона ожидания', emoji: '⏳', color: '#64748b' },
+  repair:        { label: 'Ремонт',        emoji: '🔧', color: '#a855f7' },
+  parking:       { label: 'Паркинг',       emoji: '🅿️', color: '#14b8a6' },
+  disinfection:  { label: 'Дезинфекция',   emoji: '🧴', color: '#ec4899' },
+  ex1:           { label: 'ЕХ-1',          emoji: '🧾', color: '#06b6d4' },
+  otkat:         { label: 'Откат',         emoji: '🔄', color: '#7c3aed' },
+  gps_seal:      { label: 'GPS пломба',    emoji: '📡', color: '#0891b2' },
+  epi:           { label: 'EPI',           emoji: '📄', color: '#f59e0b' },
+  etoll:         { label: 'e-TOLL',        emoji: '🛣', color: '#6366f1' },
+  other:         { label: 'Другое',        emoji: '📌', color: '#94a3b8' },
 };
 
 const statusStripColors: Record<string, string> = {
