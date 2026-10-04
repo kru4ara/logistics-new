@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Фон: тёмно-синий, скруглённый -->
+  <rect width="512" height="512" fill="#0f172a" rx="112"/>
+
+  <!-- Тонкий золотой шестиугольник (как в логотипе) -->
+  <path
+    d="M256 40 L436 145 L436 367 L256 472 L76 367 L76 145 Z"
+    fill="none"
+    stroke="#c9a55b"
+    stroke-width="10"
+    stroke-linejoin="round"
+    opacity="0.4"/>
+
+  <!-- Грузовик: прицеп -->
+  <rect x="90" y="210" width="220" height="120" rx="12" fill="#c9a55b"/>
+
+  <!-- Грузовик: кабина -->
+  <path d="M310 250 L372 250 L412 288 L412 330 L310 330 Z" fill="#c9a55b"/>
+
+  <!-- Заднее колесо -->
+  <circle cx="155" cy="350" r="30" fill="#c9a55b"/>
+  <circle cx="155" cy="350" r="13" fill="#0f172a"/>
+
+  <!-- Переднее колесо -->
+  <circle cx="355" cy="350" r="30" fill="#c9a55b"/>
+  <circle cx="355" cy="350" r="13" fill="#0f172a"/>
+</svg>
