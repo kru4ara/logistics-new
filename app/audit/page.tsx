@@ -65,21 +65,43 @@ const FIELD_LABELS: Record<string, string> = {
   code_95_expiry: 'Срок Код 95',
   adr_expiry: 'Срок АДР',
   date_of_birth: 'Дата рождения',
+  // Экспедирование
+  order_number: '№ заявки',
+  client_price_eur: 'Сумма от клиента (€)',
+  original_client_price: 'Сумма (в валюте)',
+  original_currency: 'Валюта',
+  load_date: 'Дата загрузки',
+  unload_date: 'Дата выгрузки',
+  cargo_description: 'Описание груза',
+  transport_type: 'Тип транспорта',
+  transport_temperature: 'Температура',
+  cargo_type: 'Тип груза',
+  cargo_quantity: 'Количество груза',
+  customs_loading: 'Таможня (загрузка)',
+  customs_unloading: 'Таможня (выгрузка)',
+  loading_reference: 'Референс загрузки',
+  client_request_date: 'Дата заявки клиента',
 };
+
+const DATE_FIELDS = new Set([
+  'start_date',
+  'end_date',
+  'passport_expiry',
+  'visa_expiry',
+  'license_expiry',
+  'tachograph_card_expiry',
+  'code_95_expiry',
+  'adr_expiry',
+  'date_of_birth',
+  'load_date',
+  'unload_date',
+  'client_request_date',
+]);
 
 function formatFieldValue(field: string, value: unknown): string {
   if (value === null || value === undefined || value === '') return '—';
-  if (
-    field === 'start_date' ||
-    field === 'end_date' ||
-    field === 'passport_expiry' ||
-    field === 'visa_expiry' ||
-    field === 'license_expiry' ||
-    field === 'tachograph_card_expiry' ||
-    field === 'code_95_expiry' ||
-    field === 'adr_expiry' ||
-    field === 'date_of_birth'
-  ) {
+
+  if (DATE_FIELDS.has(field)) {
     try {
       return new Date(String(value)).toLocaleDateString('ru-RU');
     } catch {
@@ -187,7 +209,6 @@ export default async function AuditPage({
               };
               const entityLabel = ENTITY_LABELS[log.entity_type] || log.entity_type;
 
-              // Разбираем changes, если есть
               const changes = log.changes as Record<string, { before: unknown; after: unknown }> | null;
 
               return (
