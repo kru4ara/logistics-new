@@ -18,27 +18,29 @@
 - `CRON_SECRET` — секрет для cron
 
 **Vercel Secret-переменные не редактируются** — только удалить + создать заново. После замены — обязателен Redeploy.
+**Все секреты хранить в менеджере паролей** — иначе «не помню» повторяется.
 
 ## Правила работы
 - **Полные файлы на замену, не куски** — пользователь просил не давать фрагменты
 - 1 шаг за раз, с проверкой между шагами
 - Мобильная адаптация: `px-4 md:px-6`, `p-5 md:p-6`, `text-base` в инпутах
 - Server components → `createClient()` из `lib/supabase-server`
-- Клиентского supabase-клиента в проекте больше нет (кроме `lib/supabaseClient.ts`, не используется)
+- Клиентского supabase-клиента в проекте больше нет
 
 ## Что работает
 
 ### Авторизация
-- Login: server action + `bcrypt.compare` + httpOnly cookie (role, driver_id, user_name)
+- Login: server action + `bcrypt.compare` + httpOnly cookie
 - Logout: server action
 - Навбар серверный (`Navbar.tsx` + `NavbarClient.tsx`)
 - RLS включён на всех 18 таблицах, публичные политики удалены
+- Страница логина: двустворчатый дизайн (брендинг + форма), золотой грузовик RAIBUILDING
 
 ### Домены
-- Рейсы (`trips` + `trip_expenses` + `trip_documents` + `trip_counter`)
+- Рейсы (`trips` + `trip_expenses` + `trip_documents`)
 - Экспедирование (`forwarding_orders` + `forwarding_contractors` + `forwarding_points` + `forwarding_expenses`)
 - Клиенты, водители, тягачи, локации, подрядчики
-- Напоминания + cron рассылки в Telegram (09:00 UTC, `/api/cron/reminders`)
+- Напоминания + cron рассылки в Telegram (09:00 UTC)
 - Logisat: синхронизация рейса, просмотр расхода `/driver/logisat`
 - Курсы валют: cron `/api/update-rates` (06:00 UTC, open.er-api.com)
 - Документы: `documents` (полиморфная entity_type/entity_id) + `trip_documents`
@@ -47,33 +49,38 @@
 - `SubmitButton` во всех формах (защита от дублей)
 - `Toaster` через `?toast=...` + `error.tsx` / `global-error.tsx`
 - Глобальный поиск `/search?q=...` (по 5 доменам)
-- Экспорт в Excel `/reports/excel` (4 выгрузки: рейсы, расходы, экспедирование, прибыльность клиентов)
+- Экспорт в Excel `/reports/excel` (4 выгрузки)
 - Прибыльность `/reports/profitability` (клиенты + тягачи, фильтр по периоду)
 - Аудит `/audit` (журнал изменений)
-- PWA: иконка на домашнем экране телефона, полноэкранный режим
+- PWA: манифест, иконки, установка на домашний экран
+- Красивый логин
+- **Дашборд с графиками на главной** (`app/components/DashboardCharts.tsx`):
+  - Bar chart прибыли по месяцам (SVG с осями — на десктопе, горизонтальные полосы — на мобильном)
+  - Donut структуры расходов по категориям (все категории, 16-цветная палитра, легенда с прогресс-барами)
 
 ### Аудит (полное покрытие)
 - Таблица `audit_log`, `lib/audit.ts` (`logAudit` + `diffFields`)
 - Логируется: рейсы (CRUD+status), расходы рейсов, клиенты, водители, подрядчики, локации, экспедирование (CRUD+status), расходы экспедирования, напоминания, документы
-- Страница `/audit` — фильтры по сущностям, русские labels полей, форматирование дат DD.MM.YYYY, показ diff (`было → стало`)
-- `logAudit` не бросает исключений — ошибки в `console.error`, бизнес-логика продолжает работать
+- `logAudit` не бросает исключений — ошибки в `console.error`
 
 ### Telegram
 - Бот **@raibuilding_bot**, webhook `/api/telegram/webhook`
-- `driver telegram_chat_id` сохраняется через `/start <driver_id>`
-- Персональная ссылка: `https://t.me/raibuilding_bot?start=<driver_id>` — в карточке водителя (`TelegramLinkCard.tsx`)
-- Уведомления:
-  - Водителю при создании рейса (`geocode-actions.ts` → `notifyDriverAboutNewTrip`)
-  - Общий чат при смене статуса рейса (`trip-status-actions.ts`)
-  - Общий чат при загрузке документа (`upload-actions.ts`)
+- `driver telegram_chat_id` — через `/start <driver_id>`
+- Персональная ссылка в карточке водителя (`TelegramLinkCard.tsx`)
+- Уведомления: водителю при новом рейсе, общий чат при смене статуса рейса и загрузке документа
 
 ### PWA / мобильное
 - `app/manifest.ts` — PWA-манифест
-- `app/icon.svg` — иконка (золотой грузовик на тёмно-синем фоне)
-- `app/apple-icon.svg` — для iOS «Добавить на экран Домой»
-- `app/layout.tsx` — `viewport` (theme color #0f172a) + `appleWebApp`
-- Водитель на телефоне добавляет иконку на домашний экран через Safari
-- Загрузка CMR: две кнопки на мобильном — **📸 Сфотографировать** (`capture="environment"` — сразу открывает камеру) и **🖼 Выбрать файл** (галерея/PDF)
+- `app/icon.svg` / `app/apple-icon.svg` — иконки (золотой грузовик)
+- `app/layout.tsx` — `viewport` (theme #0f172a) + `appleWebApp`
+- Дефолтный `app/favicon.ico` удалён (перебивал `icon.svg`)
+- Загрузка CMR: две кнопки на мобильном — **📸 Сфотографировать** (`capture="environment"` — сразу камера) и **🖼 Выбрать файл** (галерея/PDF)
+
+### Бэкапы (05.10.2026)
+- `/api/cron/backup` — cron `0 3 * * *` (06:00 Минск)
+- Дамп всех 17 таблиц + 5000 последних `audit_log` → JSON → Telegram (файлом)
+- Первый бэкап: 465 КБ, 839 строк, 0 ошибок
+- Cron работает через `CRON_SECRET` от Vercel
 
 ### Бизнес-логика
 - Остаток топлива: допуск -200 л, жёлтый/красный по порогам
