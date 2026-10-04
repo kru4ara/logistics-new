@@ -2,6 +2,7 @@
 
 import { createClient } from '../../lib/supabase-server';
 import { revalidatePath } from 'next/cache';
+import { logAudit } from '../../lib/audit';
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
@@ -54,7 +55,7 @@ export async function uploadDocument(
       };
     }
 
-    const { error: insertError } = await supabase
+    const { data: created, error: insertError } = await supabase
       .from('trip_documents')
       .insert([
         {
@@ -64,7 +65,9 @@ export async function uploadDocument(
           original_name: fileName,
           uploaded_at: new Date().toISOString(),
         },
-      ]);
+      ])
+      .select('id')
+      .single();
 
     if (insertError) {
       console.error('[uploadDocument] DB error:', insertError);
@@ -73,6 +76,28 @@ export async function uploadDocument(
         success: false,
         message: `Ошибка сохранения: ${insertError.message || 'неизвестная ошибка'}`,
       };
+    }
+
+    // Получим номер рейса для красивого summary
+    let tripLabel = tripId;
+    try {
+      const { data: trip } = await supabase
+        .from('trips')
+        .select('trip_number')
+        .eq('id', tripId)
+        .maybeSingle();
+      if (trip?.trip_number) tripLabel = `№${trip.trip_number}`;
+    } catch {
+      // не критично
+    }
+
+    if (created?.id) {
+      await logAudit({
+        entity_type: 'document',
+        entity_id: created.id,
+        action: 'create',
+        summary: `Загружен документ в рейс ${tripLabel}: ${documentType} · ${fileName}`,
+      });
     }
 
     if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID) {
@@ -125,7 +150,7 @@ export async function deleteDocument(documentId: string, tripId: string) {
     // 1. Получаем документ, чтобы узнать file_path
     const { data: doc, error: fetchError } = await supabase
       .from('trip_documents')
-      .select('file_path')
+      .select('file_path, document_type, original_name')
       .eq('id', documentId)
       .single();
 
@@ -162,6 +187,30 @@ export async function deleteDocument(documentId: string, tripId: string) {
         message: `Ошибка удаления записи: ${deleteError.message || 'неизвестная ошибка'}`,
       };
     }
+
+    // Audit
+    let tripLabel = tripId;
+    try {
+      const { data: trip } = await supabase
+        .from('trips')
+        .select('trip_number')
+        .eq('id', tripId)
+        .maybeSingle();
+      if (trip?.trip_number) tripLabel = `№${trip.trip_number}`;
+    } catch {
+      // не критично
+    }
+
+    const docLabel = doc.original_name
+      ? doc.original_name
+      : doc.document_type || 'без названия';
+
+    await logAudit({
+      entity_type: 'document',
+      entity_id: documentId,
+      action: 'delete',
+      summary: `Удалён документ из рейса ${tripLabel}: ${docLabel}`,
+    });
 
     revalidatePath(`/driver/trips/${tripId}`);
     revalidatePath(`/trips/${tripId}`);
