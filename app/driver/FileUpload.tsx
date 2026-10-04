@@ -22,7 +22,9 @@ export default function FileUpload({ tripId }: { tripId: string }) {
   const [status, setStatus] = useState('');
   const [statusType, setStatusType] = useState<'idle' | 'success' | 'error' | 'loading'>('idle');
   const [isUploading, setIsUploading] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   function handleFileChange(f: File | null) {
     setStatus('');
@@ -38,7 +40,8 @@ export default function FileUpload({ tripId }: { tripId: string }) {
       setStatus(`❌ Файл больше ${MAX_FILE_SIZE_MB} МБ (${(f.size / 1024 / 1024).toFixed(2)} МБ). Сожмите или выберите другой.`);
       setStatusType('error');
       setFile(null);
-      if (inputRef.current) inputRef.current.value = '';
+      if (cameraInputRef.current) cameraInputRef.current.value = '';
+      if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
 
@@ -48,11 +51,17 @@ export default function FileUpload({ tripId }: { tripId: string }) {
       setStatus(`❌ Неподдерживаемый формат. Разрешены: JPG, PNG, HEIC, PDF`);
       setStatusType('error');
       setFile(null);
-      if (inputRef.current) inputRef.current.value = '';
+      if (cameraInputRef.current) cameraInputRef.current.value = '';
+      if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
 
     setFile(f);
+  }
+
+  function resetInputs() {
+    if (cameraInputRef.current) cameraInputRef.current.value = '';
+    if (fileInputRef.current) fileInputRef.current.value = '';
   }
 
   async function handleUpload() {
@@ -76,7 +85,7 @@ export default function FileUpload({ tripId }: { tripId: string }) {
         setStatus('✅ ' + result.message);
         setStatusType('success');
         setFile(null);
-        if (inputRef.current) inputRef.current.value = '';
+        resetInputs();
         setTimeout(() => {
           setStatus('');
           setStatusType('idle');
@@ -102,20 +111,48 @@ export default function FileUpload({ tripId }: { tripId: string }) {
 
   return (
     <div className="space-y-3">
+
+      {/* Скрытые inputs */}
       <input
-        ref={inputRef}
+        ref={cameraInputRef}
         type="file"
+        accept="image/*"
+        capture="environment"
         onChange={(e) => handleFileChange(e.target.files?.[0] || null)}
-        accept="image/*,application/pdf"
-        className="block w-full text-sm text-slate-600
-                   file:mr-4 file:py-2.5 file:px-4
-                   file:rounded-lg file:border-0
-                   file:text-sm file:font-semibold
-                   file:bg-blue-50 file:text-blue-700
-                   hover:file:bg-blue-100
-                   file:cursor-pointer cursor-pointer
-                   border border-slate-200 rounded-lg p-1"
+        className="hidden"
       />
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*,application/pdf"
+        onChange={(e) => handleFileChange(e.target.files?.[0] || null)}
+        className="hidden"
+      />
+
+      {/* Две кнопки: камера (только на мобильном) + выбор файла */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <button
+          type="button"
+          onClick={() => cameraInputRef.current?.click()}
+          className="md:hidden w-full flex items-center justify-center gap-2 px-5 py-4 rounded-xl
+                     bg-blue-600 hover:bg-blue-700 text-white font-semibold
+                     shadow-md shadow-blue-600/20 active:scale-[0.98] transition-all text-base"
+        >
+          <span className="text-xl">📸</span>
+          <span>Сфотографировать</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          className="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-xl
+                     border border-slate-300 text-slate-700 font-semibold
+                     hover:bg-slate-50 active:scale-[0.98] transition-all"
+        >
+          <span className="text-lg">🖼</span>
+          <span>Выбрать файл</span>
+        </button>
+      </div>
 
       {file && (
         <div className="text-xs text-slate-500 px-1">
@@ -141,7 +178,7 @@ export default function FileUpload({ tripId }: { tripId: string }) {
             Загрузка...
           </>
         ) : (
-          <>📸 Загрузить CMR</>
+          <>📤 Загрузить CMR</>
         )}
       </button>
 
