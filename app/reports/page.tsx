@@ -82,26 +82,48 @@ export default async function ReportsPage() {
           <DownloadButton data={tripsWithExpenses} />
         </div>
 
-        {/* ЭКСПОРТ В EXCEL */}
-        <a
-          href="/reports/excel"
-          className="block bg-gradient-to-br from-emerald-600 to-emerald-800 rounded-2xl shadow-lg p-5 md:p-6
-                     text-white hover:shadow-xl hover:from-emerald-500 hover:to-emerald-700
-                     transition-all duration-200 active:scale-[0.99]"
-        >
-          <div className="flex items-center gap-4">
-            <div className="text-4xl md:text-5xl shrink-0">📥</div>
-            <div className="min-w-0 flex-1">
-              <div className="text-lg md:text-xl font-bold">Экспорт в Excel</div>
-              <div className="text-sm text-emerald-100 mt-1">
-                Рейсы · Расходы · Экспедирование · Прибыльность клиентов
+        {/* Быстрые ссылки */}
+        <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
+          <a
+            href="/reports/profitability"
+            className="block bg-gradient-to-br from-blue-600 to-blue-800 rounded-2xl shadow-lg p-5 md:p-6
+                       text-white hover:shadow-xl hover:from-blue-500 hover:to-blue-700
+                       transition-all duration-200 active:scale-[0.99]"
+          >
+            <div className="flex items-center gap-4">
+              <div className="text-4xl md:text-5xl shrink-0">📊</div>
+              <div className="min-w-0 flex-1">
+                <div className="text-lg md:text-xl font-bold">Прибыльность</div>
+                <div className="text-sm text-blue-100 mt-1">
+                  Кто из клиентов и какая техника приносят деньги
+                </div>
+              </div>
+              <div className="text-blue-100 font-semibold text-sm shrink-0 hidden sm:block">
+                Открыть →
               </div>
             </div>
-            <div className="text-emerald-100 font-semibold text-sm shrink-0 hidden sm:block">
-              Открыть →
+          </a>
+
+          <a
+            href="/reports/excel"
+            className="block bg-gradient-to-br from-emerald-600 to-emerald-800 rounded-2xl shadow-lg p-5 md:p-6
+                       text-white hover:shadow-xl hover:from-emerald-500 hover:to-emerald-700
+                       transition-all duration-200 active:scale-[0.99]"
+          >
+            <div className="flex items-center gap-4">
+              <div className="text-4xl md:text-5xl shrink-0">📥</div>
+              <div className="min-w-0 flex-1">
+                <div className="text-lg md:text-xl font-bold">Экспорт в Excel</div>
+                <div className="text-sm text-emerald-100 mt-1">
+                  Рейсы · Расходы · Экспедирование · Прибыльность клиентов
+                </div>
+              </div>
+              <div className="text-emerald-100 font-semibold text-sm shrink-0 hidden sm:block">
+                Открыть →
+              </div>
             </div>
-          </div>
-        </a>
+          </a>
+        </div>
 
         {/* Счётчики */}
         <div className="grid gap-3 md:gap-5 grid-cols-2 md:grid-cols-3">
