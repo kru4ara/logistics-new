@@ -14,23 +14,43 @@ function pickName(rel: unknown): string | undefined {
   return undefined;
 }
 
-const CATEGORY_META: Record<string, { label: string; emoji: string; color: string }> = {
-  fuel:          { label: 'Топливо',       emoji: '⛽', color: '#ef4444' },
-  salary:        { label: 'ЗП водителя',   emoji: '💶', color: '#10b981' },
-  contractor:    { label: 'Подрядчик',     emoji: '🚛', color: '#3b82f6' },
-  border:        { label: 'Граница',       emoji: '🛂', color: '#f97316' },
-  permit:        { label: 'Дозвол',        emoji: '📋', color: '#8b5cf6' },
-  tlc:           { label: 'ТЛЦ',           emoji: '🏭', color: '#d97706' },
-  waiting:       { label: 'Зона ожидания', emoji: '⏳', color: '#64748b' },
-  repair:        { label: 'Ремонт',        emoji: '🔧', color: '#a855f7' },
-  parking:       { label: 'Паркинг',       emoji: '🅿️', color: '#14b8a6' },
-  disinfection:  { label: 'Дезинфекция',   emoji: '🧴', color: '#ec4899' },
-  ex1:           { label: 'ЕХ-1',          emoji: '🧾', color: '#06b6d4' },
-  otkat:         { label: 'Откат',         emoji: '🔄', color: '#7c3aed' },
-  gps_seal:      { label: 'GPS пломба',    emoji: '📡', color: '#0891b2' },
-  epi:           { label: 'EPI',           emoji: '📄', color: '#f59e0b' },
-  etoll:         { label: 'e-TOLL',        emoji: '🛣', color: '#6366f1' },
-  other:         { label: 'Другое',        emoji: '📌', color: '#94a3b8' },
+// Палитра из 16 контрастных цветов для donut
+const CHART_PALETTE = [
+  '#ef4444', // красный
+  '#f97316', // оранжевый
+  '#f59e0b', // янтарный
+  '#eab308', // жёлтый
+  '#84cc16', // лайм
+  '#22c55e', // зелёный
+  '#10b981', // изумрудный
+  '#14b8a6', // бирюзовый
+  '#06b6d4', // голубой
+  '#0ea5e9', // светло-синий
+  '#3b82f6', // синий
+  '#6366f1', // индиго
+  '#8b5cf6', // фиолетовый
+  '#a855f7', // пурпурный
+  '#d946ef', // фуксия
+  '#ec4899', // розовый
+];
+
+const CATEGORY_META: Record<string, { label: string; emoji: string }> = {
+  fuel: { label: 'Топливо', emoji: '⛽' },
+  salary: { label: 'ЗП водителя', emoji: '💶' },
+  contractor: { label: 'Подрядчик', emoji: '🚛' },
+  border: { label: 'Граница', emoji: '🛂' },
+  permit: { label: 'Дозвол', emoji: '📋' },
+  tlc: { label: 'ТЛЦ', emoji: '🏭' },
+  waiting: { label: 'Зона ожидания', emoji: '⏳' },
+  repair: { label: 'Ремонт', emoji: '🔧' },
+  parking: { label: 'Паркинг', emoji: '🅿️' },
+  disinfection: { label: 'Дезинфекция', emoji: '🧴' },
+  ex1: { label: 'ЕХ-1', emoji: '🧾' },
+  otkat: { label: 'Откат', emoji: '🔄' },
+  gps_seal: { label: 'GPS пломба', emoji: '📡' },
+  epi: { label: 'EPI', emoji: '📄' },
+  etoll: { label: 'e-TOLL', emoji: '🛣' },
+  other: { label: 'Другое', emoji: '📌' },
 };
 
 const statusStripColors: Record<string, string> = {
@@ -262,36 +282,28 @@ export default async function Home() {
   }
 
   // ============================================================
-  // ДАННЫЕ ДЛЯ ДОНАТА ПО КАТЕГОРИЯМ РАСХОДОВ (всего за всё время)
+  // ДАННЫЕ ДЛЯ ДОНАТА ПО КАТЕГОРИЯМ РАСХОДОВ — ВСЕ ненулевые
   // ============================================================
   const catAgg: Record<string, number> = {};
   tripExpenses?.forEach((e) => {
     const cat = e.category || 'other';
-    catAgg[cat] = (catAgg[cat] || 0) + (e.amount_eur || 0);
+    const amount = e.amount_eur || 0;
+    if (amount <= 0) return;
+    catAgg[cat] = (catAgg[cat] || 0) + amount;
   });
 
-  const sortedCats = Object.entries(catAgg).sort((a, b) => b[1] - a[1]);
-  const topCats = sortedCats.slice(0, 5);
-  const otherSum = sortedCats.slice(5).reduce((s, [, v]) => s + v, 0);
+  const sortedCats = Object.entries(catAgg)
+    .filter(([, v]) => v > 0)
+    .sort((a, b) => b[1] - a[1]);
 
   const donutData: { key: string; label: string; emoji: string; color: string; amount: number }[] =
-    topCats.map(([key, amount]) => ({
+    sortedCats.map(([key, amount], idx) => ({
       key,
       label: CATEGORY_META[key]?.label || key,
       emoji: CATEGORY_META[key]?.emoji || '📌',
-      color: CATEGORY_META[key]?.color || '#94a3b8',
+      color: CHART_PALETTE[idx % CHART_PALETTE.length],
       amount,
     }));
-
-  if (otherSum > 0) {
-    donutData.push({
-      key: 'rest',
-      label: 'Прочее',
-      emoji: '📌',
-      color: '#cbd5e1',
-      amount: otherSum,
-    });
-  }
 
   const donutTotal = donutData.reduce((s, c) => s + c.amount, 0);
 
