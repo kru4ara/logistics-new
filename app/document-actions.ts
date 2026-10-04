@@ -1,8 +1,31 @@
 'use server';
 
 import { createClient } from '../lib/supabase-server';
+import { logAudit, type AuditEntityType } from '../lib/audit';
 
 export type UploadResult = { success: true } | { success: false; error: string };
+
+const ENTITY_LABELS: Record<string, string> = {
+  driver: 'водителя',
+  truck: 'машины',
+  trip: 'рейса',
+  forwarding: 'заявки',
+};
+
+const DOC_TYPE_LABELS: Record<string, string> = {
+  passport: 'Паспорт',
+  visa: 'Виза',
+  license: 'Водительское удостоверение',
+  tachograph_card: 'Карта водителя',
+  code95: 'Код 95',
+  adr: 'АДР',
+  insurance: 'Страховка',
+  tech_passport: 'Техпаспорт',
+  border_insurance: 'Пограничная страховка',
+  tachograph_legalization: 'Легализация тахографа',
+  cmr: 'CMR',
+  other: 'Другое',
+};
 
 export async function uploadDocument(formData: FormData): Promise<UploadResult> {
   const entityType = String(formData.get('entityType') || '').trim();
@@ -37,18 +60,38 @@ export async function uploadDocument(formData: FormData): Promise<UploadResult> 
     return { success: false, error: `Ошибка загрузки: ${uploadError.message}` };
   }
 
-  const { error: dbError } = await supabase.from('documents').insert({
-    entity_type: entityType,
-    entity_id: entityId,
-    document_type: documentType,
-    file_path: filePath,
-    expiry_date: expiryDate || null,
-  });
+  const { data: created, error: dbError } = await supabase
+    .from('documents')
+    .insert({
+      entity_type: entityType,
+      entity_id: entityId,
+      document_type: documentType,
+      file_path: filePath,
+      expiry_date: expiryDate || null,
+    })
+    .select('id')
+    .single();
 
   if (dbError) {
     // файл уже загружен, но запись не создалась — почистим за собой
     await supabase.storage.from('documents').remove([filePath]);
     return { success: false, error: `Ошибка сохранения: ${dbError.message}` };
+  }
+
+  // Audit
+  if (created?.id) {
+    const entityLabel = ENTITY_LABELS[entityType] || entityType;
+    const docLabel = DOC_TYPE_LABELS[documentType] || documentType;
+    const expiryPart = expiryDate
+      ? ` · срок ${new Date(expiryDate).toLocaleDateString('ru-RU')}`
+      : '';
+
+    await logAudit({
+      entity_type: 'document' as AuditEntityType,
+      entity_id: created.id,
+      action: 'create',
+      summary: `Загружен документ ${entityLabel}: ${docLabel}${expiryPart}`,
+    });
   }
 
   return { success: true };
