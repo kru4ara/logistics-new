@@ -2,6 +2,8 @@ import { createClient } from '../../../lib/supabase-server';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { syncReminders } from '../../reminder-actions';
+import { logAudit } from '../../../lib/audit';
+import SubmitButton from '../../components/SubmitButton';
 
 async function createDriver(formData: FormData) {
   'use server';
@@ -41,7 +43,6 @@ async function createDriver(formData: FormData) {
         tachograph_card_expiry: tachographCardExpiry || null,
         code_95_expiry: code95Expiry || null,
         adr_expiry: adrExpiry || null,
-        password: '12345678'
       }
     ])
     .select('id')
@@ -49,17 +50,23 @@ async function createDriver(formData: FormData) {
 
   if (error) throw new Error(`Ошибка добавления: ${error.message}`);
 
-  // Автоматически создаём напоминания для документов
   if (data?.id) {
     await syncReminders('driver', data.id);
+
+    await logAudit({
+      entity_type: 'driver',
+      entity_id: data.id,
+      action: 'create',
+      summary: `Создан водитель «${firstName} ${lastName}»`,
+    });
   }
 
   revalidatePath('/drivers');
-  redirect('/drivers');
+  redirect('/drivers?toast=driver_created');
 }
 
 export default function NewDriverPage() {
-  const inputClass = "w-full rounded-lg border border-slate-300 px-3 py-2.5 text-slate-900 " +
+  const inputClass = "w-full rounded-lg border border-slate-300 px-3 py-2.5 text-base text-slate-900 " +
     "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-150";
   const labelClass = "block text-sm font-medium text-slate-700 mb-1";
   const sectionClass = "bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-4";
@@ -75,7 +82,9 @@ export default function NewDriverPage() {
 
         <div>
           <h1 className="text-3xl font-bold text-slate-900">➕ Добавить водителя</h1>
-          <p className="text-slate-500 mt-1">Пароль по умолчанию: <b>12345678</b></p>
+          <p className="text-slate-500 mt-1">
+            Пароль выдаётся офисом отдельно. Для подключения Telegram — см. карточку водителя.
+          </p>
         </div>
 
         <form action={createDriver} className="space-y-6">
@@ -161,13 +170,12 @@ export default function NewDriverPage() {
           </div>
 
           <div className="flex gap-3">
-            <button
-              type="submit"
-              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl
-                         shadow-md shadow-blue-600/20 transition-all duration-150 active:scale-[0.98]"
+            <SubmitButton
+              className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl shadow-md shadow-blue-600/20 transition-all duration-150 active:scale-[0.98]"
+              pendingText="⏳ Сохраняю водителя…"
             >
               ✅ Сохранить водителя
-            </button>
+            </SubmitButton>
             <a
               href="/drivers"
               className="px-6 py-3 rounded-xl border border-slate-300 text-slate-700 font-semibold
