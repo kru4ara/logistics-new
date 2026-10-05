@@ -39,42 +39,56 @@ async function toEur(
 }
 
 // ============================================================
-// Номер заявки по дате первой погрузки
+// Перенумерация всех заявок по дате загрузки
 // ============================================================
-async function findNumberForDate(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  loadDate: string
-): Promise<number> {
-  const { count: earlier } = await supabase
+// Номер заявки = порядковый номер при сортировке по load_date ASC.
+// Если у нескольких заявок одинаковая дата — сортировка по created_at ASC
+// (то есть новая заявка на ту же дату становится последней в этой группе).
+//
+// Вызывается при create / update / delete любой заявки.
+async function renumberAllOrders(
+  supabase: Awaited<ReturnType<typeof createClient>>
+): Promise<void> {
+  const { data: orders, error } = await supabase
     .from('forwarding_orders')
-    .select('*', { count: 'exact', head: true })
-    .lt('load_date', loadDate);
+    .select('id, order_number, load_date, created_at')
+    .order('load_date', { ascending: true })
+    .order('created_at', { ascending: true });
 
-  const { count: sameDate } = await supabase
-    .from('forwarding_orders')
-    .select('*', { count: 'exact', head: true })
-    .eq('load_date', loadDate);
+  if (error) {
+    console.error('[renumber] failed to load orders:', error.message);
+    return;
+  }
 
-  return (earlier || 0) + (sameDate || 0) + 1;
-}
+  if (!orders || orders.length === 0) return;
 
-async function shiftNumbersFrom(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  fromNumber: number
-) {
-  const { data: toShift } = await supabase
-    .from('forwarding_orders')
-    .select('id, order_number')
-    .gte('order_number', fromNumber)
-    .order('order_number', { ascending: false });
+  // Собираем список тех, у кого номер изменится
+  const updates: { id: string; newNumber: number }[] = [];
+  orders.forEach((o, idx) => {
+    const expected = idx + 1;
+    if (o.order_number !== expected) {
+      updates.push({ id: o.id, newNumber: expected });
+    }
+  });
 
-  if (!toShift || toShift.length === 0) return;
+  if (updates.length === 0) return;
 
-  for (const row of toShift) {
+  // Двухфазная схема — защищает от конфликта по UNIQUE(order_number), если он есть.
+  // Фаза 1: временно уводим в отрицательные числа.
+  // Фаза 2: присваиваем финальные положительные.
+  // Схема самовосстанавливающаяся: если процесс упадёт между фазами,
+  // следующий вызов renumber снова приведёт всё в порядок.
+  for (const u of updates) {
     await supabase
       .from('forwarding_orders')
-      .update({ order_number: (row.order_number || 0) + 1 })
-      .eq('id', row.id);
+      .update({ order_number: -u.newNumber })
+      .eq('id', u.id);
+  }
+  for (const u of updates) {
+    await supabase
+      .from('forwarding_orders')
+      .update({ order_number: u.newNumber })
+      .eq('id', u.id);
   }
 }
 
@@ -298,25 +312,14 @@ export async function createForwarding(formData: FormData) {
   const firstLoadDate = loadingPoints[0]?.date || new Date().toISOString().split('T')[0];
   const clientPriceEur = await toEur(supabase, clientPrice, currency, firstLoadDate);
 
-  const orderNumber = await findNumberForDate(supabase, firstLoadDate);
-
-  const { data: existing } = await supabase
-    .from('forwarding_orders')
-    .select('id')
-    .eq('order_number', orderNumber)
-    .maybeSingle();
-
-  if (existing) {
-    await shiftNumbersFrom(supabase, orderNumber);
-  }
-
   const loadDate = firstLoadDate;
   const unloadDate = unloadingPoints[unloadingPoints.length - 1]?.date || null;
 
+  // Временный номер 0 — после insert перенумеруем всё
   const { data: created, error } = await supabase
     .from('forwarding_orders')
     .insert([{
-      order_number: orderNumber,
+      order_number: 0,
       client_id: clientId || null,
       client_price_eur: clientPriceEur,
       original_currency: currency,
@@ -346,6 +349,18 @@ export async function createForwarding(formData: FormData) {
   await saveContractors(supabase, created.id, contractors, firstLoadDate);
   await savePoints(supabase, created.id, [...loadingPoints, ...unloadingPoints]);
 
+  // Перенумерация всех заявок по дате
+  await renumberAllOrders(supabase);
+
+  // Получаем финальный номер новой заявки
+  const { data: finalOrder } = await supabase
+    .from('forwarding_orders')
+    .select('order_number')
+    .eq('id', created.id)
+    .single();
+
+  const finalNumber = finalOrder?.order_number ?? 0;
+
   // Audit
   let clientName = '';
   if (clientId) {
@@ -363,7 +378,7 @@ export async function createForwarding(formData: FormData) {
     entity_type: 'forwarding_order',
     entity_id: created.id,
     action: 'create',
-    summary: `Создана заявка #${orderNumber}${clientName ? ' · ' + clientName : ''}${unloadPart}`,
+    summary: `Создана заявка #${finalNumber}${clientName ? ' · ' + clientName : ''}${unloadPart}`,
   });
 
   revalidatePath('/forwarding');
@@ -446,7 +461,18 @@ export async function updateForwarding(orderId: string, formData: FormData) {
   await saveContractors(supabase, orderId, contractors, firstLoadDate);
   await savePoints(supabase, orderId, [...loadingPoints, ...unloadingPoints]);
 
-  // Audit
+  // Перенумерация — если дата загрузки изменилась, номер сдвинется
+  await renumberAllOrders(supabase);
+
+  // Audit: в summary хотим финальный номер после перенумерации
+  const { data: after } = await supabase
+    .from('forwarding_orders')
+    .select('order_number')
+    .eq('id', orderId)
+    .maybeSingle();
+
+  const finalNumber = after?.order_number ?? before?.order_number ?? '—';
+
   if (before) {
     const changes = diffFields(
       before as Record<string, unknown>,
@@ -476,7 +502,7 @@ export async function updateForwarding(orderId: string, formData: FormData) {
         entity_type: 'forwarding_order',
         entity_id: orderId,
         action: 'update',
-        summary: `Заявка #${before.order_number || '—'}: изменено ${changedCount} ${changedCount === 1 ? 'поле' : 'полей'}`,
+        summary: `Заявка #${finalNumber}: изменено ${changedCount} ${changedCount === 1 ? 'поле' : 'полей'}`,
         changes,
       });
     }
@@ -507,6 +533,9 @@ export async function deleteForwarding(orderId: string) {
     .eq('id', orderId);
 
   if (error) throw new Error(`Ошибка удаления: ${error.message}`);
+
+  // После удаления перенумеруем остальные — дырок в нумерации не будет
+  await renumberAllOrders(supabase);
 
   await logAudit({
     entity_type: 'forwarding_order',
