@@ -8,6 +8,7 @@ import { saveTelemetry } from '../../telemetry-actions';
 import CopyBlock from '../../components/CopyBlock';
 import SubmitButton from '../../components/SubmitButton';
 import SubcontractorsBlock from './SubcontractorsBlock';
+import SendTaskButton from './SendTaskButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,7 +22,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
 
   const { data: trip, error: tripError } = await supabase
     .from('trips')
-    .select('*, clients(name), drivers!driver_id(first_name, last_name, phone), trucks!truck_id(registration_number)')
+    .select('*, clients(name), drivers!driver_id(first_name, last_name, phone, telegram_chat_id), trucks!truck_id(registration_number)')
     .eq('id', tripId)
     .single();
 
@@ -85,10 +86,6 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
   const driver = trip.drivers;
   const truck = trip.trucks;
 
-  // ============================================================
-  // Точка C — куда последний подрядчик довозит груз.
-  // Если подрядчиков нет — null.
-  // ============================================================
   let consolidationPoint: {
     country: string | null;
     city: string | null;
@@ -157,11 +154,6 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
     },
   ].filter((p) => p.city || p.name || p.country || p.address);
 
-  // ============================================================
-  // ЗАДАНИЕ ДЛЯ ВОДИТЕЛЯ
-  // Если подрядчики есть — забирает у них в точке C, везёт в Б.
-  // Если нет — как раньше, от точки А до Б.
-  // ============================================================
   const taskLines: string[] = [];
   taskLines.push(`Тягач: ${truck?.registration_number || '—'}`);
   taskLines.push(`Прицеп: ${trailerNumber || '—'}`);
@@ -170,7 +162,6 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
   taskLines.push('');
 
   if (consolidationPoint) {
-    // Наш участок C → Б
     taskLines.push('🚚 НАШ УЧАСТОК (после подрядчиков):');
     taskLines.push('');
     taskLines.push('📍 ЗАБИРАЕШЬ ГРУЗ У ПОДРЯДЧИКА:');
@@ -198,7 +189,6 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
       taskLines.push(`   № погрузки: ${trip.receiver_loading_number}`);
     }
   } else {
-    // Старая логика — все точки А + Б
     if (loadingPoints.length > 0) {
       taskLines.push('📍 ЗАГРУЗКА:');
       loadingPoints.forEach((p) => {
@@ -229,6 +219,15 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
   }
 
   const taskText = taskLines.join('\n');
+
+  // Для кнопки отправки задания
+  const driverHasTelegram = Boolean(driver?.telegram_chat_id);
+  const sendDisabled = !driver || !driverHasTelegram;
+  const sendHint = !driver
+    ? 'Сначала назначьте водителя в рейсе'
+    : !driverHasTelegram
+      ? `Водитель ${driver.first_name} ${driver.last_name} не подключён к Telegram. Откройте его карточку и пришлите ему персональную ссылку.`
+      : undefined;
 
   const statusLabels: Record<string, string> = {
     planned: 'Планируется',
@@ -483,7 +482,16 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
         </div>
 
         {/* ЗАДАНИЕ ДЛЯ ВОДИТЕЛЯ */}
-        <CopyBlock text={taskText} />
+        <div className="space-y-3">
+          <CopyBlock text={taskText} />
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
+            <SendTaskButton
+              tripId={tripId}
+              disabled={sendDisabled}
+              disabledHint={sendHint}
+            />
+          </div>
+        </div>
 
         {/* КНОПКИ СТАТУСА */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
