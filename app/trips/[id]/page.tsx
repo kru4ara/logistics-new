@@ -50,20 +50,17 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
     .eq('trip_id', tripId)
     .order('uploaded_at', { ascending: false });
 
-  // Подрядчики на рейсе
   const { data: subcontractors } = await supabase
     .from('trip_subcontractors')
     .select('*, contractors(name, country)')
     .eq('trip_id', tripId)
     .order('position', { ascending: true });
 
-  // Справочник подрядчиков
   const { data: contractors } = await supabase
     .from('contractors')
     .select('id, name, full_name, country, address, tax_id, contact_person, phone, email')
     .order('name');
 
-  // Справочник локаций — для формы подрядчика
   const { data: loadingLocations } = await supabase
     .from('locations')
     .select('id, name, type, country, company_name, postal_code, city, address, default_loading_number')
@@ -87,6 +84,38 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
 
   const driver = trip.drivers;
   const truck = trip.trucks;
+
+  // ============================================================
+  // Точка C — куда последний подрядчик довозит груз.
+  // Если подрядчиков нет — null.
+  // ============================================================
+  let consolidationPoint: {
+    country: string | null;
+    city: string | null;
+    address: string | null;
+    company: string | null;
+    postal_code: string | null;
+    unload_date: string | null;
+  } | null = null;
+
+  if (subcontractors && subcontractors.length > 0) {
+    const sorted = [...subcontractors].sort((a: any, b: any) => {
+      const posDiff = (b.position || 0) - (a.position || 0);
+      if (posDiff !== 0) return posDiff;
+      const aDate = a.unload_date ? new Date(a.unload_date).getTime() : 0;
+      const bDate = b.unload_date ? new Date(b.unload_date).getTime() : 0;
+      return bDate - aDate;
+    });
+    const last = sorted[0] as any;
+    consolidationPoint = {
+      country: last.unload_country,
+      city: last.unload_city,
+      address: last.unload_address,
+      company: last.unload_company,
+      postal_code: last.unload_postal_code,
+      unload_date: last.unload_date,
+    };
+  }
 
   type LoadingPoint = {
     num: number;
@@ -128,6 +157,11 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
     },
   ].filter((p) => p.city || p.name || p.country || p.address);
 
+  // ============================================================
+  // ЗАДАНИЕ ДЛЯ ВОДИТЕЛЯ
+  // Если подрядчики есть — забирает у них в точке C, везёт в Б.
+  // Если нет — как раньше, от точки А до Б.
+  // ============================================================
   const taskLines: string[] = [];
   taskLines.push(`Тягач: ${truck?.registration_number || '—'}`);
   taskLines.push(`Прицеп: ${trailerNumber || '—'}`);
@@ -135,22 +169,24 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
   taskLines.push(`Телефон: ${driver?.phone || '—'}`);
   taskLines.push('');
 
-  if (loadingPoints.length > 0) {
-    taskLines.push('📍 ЗАГРУЗКА:');
-    loadingPoints.forEach((p) => {
-      const parts = [p.country, p.postal_code, p.city, p.address].filter(Boolean).join(', ');
-      taskLines.push(`${p.num}. ${p.name || '—'}`);
-      taskLines.push(`   ${parts || '—'}`);
-      if (p.loading_number) {
-        taskLines.push(`   № погрузки: ${p.loading_number}`);
-      }
-      taskLines.push('');
-    });
-  }
-
-  if (trip.receiver_city || trip.receiver_name) {
-    taskLines.push('🏁 ВЫГРУЗКА:');
-    taskLines.push(`${trip.receiver_name || '—'}`);
+  if (consolidationPoint) {
+    // Наш участок C → Б
+    taskLines.push('🚚 НАШ УЧАСТОК (после подрядчиков):');
+    taskLines.push('');
+    taskLines.push('📍 ЗАБИРАЕШЬ ГРУЗ У ПОДРЯДЧИКА:');
+    taskLines.push(`   ${consolidationPoint.company || '—'}`);
+    const cAddr = [
+      consolidationPoint.postal_code,
+      consolidationPoint.city,
+      consolidationPoint.country,
+    ].filter(Boolean).join(', ');
+    taskLines.push(`   ${cAddr || '—'}`);
+    if (consolidationPoint.address) {
+      taskLines.push(`   ${consolidationPoint.address}`);
+    }
+    taskLines.push('');
+    taskLines.push('🏁 ВЕЗЁШЬ ПОЛУЧАТЕЛЮ:');
+    taskLines.push(`   ${trip.receiver_name || '—'}`);
     const recvParts = [
       trip.receiver_country,
       trip.receiver_postal_code,
@@ -160,6 +196,35 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
     taskLines.push(`   ${recvParts || '—'}`);
     if (trip.receiver_loading_number) {
       taskLines.push(`   № погрузки: ${trip.receiver_loading_number}`);
+    }
+  } else {
+    // Старая логика — все точки А + Б
+    if (loadingPoints.length > 0) {
+      taskLines.push('📍 ЗАГРУЗКА:');
+      loadingPoints.forEach((p) => {
+        const parts = [p.country, p.postal_code, p.city, p.address].filter(Boolean).join(', ');
+        taskLines.push(`${p.num}. ${p.name || '—'}`);
+        taskLines.push(`   ${parts || '—'}`);
+        if (p.loading_number) {
+          taskLines.push(`   № погрузки: ${p.loading_number}`);
+        }
+        taskLines.push('');
+      });
+    }
+
+    if (trip.receiver_city || trip.receiver_name) {
+      taskLines.push('🏁 ВЫГРУЗКА:');
+      taskLines.push(`${trip.receiver_name || '—'}`);
+      const recvParts = [
+        trip.receiver_country,
+        trip.receiver_postal_code,
+        trip.receiver_city,
+        trip.receiver_address,
+      ].filter(Boolean).join(', ');
+      taskLines.push(`   ${recvParts || '—'}`);
+      if (trip.receiver_loading_number) {
+        taskLines.push(`   № погрузки: ${trip.receiver_loading_number}`);
+      }
     }
   }
 
@@ -204,7 +269,6 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
     return expenseCategories.find((c) => c.value === cat)?.label || cat;
   }
 
-  // Точка Б — конечная выгрузка (для подсказки в блоке подрядчиков)
   const tripFinalDestination = [
     trip.receiver_country,
     trip.receiver_postal_code,
@@ -444,6 +508,81 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
           }}
           tripFinalDestination={tripFinalDestination}
         />
+
+        {/* НАШ УЧАСТОК (C → Б) */}
+        {consolidationPoint && (
+          <div className="bg-white rounded-2xl border border-blue-200 shadow-sm p-5 md:p-6">
+            <div className="flex flex-wrap items-baseline justify-between gap-2 mb-4">
+              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                🚚 Наш участок
+              </h2>
+              <span className="text-[10px] text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full font-medium">
+                C → Б
+              </span>
+            </div>
+
+            <p className="text-xs text-slate-500 mb-4">
+              Подрядчики довозят груз до точки C, дальше наша машина везёт его получателю.
+              Точка C взята из последней выгрузки подрядчика — менять её вручную не нужно.
+            </p>
+
+            <div className="bg-gradient-to-br from-blue-50 to-white rounded-xl border border-blue-100 p-4">
+              <div className="flex items-start gap-3">
+                <div className="flex flex-col items-center shrink-0 pt-1">
+                  <span className="w-3 h-3 rounded-full bg-blue-500 ring-4 ring-blue-100" />
+                  <span className="w-0.5 flex-1 bg-blue-200 my-1" style={{ minHeight: 24 }} />
+                  <span className="w-3 h-3 rounded-full bg-red-500 ring-4 ring-red-100" />
+                </div>
+
+                <div className="min-w-0 flex-1 space-y-4">
+                  <div>
+                    <div className="text-xs font-semibold text-blue-700 uppercase tracking-wide">
+                      Точка C · Забираем груз
+                    </div>
+                    <div className="text-sm font-bold text-slate-900 mt-1 break-words">
+                      {consolidationPoint.company || '—'}
+                    </div>
+                    <div className="text-sm text-slate-600 mt-0.5 break-words">
+                      {[consolidationPoint.postal_code, consolidationPoint.city, consolidationPoint.country]
+                        .filter(Boolean).join(', ') || '—'}
+                    </div>
+                    {consolidationPoint.address && (
+                      <div className="text-xs text-slate-500 mt-0.5 break-words">
+                        {consolidationPoint.address}
+                      </div>
+                    )}
+                    {consolidationPoint.unload_date && (
+                      <div className="text-xs text-slate-400 mt-1">
+                        📅 {new Date(consolidationPoint.unload_date).toLocaleDateString('ru-RU')}
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <div className="text-xs font-semibold text-red-700 uppercase tracking-wide">
+                      Точка Б · Везём получателю
+                    </div>
+                    <div className="text-sm font-bold text-slate-900 mt-1 break-words">
+                      {trip.receiver_name || '—'}
+                    </div>
+                    <div className="text-sm text-slate-600 mt-0.5 break-words">
+                      {[
+                        trip.receiver_postal_code,
+                        trip.receiver_city,
+                        trip.receiver_country,
+                      ].filter(Boolean).join(', ') || '—'}
+                    </div>
+                    {trip.receiver_address && (
+                      <div className="text-xs text-slate-500 mt-0.5 break-words">
+                        {trip.receiver_address}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ТЕЛЕМЕТРИЯ */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
