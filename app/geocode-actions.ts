@@ -35,7 +35,7 @@ async function notifyDriverAboutNewTrip(
       '',
       `*Клиент:* ${clientName || '—'}`,
       `*Маршрут:* ${route || '—'}`,
-      `*Дата старта:* ${startDate || '—'}`,
+      `*Дата старта:* ${startDate || 'уточняется'}`,
       '',
       `📍 *Загрузка:* ${sender.name || '—'}`,
       `   ${senderLine}`,
@@ -74,7 +74,7 @@ export async function addTripWithAddress(formData: FormData) {
   const truckId = formData.get('truck_id') as string;
   const trailerId = formData.get('trailer_id') as string;
   const driverId = formData.get('driver_id') as string;
-  const startDate = formData.get('start_date') as string;
+  const startDate = (formData.get('start_date') as string) || null;
   const revenueEur = parseFloat(formData.get('revenue_eur') as string) || 0;
   const manualFuel = parseFloat(formData.get('start_fuel_level') as string) || 0;
 
@@ -269,7 +269,7 @@ export async function addTripWithAddress(formData: FormData) {
       nextNumber,
       clientName,
       route,
-      startDate,
+      startDate || '',
       { name: senderName, city: senderCity, country: senderCountry },
       { name: receiverName, city: receiverCity, country: receiverCountry }
     );
