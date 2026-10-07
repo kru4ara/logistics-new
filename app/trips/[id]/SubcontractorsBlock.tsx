@@ -56,6 +56,12 @@ type Subcontractor = {
   unload_postal_code: string | null;
   unload_number: string | null;
   notes: string | null;
+  transport_type: string | null;
+  transport_temperature: string | null;
+  cargo_type: string | null;
+  cargo_quantity: string | null;
+  customs_loading: string | null;
+  customs_unloading: string | null;
   contractors?: { name: string; country: string | null } | { name: string; country: string | null }[] | null;
 };
 
@@ -172,15 +178,8 @@ export default function SubcontractorsBlock({
           {subcontractors.map((sub) => {
             const cInfo = getContractorName(sub.contractors);
 
-            // Собираем маршрут подрядчика отдельно — A → C
-            const fromLine = [
-              sub.load_country,
-              sub.load_city,
-            ].filter(Boolean).join(', ') || '—';
-            const toLine = [
-              sub.unload_country,
-              sub.unload_city,
-            ].filter(Boolean).join(', ') || '—';
+            const fromLine = [sub.load_country, sub.load_city].filter(Boolean).join(', ') || '—';
+            const toLine = [sub.unload_country, sub.unload_city].filter(Boolean).join(', ') || '—';
 
             return (
               <div
@@ -221,28 +220,20 @@ export default function SubcontractorsBlock({
                         <div className="font-semibold text-green-700 flex items-center gap-2">
                           A · Загрузка
                           {sub.load_date && (
-                            <span className="font-normal text-slate-500">
-                              · {fmtDate(sub.load_date)}
-                            </span>
+                            <span className="font-normal text-slate-500">· {fmtDate(sub.load_date)}</span>
                           )}
                         </div>
-                        <div className="text-slate-700 break-words">
-                          {sub.load_company || '—'}
-                        </div>
+                        <div className="text-slate-700 break-words">{sub.load_company || '—'}</div>
                         <div className="text-slate-500 break-words">{fromLine}</div>
                       </div>
                       <div>
                         <div className="font-semibold text-amber-700 flex items-center gap-2">
                           C · Перегрузка (куда довозит подрядчик)
                           {sub.unload_date && (
-                            <span className="font-normal text-slate-500">
-                              · {fmtDate(sub.unload_date)}
-                            </span>
+                            <span className="font-normal text-slate-500">· {fmtDate(sub.unload_date)}</span>
                           )}
                         </div>
-                        <div className="text-slate-700 break-words">
-                          {sub.unload_company || '—'}
-                        </div>
+                        <div className="text-slate-700 break-words">{sub.unload_company || '—'}</div>
                         <div className="text-slate-500 break-words">{toLine}</div>
                       </div>
                     </div>
@@ -252,12 +243,8 @@ export default function SubcontractorsBlock({
                     <div className="mt-2 pt-2 border-t border-dashed border-slate-200 flex items-start gap-2">
                       <span className="shrink-0 text-blue-600">🚛</span>
                       <div className="min-w-0">
-                        <div className="font-semibold text-blue-700">
-                          Дальше мы сами — до точки Б
-                        </div>
-                        <div className="text-slate-500 break-words">
-                          {tripFinalDestination}
-                        </div>
+                        <div className="font-semibold text-blue-700">Дальше мы сами — до точки Б</div>
+                        <div className="text-slate-500 break-words">{tripFinalDestination}</div>
                       </div>
                     </div>
                   )}
@@ -362,6 +349,12 @@ export default function SubcontractorsBlock({
             unload_postal_code: editingSub.unload_postal_code,
             unload_number: editingSub.unload_number,
             notes: editingSub.notes,
+            transport_type: editingSub.transport_type,
+            transport_temperature: editingSub.transport_temperature,
+            cargo_type: editingSub.cargo_type,
+            cargo_quantity: editingSub.cargo_quantity,
+            customs_loading: editingSub.customs_loading,
+            customs_unloading: editingSub.customs_unloading,
           } : undefined}
           onClose={handleClose}
           onSaved={handleClose}
