@@ -5,6 +5,18 @@ import { useRouter } from 'next/navigation';
 import SubcontractorForm from './SubcontractorForm';
 import { deleteTripSubcontractor } from '../../../lib/trip-subcontractors';
 
+type Location = {
+  id: string;
+  name: string;
+  type: string;
+  country: string | null;
+  company_name: string | null;
+  postal_code: string | null;
+  city: string | null;
+  address: string | null;
+  default_loading_number: string | null;
+};
+
 type Contractor = {
   id: string;
   name: string;
@@ -47,6 +59,15 @@ type Subcontractor = {
   contractors?: { name: string; country: string | null } | { name: string; country: string | null }[] | null;
 };
 
+type DefaultLoad = {
+  country: string | null;
+  city: string | null;
+  address: string | null;
+  company: string | null;
+  postal_code: string | null;
+  loading_number: string | null;
+};
+
 function getContractorName(rel: Subcontractor['contractors']): { name: string; country: string | null } {
   if (!rel) return { name: '—', country: null };
   if (Array.isArray(rel)) return rel[0] || { name: '—', country: null };
@@ -66,10 +87,18 @@ export default function SubcontractorsBlock({
   tripId,
   subcontractors,
   contractors,
+  loadingLocations,
+  unloadingLocations,
+  defaultLoad,
+  tripFinalDestination,
 }: {
   tripId: string;
   subcontractors: Subcontractor[];
   contractors: Contractor[];
+  loadingLocations: Location[];
+  unloadingLocations: Location[];
+  defaultLoad: DefaultLoad;
+  tripFinalDestination: string;
 }) {
   const router = useRouter();
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -110,7 +139,7 @@ export default function SubcontractorsBlock({
 
   return (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
         <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
           🚛 Подрядчики на рейсе
           {subcontractors.length > 0 && (
@@ -129,6 +158,11 @@ export default function SubcontractorsBlock({
         </button>
       </div>
 
+      <p className="text-xs text-slate-500 mb-4">
+        Подрядчик везёт часть маршрута — от точки A до промежуточной точки C. Дальше до конечной точки рейса
+        груз едет нашими машинами. Расход идёт в экономику рейса, но не в статистику экспедирования.
+      </p>
+
       {subcontractors.length === 0 ? (
         <div className="text-center py-8 text-slate-400 text-sm">
           Подрядчики не добавлены. Добавьте, если часть маршрута выполняет наёмный перевозчик.
@@ -137,10 +171,16 @@ export default function SubcontractorsBlock({
         <div className="space-y-3">
           {subcontractors.map((sub) => {
             const cInfo = getContractorName(sub.contractors);
-            const route = [
-              [sub.load_country, sub.load_city].filter(Boolean).join(', '),
-              [sub.unload_country, sub.unload_city].filter(Boolean).join(', '),
-            ].filter(Boolean).join(' → ') || '—';
+
+            // Собираем маршрут подрядчика отдельно — A → C
+            const fromLine = [
+              sub.load_country,
+              sub.load_city,
+            ].filter(Boolean).join(', ') || '—';
+            const toLine = [
+              sub.unload_country,
+              sub.unload_city,
+            ].filter(Boolean).join(', ') || '—';
 
             return (
               <div
@@ -157,9 +197,6 @@ export default function SubcontractorsBlock({
                         </span>
                       )}
                     </div>
-                    <div className="text-xs text-slate-500 mt-1">
-                      🛣 {route}
-                    </div>
                   </div>
                   <div className="text-right shrink-0">
                     <div className="text-lg font-bold text-red-500">
@@ -171,15 +208,62 @@ export default function SubcontractorsBlock({
                   </div>
                 </div>
 
+                {/* Визуальная схема A → C */}
+                <div className="bg-white rounded-lg border border-slate-200 p-3 text-xs">
+                  <div className="flex items-start gap-2">
+                    <div className="flex flex-col items-center shrink-0 pt-0.5">
+                      <span className="w-2.5 h-2.5 rounded-full bg-green-500" />
+                      <span className="w-0.5 flex-1 bg-slate-200 my-0.5" style={{ minHeight: 16 }} />
+                      <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+                    </div>
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <div>
+                        <div className="font-semibold text-green-700 flex items-center gap-2">
+                          A · Загрузка
+                          {sub.load_date && (
+                            <span className="font-normal text-slate-500">
+                              · {fmtDate(sub.load_date)}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-slate-700 break-words">
+                          {sub.load_company || '—'}
+                        </div>
+                        <div className="text-slate-500 break-words">{fromLine}</div>
+                      </div>
+                      <div>
+                        <div className="font-semibold text-amber-700 flex items-center gap-2">
+                          C · Перегрузка (куда довозит подрядчик)
+                          {sub.unload_date && (
+                            <span className="font-normal text-slate-500">
+                              · {fmtDate(sub.unload_date)}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-slate-700 break-words">
+                          {sub.unload_company || '—'}
+                        </div>
+                        <div className="text-slate-500 break-words">{toLine}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {tripFinalDestination && (
+                    <div className="mt-2 pt-2 border-t border-dashed border-slate-200 flex items-start gap-2">
+                      <span className="shrink-0 text-blue-600">🚛</span>
+                      <div className="min-w-0">
+                        <div className="font-semibold text-blue-700">
+                          Дальше мы сами — до точки Б
+                        </div>
+                        <div className="text-slate-500 break-words">
+                          {tripFinalDestination}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <div className="grid gap-2 grid-cols-2 md:grid-cols-4 text-xs">
-                  <div>
-                    <div className="text-slate-400">Погрузка</div>
-                    <div className="text-slate-700 font-medium">{fmtDate(sub.load_date)}</div>
-                  </div>
-                  <div>
-                    <div className="text-slate-400">Выгрузка</div>
-                    <div className="text-slate-700 font-medium">{fmtDate(sub.unload_date)}</div>
-                  </div>
                   <div>
                     <div className="text-slate-400">Машина</div>
                     <div className="text-slate-700 font-medium">{sub.truck_number || '—'}</div>
@@ -188,13 +272,23 @@ export default function SubcontractorsBlock({
                     <div className="text-slate-400">Водитель</div>
                     <div className="text-slate-700 font-medium">{sub.driver_name || '—'}</div>
                   </div>
-                </div>
-
-                {sub.driver_phone && (
-                  <div className="text-xs text-slate-500">
-                    📞 <a href={`tel:${sub.driver_phone}`} className="hover:text-blue-600">{sub.driver_phone}</a>
+                  <div>
+                    <div className="text-slate-400">Телефон</div>
+                    <div className="text-slate-700 font-medium">
+                      {sub.driver_phone ? (
+                        <a href={`tel:${sub.driver_phone}`} className="hover:text-blue-600">
+                          {sub.driver_phone}
+                        </a>
+                      ) : '—'}
+                    </div>
                   </div>
-                )}
+                  <div>
+                    <div className="text-slate-400">Оплата</div>
+                    <div className="text-slate-700 font-medium">
+                      {sub.payment_days ? `${sub.payment_days} дн.` : '—'}
+                    </div>
+                  </div>
+                </div>
 
                 {sub.notes && (
                   <div className="text-xs text-slate-500 bg-white rounded-lg p-2 border border-slate-100 break-words">
@@ -241,6 +335,9 @@ export default function SubcontractorsBlock({
         <SubcontractorForm
           tripId={tripId}
           contractors={contractors}
+          loadingLocations={loadingLocations}
+          unloadingLocations={unloadingLocations}
+          defaultLoad={defaultLoad}
           subcontractorId={editingId || undefined}
           initialData={editingSub ? {
             contractor_id: editingSub.contractor_id,
