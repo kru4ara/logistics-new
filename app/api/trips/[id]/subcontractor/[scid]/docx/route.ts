@@ -279,7 +279,6 @@ export async function GET(
     return NextResponse.json({ error: 'Карточка подрядчика не найдена' }, { status: 404 });
   }
 
-  // КЛИЕНТСКИЙ номер заявки — приоритет. Fallback на trip_number.
   const baseNumber = trip.client_request_number ?? trip.trip_number ?? '?';
   const zlecenieNumber = `${baseNumber}-${sub.position || 1}`;
 
@@ -509,7 +508,6 @@ export async function GET(
 
   children.push(txt('', { after: 200 }));
 
-  // TRASA (A → C)
   const routeRows: TableRow[] = [];
 
   routeRows.push(
@@ -593,7 +591,6 @@ export async function GET(
 
   children.push(txt('', { after: 200 }));
 
-  // ТАБЛИЦА ДЕТАЛЕЙ (как в экспедировании)
   const transportText = [
     sub.transport_type,
     sub.transport_temperature ? `(${sub.transport_temperature})` : null,
@@ -659,7 +656,6 @@ export async function GET(
     })
   );
 
-  // СТРАНИЦА 2
   children.push(new Paragraph({ children: [new PageBreak()] }));
 
   children.push(
