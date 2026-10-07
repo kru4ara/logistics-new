@@ -22,9 +22,6 @@ import { COMPANY, APP_URL, getTerms } from '../../../../../../../lib/company';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-// ============================================================
-// Утилиты
-// ============================================================
 function fmtDate(d: string | null): string {
   if (!d) return '—';
   const dt = new Date(d);
@@ -34,12 +31,9 @@ function fmtDate(d: string | null): string {
 function getImageDimensions(buffer: Buffer): { width: number; height: number } | null {
   try {
     const dims = imageSize(buffer);
-    if (dims.width && dims.height) {
-      return { width: dims.width, height: dims.height };
-    }
+    if (dims.width && dims.height) return { width: dims.width, height: dims.height };
     return null;
-  } catch (e) {
-    console.error('[DOCX-SUBCONTRACTOR] imageSize error:', e);
+  } catch {
     return null;
   }
 }
@@ -69,13 +63,13 @@ async function downloadAsset(
   try {
     const { data, error } = await supabase.storage.from('documents').download(path);
     if (error || !data) {
-      console.error(`[DOCX-SUBCONTRACTOR] ${label} download error:`, error);
+      console.error(`[DOCX-SC] ${label} download error:`, error);
       return null;
     }
     const ab = await data.arrayBuffer();
     return Buffer.from(ab);
   } catch (e) {
-    console.error(`[DOCX-SUBCONTRACTOR] ${label} exception:`, e);
+    console.error(`[DOCX-SC] ${label} exception:`, e);
     return null;
   }
 }
@@ -90,14 +84,11 @@ async function generateQrBuffer(text: string): Promise<Buffer | null> {
       color: { dark: '#1E40AF', light: '#FFFFFF' },
     });
   } catch (e) {
-    console.error('[DOCX-SUBCONTRACTOR] QR generation error:', e);
+    console.error('[DOCX-SC] QR generation error:', e);
     return null;
   }
 }
 
-// ============================================================
-// Константы
-// ============================================================
 const FONT = 'Calibri';
 const LINE = 240;
 const BLUE = '1E40AF';
@@ -178,9 +169,6 @@ function cellValue(
   });
 }
 
-// ============================================================
-// Блок одной точки (A или C)
-// ============================================================
 function buildPointChildren(params: {
   idx: number;
   kind: 'loading' | 'unloading';
@@ -258,9 +246,6 @@ function buildPointChildren(params: {
   return children;
 }
 
-// ============================================================
-// GET
-// ============================================================
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string; scid: string }> }
@@ -271,7 +256,7 @@ export async function GET(
 
   const { data: trip, error: tripErr } = await supabase
     .from('trips')
-    .select('id, trip_number, client_request_number, status')
+    .select('id, trip_number, client_request_number')
     .eq('id', tripId)
     .single();
 
@@ -289,15 +274,13 @@ export async function GET(
     return NextResponse.json({ error: 'Подрядчик не найден' }, { status: 404 });
   }
 
-  const contractor = Array.isArray(sub.contractors)
-    ? sub.contractors[0]
-    : sub.contractors;
-
+  const contractor = Array.isArray(sub.contractors) ? sub.contractors[0] : sub.contractors;
   if (!contractor) {
     return NextResponse.json({ error: 'Карточка подрядчика не найдена' }, { status: 404 });
   }
 
-  const baseNumber = trip.trip_number ?? trip.client_request_number ?? '?';
+  // КЛИЕНТСКИЙ номер заявки — приоритет. Fallback на trip_number.
+  const baseNumber = trip.client_request_number ?? trip.trip_number ?? '?';
   const zlecenieNumber = `${baseNumber}-${sub.position || 1}`;
 
   const paymentDays = sub.payment_days || 30;
@@ -315,10 +298,6 @@ export async function GET(
   const qrSize = scaleImage(qrDims, 110, 110, { width: 110, height: 110 });
 
   const children: any[] = [];
-
-  // ============================================================
-  // СТРАНИЦА 1
-  // ============================================================
 
   const headerLeft: Paragraph[] = [
     txt(COMPANY.name, { bold: true, size: 28, after: 20, color: BLUE }),
@@ -449,9 +428,7 @@ export async function GET(
   );
 
   if (contractor.country) {
-    children.push(
-      txt(`Kraj: ${contractor.country}`, { size: 22, after: 20, color: '334155' })
-    );
+    children.push(txt(`Kraj: ${contractor.country}`, { size: 22, after: 20, color: '334155' }));
   }
   if (contractor.address) children.push(txt(contractor.address, { size: 22, after: 20 }));
   if (contractor.tax_id) {
@@ -469,7 +446,6 @@ export async function GET(
 
   children.push(divider());
 
-  // --- МАШИНА / ВОДИТЕЛЬ ---
   const truckDriverChildren: Paragraph[] = [];
   if (sub.truck_number) {
     truckDriverChildren.push(
@@ -533,9 +509,7 @@ export async function GET(
 
   children.push(txt('', { after: 200 }));
 
-  // ============================================================
-  // БЛОК TRASA / MARSZRUT (только A → C подрядчика)
-  // ============================================================
+  // TRASA (A → C)
   const routeRows: TableRow[] = [];
 
   routeRows.push(
@@ -619,10 +593,37 @@ export async function GET(
 
   children.push(txt('', { after: 200 }));
 
-  // ============================================================
-  // ТАБЛИЦА ДЕТАЛЕЙ
-  // ============================================================
-  const rows: TableRow[] = [
+  // ТАБЛИЦА ДЕТАЛЕЙ (как в экспедировании)
+  const transportText = [
+    sub.transport_type,
+    sub.transport_temperature ? `(${sub.transport_temperature})` : null,
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  const cargoText =
+    [sub.cargo_type, sub.cargo_quantity].filter(Boolean).join(' ') || '—';
+
+  const detailRows: TableRow[] = [
+    new TableRow({
+      children: [cellLabel('Rodzaj transportu'), cellValue(transportText || '—', { bold: true })],
+    }),
+    new TableRow({
+      children: [cellLabel('Urząd celny (załadunek)'), cellValue(sub.customs_loading || 'bez')],
+    }),
+    new TableRow({
+      children: [cellLabel('Rodzaj towaru'), cellValue(cargoText, { bold: true })],
+    }),
+    new TableRow({
+      children: [
+        cellLabel('Odprawa celna (rozładunek)'),
+        cellValue(
+          sub.customs_unloading
+            ? `${sub.customs_unloading} przy rozładunku`
+            : 'bez przy rozładunku'
+        ),
+      ],
+    }),
     new TableRow({
       children: [
         cellLabel('FRACHT'),
@@ -636,7 +637,7 @@ export async function GET(
   ];
 
   if (sub.notes) {
-    rows.push(
+    detailRows.push(
       new TableRow({
         children: [cellLabel('Uwagi'), cellValue(sub.notes)],
       })
@@ -646,7 +647,7 @@ export async function GET(
   children.push(
     new Table({
       width: { size: 100, type: WidthType.PERCENTAGE },
-      rows,
+      rows: detailRows,
       borders: {
         top: { style: BorderStyle.SINGLE, size: 8, color: '000000' },
         bottom: { style: BorderStyle.SINGLE, size: 8, color: '000000' },
@@ -658,9 +659,7 @@ export async function GET(
     })
   );
 
-  // ============================================================
-  // СТРАНИЦА 2 — УСЛОВИЯ + ПОДПИСЬ + ПЕЧАТЬ
-  // ============================================================
+  // СТРАНИЦА 2
   children.push(new Paragraph({ children: [new PageBreak()] }));
 
   children.push(
@@ -789,9 +788,6 @@ export async function GET(
     })
   );
 
-  // ============================================================
-  // Собираем
-  // ============================================================
   const doc = new Document({
     sections: [
       {
