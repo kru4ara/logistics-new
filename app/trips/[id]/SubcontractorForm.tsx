@@ -55,6 +55,12 @@ type SubcontractorData = {
   unload_postal_code: string | null;
   unload_number: string | null;
   notes: string | null;
+  transport_type: string | null;
+  transport_temperature: string | null;
+  cargo_type: string | null;
+  cargo_quantity: string | null;
+  customs_loading: string | null;
+  customs_unloading: string | null;
 };
 
 const emptyData: SubcontractorData = {
@@ -80,6 +86,12 @@ const emptyData: SubcontractorData = {
   unload_postal_code: null,
   unload_number: null,
   notes: null,
+  transport_type: null,
+  transport_temperature: null,
+  cargo_type: null,
+  cargo_quantity: null,
+  customs_loading: null,
+  customs_unloading: null,
 };
 
 type DefaultLoad = {
@@ -90,6 +102,11 @@ type DefaultLoad = {
   postal_code: string | null;
   loading_number: string | null;
 };
+
+const TRANSPORT_TYPES = [
+  'Plandeka / Standart',
+  'Chlodnia',
+];
 
 export default function SubcontractorForm({
   tripId,
@@ -114,7 +131,6 @@ export default function SubcontractorForm({
 }) {
   const isEdit = Boolean(subcontractorId);
 
-  // При создании нового — предзаполняем точку погрузки данными рейса (точка A)
   const startingData: SubcontractorData = initialData || {
     ...emptyData,
     load_country: defaultLoad?.country || null,
@@ -212,6 +228,12 @@ export default function SubcontractorForm({
     formData.set('unload_postal_code', data.unload_postal_code || '');
     formData.set('unload_number', data.unload_number || '');
     formData.set('notes', data.notes || '');
+    formData.set('transport_type', data.transport_type || '');
+    formData.set('transport_temperature', data.transport_temperature || '');
+    formData.set('cargo_type', data.cargo_type || '');
+    formData.set('cargo_quantity', data.cargo_quantity || '');
+    formData.set('customs_loading', data.customs_loading || '');
+    formData.set('customs_unloading', data.customs_unloading || '');
 
     startTransition(async () => {
       try {
@@ -227,6 +249,8 @@ export default function SubcontractorForm({
       }
     });
   }
+
+  const isChlodnia = data.transport_type === 'Chlodnia';
 
   return (
     <div
@@ -458,7 +482,7 @@ export default function SubcontractorForm({
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <h4 className="text-sm font-bold text-amber-800">🔴 Выгрузка (точка C)</h4>
               <span className="text-[10px] text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full">
-                куда довозит подрядчик, дальше мы сами
+                куда довозит подрядчик
               </span>
             </div>
 
@@ -550,6 +574,81 @@ export default function SubcontractorForm({
                   value={data.unload_address || ''}
                   onChange={(e) => setField('unload_address', e.target.value || null)}
                   placeholder="ул. Советская 1"
+                  className={inputClass}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* ДЕТАЛИ ПЕРЕВОЗКИ */}
+          <div className="bg-slate-50 rounded-xl p-4 space-y-3">
+            <h4 className="text-sm font-bold text-slate-700">📦 Детали перевозки</h4>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className={labelClass}>Тип транспорта</label>
+                <select
+                  value={data.transport_type || ''}
+                  onChange={(e) => setField('transport_type', e.target.value || null)}
+                  className={inputClass}
+                >
+                  <option value="">— Выберите тип —</option>
+                  {TRANSPORT_TYPES.map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+              </div>
+
+              {isChlodnia && (
+                <div>
+                  <label className={labelClass}>Temperatura</label>
+                  <input
+                    type="text"
+                    value={data.transport_temperature || ''}
+                    onChange={(e) => setField('transport_temperature', e.target.value || null)}
+                    placeholder="+15°C / -18°C"
+                    className={inputClass}
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className={labelClass}>Тип груза</label>
+                <input
+                  type="text"
+                  value={data.cargo_type || ''}
+                  onChange={(e) => setField('cargo_type', e.target.value || null)}
+                  placeholder="Czekolady"
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Количество груза</label>
+                <input
+                  type="text"
+                  value={data.cargo_quantity || ''}
+                  onChange={(e) => setField('cargo_quantity', e.target.value || null)}
+                  placeholder="22 epall"
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Таможня при загрузке</label>
+                <input
+                  type="text"
+                  value={data.customs_loading || ''}
+                  onChange={(e) => setField('customs_loading', e.target.value || null)}
+                  placeholder="bez"
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Таможня при разгрузке</label>
+                <input
+                  type="text"
+                  value={data.customs_unloading || ''}
+                  onChange={(e) => setField('customs_unloading', e.target.value || null)}
+                  placeholder="bez"
                   className={inputClass}
                 />
               </div>
