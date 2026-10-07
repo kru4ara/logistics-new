@@ -8,9 +8,6 @@ import TripStatusButtons from '../../TripStatusButtons';
 
 export const dynamic = 'force-dynamic';
 
-// Допуск отрицательного остатка топлива (в литрах).
-// Расхождение "факт в баке" vs "по бумагам" до этого значения считаем нормой.
-// Ниже — уже сигнал о серьёзной проблеме с данными.
 const NEGATIVE_FUEL_TOLERANCE = -200;
 
 function pickName(rel: unknown): string | undefined {
@@ -51,14 +48,52 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
     .eq('trip_id', tripId)
     .order('uploaded_at', { ascending: false });
 
+  // Подрядчики на рейсе — нужны, чтобы правильно показать точку загрузки
+  const { data: subcontractors } = await supabase
+    .from('trip_subcontractors')
+    .select('id, position, unload_country, unload_city, unload_address, unload_company, unload_postal_code, unload_date')
+    .eq('trip_id', tripId)
+    .order('position', { ascending: true });
+
   const refuelLiters = expenses?.filter(e => e.category === 'fuel' && e.liters).reduce((sum, e) => sum + e.liters, 0) || 0;
   const fuelLeft = (trip.start_fuel_level || 0) + refuelLiters - (trip.actual_liters || 0);
 
-  // B + D: допуск отрицательного остатка, без блокировки сохранения
   const fuelLeftIsNegative = fuelLeft < 0;
   const fuelLeftIsCritical = fuelLeft < NEGATIVE_FUEL_TOLERANCE;
 
   const clientName = pickName(trip.clients) || 'Клиент не указан';
+
+  // ============================================================
+  // Точка C — куда последний подрядчик довозит груз.
+  // Если подрядчиков нет — null.
+  // ============================================================
+  let consolidationPoint: {
+    country: string | null;
+    city: string | null;
+    address: string | null;
+    company: string | null;
+    postal_code: string | null;
+    unload_date: string | null;
+  } | null = null;
+
+  if (subcontractors && subcontractors.length > 0) {
+    const sorted = [...subcontractors].sort((a: any, b: any) => {
+      const posDiff = (b.position || 0) - (a.position || 0);
+      if (posDiff !== 0) return posDiff;
+      const aDate = a.unload_date ? new Date(a.unload_date).getTime() : 0;
+      const bDate = b.unload_date ? new Date(b.unload_date).getTime() : 0;
+      return bDate - aDate;
+    });
+    const last = sorted[0] as any;
+    consolidationPoint = {
+      country: last.unload_country,
+      city: last.unload_city,
+      address: last.unload_address,
+      company: last.unload_company,
+      postal_code: last.unload_postal_code,
+      unload_date: last.unload_date,
+    };
+  }
 
   type LoadingPoint = {
     num: number;
@@ -70,7 +105,8 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
     loading_number: string | null;
   };
 
-  const loadingPoints: LoadingPoint[] = [
+  // Точки A — заполнены всегда (нужны для "полного" маршрута, если подрядчиков нет)
+  const senderPoints: LoadingPoint[] = [
     {
       num: 1,
       country: trip.sender_country,
@@ -101,6 +137,10 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
   ].filter((p) => p.city || p.name || p.country || p.address);
 
   const hasReceiver = Boolean(trip.receiver_city || trip.receiver_name);
+
+  // Если подрядчики есть → водитель забирает у них в точке C.
+  // Если нет → все точки A как раньше.
+  const useConsolidation = Boolean(consolidationPoint);
 
   const statusLabels: Record<string, string> = {
     planned: 'Планируется',
@@ -149,7 +189,6 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
     "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-150";
   const labelClass = "block text-sm font-medium text-slate-700 mb-1";
 
-  // Цвета карточки остатка топлива с учётом минуса
   const fuelCardClass = fuelLeftIsCritical
     ? 'bg-gradient-to-br from-red-600 to-red-800'
     : fuelLeftIsNegative
@@ -186,7 +225,6 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
             <span className="break-words">{trip.route || '—'}</span>
           </div>
 
-          {/* Даты старт / финиш */}
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
             <span className="text-slate-600">
               🚀 Старт: <b className="text-slate-800">
@@ -238,41 +276,70 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-4">
           <h2 className="text-lg font-bold text-slate-900">📋 Задание</h2>
 
-          {loadingPoints.length > 0 && (
+          {/* ЗАГРУЗКА: если есть подрядчики — точка C, иначе — точки A */}
+          {useConsolidation && consolidationPoint ? (
             <div className="space-y-4">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs uppercase tracking-wide text-slate-400 font-semibold">📍 Загрузка</span>
-                {loadingPoints.length > 1 && (
-                  <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
-                    {loadingPoints.length} точки
-                  </span>
-                )}
+                <span className="text-xs uppercase tracking-wide text-slate-400 font-semibold">
+                  📍 Загрузка
+                </span>
+                <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">
+                  после подрядчика
+                </span>
               </div>
 
-              {loadingPoints.map((p) => (
-                <div key={p.num} className="border-l-4 border-green-500 pl-3 py-1">
-                  <div className="flex items-baseline gap-2 flex-wrap">
-                    <span className="text-xs font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded">
-                      #{p.num}
-                    </span>
-                    <div className="font-bold text-slate-900 text-sm break-words">
-                      {p.name || 'Отправитель не указан'}
-                    </div>
-                  </div>
+              <div className="border-l-4 border-amber-500 pl-3 py-1">
+                <div className="font-bold text-slate-900 text-sm break-words">
+                  {consolidationPoint.company || 'Перегрузка'}
+                </div>
+                <div className="text-sm text-slate-600 mt-1 break-words">
+                  {[consolidationPoint.postal_code, consolidationPoint.city, consolidationPoint.country]
+                    .filter(Boolean).join(', ') || '—'}
+                </div>
+                {consolidationPoint.address && (
                   <div className="text-sm text-slate-600 mt-1 break-words">
-                    {[p.postal_code, p.city, p.address].filter(Boolean).join(', ') || '—'}
+                    {consolidationPoint.address}
                   </div>
-                  {p.country && (
-                    <div className="text-sm text-slate-500 mt-1">🌍 {p.country}</div>
-                  )}
-                  {p.loading_number && (
-                    <div className="text-sm text-blue-600 font-semibold mt-1">
-                      🚪 Погрузочный номер: {p.loading_number}
-                    </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            senderPoints.length > 0 && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs uppercase tracking-wide text-slate-400 font-semibold">📍 Загрузка</span>
+                  {senderPoints.length > 1 && (
+                    <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
+                      {senderPoints.length} точки
+                    </span>
                   )}
                 </div>
-              ))}
-            </div>
+
+                {senderPoints.map((p) => (
+                  <div key={p.num} className="border-l-4 border-green-500 pl-3 py-1">
+                    <div className="flex items-baseline gap-2 flex-wrap">
+                      <span className="text-xs font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded">
+                        #{p.num}
+                      </span>
+                      <div className="font-bold text-slate-900 text-sm break-words">
+                        {p.name || 'Отправитель не указан'}
+                      </div>
+                    </div>
+                    <div className="text-sm text-slate-600 mt-1 break-words">
+                      {[p.postal_code, p.city, p.address].filter(Boolean).join(', ') || '—'}
+                    </div>
+                    {p.country && (
+                      <div className="text-sm text-slate-500 mt-1">🌍 {p.country}</div>
+                    )}
+                    {p.loading_number && (
+                      <div className="text-sm text-blue-600 font-semibold mt-1">
+                        🚪 Погрузочный номер: {p.loading_number}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )
           )}
 
           {hasReceiver && (
@@ -291,7 +358,7 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
             </div>
           )}
 
-          {loadingPoints.length === 0 && !hasReceiver && (
+          {!useConsolidation && senderPoints.length === 0 && !hasReceiver && (
             <div className="text-slate-400 text-sm text-center py-6">
               Адреса загрузки и выгрузки не заполнены
             </div>
