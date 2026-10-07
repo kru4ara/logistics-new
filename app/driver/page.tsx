@@ -13,6 +13,14 @@ function pickName(rel: unknown): string | undefined {
   return undefined;
 }
 
+type ConsolidationPoint = {
+  country: string | null;
+  city: string | null;
+  company: string | null;
+  postal_code: string | null;
+  address: string | null;
+};
+
 export default async function DriverPage() {
   const cookieStore = cookies();
   const role = cookieStore.get('role')?.value;
@@ -38,6 +46,50 @@ export default async function DriverPage() {
   }
 
   const tripIds = trips?.map((t) => t.id) || [];
+
+  // ============================================================
+  // Подрядчики на рейсах — чтобы в списке показать точку C
+  // (куда последний подрядчик довозит груз) вместо точки A.
+  // ============================================================
+  const consolidationByTrip: Record<string, ConsolidationPoint> = {};
+
+  if (tripIds.length > 0) {
+    const { data: subs } = await supabase
+      .from('trip_subcontractors')
+      .select('trip_id, position, unload_country, unload_city, unload_company, unload_postal_code, unload_address, unload_date')
+      .in('trip_id', tripIds)
+      .order('position', { ascending: true });
+
+    // Для каждого рейса берём подрядчика с максимальным position
+    // (tiebreak — по более поздней дате выгрузки)
+    const best: Record<string, any> = {};
+    (subs || []).forEach((s: any) => {
+      const cur = best[s.trip_id];
+      if (!cur) {
+        best[s.trip_id] = s;
+        return;
+      }
+      const posDiff = (s.position || 0) - (cur.position || 0);
+      if (posDiff > 0) {
+        best[s.trip_id] = s;
+      } else if (posDiff === 0) {
+        const sDate = s.unload_date ? new Date(s.unload_date).getTime() : 0;
+        const cDate = cur.unload_date ? new Date(cur.unload_date).getTime() : 0;
+        if (sDate > cDate) best[s.trip_id] = s;
+      }
+    });
+
+    Object.entries(best).forEach(([tripId, s]) => {
+      consolidationByTrip[tripId] = {
+        country: s.unload_country,
+        city: s.unload_city,
+        company: s.unload_company,
+        postal_code: s.unload_postal_code,
+        address: s.unload_address,
+      };
+    });
+  }
+
   let salaryTotal = 0;
   if (tripIds.length > 0) {
     const { data: salaryExpenses } = await supabase
@@ -172,6 +224,14 @@ export default async function DriverPage() {
             <div className="space-y-4">
               {trips?.map((trip) => {
                 const clientName = pickName(trip.clients) || 'Клиент не указан';
+                const consolidation = consolidationByTrip[trip.id];
+
+                // Если есть подрядчик — «Загрузка» показывает точку C,
+                // иначе — точку A (как было).
+                const loadCity = consolidation?.city || trip.sender_city;
+                const loadCountry = consolidation?.country || trip.sender_country;
+                const loadLabel = consolidation ? 'Загрузка (после подрядчика)' : 'Загрузка';
+
                 return (
                   <a
                     key={trip.id}
@@ -206,13 +266,13 @@ export default async function DriverPage() {
                       </div>
 
                       <div className="space-y-2 text-sm">
-                        {trip.sender_city && (
+                        {(loadCity || loadCountry) && (
                           <div className="flex items-start gap-2">
                             <span className="shrink-0 mt-0.5">📍</span>
                             <div className="min-w-0">
-                              <div className="text-xs text-slate-400 font-medium">Загрузка</div>
+                              <div className="text-xs text-slate-400 font-medium">{loadLabel}</div>
                               <div className="text-slate-700 break-words">
-                                {trip.sender_city}, {trip.sender_country}
+                                {[loadCity, loadCountry].filter(Boolean).join(', ')}
                               </div>
                             </div>
                           </div>
