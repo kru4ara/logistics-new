@@ -19,6 +19,10 @@ import imageSize from 'image-size';
 import { createClient } from '../../../../../../../lib/supabase-server';
 import { COMPANY, APP_URL, getTerms } from '../../../../../../../lib/company';
 
+// Отключаем кеширование Next.js на уровне роута
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 // ============================================================
 // Утилиты
 // ============================================================
@@ -126,7 +130,6 @@ function pickNumber(...vals: unknown[]): number | null {
   return null;
 }
 
-// GPS из точки или локации — пробуем разные имена полей
 function extractGps(point: AnyRec, loc: AnyRec | null): string | null {
   const direct = pickString(
     point?.gps,
@@ -160,7 +163,6 @@ function extractGps(point: AnyRec, loc: AnyRec | null): string | null {
   return null;
 }
 
-// Телефон и контакт локации — тоже с fallback
 function extractPhone(point: AnyRec, loc: AnyRec | null): string | null {
   return pickString(
     point?.contact_phone,
@@ -288,9 +290,6 @@ function cellValue(
   });
 }
 
-// ============================================================
-// Блок одной точки маршрута (для DOCX)
-// ============================================================
 function buildPointChildren(
   point: AnyRec,
   loc: AnyRec | null,
@@ -355,7 +354,6 @@ function buildPointChildren(
     );
   }
 
-  // GPS координаты
   if (gps) {
     children.push(
       new Paragraph({
@@ -368,7 +366,6 @@ function buildPointChildren(
     );
   }
 
-  // Контактное лицо + телефон
   if (contactPerson || phone) {
     const parts: string[] = [];
     if (contactPerson) parts.push(contactPerson);
@@ -384,7 +381,6 @@ function buildPointChildren(
     );
   }
 
-  // Заметки точки
   if (notes) {
     children.push(
       new Paragraph({
@@ -431,7 +427,6 @@ export async function GET(
     return NextResponse.json({ error: 'Подрядчик не найден' }, { status: 404 });
   }
 
-  // Важно: locations(*) — чтобы пришли и gps/phone-поля, если они есть.
   const { data: pointsRaw } = await supabase
     .from('forwarding_points')
     .select('*, locations(*)')
@@ -445,9 +440,13 @@ export async function GET(
   const paymentDays = fc.payment_days || 30;
   const terms = getTerms(paymentDays);
 
-  const zlecenieNumber = order.client_request_number
-    ? `${order.client_request_number}-${fc.position || 1}`
-    : `${order.order_number || '?'}-${fc.position || 1}`;
+  // Номер заявки подрядчику: приоритет — order_number (автонумерация),
+  // fallback — client_request_number, если order_number пустой
+  const zlecenieNumber = order.order_number
+    ? `${order.order_number}-${fc.position || 1}`
+    : order.client_request_number
+      ? `${order.client_request_number}-${fc.position || 1}`
+      : `?-${fc.position || 1}`;
 
   const [stampBuf, qrBuf] = await Promise.all([
     downloadAsset(supabase, 'assets/stamp.png', 'STAMP'),
@@ -585,7 +584,6 @@ export async function GET(
     )
   );
 
-  // --- Блок подрядчика (добавлена страна) ---
   if (contractor) {
     children.push(
       txt(contractor.full_name || contractor.name || '—', {
@@ -596,7 +594,6 @@ export async function GET(
       })
     );
 
-    // Строка «Kraj: ...» — отдельно, чтобы не ломать привычный формат адреса
     if (contractor.country) {
       children.push(
         txt(`Kraj: ${contractor.country}`, {
@@ -986,6 +983,10 @@ export async function GET(
     headers: {
       'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       'Content-Disposition': `attachment; filename="${fileName}"`,
+      // Жёсткий запрет на кеширование
+      'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+      'Pragma': 'no-cache',
+      'Expires': '0',
     },
   });
 }
