@@ -7,12 +7,10 @@ import SyncLogisatButton from './SyncLogisatButton';
 import { saveTelemetry } from '../../telemetry-actions';
 import CopyBlock from '../../components/CopyBlock';
 import SubmitButton from '../../components/SubmitButton';
+import SubcontractorsBlock from './SubcontractorsBlock';
 
 export const dynamic = 'force-dynamic';
 
-// Допуск отрицательного остатка топлива (в литрах).
-// Расхождение "факт в баке" vs "по бумагам" до этого значения считаем нормой.
-// Ниже — уже сигнал о серьёзной проблеме с данными.
 const NEGATIVE_FUEL_TOLERANCE = -200;
 
 export default async function TripDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -52,22 +50,31 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
     .eq('trip_id', tripId)
     .order('uploaded_at', { ascending: false });
 
+  // Подрядчики на рейсе
+  const { data: subcontractors } = await supabase
+    .from('trip_subcontractors')
+    .select('*, contractors(name, country)')
+    .eq('trip_id', tripId)
+    .order('position', { ascending: true });
+
+  // Справочник подрядчиков — для выпадающего списка в форме
+  const { data: contractors } = await supabase
+    .from('contractors')
+    .select('id, name, full_name, country, address, tax_id, contact_person, phone, email')
+    .order('name');
+
   const totalExpenses = expenses?.reduce((sum, e) => sum + (e.amount_eur || 0), 0) || 0;
   const profit = (trip.revenue_eur || 0) - totalExpenses;
 
   const refuelLiters = expenses?.filter((e) => e.category === 'fuel' && e.liters).reduce((sum, e) => sum + e.liters, 0) || 0;
   const fuelLeft = (trip.start_fuel_level || 0) + refuelLiters - (trip.actual_liters || 0);
 
-  // B + D: допуск отрицательного остатка, без блокировки сохранения
   const fuelLeftIsNegative = fuelLeft < 0;
   const fuelLeftIsCritical = fuelLeft < NEGATIVE_FUEL_TOLERANCE;
 
   const driver = trip.drivers;
   const truck = trip.trucks;
 
-  // ============================================================
-  // ТОЧКИ ПОГРУЗКИ
-  // ============================================================
   type LoadingPoint = {
     num: number;
     country: string | null;
@@ -108,9 +115,6 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
     },
   ].filter((p) => p.city || p.name || p.country || p.address);
 
-  // ============================================================
-  // ТЕКСТ ЗАДАНИЯ ДЛЯ ВОДИТЕЛЯ
-  // ============================================================
   const taskLines: string[] = [];
   taskLines.push(`Тягач: ${truck?.registration_number || '—'}`);
   taskLines.push(`Прицеп: ${trailerNumber || '—'}`);
@@ -274,7 +278,6 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
             </div>
           </div>
 
-          {/* Фрахт / Топливо / Старт / Финиш */}
           <div className="grid gap-4 grid-cols-2 lg:grid-cols-4 mt-4 pt-4 border-t border-slate-100">
             <div>
               <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Фрахт</div>
@@ -302,7 +305,6 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
             </div>
           </div>
 
-          {/* Logisat: одометр и пробег */}
           {(trip.start_odometer || trip.end_odometer || trip.actual_km) && (
             <div className="grid gap-4 grid-cols-2 lg:grid-cols-3 mt-4 pt-4 border-t border-slate-100">
               <div>
@@ -404,6 +406,13 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
           <TripStatusButtons tripId={tripId} currentStatus={trip.status} showAdminStatuses={true} />
         </div>
 
+        {/* ПОДРЯДЧИКИ НА РЕЙСЕ */}
+        <SubcontractorsBlock
+          tripId={tripId}
+          subcontractors={(subcontractors || []) as any}
+          contractors={(contractors || []) as any}
+        />
+
         {/* ТЕЛЕМЕТРИЯ */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
           <h2 className="text-lg font-bold text-slate-900 mb-4">📊 Данные телеметрии</h2>
@@ -492,14 +501,16 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
                       <div className="font-semibold text-slate-800 text-sm">
                         {categoryLabel(exp.category)}
                       </div>
-                      <form action={async () => {
-                        'use server';
-                        await deleteExpense(exp.id, tripId);
-                      }}>
-                        <button type="submit" className="text-red-500 hover:text-red-700 text-xs font-medium px-2 py-1 whitespace-nowrap">
-                          Удалить
-                        </button>
-                      </form>
+                      {!exp.subcontractor_id && (
+                        <form action={async () => {
+                          'use server';
+                          await deleteExpense(exp.id, tripId);
+                        }}>
+                          <button type="submit" className="text-red-500 hover:text-red-700 text-xs font-medium px-2 py-1 whitespace-nowrap">
+                            Удалить
+                          </button>
+                        </form>
+                      )}
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div>
@@ -543,6 +554,11 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
                       <tr key={exp.id} className="border-b border-slate-50">
                         <td className="py-3 text-sm">
                           {categoryLabel(exp.category)}
+                          {exp.subcontractor_id && (
+                            <span className="ml-2 text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
+                              авто
+                            </span>
+                          )}
                         </td>
                         <td className="py-3 text-right text-sm font-medium">
                           {exp.original_amount} {exp.currency}
@@ -555,14 +571,16 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
                           {exp.expense_date ? new Date(exp.expense_date).toLocaleDateString('ru-RU') : '-'}
                         </td>
                         <td className="py-3 text-right">
-                          <form action={async () => {
-                            'use server';
-                            await deleteExpense(exp.id, tripId);
-                          }}>
-                            <button type="submit" className="text-red-500 hover:text-red-700 text-xs font-medium px-2 py-1">
-                              Удалить
-                            </button>
-                          </form>
+                          {!exp.subcontractor_id && (
+                            <form action={async () => {
+                              'use server';
+                              await deleteExpense(exp.id, tripId);
+                            }}>
+                              <button type="submit" className="text-red-500 hover:text-red-700 text-xs font-medium px-2 py-1">
+                                Удалить
+                              </button>
+                            </form>
+                          )}
                         </td>
                       </tr>
                     ))}
