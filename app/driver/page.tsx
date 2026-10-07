@@ -47,10 +47,6 @@ export default async function DriverPage() {
 
   const tripIds = trips?.map((t) => t.id) || [];
 
-  // ============================================================
-  // Подрядчики на рейсах — чтобы в списке показать точку C
-  // (куда последний подрядчик довозит груз) вместо точки A.
-  // ============================================================
   const consolidationByTrip: Record<string, ConsolidationPoint> = {};
 
   if (tripIds.length > 0) {
@@ -60,8 +56,6 @@ export default async function DriverPage() {
       .in('trip_id', tripIds)
       .order('position', { ascending: true });
 
-    // Для каждого рейса берём подрядчика с максимальным position
-    // (tiebreak — по более поздней дате выгрузки)
     const best: Record<string, any> = {};
     (subs || []).forEach((s: any) => {
       const cur = best[s.trip_id];
@@ -79,8 +73,8 @@ export default async function DriverPage() {
       }
     });
 
-    Object.entries(best).forEach(([tripId, s]) => {
-      consolidationByTrip[tripId] = {
+    Object.entries(best).forEach(([tId, s]) => {
+      consolidationByTrip[tId] = {
         country: s.unload_country,
         city: s.unload_city,
         company: s.unload_company,
@@ -181,6 +175,24 @@ export default async function DriverPage() {
           </div>
         </a>
 
+        {/* Ссылка на статистику */}
+        <a
+          href="/driver/stats"
+          className="block bg-white rounded-2xl border border-slate-100 shadow-sm p-5
+                     hover:shadow-lg hover:border-blue-200 transition-all active:scale-[0.99]"
+        >
+          <div className="flex items-center gap-4">
+            <div className="text-4xl shrink-0">📊</div>
+            <div className="min-w-0 flex-1">
+              <div className="text-lg font-bold text-slate-900">Моя статистика</div>
+              <div className="text-sm text-slate-500 mt-0.5">
+                Рейсы, км, расход топлива и зарплата по месяцам
+              </div>
+            </div>
+            <div className="text-blue-600 font-semibold text-sm shrink-0">Открыть →</div>
+          </div>
+        </a>
+
         {/* Статистика за месяц */}
         <div>
           <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wide mb-3 px-1">
@@ -226,8 +238,6 @@ export default async function DriverPage() {
                 const clientName = pickName(trip.clients) || 'Клиент не указан';
                 const consolidation = consolidationByTrip[trip.id];
 
-                // Если есть подрядчик — «Загрузка» показывает точку C,
-                // иначе — точку A (как было).
                 const loadCity = consolidation?.city || trip.sender_city;
                 const loadCountry = consolidation?.country || trip.sender_country;
                 const loadLabel = consolidation ? 'Загрузка (после подрядчика)' : 'Загрузка';
