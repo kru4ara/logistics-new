@@ -18,8 +18,9 @@ export default function ContractorDocxButton({
 
     setIsLoading(true);
     try {
-      const url = `/api/forwarding/${forwardingId}/contractor/${contractorId}/docx`;
-      const res = await fetch(url);
+      // cache-busting: ?t=... заставляет браузер каждый раз запрашивать заново
+      const url = `/api/forwarding/${forwardingId}/contractor/${contractorId}/docx?t=${Date.now()}`;
+      const res = await fetch(url, { cache: 'no-store' });
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: 'Ошибка' }));
