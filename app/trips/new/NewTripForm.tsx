@@ -221,7 +221,6 @@ export default function NewTripForm({
             <input
               type="date"
               name="start_date"
-              required
               value={startDate}
               onChange={(e) => {
                 setStartDate(e.target.value);
@@ -229,6 +228,9 @@ export default function NewTripForm({
               }}
               className={inputClass}
             />
+            <p className="text-xs text-slate-400 mt-1">
+              Можно оставить пустым — заполните, когда станет известно
+            </p>
             {autoHint && (
               <p className="text-xs text-slate-500 mt-1">{autoHint}</p>
             )}
