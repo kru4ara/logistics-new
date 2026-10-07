@@ -57,10 +57,23 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
     .eq('trip_id', tripId)
     .order('position', { ascending: true });
 
-  // Справочник подрядчиков — для выпадающего списка в форме
+  // Справочник подрядчиков
   const { data: contractors } = await supabase
     .from('contractors')
     .select('id, name, full_name, country, address, tax_id, contact_person, phone, email')
+    .order('name');
+
+  // Справочник локаций — для формы подрядчика
+  const { data: loadingLocations } = await supabase
+    .from('locations')
+    .select('id, name, type, country, company_name, postal_code, city, address, default_loading_number')
+    .in('type', ['loading', 'both'])
+    .order('name');
+
+  const { data: unloadingLocations } = await supabase
+    .from('locations')
+    .select('id, name, type, country, company_name, postal_code, city, address, default_loading_number')
+    .in('type', ['unloading', 'both'])
     .order('name');
 
   const totalExpenses = expenses?.reduce((sum, e) => sum + (e.amount_eur || 0), 0) || 0;
@@ -190,6 +203,14 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
   function categoryLabel(cat: string): string {
     return expenseCategories.find((c) => c.value === cat)?.label || cat;
   }
+
+  // Точка Б — конечная выгрузка (для подсказки в блоке подрядчиков)
+  const tripFinalDestination = [
+    trip.receiver_country,
+    trip.receiver_postal_code,
+    trip.receiver_city,
+    trip.receiver_address,
+  ].filter(Boolean).join(', ');
 
   return (
     <main className="min-h-screen bg-slate-50">
@@ -411,6 +432,17 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
           tripId={tripId}
           subcontractors={(subcontractors || []) as any}
           contractors={(contractors || []) as any}
+          loadingLocations={(loadingLocations || []) as any}
+          unloadingLocations={(unloadingLocations || []) as any}
+          defaultLoad={{
+            country: trip.sender_country,
+            city: trip.sender_city,
+            address: trip.sender_address,
+            company: trip.sender_name,
+            postal_code: trip.sender_postal_code,
+            loading_number: trip.sender_loading_number,
+          }}
+          tripFinalDestination={tripFinalDestination}
         />
 
         {/* ТЕЛЕМЕТРИЯ */}
