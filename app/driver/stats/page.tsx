@@ -15,7 +15,6 @@ export default async function DriverStatsPage() {
 
   const supabase = await createClient();
 
-  // Все рейсы водителя
   const { data: trips } = await supabase
     .from('trips')
     .select('id, trip_number, start_date, end_date, actual_km, actual_liters, status')
@@ -23,7 +22,6 @@ export default async function DriverStatsPage() {
 
   const tripIds = (trips || []).map((t) => t.id);
 
-  // Зарплата по рейсам
   const salaryByTrip: Record<string, number> = {};
   if (tripIds.length > 0) {
     const { data: salaryExp } = await supabase
@@ -39,7 +37,8 @@ export default async function DriverStatsPage() {
   }
 
   // ============================================================
-  // Разбивка по месяцам — последние 12 месяцев (включая текущий)
+  // Разбивка по месяцам — последние 12 месяцев.
+  // Пустые месяцы (без рейсов) в итоговый список не попадают.
   // ============================================================
   const now = new Date();
 
@@ -53,14 +52,17 @@ export default async function DriverStatsPage() {
     salary: number;
   };
 
-  const monthRows: MonthRow[] = [];
+  const allMonths: MonthRow[] = [];
 
   for (let i = 11; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const y = d.getFullYear();
     const m = d.getMonth();
     const key = `${y}-${String(m + 1).padStart(2, '0')}`;
-    const label = d.toLocaleDateString('ru-RU', { month: 'short', year: '2-digit' });
+
+    const monthName = d.toLocaleDateString('ru-RU', { month: 'long' });
+    const monthNameCap = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+    const label = `${monthNameCap} ${y}`;
 
     let tripsCount = 0;
     let km = 0;
@@ -81,7 +83,7 @@ export default async function DriverStatsPage() {
 
     const consumption = km > 0 ? (liters / km) * 100 : 0;
 
-    monthRows.push({
+    allMonths.push({
       key,
       label,
       trips: tripsCount,
@@ -91,6 +93,9 @@ export default async function DriverStatsPage() {
       salary: Math.round(salary),
     });
   }
+
+  // Показываем только месяцы, где были рейсы
+  const monthRows = allMonths.filter((r) => r.trips > 0);
 
   // ============================================================
   // Итого за всё время
@@ -102,13 +107,13 @@ export default async function DriverStatsPage() {
   const totalConsumption = totalKm > 0 ? (totalLiters / totalKm) * 100 : 0;
 
   // ============================================================
-  // Итого за 12 месяцев (footer таблицы)
+  // Итого по активным месяцам (те, что показаны в таблице)
   // ============================================================
-  const year12Trips = monthRows.reduce((s, r) => s + r.trips, 0);
-  const year12Km = monthRows.reduce((s, r) => s + r.km, 0);
-  const year12Liters = monthRows.reduce((s, r) => s + r.liters, 0);
-  const year12Salary = monthRows.reduce((s, r) => s + r.salary, 0);
-  const year12Consumption = year12Km > 0 ? (year12Liters / year12Km) * 100 : 0;
+  const activeTrips = monthRows.reduce((s, r) => s + r.trips, 0);
+  const activeKm = monthRows.reduce((s, r) => s + r.km, 0);
+  const activeLiters = monthRows.reduce((s, r) => s + r.liters, 0);
+  const activeSalary = monthRows.reduce((s, r) => s + r.salary, 0);
+  const activeConsumption = activeKm > 0 ? (activeLiters / activeKm) * 100 : 0;
 
   return (
     <main className="min-h-screen bg-slate-50">
@@ -159,175 +164,175 @@ export default async function DriverStatsPage() {
           </div>
         </div>
 
-        {/* Таблица по месяцам */}
+        {/* Таблица по активным месяцам */}
         <div>
           <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-3 px-1">
             📅 По месяцам
           </h2>
 
-          {/* Mobile: карточки */}
-          <div className="md:hidden space-y-2">
-            {monthRows.map((r) => {
-              const isEmpty = r.trips === 0;
-              const tripsWord =
-                r.trips === 1 ? 'рейс' : r.trips < 5 && r.trips > 1 ? 'рейса' : 'рейсов';
+          {monthRows.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-slate-100 p-10 text-center">
+              <div className="text-5xl mb-3">📭</div>
+              <h2 className="text-lg font-bold text-slate-900 mb-1">
+                За последние 12 месяцев рейсов нет
+              </h2>
+              <p className="text-slate-500 text-sm">Ожидайте заданий от офиса</p>
+            </div>
+          ) : (
+            <>
+              {/* Mobile: карточки */}
+              <div className="md:hidden space-y-2">
+                {monthRows.map((r) => {
+                  const tripsWord =
+                    r.trips === 1 ? 'рейс' : r.trips < 5 && r.trips > 1 ? 'рейса' : 'рейсов';
 
-              return (
-                <div
-                  key={r.key}
-                  className={`bg-white rounded-2xl border border-slate-100 shadow-sm p-4 ${
-                    isEmpty ? 'opacity-50' : ''
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="font-bold text-slate-900 capitalize">{r.label}</div>
-                    {r.trips > 0 && (
-                      <div className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium">
-                        {r.trips} {tripsWord}
-                      </div>
-                    )}
-                  </div>
-                  {!isEmpty && (
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div>
-                        <div className="text-slate-400">Пройдено</div>
-                        <div className="font-semibold text-slate-800">
-                          {r.km.toLocaleString('ru-RU')} км
+                  return (
+                    <div
+                      key={r.key}
+                      className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4"
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="font-bold text-slate-900">{r.label}</div>
+                        <div className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium">
+                          {r.trips} {tripsWord}
                         </div>
                       </div>
-                      <div>
-                        <div className="text-slate-400">Расход</div>
-                        <div className="font-semibold text-slate-800">
-                          {r.consumption.toFixed(1)} л/100
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <div className="text-slate-400">Пройдено</div>
+                          <div className="font-semibold text-slate-800">
+                            {r.km.toLocaleString('ru-RU')} км
+                          </div>
                         </div>
-                      </div>
-                      <div>
-                        <div className="text-slate-400">Топливо</div>
-                        <div className="font-semibold text-slate-800">
-                          {r.liters.toLocaleString('ru-RU')} л
+                        <div>
+                          <div className="text-slate-400">Расход</div>
+                          <div className="font-semibold text-slate-800">
+                            {r.consumption.toFixed(1)} л/100
+                          </div>
                         </div>
-                      </div>
-                      <div>
-                        <div className="text-slate-400">Зарплата</div>
-                        <div className="font-semibold text-emerald-600">
-                          {r.salary.toLocaleString('ru-RU')} €
+                        <div>
+                          <div className="text-slate-400">Топливо</div>
+                          <div className="font-semibold text-slate-800">
+                            {r.liters.toLocaleString('ru-RU')} л
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-slate-400">Зарплата</div>
+                          <div className="font-semibold text-emerald-600">
+                            {r.salary.toLocaleString('ru-RU')} €
+                          </div>
                         </div>
                       </div>
                     </div>
-                  )}
-                </div>
-              );
-            })}
+                  );
+                })}
 
-            {/* Итого за 12 месяцев */}
-            <div className="bg-slate-100 rounded-2xl border-2 border-slate-200 p-4">
-              <div className="font-bold text-slate-900 mb-3">Итого за 12 месяцев</div>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div>
-                  <div className="text-slate-500">Рейсов</div>
-                  <div className="font-bold text-slate-900">{year12Trips}</div>
-                </div>
-                <div>
-                  <div className="text-slate-500">Пройдено</div>
-                  <div className="font-bold text-slate-900">
-                    {year12Km.toLocaleString('ru-RU')} км
-                  </div>
-                </div>
-                <div>
-                  <div className="text-slate-500">Ср. расход</div>
-                  <div className="font-bold text-slate-900">
-                    {year12Consumption.toFixed(1)} л/100
-                  </div>
-                </div>
-                <div>
-                  <div className="text-slate-500">Заработано</div>
-                  <div className="font-bold text-emerald-600">
-                    {year12Salary.toLocaleString('ru-RU')} €
+                {/* Итого */}
+                <div className="bg-slate-100 rounded-2xl border-2 border-slate-200 p-4">
+                  <div className="font-bold text-slate-900 mb-3">Итого</div>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <div className="text-slate-500">Рейсов</div>
+                      <div className="font-bold text-slate-900">{activeTrips}</div>
+                    </div>
+                    <div>
+                      <div className="text-slate-500">Пройдено</div>
+                      <div className="font-bold text-slate-900">
+                        {activeKm.toLocaleString('ru-RU')} км
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-slate-500">Ср. расход</div>
+                      <div className="font-bold text-slate-900">
+                        {activeConsumption.toFixed(1)} л/100
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-slate-500">Заработано</div>
+                      <div className="font-bold text-emerald-600">
+                        {activeSalary.toLocaleString('ru-RU')} €
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
 
-          {/* Desktop: таблица */}
-          <div className="hidden md:block bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-slate-100 bg-slate-50/50">
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                      Месяц
-                    </th>
-                    <th className="text-right px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                      Рейсов
-                    </th>
-                    <th className="text-right px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                      Пройдено
-                    </th>
-                    <th className="text-right px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                      Топливо
-                    </th>
-                    <th className="text-right px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                      Расход
-                    </th>
-                    <th className="text-right px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                      Зарплата
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {monthRows.map((r) => {
-                    const isEmpty = r.trips === 0;
-                    return (
-                      <tr
-                        key={r.key}
-                        className={`border-b border-slate-50 hover:bg-blue-50/30 transition-colors ${
-                          isEmpty ? 'opacity-40' : ''
-                        }`}
-                      >
-                        <td className="px-5 py-3 font-medium text-slate-800 capitalize">
-                          {r.label}
+              {/* Desktop: таблица */}
+              <div className="hidden md:block bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-slate-100 bg-slate-50/50">
+                        <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                          Месяц
+                        </th>
+                        <th className="text-right px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                          Рейсов
+                        </th>
+                        <th className="text-right px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                          Пройдено
+                        </th>
+                        <th className="text-right px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                          Топливо
+                        </th>
+                        <th className="text-right px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                          Расход
+                        </th>
+                        <th className="text-right px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                          Зарплата
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {monthRows.map((r) => (
+                        <tr
+                          key={r.key}
+                          className="border-b border-slate-50 hover:bg-blue-50/30 transition-colors"
+                        >
+                          <td className="px-5 py-3 font-medium text-slate-800">
+                            {r.label}
+                          </td>
+                          <td className="px-5 py-3 text-right text-sm text-slate-700">
+                            {r.trips}
+                          </td>
+                          <td className="px-5 py-3 text-right text-sm text-slate-700">
+                            {r.km.toLocaleString('ru-RU')} км
+                          </td>
+                          <td className="px-5 py-3 text-right text-sm text-slate-700">
+                            {r.liters.toLocaleString('ru-RU')} л
+                          </td>
+                          <td className="px-5 py-3 text-right text-sm text-slate-700">
+                            {r.consumption.toFixed(1)} л/100
+                          </td>
+                          <td className="px-5 py-3 text-right text-sm font-semibold text-emerald-600">
+                            {r.salary.toLocaleString('ru-RU')} €
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="bg-slate-50 border-t-2 border-slate-200">
+                        <td className="px-5 py-4 font-bold text-slate-900">Итого</td>
+                        <td className="px-5 py-4 text-right font-bold text-slate-900">{activeTrips}</td>
+                        <td className="px-5 py-4 text-right font-bold text-slate-900">
+                          {activeKm.toLocaleString('ru-RU')} км
                         </td>
-                        <td className="px-5 py-3 text-right text-sm text-slate-700">
-                          {isEmpty ? '—' : r.trips}
+                        <td className="px-5 py-4 text-right font-bold text-slate-900">
+                          {activeLiters.toLocaleString('ru-RU')} л
                         </td>
-                        <td className="px-5 py-3 text-right text-sm text-slate-700">
-                          {isEmpty ? '—' : `${r.km.toLocaleString('ru-RU')} км`}
+                        <td className="px-5 py-4 text-right font-bold text-slate-900">
+                          {activeConsumption.toFixed(1)} л/100
                         </td>
-                        <td className="px-5 py-3 text-right text-sm text-slate-700">
-                          {isEmpty ? '—' : `${r.liters.toLocaleString('ru-RU')} л`}
-                        </td>
-                        <td className="px-5 py-3 text-right text-sm text-slate-700">
-                          {isEmpty ? '—' : `${r.consumption.toFixed(1)} л/100`}
-                        </td>
-                        <td className="px-5 py-3 text-right text-sm font-semibold text-emerald-600">
-                          {isEmpty ? '—' : `${r.salary.toLocaleString('ru-RU')} €`}
+                        <td className="px-5 py-4 text-right font-bold text-emerald-600 text-base">
+                          {activeSalary.toLocaleString('ru-RU')} €
                         </td>
                       </tr>
-                    );
-                  })}
-                </tbody>
-                <tfoot>
-                  <tr className="bg-slate-50 border-t-2 border-slate-200">
-                    <td className="px-5 py-4 font-bold text-slate-900">Итого за 12 месяцев</td>
-                    <td className="px-5 py-4 text-right font-bold text-slate-900">{year12Trips}</td>
-                    <td className="px-5 py-4 text-right font-bold text-slate-900">
-                      {year12Km.toLocaleString('ru-RU')} км
-                    </td>
-                    <td className="px-5 py-4 text-right font-bold text-slate-900">
-                      {year12Liters.toLocaleString('ru-RU')} л
-                    </td>
-                    <td className="px-5 py-4 text-right font-bold text-slate-900">
-                      {year12Consumption.toFixed(1)} л/100
-                    </td>
-                    <td className="px-5 py-4 text-right font-bold text-emerald-600 text-base">
-                      {year12Salary.toLocaleString('ru-RU')} €
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          </div>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
       </div>
