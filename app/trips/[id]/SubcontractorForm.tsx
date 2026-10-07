@@ -7,6 +7,18 @@ import {
   updateTripSubcontractor,
 } from '../../../lib/trip-subcontractors';
 
+type Location = {
+  id: string;
+  name: string;
+  type: string;
+  country: string | null;
+  company_name: string | null;
+  postal_code: string | null;
+  city: string | null;
+  address: string | null;
+  default_loading_number: string | null;
+};
+
 type Contractor = {
   id: string;
   name: string;
@@ -70,9 +82,21 @@ const emptyData: SubcontractorData = {
   notes: null,
 };
 
+type DefaultLoad = {
+  country: string | null;
+  city: string | null;
+  address: string | null;
+  company: string | null;
+  postal_code: string | null;
+  loading_number: string | null;
+};
+
 export default function SubcontractorForm({
   tripId,
   contractors,
+  loadingLocations,
+  unloadingLocations,
+  defaultLoad,
   initialData,
   subcontractorId,
   onClose,
@@ -80,13 +104,28 @@ export default function SubcontractorForm({
 }: {
   tripId: string;
   contractors: Contractor[];
+  loadingLocations: Location[];
+  unloadingLocations: Location[];
+  defaultLoad?: DefaultLoad;
   initialData?: SubcontractorData;
   subcontractorId?: string;
   onClose: () => void;
   onSaved: () => void;
 }) {
   const isEdit = Boolean(subcontractorId);
-  const [data, setData] = useState<SubcontractorData>(initialData || emptyData);
+
+  // При создании нового — предзаполняем точку погрузки данными рейса (точка A)
+  const startingData: SubcontractorData = initialData || {
+    ...emptyData,
+    load_country: defaultLoad?.country || null,
+    load_city: defaultLoad?.city || null,
+    load_address: defaultLoad?.address || null,
+    load_company: defaultLoad?.company || null,
+    load_postal_code: defaultLoad?.postal_code || null,
+    load_number: defaultLoad?.loading_number || null,
+  };
+
+  const [data, setData] = useState<SubcontractorData>(startingData);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
@@ -95,13 +134,42 @@ export default function SubcontractorForm({
     'w-full rounded-lg border border-slate-300 px-3 py-2.5 text-base text-slate-900 ' +
     'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all';
   const labelClass = 'block text-sm font-medium text-slate-700 mb-1';
+  const presetClass =
+    'w-full rounded-lg border-2 border-dashed border-blue-300 bg-blue-50 px-3 py-2.5 text-base text-slate-900 font-medium ' +
+    'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-solid focus:border-blue-500 transition-all';
 
   function setField<K extends keyof SubcontractorData>(field: K, value: SubcontractorData[K]) {
     setData((prev) => ({ ...prev, [field]: value }));
   }
 
-  function handleContractorChange(contractorId: string) {
-    setField('contractor_id', contractorId || null);
+  function fillLoadFromLocation(locId: string) {
+    if (!locId) return;
+    const loc = loadingLocations.find((l) => l.id === locId);
+    if (!loc) return;
+    setData((prev) => ({
+      ...prev,
+      load_country: loc.country || null,
+      load_company: loc.company_name || null,
+      load_postal_code: loc.postal_code || null,
+      load_city: loc.city || null,
+      load_address: loc.address || null,
+      load_number: loc.default_loading_number || null,
+    }));
+  }
+
+  function fillUnloadFromLocation(locId: string) {
+    if (!locId) return;
+    const loc = unloadingLocations.find((l) => l.id === locId);
+    if (!loc) return;
+    setData((prev) => ({
+      ...prev,
+      unload_country: loc.country || null,
+      unload_company: loc.company_name || null,
+      unload_postal_code: loc.postal_code || null,
+      unload_city: loc.city || null,
+      unload_address: loc.address || null,
+      unload_number: loc.default_loading_number || null,
+    }));
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -193,7 +261,7 @@ export default function SubcontractorForm({
               <label className={labelClass}>Компания *</label>
               <select
                 value={data.contractor_id || ''}
-                onChange={(e) => handleContractorChange(e.target.value)}
+                onChange={(e) => setField('contractor_id', e.target.value || null)}
                 required
                 className={inputClass}
               >
@@ -281,11 +349,37 @@ export default function SubcontractorForm({
             </div>
           </div>
 
-          {/* ПОГРУЗКА */}
+          {/* ПОГРУЗКА (A) */}
           <div className="bg-green-50 rounded-xl p-4 space-y-3">
-            <h4 className="text-sm font-bold text-green-800">🟢 Погрузка</h4>
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h4 className="text-sm font-bold text-green-800">🟢 Погрузка (точка A рейса)</h4>
+              <span className="text-[10px] text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
+                откуда подрядчик забирает
+              </span>
+            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className={labelClass}>
+                Выбрать из сохранённых локаций
+                <span className="text-xs text-slate-400 font-normal ml-2 hidden sm:inline">
+                  (перезапишет поля ниже)
+                </span>
+              </label>
+              <select
+                onChange={(e) => fillLoadFromLocation(e.target.value)}
+                className={presetClass}
+                defaultValue=""
+              >
+                <option value="">— Выберите локацию —</option>
+                {loadingLocations.map((loc) => (
+                  <option key={loc.id} value={loc.id}>
+                    {loc.name} {loc.city ? `· ${loc.city}` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-green-200">
               <div>
                 <label className={labelClass}>Дата *</label>
                 <input
@@ -359,11 +453,37 @@ export default function SubcontractorForm({
             </div>
           </div>
 
-          {/* ВЫГРУЗКА */}
-          <div className="bg-red-50 rounded-xl p-4 space-y-3">
-            <h4 className="text-sm font-bold text-red-800">🔴 Выгрузка</h4>
+          {/* ВЫГРУЗКА (C) */}
+          <div className="bg-amber-50 rounded-xl p-4 space-y-3">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h4 className="text-sm font-bold text-amber-800">🔴 Выгрузка (точка C)</h4>
+              <span className="text-[10px] text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full">
+                куда довозит подрядчик, дальше мы сами
+              </span>
+            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className={labelClass}>
+                Выбрать из сохранённых локаций
+                <span className="text-xs text-slate-400 font-normal ml-2 hidden sm:inline">
+                  (перезапишет поля ниже)
+                </span>
+              </label>
+              <select
+                onChange={(e) => fillUnloadFromLocation(e.target.value)}
+                className={presetClass}
+                defaultValue=""
+              >
+                <option value="">— Выберите локацию —</option>
+                {unloadingLocations.map((loc) => (
+                  <option key={loc.id} value={loc.id}>
+                    {loc.name} {loc.city ? `· ${loc.city}` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-amber-200">
               <div>
                 <label className={labelClass}>Дата</label>
                 <input
