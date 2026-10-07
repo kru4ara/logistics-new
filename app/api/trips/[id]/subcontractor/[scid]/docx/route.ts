@@ -16,8 +16,8 @@ import {
 } from 'docx';
 import QRCode from 'qrcode';
 import imageSize from 'image-size';
-import { createClient } from '../../../../../../lib/supabase-server';
-import { COMPANY, APP_URL, getTerms } from '../../../../../../lib/company';
+import { createClient } from '../../../../../../../lib/supabase-server';
+import { COMPANY, APP_URL, getTerms } from '../../../../../../../lib/company';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -269,7 +269,6 @@ export async function GET(
 
   const supabase = await createClient();
 
-  // Рейс (номер + клиентский номер)
   const { data: trip, error: tripErr } = await supabase
     .from('trips')
     .select('id, trip_number, client_request_number, status')
@@ -280,7 +279,6 @@ export async function GET(
     return NextResponse.json({ error: 'Рейс не найден' }, { status: 404 });
   }
 
-  // Подрядчик на рейсе (со всей информацией)
   const { data: sub, error: subErr } = await supabase
     .from('trip_subcontractors')
     .select('*, contractors(*)')
@@ -299,14 +297,12 @@ export async function GET(
     return NextResponse.json({ error: 'Карточка подрядчика не найдена' }, { status: 404 });
   }
 
-  // Номер заявки: trip_number-position (fallback — client_request_number)
   const baseNumber = trip.trip_number ?? trip.client_request_number ?? '?';
   const zlecenieNumber = `${baseNumber}-${sub.position || 1}`;
 
   const paymentDays = sub.payment_days || 30;
   const terms = getTerms(paymentDays);
 
-  // Печать + QR
   const [stampBuf, qrBuf] = await Promise.all([
     downloadAsset(supabase, 'assets/stamp.png', 'STAMP'),
     generateQrBuffer(`${APP_URL}/trips/${tripId}`),
@@ -443,7 +439,6 @@ export async function GET(
     )
   );
 
-  // --- Блок подрядчика ---
   children.push(
     txt(contractor.full_name || contractor.name || '—', {
       bold: true,
@@ -460,9 +455,7 @@ export async function GET(
   }
   if (contractor.address) children.push(txt(contractor.address, { size: 22, after: 20 }));
   if (contractor.tax_id) {
-    children.push(
-      txt(`NIP: ${contractor.tax_id}`, { size: 22, after: 20, color: '334155' })
-    );
+    children.push(txt(`NIP: ${contractor.tax_id}`, { size: 22, after: 20, color: '334155' }));
   }
   if (contractor.contact_person) {
     children.push(txt(contractor.contact_person, { size: 22, after: 20 }));
@@ -545,7 +538,6 @@ export async function GET(
   // ============================================================
   const routeRows: TableRow[] = [];
 
-  // Точка A — загрузка
   routeRows.push(
     new TableRow({
       children: [
@@ -567,7 +559,6 @@ export async function GET(
     })
   );
 
-  // Разделитель
   routeRows.push(
     new TableRow({
       children: [
@@ -586,7 +577,6 @@ export async function GET(
     })
   );
 
-  // Точка C — выгрузка подрядчика
   routeRows.push(
     new TableRow({
       children: [
