@@ -4,9 +4,6 @@ import { createClient } from './supabase-server';
 import { revalidatePath } from 'next/cache';
 import { logAudit } from './audit';
 
-// ============================================================
-// Конвертация в EUR по курсу на дату
-// ============================================================
 async function toEur(
   supabase: Awaited<ReturnType<typeof createClient>>,
   amount: number,
@@ -37,9 +34,6 @@ async function toEur(
   return amount;
 }
 
-// ============================================================
-// Парсинг формы
-// ============================================================
 type ParsedSubcontractor = {
   contractor_id: string | null;
   price: number;
@@ -63,6 +57,12 @@ type ParsedSubcontractor = {
   unload_postal_code: string | null;
   unload_number: string | null;
   notes: string | null;
+  transport_type: string | null;
+  transport_temperature: string | null;
+  cargo_type: string | null;
+  cargo_quantity: string | null;
+  customs_loading: string | null;
+  customs_unloading: string | null;
 };
 
 function parseSubcontractorForm(formData: FormData): ParsedSubcontractor {
@@ -93,15 +93,15 @@ function parseSubcontractorForm(formData: FormData): ParsedSubcontractor {
     unload_postal_code: trimOrNull('unload_postal_code'),
     unload_number: trimOrNull('unload_number'),
     notes: trimOrNull('notes'),
+    transport_type: trimOrNull('transport_type'),
+    transport_temperature: trimOrNull('transport_temperature'),
+    cargo_type: trimOrNull('cargo_type'),
+    cargo_quantity: trimOrNull('cargo_quantity'),
+    customs_loading: trimOrNull('customs_loading'),
+    customs_unloading: trimOrNull('customs_unloading'),
   };
 }
 
-// ============================================================
-// Синхронизация расхода в trip_expenses
-// ============================================================
-// Создаёт или обновляет расход с category='contractor',
-// привязанный к подрядчику через subcontractor_id.
-// Если сумма 0 — расход не создаётся.
 async function syncExpense(
   supabase: Awaited<ReturnType<typeof createClient>>,
   subcontractorId: string,
@@ -111,7 +111,6 @@ async function syncExpense(
   expenseDate: string,
   description: string
 ): Promise<void> {
-  // Удаляем старый расход для этого подрядчика (если был)
   await supabase
     .from('trip_expenses')
     .delete()
@@ -140,15 +139,10 @@ async function syncExpense(
   }
 }
 
-// ============================================================
-// СОЗДАНИЕ
-// ============================================================
 export async function createTripSubcontractor(tripId: string, formData: FormData) {
   const supabase = await createClient();
-
   const data = parseSubcontractorForm(formData);
 
-  // Определяем position = max + 1 для этого рейса
   const { data: existing } = await supabase
     .from('trip_subcontractors')
     .select('position')
@@ -166,7 +160,7 @@ export async function createTripSubcontractor(tripId: string, formData: FormData
         trip_id: tripId,
         contractor_id: data.contractor_id,
         position: nextPosition,
-        price_eur: 0, // пересчитаем через syncExpense
+        price_eur: 0,
         original_price: data.price,
         currency: data.currency,
         payment_days: data.payment_days,
@@ -188,6 +182,12 @@ export async function createTripSubcontractor(tripId: string, formData: FormData
         unload_postal_code: data.unload_postal_code,
         unload_number: data.unload_number,
         notes: data.notes,
+        transport_type: data.transport_type,
+        transport_temperature: data.transport_temperature,
+        cargo_type: data.cargo_type,
+        cargo_quantity: data.cargo_quantity,
+        customs_loading: data.customs_loading,
+        customs_unloading: data.customs_unloading,
       },
     ])
     .select('id')
@@ -195,7 +195,6 @@ export async function createTripSubcontractor(tripId: string, formData: FormData
 
   if (error || !created) throw new Error(`Ошибка создания: ${error?.message || 'unknown'}`);
 
-  // Записываем price_eur в саму запись подрядчика
   const amountEur = await toEur(
     supabase,
     data.price,
@@ -208,7 +207,6 @@ export async function createTripSubcontractor(tripId: string, formData: FormData
     .update({ price_eur: amountEur })
     .eq('id', created.id);
 
-  // Синхронизируем расход
   const desc = data.driver_name
     ? `Подрядчик (${data.driver_name}${data.truck_number ? ', ' + data.truck_number : ''})`
     : 'Подрядчик на части маршрута';
@@ -234,17 +232,14 @@ export async function createTripSubcontractor(tripId: string, formData: FormData
   revalidatePath('/trips');
 }
 
-// ============================================================
-// ОБНОВЛЕНИЕ
-// ============================================================
 export async function updateTripSubcontractor(
   subcontractorId: string,
   tripId: string,
   formData: FormData
 ) {
   const supabase = await createClient();
-
   const data = parseSubcontractorForm(formData);
+
   const amountEur = await toEur(
     supabase,
     data.price,
@@ -278,6 +273,12 @@ export async function updateTripSubcontractor(
       unload_postal_code: data.unload_postal_code,
       unload_number: data.unload_number,
       notes: data.notes,
+      transport_type: data.transport_type,
+      transport_temperature: data.transport_temperature,
+      cargo_type: data.cargo_type,
+      cargo_quantity: data.cargo_quantity,
+      customs_loading: data.customs_loading,
+      customs_unloading: data.customs_unloading,
     })
     .eq('id', subcontractorId);
 
@@ -308,9 +309,6 @@ export async function updateTripSubcontractor(
   revalidatePath('/trips');
 }
 
-// ============================================================
-// УДАЛЕНИЕ
-// ============================================================
 export async function deleteTripSubcontractor(
   subcontractorId: string,
   tripId: string
@@ -323,13 +321,11 @@ export async function deleteTripSubcontractor(
     .eq('id', subcontractorId)
     .maybeSingle();
 
-  // Удаляем связанный расход
   await supabase
     .from('trip_expenses')
     .delete()
     .eq('subcontractor_id', subcontractorId);
 
-  // Удаляем подрядчика
   const { error } = await supabase
     .from('trip_subcontractors')
     .delete()
