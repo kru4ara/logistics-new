@@ -440,12 +440,12 @@ export async function GET(
   const paymentDays = fc.payment_days || 30;
   const terms = getTerms(paymentDays);
 
-  // Номер заявки подрядчику: приоритет — order_number (автонумерация),
-  // fallback — client_request_number, если order_number пустой
-  const zlecenieNumber = order.order_number
-    ? `${order.order_number}-${fc.position || 1}`
-    : order.client_request_number
-      ? `${order.client_request_number}-${fc.position || 1}`
+  // Номер заявки: ПРИОРИТЕТ — client_request_number (клиентский),
+  // fallback — order_number, если клиентского нет
+  const zlecenieNumber = order.client_request_number
+    ? `${order.client_request_number}-${fc.position || 1}`
+    : order.order_number
+      ? `${order.order_number}-${fc.position || 1}`
       : `?-${fc.position || 1}`;
 
   const [stampBuf, qrBuf] = await Promise.all([
