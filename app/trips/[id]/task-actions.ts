@@ -116,44 +116,22 @@ export async function sendTaskToDriver(tripId: string): Promise<SendTaskResult> 
       lines.push(`№ погрузки: ${trip.receiver_loading_number}`);
     }
   } else {
-    // Полный маршрут A → Б
-    const loadingPoints = [
-      {
-        country: trip.sender_country,
-        name: trip.sender_name,
-        postal: trip.sender_postal_code,
-        city: trip.sender_city,
-        address: trip.sender_address,
-        loading_number: trip.sender_loading_number,
-      },
-      {
-        country: trip.sender2_country,
-        name: trip.sender2_name,
-        postal: trip.sender2_postal_code,
-        city: trip.sender2_city,
-        address: trip.sender2_address,
-        loading_number: trip.sender2_loading_number,
-      },
-      {
-        country: trip.sender3_country,
-        name: trip.sender3_name,
-        postal: trip.sender3_postal_code,
-        city: trip.sender3_city,
-        address: trip.sender3_address,
-        loading_number: trip.sender3_loading_number,
-      },
-    ].filter((p) => p.city || p.name || p.country);
-
-    if (loadingPoints.length > 0) {
+    // Полный маршрут A → Б (только первая точка загрузки)
+    if (trip.sender_city || trip.sender_name || trip.sender_country) {
       lines.push('📍 *ЗАГРУЗКА:*');
-      loadingPoints.forEach((p, i) => {
-        lines.push(`${i + 1}. ${p.name || '—'}`);
-        const addr = [p.country, p.postal, p.city, p.address].filter(Boolean).join(', ');
-        lines.push(`   ${addr || '—'}`);
-        if (p.loading_number) {
-          lines.push(`   № погрузки: ${p.loading_number}`);
-        }
-      });
+      lines.push(`${trip.sender_name || '—'}`);
+      const addr = [
+        trip.sender_country,
+        trip.sender_postal_code,
+        trip.sender_city,
+        trip.sender_address,
+      ]
+        .filter(Boolean)
+        .join(', ');
+      lines.push(`   ${addr || '—'}`);
+      if (trip.sender_loading_number) {
+        lines.push(`   № погрузки: ${trip.sender_loading_number}`);
+      }
       lines.push('');
     }
 
