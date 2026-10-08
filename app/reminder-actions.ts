@@ -64,12 +64,62 @@ export async function syncReminders(
 
     if (!truck) return;
 
-    const docs = [
-      { title: `🛡 Страховка ОС: ${truck.registration_number}`, date: truck.truck_insurance_expiry, category: 'insurance' },
-      { title: `🔧 Техосмотр: ${truck.registration_number}`, date: truck.tech_inspection_expiry, category: 'inspection' },
-      { title: `🛂 Пограничная страховка РБ: ${truck.registration_number}`, date: truck.border_insurance_expiry, category: 'insurance' },
-      { title: `💳 Легализация тахографа: ${truck.registration_number}`, date: truck.tachograph_legalization_expiry, category: 'inspection' },
-    ];
+    const plate = truck.registration_number?.trim() || '—';
+    const isTractor = truck.type === 'tractor';
+
+    // Тягач — 5 напоминаний, прицеп — 4.
+    // Наборы разные: у тягача есть ТО и калибровка тахографа,
+    // у прицепа — таможенное свидетельство.
+    const docs = isTractor
+      ? [
+          {
+            title: `🛡 Страховка ОС: ${plate}`,
+            date: truck.truck_insurance_expiry,
+            category: 'insurance',
+          },
+          {
+            title: `🛠 ТО (техобслуживание): ${plate}`,
+            date: truck.to_expiry,
+            category: 'inspection',
+          },
+          {
+            title: `🔧 Техосмотр: ${plate}`,
+            date: truck.tech_inspection_expiry,
+            category: 'inspection',
+          },
+          {
+            title: `🛂 Пограничная страховка РБ: ${plate}`,
+            date: truck.border_insurance_expiry,
+            category: 'insurance',
+          },
+          {
+            title: `⚙️ Калибровка тахографа: ${plate}`,
+            date: truck.tachograph_calibration_expiry,
+            category: 'inspection',
+          },
+        ]
+      : [
+          {
+            title: `🛡 Страховка ОС: ${plate}`,
+            date: truck.truck_insurance_expiry,
+            category: 'insurance',
+          },
+          {
+            title: `🔧 Техосмотр: ${plate}`,
+            date: truck.tech_inspection_expiry,
+            category: 'inspection',
+          },
+          {
+            title: `🛂 Пограничная страховка РБ: ${plate}`,
+            date: truck.border_insurance_expiry,
+            category: 'insurance',
+          },
+          {
+            title: `📄 Таможенное свидетельство: ${plate}`,
+            date: truck.customs_certificate_expiry,
+            category: 'inspection',
+          },
+        ];
 
     for (const doc of docs) {
       if (!doc.date) continue;
