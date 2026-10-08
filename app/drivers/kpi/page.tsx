@@ -21,17 +21,17 @@ export default async function DriverKpiPage() {
 
   const { data: trips } = await supabase
     .from('trips')
-    .select('id, driver_id, revenue_eur, actual_km, actual_liters, start_date, status');
+    .select('id, driver_id, revenue_eur, actual_km, actual_liters, start_date, end_date, status');
 
   const { data: salaryExpenses } = await supabase
     .from('trip_expenses')
-    .select('trip_id, amount_eur')
+    .select('trip_id, amount_eur, expense_date')
     .eq('category', 'salary');
 
-  const salaryByTrip: Record<string, number> = {};
-  salaryExpenses?.forEach((e) => {
-    if (!e.trip_id) return;
-    salaryByTrip[e.trip_id] = (salaryByTrip[e.trip_id] || 0) + (e.amount_eur || 0);
+  // Карта trip_id → driver_id (чтобы по expense_date понимать, кому какая ЗП)
+  const tripToDriver: Record<string, string> = {};
+  (trips || []).forEach((t) => {
+    if (t.driver_id) tripToDriver[t.id] = t.driver_id;
   });
 
   const now = new Date();
@@ -39,20 +39,49 @@ export default async function DriverKpiPage() {
   const currentYear = now.getFullYear();
   const monthName = now.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
 
+  // Границы текущего месяца для фильтра по expense_date
+  const monthStart = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-01`;
+  const nextMonthDate = new Date(currentYear, currentMonth + 1, 1);
+  const nextMonthStart = `${nextMonthDate.getFullYear()}-${String(nextMonthDate.getMonth() + 1).padStart(2, '0')}-01`;
+
+  // ЗП за месяц по водителям — по дате выплаты
+  const monthSalaryByDriver: Record<string, number> = {};
+  (salaryExpenses || []).forEach((e) => {
+    if (!e.trip_id || !e.expense_date) return;
+    const driverId = tripToDriver[e.trip_id];
+    if (!driverId) return;
+    const d = new Date(e.expense_date);
+    if (d.getFullYear() !== currentYear || d.getMonth() !== currentMonth) return;
+    monthSalaryByDriver[driverId] =
+      (monthSalaryByDriver[driverId] || 0) + Number(e.amount_eur || 0);
+  });
+
+  // ЗП за всё время по водителям
+  const totalSalaryByDriver: Record<string, number> = {};
+  (salaryExpenses || []).forEach((e) => {
+    if (!e.trip_id) return;
+    const driverId = tripToDriver[e.trip_id];
+    if (!driverId) return;
+    totalSalaryByDriver[driverId] =
+      (totalSalaryByDriver[driverId] || 0) + Number(e.amount_eur || 0);
+  });
+
   const kpi = drivers?.map((driver) => {
     const driverTrips = trips?.filter((t) => t.driver_id === driver.id) || [];
 
+    // Рейсы за месяц — по дате ФИНИША (end_date || start_date)
     const monthTrips = driverTrips.filter((t) => {
-      if (!t.start_date) return false;
-      const d = new Date(t.start_date);
+      const dateStr = t.end_date || t.start_date;
+      if (!dateStr) return false;
+      const d = new Date(dateStr);
       return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
     });
 
     const totalTrips = driverTrips.length;
     const monthTripsCount = monthTrips.length;
 
-    const salaryTotal = driverTrips.reduce((sum, t) => sum + (salaryByTrip[t.id] || 0), 0);
-    const salaryMonth = monthTrips.reduce((sum, t) => sum + (salaryByTrip[t.id] || 0), 0);
+    const salaryMonth = monthSalaryByDriver[driver.id] || 0;
+    const salaryTotal = totalSalaryByDriver[driver.id] || 0;
 
     const totalKm = driverTrips.reduce((sum, t) => sum + (t.actual_km || 0), 0);
     const totalLiters = driverTrips.reduce((sum, t) => sum + (t.actual_liters || 0), 0);
@@ -65,7 +94,6 @@ export default async function DriverKpiPage() {
     const avgConsumption = totalKmForFuel > 0 ? (totalLitersForFuel / totalKmForFuel) * 100 : null;
 
     const totalRevenue = driverTrips.reduce((sum, t) => sum + (t.revenue_eur || 0), 0);
-    const avgRevenue = totalTrips > 0 ? totalRevenue / totalTrips : 0;
 
     return {
       driver,
@@ -77,7 +105,6 @@ export default async function DriverKpiPage() {
       totalLiters,
       avgConsumption,
       totalRevenue,
-      avgRevenue,
     };
   }) || [];
 
@@ -238,7 +265,6 @@ export default async function DriverKpiPage() {
                                 {initials || '👤'}
                               </div>
                               <div className="min-w-0">
-                                {/* Stretched link: after-псевдоэлемент растягивается на всю строку */}
                                 <a
                                   href={`/drivers/${item.driver.id}`}
                                   className="font-semibold text-slate-800 hover:text-blue-600 transition-colors block truncate
@@ -285,6 +311,8 @@ export default async function DriverKpiPage() {
                 <b>Расход</b> считается только по рейсам, где есть и пробег, и литры.
                 {' · '}
                 <span className="text-emerald-600">Зелёный</span> = норма, <span className="text-orange-500">оранжевый</span> = выше 30, <span className="text-red-500">красный</span> = выше 35.
+                {' · '}
+                <b>Рейсы за месяц</b> — по дате финиша. <b>ЗП за месяц</b> — по дате выплаты.
               </div>
             </div>
           </>
