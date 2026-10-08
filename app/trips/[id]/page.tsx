@@ -514,6 +514,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
             postal_code: trip.sender_postal_code,
             loading_number: trip.sender_loading_number,
           }}
+          senderPoints={loadingPoints}
           tripFinalDestination={tripFinalDestination}
         />
 
