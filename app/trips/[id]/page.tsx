@@ -207,20 +207,20 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
       taskLines.push(`   № погрузки: ${trip.receiver_loading_number}`);
     }
   } else {
+    // Только первая (основная) точка загрузки — как было раньше
     if (loadingPoints.length > 0) {
+      const p = loadingPoints[0];
       taskLines.push('📍 ЗАГРУЗКА:');
-      loadingPoints.forEach((p) => {
-        const parts = [p.country, p.postal_code, p.city, p.address].filter(Boolean).join(', ');
-        taskLines.push(`${p.num}. ${p.name || '—'}`);
-        taskLines.push(`   ${parts || '—'}`);
-        if (p.loading_number) {
-          taskLines.push(`   № погрузки: ${p.loading_number}`);
-        }
-        taskLines.push('');
-      });
+      const parts = [p.country, p.postal_code, p.city, p.address].filter(Boolean).join(', ');
+      taskLines.push(`${p.name || '—'}`);
+      taskLines.push(`   ${parts || '—'}`);
+      if (p.loading_number) {
+        taskLines.push(`   № погрузки: ${p.loading_number}`);
+      }
     }
 
     if (trip.receiver_city || trip.receiver_name) {
+      taskLines.push('');
       taskLines.push('🏁 ВЫГРУЗКА:');
       taskLines.push(`${trip.receiver_name || '—'}`);
       const recvParts = [
