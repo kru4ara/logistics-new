@@ -13,7 +13,9 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
   const currentYear = new Date().getFullYear();
   const year = parseInt(searchParams?.year || String(currentYear));
 
+  // ============================================================
   // РЕЙСЫ
+  // ============================================================
   const { data: trips } = await supabase
     .from('trips')
     .select('id, revenue_eur, start_date, end_date, status');
@@ -26,9 +28,10 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
     allExpenses = data || [];
   }
 
+  // ФИКС-КОСТЫ — теперь с флагом is_capex
   const { data: fixedCosts } = await supabase
     .from('fixed_costs')
-    .select('amount_eur, month_key, cost_type, expense_date');
+    .select('id, amount_eur, month_key, cost_type, expense_date, category, currency, is_capex');
 
   // ЭКСПЕДИРОВАНИЕ
   const { data: forwarding } = await supabase
@@ -65,7 +68,9 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
     });
   }
 
-  // Логика: рейс → месяц окончания
+  // ============================================================
+  // Рейсы → месяц окончания (или старта, если финиш не проставлен)
+  // ============================================================
   function getTripMonthKey(trip: any): string | null {
     const date = trip.end_date || trip.start_date;
     if (!date) return null;
@@ -90,11 +95,46 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
     directExpensesByMonth[mk] = sum;
   });
 
+  // ============================================================
+  // ФИКС-КОСТЫ: операционные → по месяцам, инвестиции → отдельный список
+  // ============================================================
   const fixedCostsByMonth: Record<string, number> = {};
+
+  type CapexItem = {
+    id: string;
+    category: string;
+    amount_eur: number;
+    currency: string;
+    date: string;
+    month_key: string | null;
+  };
+  const capexAll: CapexItem[] = [];
+
   fixedCosts?.forEach((fc) => {
     const amount = fc.amount_eur || 0;
     if (amount === 0) return;
+
+    const isCapex = fc.is_capex === true;
+
+    // ---------- ИНВЕСТИЦИИ ----------
+    if (isCapex) {
+      // Капекс не размазывается, попадает в месяц покупки
+      const dateStr = fc.expense_date || (fc.month_key ? fc.month_key + '-01' : null);
+      if (!dateStr) return;
+      capexAll.push({
+        id: fc.id,
+        category: fc.category || '—',
+        amount_eur: amount,
+        currency: fc.currency || 'EUR',
+        date: dateStr,
+        month_key: fc.month_key,
+      });
+      return;
+    }
+
+    // ---------- ОПЕРАЦИОННЫЕ ----------
     if (fc.cost_type === 'yearly') {
+      // Годовое размазываем на 12 месяцев
       let startDate: Date | null = null;
       if (fc.expense_date) startDate = new Date(fc.expense_date);
       else if (fc.month_key) startDate = new Date(fc.month_key + '-01');
@@ -112,6 +152,19 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
     }
   });
 
+  // Инвестиции текущего выбранного года
+  const capexForYear = capexAll
+    .filter((c) => {
+      const d = new Date(c.date);
+      return d.getFullYear() === year;
+    })
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  const capexTotalForYear = capexForYear.reduce((s, c) => s + c.amount_eur, 0);
+
+  // ============================================================
+  // Экспедиция → месяц загрузки
+  // ============================================================
   function getForwardingMonthKey(f: any): string | null {
     const date = f.load_date || f.unload_date;
     if (!date) return null;
@@ -127,6 +180,9 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
     forwardingByMonth[mk].push(f);
   });
 
+  // ============================================================
+  // 12 месяцев
+  // ============================================================
   const months = [];
   for (let m = 1; m <= 12; m++) {
     const monthKey = `${year}-${String(m).padStart(2, '0')}`;
@@ -152,7 +208,8 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
     const fixedExpenses = fixedCostsByMonth[monthKey] || 0;
 
     const totalIncome = tripRevenue + forwardingClientSum;
-    const totalExpenses = directExpenses + forwardingContractorSum + forwardingExtraExpenses + fixedExpenses;
+    const totalExpenses =
+      directExpenses + forwardingContractorSum + forwardingExtraExpenses + fixedExpenses;
     const profit = totalIncome - totalExpenses;
     const margin = totalIncome > 0 ? (profit / totalIncome) * 100 : 0;
 
@@ -195,18 +252,43 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
   const now = new Date();
   const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
-  const years = [currentYear, currentYear - 1, currentYear - 2];
+  // ============================================================
+  // ГОДЫ — из данных, а не хардкод
+  // ============================================================
+  const yearsSet = new Set<number>();
+  yearsSet.add(currentYear);
+  trips?.forEach((t) => {
+    const d = t.end_date || t.start_date;
+    if (d) yearsSet.add(new Date(d).getFullYear());
+  });
+  forwarding?.forEach((f) => {
+    const d = f.load_date || f.unload_date;
+    if (d) yearsSet.add(new Date(d).getFullYear());
+  });
+  fixedCosts?.forEach((fc) => {
+    if (fc.month_key) {
+      const y = parseInt(fc.month_key.slice(0, 4), 10);
+      if (!isNaN(y)) yearsSet.add(y);
+    }
+    if (fc.expense_date) {
+      yearsSet.add(new Date(fc.expense_date).getFullYear());
+    }
+  });
+  const years = Array.from(yearsSet).sort((a, b) => b - a);
 
   return (
     <main className="min-h-screen bg-slate-50">
       <div className="max-w-[1600px] mx-auto px-4 md:px-6 py-6 md:py-8 space-y-5 md:space-y-6">
 
+        {/* ЗАГОЛОВОК */}
         <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-between sm:items-center">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-slate-900">📊 Статистика</h1>
-            <p className="text-slate-500 mt-1 text-sm md:text-base">Рейсы + Экспедирование за {year} год</p>
+            <p className="text-slate-500 mt-1 text-sm md:text-base">
+              Рейсы + Экспедирование за {year} год
+            </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {years.map((y) => (
               <a
                 key={y}
@@ -223,13 +305,13 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
           </div>
         </div>
 
-        {/* ИТОГИ ГОДА */}
+        {/* ИТОГИ ГОДА — 5 карточек */}
         <div>
           <h2 className="text-xs md:text-sm font-bold text-slate-500 uppercase tracking-wide mb-3">
             🏆 Итоги {year} года
           </h2>
-          <div className="grid gap-3 md:gap-5 grid-cols-2 lg:grid-cols-4">
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-6">
+          <div className="grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-5">
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-5">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-xs md:text-sm font-medium text-slate-500">Сделок</span>
                 <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-blue-50 flex items-center justify-center text-base md:text-xl">📊</div>
@@ -242,47 +324,66 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-6">
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-5">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs md:text-sm font-medium text-slate-500">Общий доход</span>
+                <span className="text-xs md:text-sm font-medium text-slate-500">Доход</span>
                 <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-green-50 flex items-center justify-center text-base md:text-xl">💵</div>
               </div>
-              <div className="text-xl md:text-3xl font-bold text-green-600 break-words">{yearTotals.totalIncome.toFixed(0)} €</div>
+              <div className="text-xl md:text-2xl font-bold text-green-600 break-words">
+                {yearTotals.totalIncome.toFixed(0)} €
+              </div>
               <div className="text-[10px] md:text-xs text-slate-400 mt-1 break-words">
                 Фрахт: {yearTotals.tripRevenue.toFixed(0)} · Эксп.: {yearTotals.forwardingClientSum.toFixed(0)}
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-6">
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-5">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs md:text-sm font-medium text-slate-500">Общие расходы</span>
+                <span className="text-xs md:text-sm font-medium text-slate-500">Опер. расходы</span>
                 <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-red-50 flex items-center justify-center text-base md:text-xl">📉</div>
               </div>
-              <div className="text-xl md:text-3xl font-bold text-red-500 break-words">{yearTotals.totalExpenses.toFixed(0)} €</div>
+              <div className="text-xl md:text-2xl font-bold text-red-500 break-words">
+                {yearTotals.totalExpenses.toFixed(0)} €
+              </div>
               <div className="text-[10px] md:text-xs text-slate-400 mt-1 break-words">
                 Рейсы: {(yearTotals.directExpenses + yearTotals.fixedExpenses).toFixed(0)} · Эксп.: {(yearTotals.forwardingContractorSum + yearTotals.forwardingExtraExpenses).toFixed(0)}
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-6">
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-5">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs md:text-sm font-medium text-slate-500">Чистая прибыль</span>
+                <span className="text-xs md:text-sm font-medium text-slate-500">Прибыль P&L</span>
                 <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-base md:text-xl">📈</div>
               </div>
-              <div className={`text-xl md:text-3xl font-bold break-words ${yearTotals.profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+              <div className={`text-xl md:text-2xl font-bold break-words ${yearTotals.profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                 {yearTotals.profit.toFixed(0)} €
               </div>
               <div className="text-[10px] md:text-xs text-slate-400 mt-1">
                 Маржа: <b className={avgMargin >= 0 ? 'text-emerald-600' : 'text-red-500'}>{avgMargin.toFixed(1)}%</b>
               </div>
             </div>
+
+            <div className="bg-white rounded-2xl border border-amber-200 shadow-sm p-4 md:p-5 col-span-2 lg:col-span-1">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs md:text-sm font-medium text-amber-700">Инвестиции</span>
+                <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-amber-50 flex items-center justify-center text-base md:text-xl">💼</div>
+              </div>
+              <div className="text-xl md:text-2xl font-bold text-amber-600 break-words">
+                {capexTotalForYear > 0 ? `${capexTotalForYear.toFixed(0)} €` : '—'}
+              </div>
+              <div className="text-[10px] md:text-xs text-amber-600/70 mt-1">
+                вне P&L · {capexForYear.length} {capexForYear.length === 1 ? 'операция' : 'операций'}
+              </div>
+            </div>
           </div>
         </div>
 
         {/* РАЗБИВКА ПО НАПРАВЛЕНИЯМ */}
-        <div className="grid gap-5 lg:grid-cols-2">
+        <div className="grid gap-4 md:gap-5 lg:grid-cols-2">
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
-            <h3 className="text-xs md:text-sm font-bold text-slate-500 uppercase tracking-wide mb-4">🚛 Рейсы (за год)</h3>
+            <h3 className="text-xs md:text-sm font-bold text-slate-500 uppercase tracking-wide mb-4">
+              🚛 Рейсы (за год)
+            </h3>
             <div className="space-y-3 text-sm">
               <div className="flex justify-between items-center gap-2">
                 <span className="text-slate-600">Количество</span>
@@ -309,7 +410,9 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
           </div>
 
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
-            <h3 className="text-xs md:text-sm font-bold text-slate-500 uppercase tracking-wide mb-4">📦 Экспедирование (за год)</h3>
+            <h3 className="text-xs md:text-sm font-bold text-slate-500 uppercase tracking-wide mb-4">
+              📦 Экспедирование (за год)
+            </h3>
             <div className="space-y-3 text-sm">
               <div className="flex justify-between items-center gap-2">
                 <span className="text-slate-600">Количество</span>
@@ -344,10 +447,58 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
           </div>
         </div>
 
+        {/* 💼 ИНВЕСТИЦИИ ЗА ГОД */}
+        {capexForYear.length > 0 && (
+          <div className="bg-white rounded-2xl border border-amber-200 shadow-sm p-5 md:p-6">
+            <div className="flex flex-wrap items-baseline justify-between gap-2 mb-4">
+              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                💼 Инвестиции за {year}
+              </h2>
+              <span className="text-[10px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full font-medium">
+                вне P&L
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mb-4">
+              Покупки активов: машины, прицепы, крупное оборудование.
+              Эти суммы <b>не вычитаются</b> из операционной прибыли.
+            </p>
+            <div className="space-y-2">
+              {capexForYear.map((c) => (
+                <div
+                  key={c.id}
+                  className="flex items-start justify-between gap-3 border border-slate-100 rounded-xl p-3 md:p-4 bg-amber-50/30"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="font-semibold text-slate-800 text-sm break-words">
+                      {c.category}
+                    </div>
+                    <div className="text-xs text-slate-500 mt-0.5">
+                      📅 {new Date(c.date).toLocaleDateString('ru-RU')}
+                    </div>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <div className="text-base font-bold text-amber-600 whitespace-nowrap">
+                      {c.amount_eur.toFixed(0)} €
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 pt-4 border-t border-amber-200 flex justify-between items-baseline gap-2 flex-wrap">
+              <span className="text-sm text-slate-500">
+                Всего операций: <b className="text-slate-700">{capexForYear.length}</b>
+              </span>
+              <span className="text-sm text-slate-500">
+                Итого инвестиций: <b className="text-amber-600 text-base">{capexTotalForYear.toFixed(0)} €</b>
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* ТАБЛИЦА ПО МЕСЯЦАМ */}
         <div>
           <h2 className="text-xs md:text-sm font-bold text-slate-500 uppercase tracking-wide mb-3">
-            📅 По месяцам
+            📅 По месяцам (операционная деятельность)
           </h2>
 
           {/* Mobile: карточки */}
@@ -481,6 +632,14 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
                     {avgMargin.toFixed(1)}%
                   </span>
                 </div>
+                {capexTotalForYear > 0 && (
+                  <div className="flex justify-between items-center gap-2 pt-2 border-t border-slate-300">
+                    <span className="text-slate-500 text-[10px] uppercase">Инвестиции (вне P&L)</span>
+                    <span className="font-bold text-amber-600 break-words text-right">
+                      {capexTotalForYear.toFixed(0)} €
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -590,19 +749,89 @@ export default async function StatisticsPage({ searchParams }: { searchParams: {
                       {avgMargin.toFixed(1)}%
                     </td>
                   </tr>
+                  {capexTotalForYear > 0 && (
+                    <tr className="bg-amber-50/50 border-t border-amber-200">
+                      <td colSpan={9} className="px-4 py-3 text-right font-semibold text-amber-700 text-sm">
+                        💼 Инвестиции за год (вне P&L):
+                      </td>
+                      <td colSpan={2} className="px-4 py-3 text-right font-bold text-amber-600 text-base">
+                        {capexTotalForYear.toFixed(0)} €
+                      </td>
+                    </tr>
+                  )}
                 </tfoot>
               </table>
             </div>
           </div>
         </div>
 
-        <div className="text-xs text-slate-500 bg-white rounded-xl border border-slate-100 p-4 space-y-1">
-          <div><b>Рейс относится к месяцу окончания.</b> Экспедиция — к месяцу загрузки.</div>
-          <div><b>Годовые расходы</b> делятся на 12 месяцев.</div>
-          <div><b>Доход эксп.</b> = сумма, которую заплатили клиенты за экспедиции.</div>
-          <div><b>Маржа эксп.</b> = Доход эксп. − Подрядчики − Доп. расходы.</div>
-          <div><b>Прибыль</b> = Фрахт + Доход эксп. − Всего расходов.</div>
-          <div><b>Маржа %</b> = Прибыль ÷ Общий доход × 100%.</div>
+        {/* 📐 ЛЕГЕНДА */}
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
+          <h3 className="text-sm font-bold text-slate-900 mb-4">📐 Как считается</h3>
+
+          <div className="grid gap-4 md:gap-5 lg:grid-cols-2">
+            {/* Левая колонка — формулы */}
+            <div className="space-y-3 text-sm">
+              <div className="bg-slate-50 rounded-xl p-3 md:p-4">
+                <div className="font-semibold text-slate-800 mb-1.5">ДОХОД</div>
+                <div className="text-slate-600 text-xs md:text-sm font-mono">
+                  Фрахт рейсов + Доход экспедиций
+                </div>
+              </div>
+
+              <div className="bg-slate-50 rounded-xl p-3 md:p-4">
+                <div className="font-semibold text-slate-800 mb-1.5">ОПЕРАЦИОННЫЕ РАСХОДЫ</div>
+                <div className="text-slate-600 text-xs md:text-sm font-mono leading-relaxed">
+                  Прямые расходы рейсов<br/>
+                  + Подрядчики экспедиций<br/>
+                  + Доп. расходы экспедиций<br/>
+                  + Операционные фикс-косты
+                </div>
+              </div>
+
+              <div className="bg-emerald-50 rounded-xl p-3 md:p-4 border border-emerald-100">
+                <div className="font-semibold text-emerald-800 mb-1.5">ПРИБЫЛЬ (P&L)</div>
+                <div className="text-emerald-700 text-xs md:text-sm font-mono">
+                  ДОХОД − ОПЕРАЦИОННЫЕ РАСХОДЫ
+                </div>
+              </div>
+
+              <div className="bg-slate-50 rounded-xl p-3 md:p-4">
+                <div className="font-semibold text-slate-800 mb-1.5">МАРЖА</div>
+                <div className="text-slate-600 text-xs md:text-sm font-mono">
+                  ПРИБЫЛЬ ÷ ДОХОД × 100%
+                </div>
+              </div>
+            </div>
+
+            {/* Правая колонка — правила */}
+            <div className="space-y-3 text-sm">
+              <div className="bg-blue-50 rounded-xl p-3 md:p-4">
+                <div className="font-semibold text-blue-800 mb-2 text-sm">📌 Правила отнесения</div>
+                <ul className="text-blue-900 text-xs md:text-sm space-y-1.5">
+                  <li>• <b>Рейс</b> → к месяцу финиша (или старта, если финиш пустой)</li>
+                  <li>• <b>Экспедиция</b> → к месяцу загрузки</li>
+                  <li>• <b>Годовые операционные</b> (ОС, техосмотр, страховки) → 1/12 на 12 месяцев</li>
+                  <li>• <b>Инвестиции</b> → <b>вне P&L</b>, отдельный блок</li>
+                </ul>
+              </div>
+
+              <div className="bg-amber-50 rounded-xl p-3 md:p-4 border border-amber-200">
+                <div className="font-semibold text-amber-800 mb-2 text-sm">💼 Инвестиции (вне P&L)</div>
+                <p className="text-amber-900 text-xs md:text-sm">
+                  Покупки машин, прицепов, крупное оборудование. Не вычитаются из операционной прибыли.
+                  Показываются отдельным блоком под итогами года.
+                </p>
+              </div>
+
+              <div className="bg-slate-50 rounded-xl p-3 md:p-4">
+                <div className="font-semibold text-slate-800 mb-2 text-sm">🚫 Не учитываются</div>
+                <p className="text-slate-600 text-xs md:text-sm">
+                  Рейсы без даты старта и финиша (черновики) в статистику не попадают.
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
 
       </div>
