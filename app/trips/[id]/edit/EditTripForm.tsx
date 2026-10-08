@@ -56,6 +56,18 @@ type Trip = {
   sender3_city: string | null;
   sender3_address: string | null;
   sender3_loading_number: string | null;
+  sender4_country: string | null;
+  sender4_name: string | null;
+  sender4_postal_code: string | null;
+  sender4_city: string | null;
+  sender4_address: string | null;
+  sender4_loading_number: string | null;
+  sender5_country: string | null;
+  sender5_name: string | null;
+  sender5_postal_code: string | null;
+  sender5_city: string | null;
+  sender5_address: string | null;
+  sender5_loading_number: string | null;
   receiver_country: string | null;
   receiver_name: string | null;
   receiver_postal_code: string | null;
@@ -113,8 +125,12 @@ export default function EditTripForm({
   const initialExtras: AddrState[] = [];
   const s2 = toAddr(trip.sender2_country, trip.sender2_name, trip.sender2_postal_code, trip.sender2_city, trip.sender2_address, trip.sender2_loading_number);
   const s3 = toAddr(trip.sender3_country, trip.sender3_name, trip.sender3_postal_code, trip.sender3_city, trip.sender3_address, trip.sender3_loading_number);
+  const s4 = toAddr(trip.sender4_country, trip.sender4_name, trip.sender4_postal_code, trip.sender4_city, trip.sender4_address, trip.sender4_loading_number);
+  const s5 = toAddr(trip.sender5_country, trip.sender5_name, trip.sender5_postal_code, trip.sender5_city, trip.sender5_address, trip.sender5_loading_number);
   if (s2.city || s2.name || s2.country || s2.address) initialExtras.push(s2);
   if (s3.city || s3.name || s3.country || s3.address) initialExtras.push(s3);
+  if (s4.city || s4.name || s4.country || s4.address) initialExtras.push(s4);
+  if (s5.city || s5.name || s5.country || s5.address) initialExtras.push(s5);
 
   const [extras, setExtras] = useState<AddrState[]>(initialExtras);
 
@@ -147,7 +163,7 @@ export default function EditTripForm({
   }
 
   function addExtra() {
-    if (extras.length >= 2) return;
+    if (extras.length >= 4) return;
     setExtras([...extras, { country: '', name: '', postal_code: '', city: '', address: '', loading_number: '' }]);
   }
 
@@ -373,7 +389,7 @@ export default function EditTripForm({
           );
         })}
 
-        {extras.length < 2 && (
+        {extras.length < 4 && (
           <button
             type="button"
             onClick={addExtra}
