@@ -1,3 +1,112 @@
-@tailwind base; 
-@tailwind components; 
-@tailwind utilities; 
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   Базовые стили
+   ============================================================ */
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-slate-50 text-slate-900;
+  }
+
+  /* Все числовые значения — моноширинные (ровные столбики) */
+  .tabular-nums,
+  table td,
+  table th {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Красивый фокус — только для клавиатуры, не для мыши */
+  :focus-visible {
+    outline: 2px solid theme('colors.brand.500');
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Отключаем outline у инпутов, у которых уже есть ring через tailwind */
+  input:focus,
+  textarea:focus,
+  select:focus {
+    outline: none;
+  }
+}
+
+/* ============================================================
+   Утилиты — переиспользуемые классы для типовых карточек/кнопок
+   ============================================================ */
+
+@layer components {
+  /* Карточка по умолчанию — мягкая тень, hover-подъём */
+  .card {
+    @apply bg-white rounded-2xl border border-slate-100 shadow-soft transition-shadow duration-200;
+  }
+  .card-hover {
+    @apply hover:shadow-soft-lg hover:border-brand-200 md:hover:-translate-y-0.5 transition-all duration-200;
+  }
+
+  /* Кнопки */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-semibold
+           transition-all duration-150 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-primary {
+    @apply bg-brand-600 hover:bg-brand-700 text-white shadow-brand hover:shadow-brand-lg;
+  }
+  .btn-secondary {
+    @apply bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300;
+  }
+  .btn-ghost {
+    @apply text-slate-600 hover:bg-slate-100 hover:text-slate-900;
+  }
+  .btn-danger {
+    @apply bg-red-50 text-red-600 border border-red-200 hover:bg-red-100;
+  }
+
+  /* Инпуты */
+  .input {
+    @apply w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-base text-slate-900
+           placeholder:text-slate-400
+           focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500
+           transition-all duration-150;
+  }
+
+  /* Бейджи-статусы */
+  .badge {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border;
+  }
+
+  /* Скелетон для загрузки */
+  .skeleton {
+    @apply bg-slate-200 rounded animate-pulse;
+  }
+}
+
+/* ============================================================
+   Скроллбар — тонкий и аккуратный
+   ============================================================ */
+
+@layer utilities {
+  /* Webkit (Chrome, Edge, Safari) */
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: rgb(203 213 225);
+    border-radius: 8px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(148 163 184);
+  }
+}
