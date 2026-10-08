@@ -1,4 +1,5 @@
 import { createClient } from '../../../lib/supabase-server';
+import CountryFlag from '../../../components/CountryFlag';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,29 +35,6 @@ function fmtEur(n: number): string {
 
 function fmtEurExact(n: number): string {
   return n.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
-}
-
-function flagFor(country: string | null): string {
-  if (!country) return '';
-  const c = country.toLowerCase().trim();
-  if (c.includes('pol')) return '🇵🇱';
-  if (c.includes('bel') && c.includes('rus') === false && !c.includes('belarus')) return '🇧🇾'; // fallback
-  if (c === 'belarus' || c.includes('бел')) return '🇧🇾';
-  if (c.includes('lit') || c.includes('lith')) return '🇱🇹';
-  if (c.includes('latv')) return '🇱🇻';
-  if (c.includes('est')) return '🇪🇪';
-  if (c.includes('germ') || c.includes('deutsch') || c === 'de') return '🇩🇪';
-  if (c.includes('neth') || c.includes('holland') || c === 'nl') return '🇳🇱';
-  if (c.includes('belg') || c === 'be') return '🇧🇪';
-  if (c.includes('fran') || c === 'fr') return '🇫🇷';
-  if (c.includes('ital') || c === 'it') return '🇮🇹';
-  if (c.includes('spain') || c.includes('espa') || c === 'es') return '🇪🇸';
-  if (c.includes('bulg') || c === 'bg') return '🇧🇬';
-  if (c.includes('czech') || c.includes('чех') || c === 'cz') return '🇨🇿';
-  if (c.includes('slovak') || c === 'sk') return '🇸🇰';
-  if (c.includes('ukrain') || c.includes('укр') || c === 'ua') return '🇺🇦';
-  if (c.includes('russ') || c.includes('рос') || c === 'ru') return '🇷🇺';
-  return '';
 }
 
 export default async function ContractorsStatsPage() {
@@ -120,7 +98,6 @@ export default async function ContractorsStatsPage() {
   for (const s of statsMap.values()) {
     s.totalSum = s.fwdSum + s.tripSum;
     s.totalCount = s.fwdCount + s.tripCount;
-    // Средний срок оплаты — из любой непустой записи (обычно 30)
     const allPays = [
       ...((fwdRows || []) as StatsRow[]).filter((r) => r.contractor_id === s.id && r.payment_days),
       ...((tripRows || []) as StatsRow[]).filter((r) => r.contractor_id === s.id && r.payment_days),
@@ -247,8 +224,9 @@ export default async function ContractorsStatsPage() {
                       {s.name}
                     </div>
                     {s.country && (
-                      <div className="text-xs text-slate-500 mt-1">
-                        {flagFor(s.country)} {s.country}
+                      <div className="text-xs text-slate-500 mt-1 flex items-center gap-1.5">
+                        <CountryFlag country={s.country} />
+                        <span>{s.country}</span>
                       </div>
                     )}
                     <div className="text-xs text-slate-400 mt-2">
@@ -287,8 +265,9 @@ export default async function ContractorsStatsPage() {
                         {s.name}
                       </div>
                       {s.country && (
-                        <div className="text-xs text-slate-500 mt-0.5">
-                          {flagFor(s.country)} {s.country}
+                        <div className="text-xs text-slate-500 mt-0.5 flex items-center gap-1.5">
+                          <CountryFlag country={s.country} />
+                          <span>{s.country}</span>
                         </div>
                       )}
                     </div>
@@ -374,7 +353,12 @@ export default async function ContractorsStatsPage() {
                         </a>
                       </td>
                       <td className="py-3 text-sm text-slate-500">
-                        {s.country ? `${flagFor(s.country)} ${s.country}` : '—'}
+                        {s.country ? (
+                          <span className="inline-flex items-center gap-1.5">
+                            <CountryFlag country={s.country} />
+                            <span>{s.country}</span>
+                          </span>
+                        ) : '—'}
                       </td>
                       <td className="py-3 text-center text-sm text-slate-700">
                         {s.fwdCount > 0 ? s.fwdCount : '—'}
