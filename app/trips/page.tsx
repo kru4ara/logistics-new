@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase-server';
 import DownloadButton from './DownloadButton';
+import SearchInput from './SearchInput';
 
 export const dynamic = 'force-dynamic';
 
@@ -325,44 +326,13 @@ export default async function TripsPage({
 
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-5 space-y-4">
 
-          {/* Поиск */}
-          <form method="GET" className="relative">
-            {monthFilter && <input type="hidden" name="month" value={monthFilter} />}
-            {statusFilter && <input type="hidden" name="status" value={statusFilter} />}
-            {/* year не прячем — при поиске всё равно игнорируется, а при сбросе вернётся к текущему */}
-            <input type="hidden" name="year" value={year} />
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
-                🔍
-              </span>
-              <input
-                type="text"
-                name="q"
-                defaultValue={q}
-                placeholder="Поиск: номер заявки, маршрут, клиент, отправитель…"
-                className="w-full rounded-xl border border-slate-300 pl-10 pr-24 py-2.5 text-base text-slate-900
-                           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-              />
-              <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                {q && (
-                  <a
-                    href={buildUrl({ q: null })}
-                    className="text-slate-400 hover:text-slate-600 px-2 py-1 text-lg leading-none"
-                    title="Очистить"
-                  >
-                    ×
-                  </a>
-                )}
-                <button
-                  type="submit"
-                  className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold
-                             transition-all active:scale-[0.97]"
-                >
-                  Искать
-                </button>
-              </div>
-            </div>
-          </form>
+          {/* Поиск с debounce */}
+          <SearchInput
+            initialQ={q}
+            year={year}
+            month={monthFilter}
+            status={statusFilter}
+          />
 
           {/* Статус */}
           <div>
