@@ -111,22 +111,21 @@ export default async function DriverKpiPage() {
           </div>
         ) : (
           <>
-            {/* Mobile: карточки */}
+            {/* Mobile: карточки — вся карточка кликабельна */}
             <div className="md:hidden space-y-3">
               {sortedKpi.map((item) => {
                 const initials = `${item.driver.first_name?.[0] || ''}${item.driver.last_name?.[0] || ''}`.toUpperCase();
                 const consumptionClr = consumptionColor(item.avgConsumption);
 
                 return (
-                  <div
+                  <a
                     key={item.driver.id}
-                    className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 space-y-3"
+                    href={`/drivers/${item.driver.id}`}
+                    className="block bg-white rounded-2xl border border-slate-100 shadow-sm p-4 space-y-3
+                               hover:shadow-lg hover:border-blue-200 transition-all active:scale-[0.99]"
                   >
                     {/* Заголовок: аватар + имя */}
-                    <a
-                      href={`/drivers/${item.driver.id}`}
-                      className="flex items-center gap-3 active:opacity-70 transition-opacity"
-                    >
+                    <div className="flex items-center gap-3">
                       <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-bold text-sm shrink-0">
                         {initials || '👤'}
                       </div>
@@ -138,7 +137,8 @@ export default async function DriverKpiPage() {
                           📞 {item.driver.phone || '—'}
                         </div>
                       </div>
-                    </a>
+                      <div className="text-blue-600 text-lg shrink-0">→</div>
+                    </div>
 
                     {/* Рейсы — крупно */}
                     <div className="bg-blue-50 rounded-xl px-4 py-3 flex items-center justify-between">
@@ -191,7 +191,7 @@ export default async function DriverKpiPage() {
                         {item.totalRevenue.toFixed(0)} €
                       </div>
                     </div>
-                  </div>
+                  </a>
                 );
               })}
 
@@ -206,7 +206,7 @@ export default async function DriverKpiPage() {
               </div>
             </div>
 
-            {/* Desktop: таблица */}
+            {/* Desktop: таблица — строки кликабельны через stretched link */}
             <div className="hidden md:block bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full">
@@ -230,7 +230,7 @@ export default async function DriverKpiPage() {
                       return (
                         <tr
                           key={item.driver.id}
-                          className="border-b border-slate-50 hover:bg-blue-50/30 transition-colors"
+                          className="border-b border-slate-50 hover:bg-blue-50/30 transition-colors relative"
                         >
                           <td className="px-4 py-4">
                             <div className="flex items-center gap-3">
@@ -238,9 +238,11 @@ export default async function DriverKpiPage() {
                                 {initials || '👤'}
                               </div>
                               <div className="min-w-0">
+                                {/* Stretched link: after-псевдоэлемент растягивается на всю строку */}
                                 <a
                                   href={`/drivers/${item.driver.id}`}
-                                  className="font-semibold text-slate-800 hover:text-blue-600 transition-colors block truncate"
+                                  className="font-semibold text-slate-800 hover:text-blue-600 transition-colors block truncate
+                                             after:absolute after:inset-0 after:content-['']"
                                 >
                                   {item.driver.first_name} {item.driver.last_name}
                                 </a>
