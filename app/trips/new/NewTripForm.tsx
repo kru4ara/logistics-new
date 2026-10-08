@@ -126,7 +126,7 @@ export default function NewTripForm({
   }
 
   function addExtra() {
-    if (extras.length >= 2) return;
+    if (extras.length >= 4) return;
     setExtras([...extras, { ...emptyAddr }]);
   }
 
@@ -319,7 +319,7 @@ export default function NewTripForm({
           </div>
         </div>
 
-        {/* ДОП. ТОЧКИ ПОГРУЗКИ */}
+        {/* ДОП. ТОЧКИ ПОГРУЗКИ (до 4 доп. = всего 5) */}
         {extras.map((extra, idx) => {
           const n = idx + 2;
           return (
@@ -395,7 +395,7 @@ export default function NewTripForm({
           );
         })}
 
-        {extras.length < 2 && (
+        {extras.length < 4 && (
           <button
             type="button"
             onClick={addExtra}
