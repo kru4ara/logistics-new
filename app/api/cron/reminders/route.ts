@@ -1,5 +1,8 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { createClient } from '../../../../lib/supabase-server';
+import { sendCronAlert, sendCronSummary } from '../../../../lib/cron-alert';
+
+export const dynamic = 'force-dynamic';
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
@@ -62,113 +65,144 @@ export async function GET(request: NextRequest) {
   }
 
   if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
+    await sendCronAlert(
+      'reminders',
+      'TELEGRAM_BOT_TOKEN или TELEGRAM_CHAT_ID не заданы. Напоминания не могут быть отправлены.'
+    );
     return NextResponse.json(
       { success: false, error: 'TELEGRAM_BOT_TOKEN или TELEGRAM_CHAT_ID не заданы' },
       { status: 500 }
     );
   }
 
-  const supabase = await createClient();
+  try {
+    const supabase = await createClient();
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const todayISO = today.toISOString();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayISO = today.toISOString();
 
-  // Загружаем все активные напоминания
-  const { data: reminders, error } = await supabase
-    .from('reminders')
-    .select('*')
-    .eq('status', 'active')
-    .not('due_date', 'is', null);
+    // Загружаем все активные напоминания
+    const { data: reminders, error } = await supabase
+      .from('reminders')
+      .select('*')
+      .eq('status', 'active')
+      .not('due_date', 'is', null);
 
-  if (error) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-  }
-
-  let sent = 0;
-  let skipped = 0;
-  const log: Array<{ id: string; title: string; daysLeft: number | null; action: string }> = [];
-
-  for (const r of reminders || []) {
-    const daysLeft = getDaysUntil(r.due_date);
-
-    if (daysLeft === null) {
-      skipped++;
-      continue;
+    if (error) {
+      await sendCronAlert('reminders', `Ошибка загрузки reminders: ${error.message}`);
+      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 
-    let shouldNotify = false;
+    let sent = 0;
+    let skipped = 0;
+    let tgErrors = 0;
+    const log: Array<{ id: string; title: string; daysLeft: number | null; action: string }> = [];
 
-    if (daysLeft < 0) {
-      // Просроченные — раз в день
-      const lastNotified = r.last_notified_at ? new Date(r.last_notified_at) : null;
-      if (!lastNotified || lastNotified < today) {
-        shouldNotify = true;
+    for (const r of reminders || []) {
+      const daysLeft = getDaysUntil(r.due_date);
+
+      if (daysLeft === null) {
+        skipped++;
+        continue;
       }
-    } else if (NOTIFY_DAYS.has(daysLeft)) {
-      // Ключевые дни — только если ещё не отправляли на этом этапе
-      if (r.last_notified_days !== daysLeft) {
-        shouldNotify = true;
+
+      let shouldNotify = false;
+
+      if (daysLeft < 0) {
+        // Просроченные — раз в день
+        const lastNotified = r.last_notified_at ? new Date(r.last_notified_at) : null;
+        if (!lastNotified || lastNotified < today) {
+          shouldNotify = true;
+        }
+      } else if (NOTIFY_DAYS.has(daysLeft)) {
+        // Ключевые дни — только если ещё не отправляли на этом этапе
+        if (r.last_notified_days !== daysLeft) {
+          shouldNotify = true;
+        }
       }
-    }
 
-    if (!shouldNotify) {
-      skipped++;
-      continue;
-    }
+      if (!shouldNotify) {
+        skipped++;
+        continue;
+      }
 
-    // Формируем текст
-    const emoji = r.category === 'insurance' ? '🛡' :
-                  r.category === 'inspection' ? '🔧' :
-                  r.category === 'driver_doc' ? '📄' :
-                  r.category === 'payment_to_contractor' ? '🚛' :
-                  r.category === 'accounting' ? '💰' : '📌';
+      // Формируем текст
+      const emoji = r.category === 'insurance' ? '🛡' :
+                    r.category === 'inspection' ? '🔧' :
+                    r.category === 'driver_doc' ? '📄' :
+                    r.category === 'payment_to_contractor' ? '🚛' :
+                    r.category === 'accounting' ? '💰' : '📌';
 
-    const isAuto = r.entity_type !== null;
-    const lines: string[] = [];
-    lines.push(`${emoji} *Напоминание*`);
-    lines.push('');
-    lines.push(`*${r.title}*`);
-    lines.push(`📅 Дата: ${formatDate(r.due_date)}`);
-    lines.push(formatDaysLeft(daysLeft));
-    if (r.amount) {
-      lines.push(`💰 Сумма: ${r.amount} €`);
-    }
-    if (isAuto) {
+      const isAuto = r.entity_type !== null;
+      const lines: string[] = [];
+      lines.push(`${emoji} *Напоминание*`);
       lines.push('');
-      lines.push(`_🔒 Автоматическое (${r.entity_type === 'driver' ? 'водитель' : 'машина'})_`);
+      lines.push(`*${r.title}*`);
+      lines.push(`📅 Дата: ${formatDate(r.due_date)}`);
+      lines.push(formatDaysLeft(daysLeft));
+      if (r.amount) {
+        lines.push(`💰 Сумма: ${r.amount} €`);
+      }
+      if (isAuto) {
+        lines.push('');
+        lines.push(`_🔒 Автоматическое (${r.entity_type === 'driver' ? 'водитель' : 'машина'})_`);
+      }
+
+      const text = lines.join('\n');
+
+      const ok = await sendTelegram(text);
+
+      if (ok) {
+        // Обновляем поле last_notified
+        await supabase
+          .from('reminders')
+          .update({
+            last_notified_at: todayISO,
+            last_notified_days: daysLeft,
+          })
+          .eq('id', r.id);
+
+        sent++;
+        log.push({ id: r.id, title: r.title, daysLeft, action: 'sent' });
+      } else {
+        tgErrors++;
+        log.push({ id: r.id, title: r.title, daysLeft, action: 'tg_error' });
+      }
+
+      // Небольшая пауза, чтобы не превысить лимиты Telegram
+      await new Promise((res) => setTimeout(res, 100));
     }
 
-    const text = lines.join('\n');
-
-    const ok = await sendTelegram(text);
-
-    if (ok) {
-      // Обновляем поле last_notified
-      await supabase
-        .from('reminders')
-        .update({
-          last_notified_at: todayISO,
-          last_notified_days: daysLeft,
-        })
-        .eq('id', r.id);
-
-      sent++;
-      log.push({ id: r.id, title: r.title, daysLeft, action: 'sent' });
-    } else {
-      log.push({ id: r.id, title: r.title, daysLeft, action: 'tg_error' });
+    // Алерт, если часть напоминаний не ушла
+    if (tgErrors > 0) {
+      const failedPreview = log
+        .filter((l) => l.action === 'tg_error')
+        .slice(0, 10)
+        .map((l) => `• ${l.title}`)
+        .join('\n');
+      const more = tgErrors > 10 ? `\n…и ещё ${tgErrors - 10}` : '';
+      await sendCronSummary(
+        'reminders',
+        `Не удалось отправить ${tgErrors} напоминаний:\n${failedPreview}${more}`
+      );
     }
 
-    // Небольшая пауза, чтобы не превысить лимиты Telegram
-    await new Promise((res) => setTimeout(res, 100));
+    return NextResponse.json({
+      success: true,
+      total: reminders?.length || 0,
+      sent,
+      skipped,
+      tg_errors: tgErrors,
+      timestamp: new Date().toISOString(),
+      log: log.slice(0, 20), // первые 20 записей для диагностики
+    });
+  } catch (e) {
+    const msg = (e as Error).message || 'unknown error';
+    await sendCronAlert('reminders', `Неожиданная ошибка: ${msg}`);
+    return NextResponse.json(
+      { success: false, error: msg },
+      { status: 500 }
+    );
   }
-
-  return NextResponse.json({
-    success: true,
-    total: reminders?.length || 0,
-    sent,
-    skipped,
-    timestamp: new Date().toISOString(),
-    log: log.slice(0, 20), // первые 20 записей для диагностики
-  });
 }
