@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import SubcontractorForm from './SubcontractorForm';
+import type { SenderPoint } from './SubcontractorForm';
 import { deleteTripSubcontractor } from '../../../lib/trip-subcontractors';
 
 type Location = {
@@ -96,6 +97,7 @@ export default function SubcontractorsBlock({
   loadingLocations,
   unloadingLocations,
   defaultLoad,
+  senderPoints,
   tripFinalDestination,
 }: {
   tripId: string;
@@ -104,6 +106,7 @@ export default function SubcontractorsBlock({
   loadingLocations: Location[];
   unloadingLocations: Location[];
   defaultLoad: DefaultLoad;
+  senderPoints?: SenderPoint[];
   tripFinalDestination: string;
 }) {
   const router = useRouter();
@@ -325,6 +328,7 @@ export default function SubcontractorsBlock({
           loadingLocations={loadingLocations}
           unloadingLocations={unloadingLocations}
           defaultLoad={defaultLoad}
+          senderPoints={senderPoints}
           subcontractorId={editingId || undefined}
           initialData={editingSub ? {
             contractor_id: editingSub.contractor_id,
