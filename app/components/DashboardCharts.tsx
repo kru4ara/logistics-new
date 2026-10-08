@@ -1,3 +1,5 @@
+import { TrendingUp, TrendingDown, PieChart } from 'lucide-react';
+
 type MonthPoint = {
   key: string;
   label: string;
@@ -12,9 +14,6 @@ type CategorySlice = {
   amount: number;
 };
 
-// ============================================================
-// Красивое округление максимума вверх
-// ============================================================
 function niceMax(n: number): number {
   if (n <= 0) return 0;
   const pow = Math.pow(10, Math.floor(Math.log10(n)));
@@ -34,23 +33,11 @@ function formatTick(v: number): string {
   return sign + String(abs);
 }
 
-function formatFull(v: number): string {
-  const sign = v < 0 ? '−' : '';
-  return sign + Math.abs(v).toLocaleString('ru-RU');
-}
-
-// ============================================================
-// BAR CHART
-// ============================================================
 export function MonthlyBars({ data }: { data: MonthPoint[] }) {
   if (data.length === 0) return null;
 
-  // Максимум по модулю для расчёта полос в мобильном виде
   const maxAbsMobile = Math.max(...data.map((d) => Math.abs(d.profit)), 1);
 
-  // ============================================================
-  // Геометрия SVG для десктопа
-  // ============================================================
   const W = 800;
   const H = 200;
   const PAD_L = 56;
@@ -84,14 +71,15 @@ export function MonthlyBars({ data }: { data: MonthPoint[] }) {
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-6">
+    <div className="card p-4 md:p-6">
       <div className="flex flex-wrap items-baseline justify-between gap-3 mb-4">
         <div>
-          <h2 className="text-base md:text-lg font-bold text-slate-900">
-            📈 Прибыль по месяцам
+          <h2 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2">
+            <TrendingUp className="w-5 h-5 text-brand-600" strokeWidth={2} />
+            Прибыль по месяцам
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
-            Последние 12 месяцев
+            Последние 12 месяцев · без инвестиций
           </p>
         </div>
         <div className="flex items-center gap-3 text-xs text-slate-500">
@@ -106,7 +94,7 @@ export function MonthlyBars({ data }: { data: MonthPoint[] }) {
         </div>
       </div>
 
-      {/* ================= МОБИЛЬНАЯ ВЕРСИЯ — ГОРИЗОНТАЛЬНЫЕ ПОЛОСЫ ================= */}
+      {/* Мобильная версия */}
       <div className="md:hidden space-y-2.5">
         {data.map((m) => {
           const isPos = m.profit >= 0;
@@ -137,7 +125,7 @@ export function MonthlyBars({ data }: { data: MonthPoint[] }) {
         })}
       </div>
 
-      {/* ================= ДЕСКТОПНАЯ ВЕРСИЯ — SVG С ОСЯМИ ================= */}
+      {/* Десктоп */}
       <div className="hidden md:block">
         <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" preserveAspectRatio="xMidYMid meet">
           {yTicks.map((tick) => {
@@ -227,9 +215,6 @@ export function MonthlyBars({ data }: { data: MonthPoint[] }) {
   );
 }
 
-// ============================================================
-// DONUT — все категории
-// ============================================================
 export function ExpenseDonut({
   data,
   total,
@@ -285,11 +270,12 @@ export function ExpenseDonut({
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-6">
+    <div className="card p-4 md:p-6">
       <div className="flex flex-wrap items-baseline justify-between gap-3 mb-4">
         <div>
-          <h2 className="text-base md:text-lg font-bold text-slate-900">
-            💸 Структура расходов
+          <h2 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2">
+            <PieChart className="w-5 h-5 text-brand-600" strokeWidth={2} />
+            Структура расходов
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
             Все категории по рейсам за всё время
@@ -333,7 +319,7 @@ export function ExpenseDonut({
             <div className="text-[10px] text-slate-400 uppercase tracking-wide">
               Всего
             </div>
-            <div className="text-lg md:text-xl font-bold text-slate-800">
+            <div className="text-lg md:text-xl font-bold text-slate-800 tabular-nums">
               {total.toFixed(0)} €
             </div>
           </div>
