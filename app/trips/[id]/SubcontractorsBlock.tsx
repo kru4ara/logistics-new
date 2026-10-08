@@ -42,20 +42,54 @@ type Subcontractor = {
   truck_number: string | null;
   driver_name: string | null;
   driver_phone: string | null;
+  // A1
   load_date: string | null;
-  unload_date: string | null;
   load_country: string | null;
   load_city: string | null;
   load_address: string | null;
   load_company: string | null;
   load_postal_code: string | null;
   load_number: string | null;
+  // A2
+  load2_date: string | null;
+  load2_country: string | null;
+  load2_city: string | null;
+  load2_address: string | null;
+  load2_company: string | null;
+  load2_postal_code: string | null;
+  load2_number: string | null;
+  // A3
+  load3_date: string | null;
+  load3_country: string | null;
+  load3_city: string | null;
+  load3_address: string | null;
+  load3_company: string | null;
+  load3_postal_code: string | null;
+  load3_number: string | null;
+  // A4
+  load4_date: string | null;
+  load4_country: string | null;
+  load4_city: string | null;
+  load4_address: string | null;
+  load4_company: string | null;
+  load4_postal_code: string | null;
+  load4_number: string | null;
+  // A5
+  load5_date: string | null;
+  load5_country: string | null;
+  load5_city: string | null;
+  load5_address: string | null;
+  load5_company: string | null;
+  load5_postal_code: string | null;
+  load5_number: string | null;
+  // C
   unload_country: string | null;
   unload_city: string | null;
   unload_address: string | null;
   unload_company: string | null;
   unload_postal_code: string | null;
   unload_number: string | null;
+  unload_date: string | null;
   notes: string | null;
   transport_type: string | null;
   transport_temperature: string | null;
@@ -74,6 +108,81 @@ type DefaultLoad = {
   postal_code: string | null;
   loading_number: string | null;
 };
+
+// Извлекаем массив load-точек подрядчика (для отображения)
+type DisplayLoadPoint = {
+  num: number;      // порядковый номер (1-based)
+  date: string | null;
+  country: string | null;
+  city: string | null;
+  address: string | null;
+  company: string | null;
+  postal_code: string | null;
+  number: string | null;
+};
+
+function extractLoadPoints(sub: Subcontractor): DisplayLoadPoint[] {
+  const raw = [
+    {
+      num: 1,
+      date: sub.load_date,
+      country: sub.load_country,
+      city: sub.load_city,
+      address: sub.load_address,
+      company: sub.load_company,
+      postal_code: sub.load_postal_code,
+      number: sub.load_number,
+    },
+    {
+      num: 2,
+      date: sub.load2_date,
+      country: sub.load2_country,
+      city: sub.load2_city,
+      address: sub.load2_address,
+      company: sub.load2_company,
+      postal_code: sub.load2_postal_code,
+      number: sub.load2_number,
+    },
+    {
+      num: 3,
+      date: sub.load3_date,
+      country: sub.load3_country,
+      city: sub.load3_city,
+      address: sub.load3_address,
+      company: sub.load3_company,
+      postal_code: sub.load3_postal_code,
+      number: sub.load3_number,
+    },
+    {
+      num: 4,
+      date: sub.load4_date,
+      country: sub.load4_country,
+      city: sub.load4_city,
+      address: sub.load4_address,
+      company: sub.load4_company,
+      postal_code: sub.load4_postal_code,
+      number: sub.load4_number,
+    },
+    {
+      num: 5,
+      date: sub.load5_date,
+      country: sub.load5_country,
+      city: sub.load5_city,
+      address: sub.load5_address,
+      company: sub.load5_company,
+      postal_code: sub.load5_postal_code,
+      number: sub.load5_number,
+    },
+  ];
+
+  // Оставляем только заполненные, перенумеровываем по порядку (1, 2, 3...)
+  return raw
+    .filter(
+      (p) =>
+        p.date || p.city || p.country || p.address || p.company || p.postal_code || p.number
+    )
+    .map((p, idx) => ({ ...p, num: idx + 1 }));
+}
 
 function getContractorName(rel: Subcontractor['contractors']): { name: string; country: string | null } {
   if (!rel) return { name: '—', country: null };
@@ -180,8 +289,8 @@ export default function SubcontractorsBlock({
         <div className="space-y-3">
           {subcontractors.map((sub) => {
             const cInfo = getContractorName(sub.contractors);
+            const loadPoints = extractLoadPoints(sub);
 
-            const fromLine = [sub.load_country, sub.load_city].filter(Boolean).join(', ') || '—';
             const toLine = [sub.unload_country, sub.unload_city].filter(Boolean).join(', ') || '—';
 
             return (
@@ -210,27 +319,66 @@ export default function SubcontractorsBlock({
                   </div>
                 </div>
 
-                {/* Визуальная схема A → C */}
+                {/* Визуальная схема A1 → A2 → ... → C */}
                 <div className="bg-white rounded-lg border border-slate-200 p-3 text-xs">
                   <div className="flex items-start gap-2">
                     <div className="flex flex-col items-center shrink-0 pt-0.5">
-                      <span className="w-2.5 h-2.5 rounded-full bg-green-500" />
-                      <span className="w-0.5 flex-1 bg-slate-200 my-0.5" style={{ minHeight: 16 }} />
-                      <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+                      {loadPoints.length === 0 ? (
+                        <>
+                          <span className="w-2.5 h-2.5 rounded-full bg-green-500" />
+                          <span className="w-0.5 flex-1 bg-slate-200 my-0.5" style={{ minHeight: 16 }} />
+                          <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+                        </>
+                      ) : (
+                        <>
+                          {loadPoints.map((p, idx) => (
+                            <div key={idx} className="flex flex-col items-center">
+                              <span className="w-2.5 h-2.5 rounded-full bg-green-500" />
+                              <span
+                                className="w-0.5 flex-1 bg-slate-200 my-0.5"
+                                style={{ minHeight: 16 }}
+                              />
+                            </div>
+                          ))}
+                          <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+                        </>
+                      )}
                     </div>
                     <div className="min-w-0 flex-1 space-y-2">
-                      <div>
-                        <div className="font-semibold text-green-700 flex items-center gap-2">
-                          A · Загрузка
-                          {sub.load_date && (
-                            <span className="font-normal text-slate-500">· {fmtDate(sub.load_date)}</span>
-                          )}
+                      {loadPoints.length === 0 ? (
+                        <div>
+                          <div className="font-semibold text-green-700">A · Загрузка</div>
+                          <div className="text-slate-700 break-words">—</div>
+                          <div className="text-slate-500 break-words">—</div>
                         </div>
-                        <div className="text-slate-700 break-words">{sub.load_company || '—'}</div>
-                        <div className="text-slate-500 break-words">{fromLine}</div>
-                      </div>
+                      ) : (
+                        loadPoints.map((p, idx) => {
+                          const fromLine = [p.country, p.city].filter(Boolean).join(', ') || '—';
+                          return (
+                            <div key={idx}>
+                              <div className="font-semibold text-green-700 flex items-center gap-2 flex-wrap">
+                                A{p.num} · Загрузка
+                                {p.date && (
+                                  <span className="font-normal text-slate-500">· {fmtDate(p.date)}</span>
+                                )}
+                              </div>
+                              <div className="text-slate-700 break-words">{p.company || '—'}</div>
+                              <div className="text-slate-500 break-words">{fromLine}</div>
+                              {p.address && (
+                                <div className="text-slate-400 break-words">{p.address}</div>
+                              )}
+                              {p.number && (
+                                <div className="text-slate-400 text-[11px]">
+                                  № погрузки: {p.number}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })
+                      )}
+
                       <div>
-                        <div className="font-semibold text-amber-700 flex items-center gap-2">
+                        <div className="font-semibold text-amber-700 flex items-center gap-2 flex-wrap">
                           C · Перегрузка (куда довозит подрядчик)
                           {sub.unload_date && (
                             <span className="font-normal text-slate-500">· {fmtDate(sub.unload_date)}</span>
@@ -238,6 +386,14 @@ export default function SubcontractorsBlock({
                         </div>
                         <div className="text-slate-700 break-words">{sub.unload_company || '—'}</div>
                         <div className="text-slate-500 break-words">{toLine}</div>
+                        {sub.unload_address && (
+                          <div className="text-slate-400 break-words">{sub.unload_address}</div>
+                        )}
+                        {sub.unload_number && (
+                          <div className="text-slate-400 text-[11px]">
+                            № выгрузки: {sub.unload_number}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -338,20 +494,55 @@ export default function SubcontractorsBlock({
             truck_number: editingSub.truck_number,
             driver_name: editingSub.driver_name,
             driver_phone: editingSub.driver_phone,
+
             load_date: editingSub.load_date,
-            unload_date: editingSub.unload_date,
             load_country: editingSub.load_country,
             load_city: editingSub.load_city,
             load_address: editingSub.load_address,
             load_company: editingSub.load_company,
             load_postal_code: editingSub.load_postal_code,
             load_number: editingSub.load_number,
+
+            load2_date: editingSub.load2_date,
+            load2_country: editingSub.load2_country,
+            load2_city: editingSub.load2_city,
+            load2_address: editingSub.load2_address,
+            load2_company: editingSub.load2_company,
+            load2_postal_code: editingSub.load2_postal_code,
+            load2_number: editingSub.load2_number,
+
+            load3_date: editingSub.load3_date,
+            load3_country: editingSub.load3_country,
+            load3_city: editingSub.load3_city,
+            load3_address: editingSub.load3_address,
+            load3_company: editingSub.load3_company,
+            load3_postal_code: editingSub.load3_postal_code,
+            load3_number: editingSub.load3_number,
+
+            load4_date: editingSub.load4_date,
+            load4_country: editingSub.load4_country,
+            load4_city: editingSub.load4_city,
+            load4_address: editingSub.load4_address,
+            load4_company: editingSub.load4_company,
+            load4_postal_code: editingSub.load4_postal_code,
+            load4_number: editingSub.load4_number,
+
+            load5_date: editingSub.load5_date,
+            load5_country: editingSub.load5_country,
+            load5_city: editingSub.load5_city,
+            load5_address: editingSub.load5_address,
+            load5_company: editingSub.load5_company,
+            load5_postal_code: editingSub.load5_postal_code,
+            load5_number: editingSub.load5_number,
+
             unload_country: editingSub.unload_country,
             unload_city: editingSub.unload_city,
             unload_address: editingSub.unload_address,
             unload_company: editingSub.unload_company,
             unload_postal_code: editingSub.unload_postal_code,
             unload_number: editingSub.unload_number,
+            unload_date: editingSub.unload_date,
+
             notes: editingSub.notes,
             transport_type: editingSub.transport_type,
             transport_temperature: editingSub.transport_temperature,
