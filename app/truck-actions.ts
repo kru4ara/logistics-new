@@ -5,38 +5,101 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { syncReminders } from './reminder-actions';
 
+// ============================================================
+// Парсер формы — общий для create и update
+// ============================================================
+function parseTruckForm(formData: FormData) {
+  const trimOrNull = (key: string): string | null => {
+    const v = (formData.get(key) as string | null)?.trim();
+    return v || null;
+  };
+
+  const intOrNull = (key: string): number | null => {
+    const v = (formData.get(key) as string | null)?.trim();
+    if (!v) return null;
+    const n = parseInt(v, 10);
+    return Number.isFinite(n) ? n : null;
+  };
+
+  const rawType = (formData.get('type') as string) || 'tractor';
+  const type = rawType === 'trailer' ? 'trailer' : 'tractor';
+
+  return {
+    registration_number: trimOrNull('registration_number') || '',
+    type,
+
+    brand: trimOrNull('brand'),
+    model: trimOrNull('model'),
+    year: intOrNull('year'),
+    vin: trimOrNull('vin'),
+
+    // Общие документы
+    truck_insurance_expiry: trimOrNull('truck_insurance_expiry'),
+    tech_inspection_expiry: trimOrNull('tech_inspection_expiry'),
+    border_insurance_expiry: trimOrNull('border_insurance_expiry'),
+
+    // Только для тягача
+    to_expiry: trimOrNull('to_expiry'),
+    tachograph_calibration_expiry: trimOrNull('tachograph_calibration_expiry'),
+    fuel_card_number: trimOrNull('fuel_card_number'),
+    trailer_number: trimOrNull('trailer_number'),
+
+    // Только для прицепа
+    customs_certificate_expiry: trimOrNull('customs_certificate_expiry'),
+  };
+}
+
+// ============================================================
+// Создание транспорта
+// ============================================================
+export async function createTruck(formData: FormData) {
+  const supabase = await createClient();
+  const payload = parseTruckForm(formData);
+
+  if (!payload.registration_number) {
+    throw new Error('Укажите госномер');
+  }
+
+  const { data, error } = await supabase
+    .from('trucks')
+    .insert([payload])
+    .select('id')
+    .single();
+
+  if (error) throw new Error(`Ошибка добавления: ${error.message}`);
+
+  // Автогенерация напоминаний по датам
+  if (data?.id) {
+    await syncReminders('truck', data.id);
+  }
+
+  revalidatePath('/trucks');
+  revalidatePath('/reminders');
+  redirect('/trucks?toast=truck_created');
+}
+
+// ============================================================
+// Обновление транспорта
+// ============================================================
 export async function updateTruck(truckId: string, formData: FormData) {
   const supabase = await createClient();
+  const payload = parseTruckForm(formData);
 
-  const registrationNumber = formData.get('registration_number') as string;
-  const type = formData.get('type') as string;
-  const trailerNumber = formData.get('trailer_number') as string;
-  const truckInsuranceExpiry = formData.get('truck_insurance_expiry') as string;
-  const borderInsuranceExpiry = formData.get('border_insurance_expiry') as string;
-  const techInspectionExpiry = formData.get('tech_inspection_expiry') as string;
-  const fuelCardNumber = formData.get('fuel_card_number') as string;
-  const tachographLegalizationExpiry = formData.get('tachograph_legalization_expiry') as string;
+  if (!payload.registration_number) {
+    throw new Error('Укажите госномер');
+  }
 
   const { error } = await supabase
     .from('trucks')
-    .update({
-      registration_number: registrationNumber,
-      type: type,
-      trailer_number: trailerNumber || null,
-      truck_insurance_expiry: truckInsuranceExpiry || null,
-      border_insurance_expiry: borderInsuranceExpiry || null,
-      tech_inspection_expiry: techInspectionExpiry || null,
-      fuel_card_number: fuelCardNumber || null,
-      tachograph_legalization_expiry: tachographLegalizationExpiry || null
-    })
+    .update(payload)
     .eq('id', truckId);
 
   if (error) throw new Error(`Ошибка обновления: ${error.message}`);
 
-  // Обновляем напоминания
   await syncReminders('truck', truckId);
 
   revalidatePath(`/trucks/${truckId}`);
+  revalidatePath('/trucks');
   revalidatePath('/reminders');
-  redirect(`/trucks/${truckId}`);
+  redirect(`/trucks/${truckId}?toast=truck_updated`);
 }
