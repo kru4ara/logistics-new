@@ -1,12 +1,28 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { createClient } from '../../../lib/supabase-server';
+import { sendCronAlert } from '../../../lib/cron-alert';
 
-export async function GET() {
+export const dynamic = 'force-dynamic';
+
+const CRON_SECRET = process.env.CRON_SECRET;
+
+export async function GET(request: NextRequest) {
+  // Защита: если CRON_SECRET задан — проверяем заголовок.
+  // Vercel автоматически добавляет `Authorization: Bearer ${CRON_SECRET}` ко всем cron-запросам.
+  if (CRON_SECRET) {
+    const auth = request.headers.get('authorization');
+    if (auth !== `Bearer ${CRON_SECRET}`) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+  }
+
   try {
     const supabase = await createClient();
 
     // 1. Скачиваем курсы с бесплатного API (open.er-api.com)
-    const response = await fetch('https://open.er-api.com/v6/latest/EUR');
+    const response = await fetch('https://open.er-api.com/v6/latest/EUR', {
+      cache: 'no-store',
+    });
     const data = await response.json();
 
     if (data.result !== 'success') {
@@ -15,6 +31,10 @@ export async function GET() {
 
     const plnRate = data.rates.PLN; // Сколько PLN за 1 EUR
     const bynRate = data.rates.BYN; // Сколько BYN за 1 EUR
+
+    if (!plnRate || !bynRate) {
+      throw new Error(`API вернул неполные данные: PLN=${plnRate}, BYN=${bynRate}`);
+    }
 
     // Нам нужно: 1 PLN = X EUR
     const plnToEur = 1 / plnRate;
@@ -32,8 +52,10 @@ export async function GET() {
 
     if (error) throw error;
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, date: today, pln_to_eur: plnToEur, byn_to_eur: bynToEur });
   } catch (error) {
-    return NextResponse.json({ success: false, error: (error as Error).message }, { status: 500 });
+    const msg = (error as Error).message || 'unknown error';
+    await sendCronAlert('update-rates', msg);
+    return NextResponse.json({ success: false, error: msg }, { status: 500 });
   }
 }
