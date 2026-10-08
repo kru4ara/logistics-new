@@ -31,6 +31,29 @@ type Contractor = {
   email: string | null;
 };
 
+// Точка загрузки рейса (sender / sender2 / ... / sender5)
+export type SenderPoint = {
+  num: number;
+  country: string | null;
+  name: string | null;
+  postal_code: string | null;
+  city: string | null;
+  address: string | null;
+  loading_number: string | null;
+};
+
+// Одна точка загрузки подрядчика (A1..A5)
+type LoadPoint = {
+  sourceNum: number | null; // если из рейса — num, иначе null
+  date: string | null;
+  country: string | null;
+  city: string | null;
+  address: string | null;
+  company: string | null;
+  postal_code: string | null;
+  number: string | null;
+};
+
 type SubcontractorData = {
   id?: string;
   contractor_id: string | null;
@@ -40,14 +63,7 @@ type SubcontractorData = {
   truck_number: string | null;
   driver_name: string | null;
   driver_phone: string | null;
-  load_date: string | null;
   unload_date: string | null;
-  load_country: string | null;
-  load_city: string | null;
-  load_address: string | null;
-  load_company: string | null;
-  load_postal_code: string | null;
-  load_number: string | null;
   unload_country: string | null;
   unload_city: string | null;
   unload_address: string | null;
@@ -61,9 +77,56 @@ type SubcontractorData = {
   cargo_quantity: string | null;
   customs_loading: string | null;
   customs_unloading: string | null;
+  // Плюс load_* поля для совместимости с бэком
+  load_date?: string | null;
+  load_country?: string | null;
+  load_city?: string | null;
+  load_address?: string | null;
+  load_company?: string | null;
+  load_postal_code?: string | null;
+  load_number?: string | null;
+  load2_date?: string | null;
+  load2_country?: string | null;
+  load2_city?: string | null;
+  load2_address?: string | null;
+  load2_company?: string | null;
+  load2_postal_code?: string | null;
+  load2_number?: string | null;
+  load3_date?: string | null;
+  load3_country?: string | null;
+  load3_city?: string | null;
+  load3_address?: string | null;
+  load3_company?: string | null;
+  load3_postal_code?: string | null;
+  load3_number?: string | null;
+  load4_date?: string | null;
+  load4_country?: string | null;
+  load4_city?: string | null;
+  load4_address?: string | null;
+  load4_company?: string | null;
+  load4_postal_code?: string | null;
+  load4_number?: string | null;
+  load5_date?: string | null;
+  load5_country?: string | null;
+  load5_city?: string | null;
+  load5_address?: string | null;
+  load5_company?: string | null;
+  load5_postal_code?: string | null;
+  load5_number?: string | null;
 };
 
-const emptyData: SubcontractorData = {
+const emptyLoadPoint: LoadPoint = {
+  sourceNum: null,
+  date: null,
+  country: null,
+  city: null,
+  address: null,
+  company: null,
+  postal_code: null,
+  number: null,
+};
+
+const emptyData: Omit<SubcontractorData, 'load_date' | 'load_country' | 'load_city' | 'load_address' | 'load_company' | 'load_postal_code' | 'load_number' | 'load2_date' | 'load2_country' | 'load2_city' | 'load2_address' | 'load2_company' | 'load2_postal_code' | 'load2_number' | 'load3_date' | 'load3_country' | 'load3_city' | 'load3_address' | 'load3_company' | 'load3_postal_code' | 'load3_number' | 'load4_date' | 'load4_country' | 'load4_city' | 'load4_address' | 'load4_company' | 'load4_postal_code' | 'load4_number' | 'load5_date' | 'load5_country' | 'load5_city' | 'load5_address' | 'load5_company' | 'load5_postal_code' | 'load5_number'> = {
   contractor_id: null,
   original_price: 0,
   currency: 'EUR',
@@ -71,14 +134,7 @@ const emptyData: SubcontractorData = {
   truck_number: null,
   driver_name: null,
   driver_phone: null,
-  load_date: null,
   unload_date: null,
-  load_country: null,
-  load_city: null,
-  load_address: null,
-  load_company: null,
-  load_postal_code: null,
-  load_number: null,
   unload_country: null,
   unload_city: null,
   unload_address: null,
@@ -103,21 +159,72 @@ type DefaultLoad = {
   loading_number: string | null;
 };
 
-// Точка загрузки рейса (sender / sender2 / sender3)
-export type SenderPoint = {
-  num: number;
-  country: string | null;
-  name: string | null;
-  postal_code: string | null;
-  city: string | null;
-  address: string | null;
-  loading_number: string | null;
-};
-
 const TRANSPORT_TYPES = [
   'Plandeka / Standart',
   'Chlodnia',
 ];
+
+// Возвращает массив load-точек из initialData (для редактирования)
+function extractLoadPoints(initialData?: SubcontractorData): LoadPoint[] {
+  if (!initialData) return [];
+
+  const raw: LoadPoint[] = [
+    {
+      sourceNum: null,
+      date: initialData.load_date || null,
+      country: initialData.load_country || null,
+      city: initialData.load_city || null,
+      address: initialData.load_address || null,
+      company: initialData.load_company || null,
+      postal_code: initialData.load_postal_code || null,
+      number: initialData.load_number || null,
+    },
+    {
+      sourceNum: null,
+      date: initialData.load2_date || null,
+      country: initialData.load2_country || null,
+      city: initialData.load2_city || null,
+      address: initialData.load2_address || null,
+      company: initialData.load2_company || null,
+      postal_code: initialData.load2_postal_code || null,
+      number: initialData.load2_number || null,
+    },
+    {
+      sourceNum: null,
+      date: initialData.load3_date || null,
+      country: initialData.load3_country || null,
+      city: initialData.load3_city || null,
+      address: initialData.load3_address || null,
+      company: initialData.load3_company || null,
+      postal_code: initialData.load3_postal_code || null,
+      number: initialData.load3_number || null,
+    },
+    {
+      sourceNum: null,
+      date: initialData.load4_date || null,
+      country: initialData.load4_country || null,
+      city: initialData.load4_city || null,
+      address: initialData.load4_address || null,
+      company: initialData.load4_company || null,
+      postal_code: initialData.load4_postal_code || null,
+      number: initialData.load4_number || null,
+    },
+    {
+      sourceNum: null,
+      date: initialData.load5_date || null,
+      country: initialData.load5_country || null,
+      city: initialData.load5_city || null,
+      address: initialData.load5_address || null,
+      company: initialData.load5_company || null,
+      postal_code: initialData.load5_postal_code || null,
+      number: initialData.load5_number || null,
+    },
+  ];
+
+  return raw.filter(
+    (p) => p.date || p.city || p.country || p.address || p.company || p.postal_code || p.number
+  );
+}
 
 export default function SubcontractorForm({
   tripId,
@@ -143,37 +250,63 @@ export default function SubcontractorForm({
   onSaved: () => void;
 }) {
   const isEdit = Boolean(subcontractorId);
+  const hasSenderPoints = Boolean(senderPoints && senderPoints.length > 0);
 
-  // Вычисляем начальные данные: если есть senderPoints — приоритет у них,
-  // иначе используем defaultLoad (как было раньше).
-  function getInitialLoadFields(): Partial<SubcontractorData> {
-    if (senderPoints && senderPoints.length > 0) {
-      const sp = senderPoints[0];
-      return {
-        load_country: sp.country,
-        load_city: sp.city,
-        load_address: sp.address,
-        load_company: sp.name,
-        load_postal_code: sp.postal_code,
-        load_number: sp.loading_number,
-      };
+  // Инициализация: восстанавливаем load-точки либо из initialData, либо создаём пустую
+  function initLoadPoints(): LoadPoint[] {
+    if (isEdit && initialData) {
+      const restored = extractLoadPoints(initialData);
+      if (restored.length > 0) {
+        // Пытаемся связать с senderPoints по city+country
+        if (senderPoints) {
+          return restored.map((p) => {
+            const match = senderPoints.find(
+              (sp) =>
+                sp.city &&
+                p.city &&
+                sp.city.toLowerCase() === p.city.toLowerCase() &&
+                (sp.country || '') === (p.country || '')
+            );
+            return { ...p, sourceNum: match ? match.num : null };
+          });
+        }
+        return restored;
+      }
     }
-    return {
-      load_country: defaultLoad?.country || null,
-      load_city: defaultLoad?.city || null,
-      load_address: defaultLoad?.address || null,
-      load_company: defaultLoad?.company || null,
-      load_postal_code: defaultLoad?.postal_code || null,
-      load_number: defaultLoad?.loading_number || null,
-    };
+
+    // Новая запись
+    if (hasSenderPoints) {
+      // Ничего не отмечаем, пусть пользователь выберет
+      return [];
+    }
+
+    // Fallback — если есть defaultLoad, используем его
+    if (defaultLoad && (defaultLoad.city || defaultLoad.company || defaultLoad.country)) {
+      return [
+        {
+          ...emptyLoadPoint,
+          country: defaultLoad.country,
+          city: defaultLoad.city,
+          address: defaultLoad.address,
+          company: defaultLoad.company,
+          postal_code: defaultLoad.postal_code,
+          number: defaultLoad.loading_number,
+        },
+      ];
+    }
+
+    // Совсем пустой старт
+    return [{ ...emptyLoadPoint }];
   }
 
-  const startingData: SubcontractorData = initialData || {
-    ...emptyData,
-    ...getInitialLoadFields(),
-  };
-
-  const [data, setData] = useState<SubcontractorData>(startingData);
+  const [data, setData] = useState<SubcontractorData>(
+    initialData
+      ? { ...emptyData, ...initialData }
+      : {
+          ...emptyData,
+        }
+  );
+  const [loadPoints, setLoadPoints] = useState<LoadPoint[]>(initLoadPoints);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
@@ -190,34 +323,73 @@ export default function SubcontractorForm({
     setData((prev) => ({ ...prev, [field]: value }));
   }
 
-  function fillLoadFromSender(num: number) {
-    if (!senderPoints) return;
-    const sp = senderPoints.find((p) => p.num === num);
-    if (!sp) return;
-    setData((prev) => ({
-      ...prev,
-      load_country: sp.country,
-      load_company: sp.name,
-      load_postal_code: sp.postal_code,
-      load_city: sp.city,
-      load_address: sp.address,
-      load_number: sp.loading_number,
-    }));
+  // Точки загрузки
+  function toggleSenderPoint(num: number, checked: boolean) {
+    if (checked) {
+      // Добавляем точку из senderPoints
+      if (loadPoints.some((p) => p.sourceNum === num)) return;
+      if (loadPoints.length >= 5) return;
+      const sp = senderPoints!.find((s) => s.num === num);
+      if (!sp) return;
+      const newPoint: LoadPoint = {
+        sourceNum: num,
+        date: null,
+        country: sp.country,
+        city: sp.city,
+        address: sp.address,
+        company: sp.name,
+        postal_code: sp.postal_code,
+        number: sp.loading_number,
+      };
+      // Сортируем по sourceNum (null в конце)
+      const next = [...loadPoints, newPoint].sort((a, b) => {
+        if (a.sourceNum === null && b.sourceNum === null) return 0;
+        if (a.sourceNum === null) return 1;
+        if (b.sourceNum === null) return -1;
+        return a.sourceNum - b.sourceNum;
+      });
+      setLoadPoints(next);
+    } else {
+      // Удаляем точку
+      setLoadPoints(loadPoints.filter((p) => p.sourceNum !== num));
+    }
   }
 
-  function fillLoadFromLocation(locId: string) {
+  function addManualPoint() {
+    if (loadPoints.length >= 5) return;
+    setLoadPoints([...loadPoints, { ...emptyLoadPoint }]);
+  }
+
+  function removePoint(idx: number) {
+    if (loadPoints.length <= 1) return;
+    setLoadPoints(loadPoints.filter((_, i) => i !== idx));
+  }
+
+  function updatePoint(idx: number, field: keyof LoadPoint, value: string | null) {
+    setLoadPoints(
+      loadPoints.map((p, i) => (i === idx ? { ...p, [field]: value } : p))
+    );
+  }
+
+  function fillPointFromLocation(idx: number, locId: string) {
     if (!locId) return;
     const loc = loadingLocations.find((l) => l.id === locId);
     if (!loc) return;
-    setData((prev) => ({
-      ...prev,
-      load_country: loc.country || null,
-      load_company: loc.company_name || null,
-      load_postal_code: loc.postal_code || null,
-      load_city: loc.city || null,
-      load_address: loc.address || null,
-      load_number: loc.default_loading_number || null,
-    }));
+    setLoadPoints(
+      loadPoints.map((p, i) =>
+        i === idx
+          ? {
+              ...p,
+              country: loc.country,
+              company: loc.company_name,
+              postal_code: loc.postal_code,
+              city: loc.city,
+              address: loc.address,
+              number: loc.default_loading_number,
+            }
+          : p
+      )
+    );
   }
 
   function fillUnloadFromLocation(locId: string) {
@@ -247,8 +419,12 @@ export default function SubcontractorForm({
       setError('Укажите цену подрядчику');
       return;
     }
-    if (!data.load_date) {
-      setError('Укажите дату загрузки');
+    if (loadPoints.length === 0) {
+      setError('Укажите хотя бы одну точку загрузки');
+      return;
+    }
+    if (!loadPoints[0].date) {
+      setError('Укажите дату первой загрузки (A1)');
       return;
     }
 
@@ -260,20 +436,40 @@ export default function SubcontractorForm({
     formData.set('truck_number', data.truck_number || '');
     formData.set('driver_name', data.driver_name || '');
     formData.set('driver_phone', data.driver_phone || '');
-    formData.set('load_date', data.load_date || '');
+
+    // Раскладываем loadPoints по полям load_*, load2_*, ..., load5_*
+    const prefixes = ['load', 'load2', 'load3', 'load4', 'load5'];
+    for (let i = 0; i < 5; i++) {
+      const p = loadPoints[i];
+      const prefix = prefixes[i];
+      if (p) {
+        formData.set(`${prefix}_date`, p.date || '');
+        formData.set(`${prefix}_country`, p.country || '');
+        formData.set(`${prefix}_city`, p.city || '');
+        formData.set(`${prefix}_address`, p.address || '');
+        formData.set(`${prefix}_company`, p.company || '');
+        formData.set(`${prefix}_postal_code`, p.postal_code || '');
+        formData.set(`${prefix}_number`, p.number || '');
+      } else {
+        // Пустые
+        formData.set(`${prefix}_date`, '');
+        formData.set(`${prefix}_country`, '');
+        formData.set(`${prefix}_city`, '');
+        formData.set(`${prefix}_address`, '');
+        formData.set(`${prefix}_company`, '');
+        formData.set(`${prefix}_postal_code`, '');
+        formData.set(`${prefix}_number`, '');
+      }
+    }
+
     formData.set('unload_date', data.unload_date || '');
-    formData.set('load_country', data.load_country || '');
-    formData.set('load_city', data.load_city || '');
-    formData.set('load_address', data.load_address || '');
-    formData.set('load_company', data.load_company || '');
-    formData.set('load_postal_code', data.load_postal_code || '');
-    formData.set('load_number', data.load_number || '');
     formData.set('unload_country', data.unload_country || '');
     formData.set('unload_city', data.unload_city || '');
     formData.set('unload_address', data.unload_address || '');
     formData.set('unload_company', data.unload_company || '');
     formData.set('unload_postal_code', data.unload_postal_code || '');
     formData.set('unload_number', data.unload_number || '');
+
     formData.set('notes', data.notes || '');
     formData.set('transport_type', data.transport_type || '');
     formData.set('transport_temperature', data.transport_temperature || '');
@@ -298,7 +494,7 @@ export default function SubcontractorForm({
   }
 
   const isChlodnia = data.transport_type === 'Chlodnia';
-  const hasSenderPoints = Boolean(senderPoints && senderPoints.length > 0);
+  const canAddMore = loadPoints.length < 5;
 
   return (
     <div
@@ -421,142 +617,218 @@ export default function SubcontractorForm({
             </div>
           </div>
 
-          {/* ПОГРУЗКА (A) */}
-          <div className="bg-green-50 rounded-xl p-4 space-y-3">
+          {/* ЧЕКБОКСЫ: ТОЧКИ ЗАГРУЗКИ ИЗ РЕЙСА */}
+          {hasSenderPoints && (
+            <div className="bg-blue-50 rounded-xl p-4 space-y-3 border border-blue-200">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <h4 className="text-sm font-bold text-blue-800">📦 Точки загрузки из рейса</h4>
+                <span className="text-[10px] text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full">
+                  отметьте, откуда подрядчик забирает
+                </span>
+              </div>
+
+              <p className="text-xs text-blue-700">
+                {loadPoints.length === 0
+                  ? 'Ничего не отмечено — выберите одну или несколько точек ниже, или добавьте вручную.'
+                  : 'Отмеченные точки появятся в блоке «Погрузка» ниже.'}
+              </p>
+
+              <div className="space-y-2">
+                {senderPoints!.map((sp) => {
+                  const isChecked = loadPoints.some((p) => p.sourceNum === sp.num);
+                  const place = [sp.city, sp.country].filter(Boolean).join(', ');
+                  const disabled = !isChecked && loadPoints.length >= 5;
+                  return (
+                    <label
+                      key={sp.num}
+                      className={`flex items-start gap-3 p-2.5 rounded-lg border transition-all cursor-pointer ${
+                        isChecked
+                          ? 'bg-white border-blue-400 shadow-sm'
+                          : disabled
+                            ? 'bg-slate-50 border-slate-200 opacity-50 cursor-not-allowed'
+                            : 'bg-white/60 border-blue-100 hover:bg-white hover:border-blue-300'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        disabled={disabled}
+                        onChange={(e) => toggleSenderPoint(sp.num, e.target.checked)}
+                        className="mt-1 w-4 h-4 accent-blue-600 cursor-pointer"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-semibold text-slate-800 break-words">
+                          #{sp.num} · {sp.name || place || 'Точка'}
+                        </div>
+                        {place && (
+                          <div className="text-xs text-slate-500 mt-0.5 break-words">{place}</div>
+                        )}
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ЗАГРУЗКА: A1..A5 */}
+          <div className="bg-green-50 rounded-xl p-4 space-y-4">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h4 className="text-sm font-bold text-green-800">🟢 Погрузка (точка A рейса)</h4>
+              <h4 className="text-sm font-bold text-green-800">
+                🟢 Погрузка (A) {loadPoints.length > 1 && <span className="font-normal">· {loadPoints.length} точки</span>}
+              </h4>
               <span className="text-[10px] text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
-                откуда подрядчик забирает
+                {hasSenderPoints ? 'A1 → A2 → ... → C' : 'откуда подрядчик забирает'}
               </span>
             </div>
 
-            {/* НОВОЕ: селект точки загрузки рейса */}
-            {hasSenderPoints && (
-              <div>
-                <label className={labelClass}>
-                  📦 Точка загрузки рейса
-                  <span className="text-xs text-slate-400 font-normal ml-2 hidden sm:inline">
-                    (перезапишет поля ниже)
-                  </span>
-                </label>
-                <select
-                  onChange={(e) => {
-                    const num = parseInt(e.target.value);
-                    if (!Number.isNaN(num)) fillLoadFromSender(num);
-                  }}
-                  className={presetClass}
-                  defaultValue=""
-                >
-                  <option value="">— Выберите точку из рейса —</option>
-                  {senderPoints!.map((sp) => {
-                    const place = [sp.city, sp.country].filter(Boolean).join(', ');
-                    const label = sp.name || place || 'Точка';
-                    return (
-                      <option key={sp.num} value={sp.num}>
-                        #{sp.num} · {label}
-                        {place && sp.name ? ` · ${place}` : ''}
-                      </option>
-                    );
-                  })}
-                </select>
+            {loadPoints.length === 0 ? (
+              <div className="text-sm text-green-800 text-center py-4">
+                Точки не выбраны. Отметьте чекбоксы выше или добавьте вручную.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {loadPoints.map((p, idx) => {
+                  const isFirst = idx === 0;
+                  return (
+                    <div
+                      key={idx}
+                      className="bg-white rounded-xl border border-green-200 p-3 space-y-3"
+                    >
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded">
+                            A{idx + 1}
+                          </span>
+                          {p.sourceNum !== null && (
+                            <span className="text-xs text-green-600">
+                              из рейса #{p.sourceNum}
+                            </span>
+                          )}
+                          {p.sourceNum === null && (
+                            <span className="text-xs text-slate-400">вручную</span>
+                          )}
+                        </div>
+                        {loadPoints.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removePoint(idx)}
+                            className="text-red-600 hover:text-red-700 text-xs font-medium px-2 py-0.5 rounded hover:bg-red-50 transition-colors"
+                          >
+                            ✕ Удалить
+                          </button>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className={labelClass}>
+                          📌 Подставить из справочника
+                        </label>
+                        <select
+                          onChange={(e) => {
+                            fillPointFromLocation(idx, e.target.value);
+                            e.target.value = '';
+                          }}
+                          className={presetClass}
+                          defaultValue=""
+                        >
+                          <option value="">— Выберите локацию —</option>
+                          {loadingLocations.map((loc) => (
+                            <option key={loc.id} value={loc.id}>
+                              {loc.name} {loc.city ? `· ${loc.city}` : ''}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-green-100">
+                        <div>
+                          <label className={labelClass}>Дата {isFirst && '*'}</label>
+                          <input
+                            type="date"
+                            value={p.date || ''}
+                            onChange={(e) => updatePoint(idx, 'date', e.target.value || null)}
+                            required={isFirst}
+                            className={inputClass}
+                          />
+                        </div>
+                        <div>
+                          <label className={labelClass}>№ погрузки</label>
+                          <input
+                            type="text"
+                            value={p.number || ''}
+                            onChange={(e) => updatePoint(idx, 'number', e.target.value || null)}
+                            placeholder="Ramp 4"
+                            className={inputClass}
+                          />
+                        </div>
+                        <div>
+                          <label className={labelClass}>Страна</label>
+                          <input
+                            type="text"
+                            value={p.country || ''}
+                            onChange={(e) => updatePoint(idx, 'country', e.target.value || null)}
+                            placeholder="Poland"
+                            className={inputClass}
+                          />
+                        </div>
+                        <div>
+                          <label className={labelClass}>Почтовый код</label>
+                          <input
+                            type="text"
+                            value={p.postal_code || ''}
+                            onChange={(e) => updatePoint(idx, 'postal_code', e.target.value || null)}
+                            placeholder="00-001"
+                            className={inputClass}
+                          />
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className={labelClass}>Компания</label>
+                          <input
+                            type="text"
+                            value={p.company || ''}
+                            onChange={(e) => updatePoint(idx, 'company', e.target.value || null)}
+                            placeholder="KAMEX Sp. z o.o."
+                            className={inputClass}
+                          />
+                        </div>
+                        <div>
+                          <label className={labelClass}>Город</label>
+                          <input
+                            type="text"
+                            value={p.city || ''}
+                            onChange={(e) => updatePoint(idx, 'city', e.target.value || null)}
+                            placeholder="Siedlce"
+                            className={inputClass}
+                          />
+                        </div>
+                        <div>
+                          <label className={labelClass}>Адрес</label>
+                          <input
+                            type="text"
+                            value={p.address || ''}
+                            onChange={(e) => updatePoint(idx, 'address', e.target.value || null)}
+                            placeholder="ul. Przykładowa 1"
+                            className={inputClass}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
 
-            <div>
-              <label className={labelClass}>
-                {hasSenderPoints ? '📍 Или из справочника локаций' : '📍 Выбрать из сохранённых локаций'}
-                <span className="text-xs text-slate-400 font-normal ml-2 hidden sm:inline">
-                  (перезапишет поля ниже)
-                </span>
-              </label>
-              <select
-                onChange={(e) => fillLoadFromLocation(e.target.value)}
-                className={hasSenderPoints
-                  ? 'w-full rounded-lg border border-slate-300 px-3 py-2.5 text-base text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all'
-                  : presetClass}
-                defaultValue=""
+            {canAddMore && (
+              <button
+                type="button"
+                onClick={addManualPoint}
+                className="w-full py-2.5 rounded-lg border-2 border-dashed border-green-300 text-green-700 font-medium text-sm
+                           hover:bg-green-100 hover:border-green-400 transition-all active:scale-[0.99]"
               >
-                <option value="">— Выберите локацию —</option>
-                {loadingLocations.map((loc) => (
-                  <option key={loc.id} value={loc.id}>
-                    {loc.name} {loc.city ? `· ${loc.city}` : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-green-200">
-              <div>
-                <label className={labelClass}>Дата *</label>
-                <input
-                  type="date"
-                  value={data.load_date || ''}
-                  onChange={(e) => setField('load_date', e.target.value || null)}
-                  required
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label className={labelClass}>№ погрузки</label>
-                <input
-                  type="text"
-                  value={data.load_number || ''}
-                  onChange={(e) => setField('load_number', e.target.value || null)}
-                  placeholder="Ramp 4"
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label className={labelClass}>Страна</label>
-                <input
-                  type="text"
-                  value={data.load_country || ''}
-                  onChange={(e) => setField('load_country', e.target.value || null)}
-                  placeholder="Poland"
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label className={labelClass}>Почтовый код</label>
-                <input
-                  type="text"
-                  value={data.load_postal_code || ''}
-                  onChange={(e) => setField('load_postal_code', e.target.value || null)}
-                  placeholder="00-001"
-                  className={inputClass}
-                />
-              </div>
-              <div className="md:col-span-2">
-                <label className={labelClass}>Компания</label>
-                <input
-                  type="text"
-                  value={data.load_company || ''}
-                  onChange={(e) => setField('load_company', e.target.value || null)}
-                  placeholder="KAMEX Sp. z o.o."
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label className={labelClass}>Город</label>
-                <input
-                  type="text"
-                  value={data.load_city || ''}
-                  onChange={(e) => setField('load_city', e.target.value || null)}
-                  placeholder="Siedlce"
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label className={labelClass}>Адрес</label>
-                <input
-                  type="text"
-                  value={data.load_address || ''}
-                  onChange={(e) => setField('load_address', e.target.value || null)}
-                  placeholder="ul. Przykładowa 1"
-                  className={inputClass}
-                />
-              </div>
-            </div>
+                + Добавить точку вручную
+              </button>
+            )}
           </div>
 
           {/* ВЫГРУЗКА (C) */}
