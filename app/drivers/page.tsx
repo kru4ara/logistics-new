@@ -19,6 +19,17 @@ export default async function DriversPage() {
     return <div className="p-8 text-red-500">Ошибка загрузки: {error.message}</div>;
   }
 
+  // Считаем количество рейсов у каждого водителя
+  const { data: allTrips } = await supabase
+    .from('trips')
+    .select('driver_id');
+
+  const tripsCountByDriver: Record<string, number> = {};
+  allTrips?.forEach((t) => {
+    if (!t.driver_id) return;
+    tripsCountByDriver[t.driver_id] = (tripsCountByDriver[t.driver_id] || 0) + 1;
+  });
+
   function getDaysUntil(dateString: string | null) {
     if (!dateString) return null;
     const today = new Date();
@@ -42,28 +53,30 @@ export default async function DriversPage() {
 
   return (
     <main className="min-h-screen bg-slate-50">
-      <div className="max-w-[1600px] mx-auto px-6 py-8 space-y-6">
+      <div className="max-w-[1600px] mx-auto px-4 md:px-6 py-6 md:py-8 space-y-5 md:space-y-6">
 
         {/* Заголовок */}
-        <div className="flex flex-wrap justify-between items-center gap-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-between sm:items-center">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">🚛 Водители</h1>
-            <p className="text-slate-500 mt-1">Всего водителей: {drivers?.length || 0}</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-slate-900">🧑‍✈️ Водители</h1>
+            <p className="text-slate-500 mt-1 text-sm md:text-base">
+              Всего водителей: <b>{drivers?.length || 0}</b>
+            </p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-2 md:gap-3">
             <a
               href="/drivers/kpi"
-              className="flex items-center gap-2 bg-white border border-slate-200 hover:border-blue-300 hover:bg-blue-50
-                         text-slate-700 font-semibold px-5 py-2.5 rounded-xl transition-all"
+              className="flex items-center justify-center gap-2 bg-white border border-slate-200 hover:border-blue-300 hover:bg-blue-50
+                         text-slate-700 font-semibold px-4 md:px-5 py-2.5 rounded-xl transition-all text-sm md:text-base"
             >
               <span>📊</span>
               <span>KPI водителей</span>
             </a>
             <a
               href="/drivers/new"
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white
-                         font-semibold px-5 py-2.5 rounded-xl shadow-md shadow-blue-600/20
-                         transition-all duration-150 active:scale-[0.98]"
+              className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white
+                         font-semibold px-4 md:px-5 py-2.5 rounded-xl shadow-md shadow-blue-600/20
+                         transition-all duration-150 active:scale-[0.98] text-sm md:text-base"
             >
               <span>➕</span>
               <span>Добавить водителя</span>
@@ -73,13 +86,13 @@ export default async function DriversPage() {
 
         {/* Сетка */}
         {drivers?.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-slate-100 p-16 text-center">
-            <div className="text-6xl mb-4">👤</div>
+          <div className="bg-white rounded-2xl border border-slate-100 p-10 md:p-16 text-center">
+            <div className="text-5xl md:text-6xl mb-4">👤</div>
             <h2 className="text-xl font-bold text-slate-900 mb-2">Водителей пока нет</h2>
             <p className="text-slate-500 mb-6">Добавьте первого водителя, чтобы начать работу</p>
           </div>
         ) : (
-          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 md:gap-5 md:grid-cols-2 lg:grid-cols-3">
             {drivers?.map((driver) => {
               const minDays = getMinDays(driver);
               const statusColor =
@@ -94,16 +107,17 @@ export default async function DriversPage() {
                 `✅ OK (${minDays} дн.)`;
 
               const initials = `${driver.first_name?.[0] || ''}${driver.last_name?.[0] || ''}`.toUpperCase();
+              const tripsCount = tripsCountByDriver[driver.id] || 0;
 
               return (
                 <a
                   key={driver.id}
                   href={`/drivers/${driver.id}`}
                   className="group bg-white rounded-2xl border border-slate-100 shadow-sm
-                             hover:shadow-xl hover:border-blue-200 hover:-translate-y-0.5
+                             hover:shadow-xl hover:border-blue-200 md:hover:-translate-y-0.5
                              transition-all duration-200 overflow-hidden"
                 >
-                  <div className="p-5">
+                  <div className="p-4 md:p-5">
                     <div className="flex items-center gap-4 mb-4">
                       <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-blue-700
                                       flex items-center justify-center text-white font-bold text-lg shrink-0">
@@ -123,17 +137,23 @@ export default async function DriversPage() {
                       {statusLabel}
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-slate-100">
+                    <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-slate-100">
                       <div>
                         <div className="text-[10px] uppercase tracking-wide text-slate-400 font-medium">Виза</div>
-                        <div className="text-sm font-semibold text-slate-800">
+                        <div className="text-xs sm:text-sm font-semibold text-slate-800">
                           {driver.visa_expiry ? new Date(driver.visa_expiry).toLocaleDateString('ru-RU') : '—'}
                         </div>
                       </div>
                       <div>
                         <div className="text-[10px] uppercase tracking-wide text-slate-400 font-medium">Права</div>
-                        <div className="text-sm font-semibold text-slate-800">
+                        <div className="text-xs sm:text-sm font-semibold text-slate-800">
                           {driver.license_expiry ? new Date(driver.license_expiry).toLocaleDateString('ru-RU') : '—'}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] uppercase tracking-wide text-slate-400 font-medium">Рейсов</div>
+                        <div className={`text-xs sm:text-sm font-bold ${tripsCount > 0 ? 'text-blue-600' : 'text-slate-400'}`}>
+                          {tripsCount > 0 ? tripsCount : '—'}
                         </div>
                       </div>
                     </div>
