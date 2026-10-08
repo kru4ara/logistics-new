@@ -17,6 +17,7 @@ const TABLES = [
   'locations',
   'trips',
   'trip_expenses',
+  'trip_subcontractors',
   'trip_documents',
   'forwarding_orders',
   'forwarding_contractors',
