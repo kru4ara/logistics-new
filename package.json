@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "next lint"
   },
-   "dependencies": {
+  "dependencies": {
     "@supabase/supabase-js": "^2.49.1",
     "@supabase/ssr": "^0.5.2",
     "@radix-ui/react-slot": "^1.1.0",
@@ -19,6 +19,7 @@
     "docx": "^9.0.0",
     "image-size": "^1.1.1",
     "leaflet": "^1.9.4",
+    "lucide-react": "^0.460.0",
     "next": "14.2.0",
     "qrcode": "^1.5.4",
     "react": "^18.3.1",
@@ -28,7 +29,7 @@
     "tailwind-merge": "^2.5.0",
     "xlsx": "^0.18.5"
   },
-    "devDependencies": {
+  "devDependencies": {
     "@types/node": "^20",
     "@types/bcryptjs": "^2.4.6",
     "@types/leaflet": "^1.9.12",
