@@ -42,20 +42,55 @@ type ParsedSubcontractor = {
   truck_number: string | null;
   driver_name: string | null;
   driver_phone: string | null;
+  // A1
   load_date: string | null;
-  unload_date: string | null;
   load_country: string | null;
   load_city: string | null;
   load_address: string | null;
   load_company: string | null;
   load_postal_code: string | null;
   load_number: string | null;
+  // A2
+  load2_date: string | null;
+  load2_country: string | null;
+  load2_city: string | null;
+  load2_address: string | null;
+  load2_company: string | null;
+  load2_postal_code: string | null;
+  load2_number: string | null;
+  // A3
+  load3_date: string | null;
+  load3_country: string | null;
+  load3_city: string | null;
+  load3_address: string | null;
+  load3_company: string | null;
+  load3_postal_code: string | null;
+  load3_number: string | null;
+  // A4
+  load4_date: string | null;
+  load4_country: string | null;
+  load4_city: string | null;
+  load4_address: string | null;
+  load4_company: string | null;
+  load4_postal_code: string | null;
+  load4_number: string | null;
+  // A5
+  load5_date: string | null;
+  load5_country: string | null;
+  load5_city: string | null;
+  load5_address: string | null;
+  load5_company: string | null;
+  load5_postal_code: string | null;
+  load5_number: string | null;
+  // C
+  unload_date: string | null;
   unload_country: string | null;
   unload_city: string | null;
   unload_address: string | null;
   unload_company: string | null;
   unload_postal_code: string | null;
   unload_number: string | null;
+  // Прочее
   notes: string | null;
   transport_type: string | null;
   transport_temperature: string | null;
@@ -70,6 +105,31 @@ function parseSubcontractorForm(formData: FormData): ParsedSubcontractor {
     const v = (formData.get(key) as string)?.trim();
     return v || null;
   };
+
+  // Обрабатываем A1..A5 единообразно. Для A1 суффикс пустой,
+  // для A2..A5 — «2»..«5» (поля load2_*, load3_* и т.д.)
+  const loadPoints: Array<{
+    suffix: '' | '2' | '3' | '4' | '5';
+    dateKey: string;
+    prefix: string;
+  }> = [
+    { suffix: '', dateKey: 'load_date', prefix: 'load' },
+    { suffix: '2', dateKey: 'load2_date', prefix: 'load2' },
+    { suffix: '3', dateKey: 'load3_date', prefix: 'load3' },
+    { suffix: '4', dateKey: 'load4_date', prefix: 'load4' },
+    { suffix: '5', dateKey: 'load5_date', prefix: 'load5' },
+  ];
+
+  const parsedLoads = loadPoints.map((lp) => ({
+    date: trimOrNull(lp.dateKey),
+    country: trimOrNull(`${lp.prefix}_country`),
+    city: trimOrNull(`${lp.prefix}_city`),
+    address: trimOrNull(`${lp.prefix}_address`),
+    company: trimOrNull(`${lp.prefix}_company`),
+    postal_code: trimOrNull(`${lp.prefix}_postal_code`),
+    number: trimOrNull(`${lp.prefix}_number`),
+  }));
+
   return {
     contractor_id: trimOrNull('contractor_id'),
     price: parseFloat(formData.get('price') as string) || 0,
@@ -78,20 +138,58 @@ function parseSubcontractorForm(formData: FormData): ParsedSubcontractor {
     truck_number: trimOrNull('truck_number'),
     driver_name: trimOrNull('driver_name'),
     driver_phone: trimOrNull('driver_phone'),
-    load_date: trimOrNull('load_date'),
+
+    // A1
+    load_date: parsedLoads[0].date,
+    load_country: parsedLoads[0].country,
+    load_city: parsedLoads[0].city,
+    load_address: parsedLoads[0].address,
+    load_company: parsedLoads[0].company,
+    load_postal_code: parsedLoads[0].postal_code,
+    load_number: parsedLoads[0].number,
+    // A2
+    load2_date: parsedLoads[1].date,
+    load2_country: parsedLoads[1].country,
+    load2_city: parsedLoads[1].city,
+    load2_address: parsedLoads[1].address,
+    load2_company: parsedLoads[1].company,
+    load2_postal_code: parsedLoads[1].postal_code,
+    load2_number: parsedLoads[1].number,
+    // A3
+    load3_date: parsedLoads[2].date,
+    load3_country: parsedLoads[2].country,
+    load3_city: parsedLoads[2].city,
+    load3_address: parsedLoads[2].address,
+    load3_company: parsedLoads[2].company,
+    load3_postal_code: parsedLoads[2].postal_code,
+    load3_number: parsedLoads[2].number,
+    // A4
+    load4_date: parsedLoads[3].date,
+    load4_country: parsedLoads[3].country,
+    load4_city: parsedLoads[3].city,
+    load4_address: parsedLoads[3].address,
+    load4_company: parsedLoads[3].company,
+    load4_postal_code: parsedLoads[3].postal_code,
+    load4_number: parsedLoads[3].number,
+    // A5
+    load5_date: parsedLoads[4].date,
+    load5_country: parsedLoads[4].country,
+    load5_city: parsedLoads[4].city,
+    load5_address: parsedLoads[4].address,
+    load5_company: parsedLoads[4].company,
+    load5_postal_code: parsedLoads[4].postal_code,
+    load5_number: parsedLoads[4].number,
+
+    // C
     unload_date: trimOrNull('unload_date'),
-    load_country: trimOrNull('load_country'),
-    load_city: trimOrNull('load_city'),
-    load_address: trimOrNull('load_address'),
-    load_company: trimOrNull('load_company'),
-    load_postal_code: trimOrNull('load_postal_code'),
-    load_number: trimOrNull('load_number'),
     unload_country: trimOrNull('unload_country'),
     unload_city: trimOrNull('unload_city'),
     unload_address: trimOrNull('unload_address'),
     unload_company: trimOrNull('unload_company'),
     unload_postal_code: trimOrNull('unload_postal_code'),
     unload_number: trimOrNull('unload_number'),
+
+    // Прочее
     notes: trimOrNull('notes'),
     transport_type: trimOrNull('transport_type'),
     transport_temperature: trimOrNull('transport_temperature'),
@@ -167,20 +265,55 @@ export async function createTripSubcontractor(tripId: string, formData: FormData
         truck_number: data.truck_number,
         driver_name: data.driver_name,
         driver_phone: data.driver_phone,
+
         load_date: data.load_date,
-        unload_date: data.unload_date,
         load_country: data.load_country,
         load_city: data.load_city,
         load_address: data.load_address,
         load_company: data.load_company,
         load_postal_code: data.load_postal_code,
         load_number: data.load_number,
+
+        load2_date: data.load2_date,
+        load2_country: data.load2_country,
+        load2_city: data.load2_city,
+        load2_address: data.load2_address,
+        load2_company: data.load2_company,
+        load2_postal_code: data.load2_postal_code,
+        load2_number: data.load2_number,
+
+        load3_date: data.load3_date,
+        load3_country: data.load3_country,
+        load3_city: data.load3_city,
+        load3_address: data.load3_address,
+        load3_company: data.load3_company,
+        load3_postal_code: data.load3_postal_code,
+        load3_number: data.load3_number,
+
+        load4_date: data.load4_date,
+        load4_country: data.load4_country,
+        load4_city: data.load4_city,
+        load4_address: data.load4_address,
+        load4_company: data.load4_company,
+        load4_postal_code: data.load4_postal_code,
+        load4_number: data.load4_number,
+
+        load5_date: data.load5_date,
+        load5_country: data.load5_country,
+        load5_city: data.load5_city,
+        load5_address: data.load5_address,
+        load5_company: data.load5_company,
+        load5_postal_code: data.load5_postal_code,
+        load5_number: data.load5_number,
+
+        unload_date: data.unload_date,
         unload_country: data.unload_country,
         unload_city: data.unload_city,
         unload_address: data.unload_address,
         unload_company: data.unload_company,
         unload_postal_code: data.unload_postal_code,
         unload_number: data.unload_number,
+
         notes: data.notes,
         transport_type: data.transport_type,
         transport_temperature: data.transport_temperature,
@@ -258,20 +391,55 @@ export async function updateTripSubcontractor(
       truck_number: data.truck_number,
       driver_name: data.driver_name,
       driver_phone: data.driver_phone,
+
       load_date: data.load_date,
-      unload_date: data.unload_date,
       load_country: data.load_country,
       load_city: data.load_city,
       load_address: data.load_address,
       load_company: data.load_company,
       load_postal_code: data.load_postal_code,
       load_number: data.load_number,
+
+      load2_date: data.load2_date,
+      load2_country: data.load2_country,
+      load2_city: data.load2_city,
+      load2_address: data.load2_address,
+      load2_company: data.load2_company,
+      load2_postal_code: data.load2_postal_code,
+      load2_number: data.load2_number,
+
+      load3_date: data.load3_date,
+      load3_country: data.load3_country,
+      load3_city: data.load3_city,
+      load3_address: data.load3_address,
+      load3_company: data.load3_company,
+      load3_postal_code: data.load3_postal_code,
+      load3_number: data.load3_number,
+
+      load4_date: data.load4_date,
+      load4_country: data.load4_country,
+      load4_city: data.load4_city,
+      load4_address: data.load4_address,
+      load4_company: data.load4_company,
+      load4_postal_code: data.load4_postal_code,
+      load4_number: data.load4_number,
+
+      load5_date: data.load5_date,
+      load5_country: data.load5_country,
+      load5_city: data.load5_city,
+      load5_address: data.load5_address,
+      load5_company: data.load5_company,
+      load5_postal_code: data.load5_postal_code,
+      load5_number: data.load5_number,
+
+      unload_date: data.unload_date,
       unload_country: data.unload_country,
       unload_city: data.unload_city,
       unload_address: data.unload_address,
       unload_company: data.unload_company,
       unload_postal_code: data.unload_postal_code,
       unload_number: data.unload_number,
+
       notes: data.notes,
       transport_type: data.transport_type,
       transport_temperature: data.transport_temperature,
