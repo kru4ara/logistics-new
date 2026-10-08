@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '../../../../lib/supabase-server';
+import { sendCronAlert, sendCronSummary } from '../../../../lib/cron-alert';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -79,105 +80,130 @@ export async function GET(request: Request) {
   }
 
   const startedAt = Date.now();
-  const supabase = await createClient();
 
-  const backup: {
-    created_at: string;
-    project: string;
-    tables: Record<string, { count: number; rows: unknown[] }>;
-    meta: Record<string, unknown>;
-  } = {
-    created_at: new Date().toISOString(),
-    project: 'logistics-new / smodijsjwcvsscfgloh',
-    tables: {},
-    meta: {},
-  };
+  try {
+    const supabase = await createClient();
 
-  const errors: string[] = [];
+    const backup: {
+      created_at: string;
+      project: string;
+      tables: Record<string, { count: number; rows: unknown[] }>;
+      meta: Record<string, unknown>;
+    } = {
+      created_at: new Date().toISOString(),
+      project: 'logistics-new / smodijsjwcvsscfgloh',
+      tables: {},
+      meta: {},
+    };
 
-  // Выгружаем все таблицы
-  for (const table of TABLES) {
-    try {
-      // supabase .select() по умолчанию отдаёт до 1000 строк.
-      // Если данных станет больше — нужно будет пагинировать. Пока — хватит.
-      const { data, error } = await supabase.from(table).select('*');
+    const errors: string[] = [];
 
-      if (error) {
-        errors.push(`${table}: ${error.message}`);
+    // Выгружаем все таблицы
+    for (const table of TABLES) {
+      try {
+        // supabase .select() по умолчанию отдаёт до 1000 строк.
+        // Если данных станет больше — нужно будет пагинировать. Пока — хватит.
+        const { data, error } = await supabase.from(table).select('*');
+
+        if (error) {
+          errors.push(`${table}: ${error.message}`);
+          backup.tables[table] = { count: 0, rows: [] };
+        } else {
+          backup.tables[table] = {
+            count: (data || []).length,
+            rows: data || [],
+          };
+        }
+      } catch (e) {
+        errors.push(`${table}: ${(e as Error).message}`);
         backup.tables[table] = { count: 0, rows: [] };
+      }
+    }
+
+    // audit_log — ограниченный бэкап (5000 последних)
+    try {
+      const { data: auditData, error: auditErr } = await supabase
+        .from('audit_log')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(5000);
+
+      if (auditErr) {
+        errors.push(`audit_log: ${auditErr.message}`);
       } else {
-        backup.tables[table] = {
-          count: (data || []).length,
-          rows: data || [],
+        backup.tables['audit_log'] = {
+          count: (auditData || []).length,
+          rows: auditData || [],
         };
       }
     } catch (e) {
-      errors.push(`${table}: ${(e as Error).message}`);
-      backup.tables[table] = { count: 0, rows: [] };
+      errors.push(`audit_log: ${(e as Error).message}`);
     }
-  }
 
-  // audit_log — ограниченный бэкап (5000 последних)
-  try {
-    const { data: auditData, error: auditErr } = await supabase
-      .from('audit_log')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(5000);
+    // Мета: список таблиц и общее число строк
+    const totalRows = Object.values(backup.tables).reduce(
+      (sum, t) => sum + t.count,
+      0
+    );
+    const totalTables = Object.keys(backup.tables).length;
 
-    if (auditErr) {
-      errors.push(`audit_log: ${auditErr.message}`);
-    } else {
-      backup.tables['audit_log'] = {
-        count: (auditData || []).length,
-        rows: auditData || [],
-      };
+    backup.meta = {
+      total_tables: totalTables,
+      total_rows: totalRows,
+      errors,
+      duration_ms: Date.now() - startedAt,
+    };
+
+    // Имя файла: backup_YYYY-MM-DD_HHMM.json
+    const now = new Date();
+    const datePart = now.toISOString().split('T')[0];
+    const timePart = now.toISOString().slice(11, 16).replace(':', '');
+    const filename = `backup_${datePart}_${timePart}.json`;
+
+    const fileContent = JSON.stringify(backup, null, 2);
+    const sizeKb = Math.round((fileContent.length / 1024) * 10) / 10;
+
+    // Отправляем в Telegram
+    const caption = [
+      `🗄 <b>Бэкап Logistics CRM</b>`,
+      `📅 ${datePart} ${now.toISOString().slice(11, 16)} UTC`,
+      `📊 Таблиц: ${totalTables}, строк: ${totalRows}`,
+      `📦 Размер: ~${sizeKb} KB`,
+      errors.length > 0 ? `⚠️ Ошибок: ${errors.length}` : `✅ Ошибок нет`,
+    ].join('\n');
+
+    const sent = await sendTelegramDocument(filename, fileContent, caption);
+
+    // Алерты
+    if (!sent) {
+      await sendCronAlert(
+        'backup',
+        'Не удалось отправить дамп в Telegram (sendDocument вернул false). Проверь TELEGRAM_BOT_TOKEN и TELEGRAM_CHAT_ID.'
+      );
+    } else if (errors.length > 0) {
+      const preview = errors.slice(0, 10).map((e) => `• ${e}`).join('\n');
+      const more = errors.length > 10 ? `\n…и ещё ${errors.length - 10}` : '';
+      await sendCronSummary(
+        'backup',
+        `Не выгружены ${errors.length} таблиц(ы):\n${preview}${more}`
+      );
     }
+
+    return NextResponse.json({
+      ok: sent,
+      filename,
+      tables: totalTables,
+      rows: totalRows,
+      size_kb: sizeKb,
+      errors,
+      duration_ms: Date.now() - startedAt,
+    });
   } catch (e) {
-    errors.push(`audit_log: ${(e as Error).message}`);
+    const msg = (e as Error).message || 'unknown error';
+    await sendCronAlert('backup', `Неожиданная ошибка: ${msg}`);
+    return NextResponse.json(
+      { ok: false, error: msg, duration_ms: Date.now() - startedAt },
+      { status: 500 }
+    );
   }
-
-  // Мета: список таблиц и общее число строк
-  const totalRows = Object.values(backup.tables).reduce(
-    (sum, t) => sum + t.count,
-    0
-  );
-  const totalTables = Object.keys(backup.tables).length;
-
-  backup.meta = {
-    total_tables: totalTables,
-    total_rows: totalRows,
-    errors,
-    duration_ms: Date.now() - startedAt,
-  };
-
-  // Имя файла: backup_YYYY-MM-DD_HHMM.json
-  const now = new Date();
-  const datePart = now.toISOString().split('T')[0];
-  const timePart = now.toISOString().slice(11, 16).replace(':', '');
-  const filename = `backup_${datePart}_${timePart}.json`;
-
-  const fileContent = JSON.stringify(backup, null, 2);
-  const sizeKb = Math.round((fileContent.length / 1024) * 10) / 10;
-
-  // Отправляем в Telegram
-  const caption = [
-    `🗄 <b>Бэкап Logistics CRM</b>`,
-    `📅 ${datePart} ${now.toISOString().slice(11, 16)} UTC`,
-    `📊 Таблиц: ${totalTables}, строк: ${totalRows}`,
-    `📦 Размер: ~${sizeKb} KB`,
-    errors.length > 0 ? `⚠️ Ошибок: ${errors.length}` : `✅ Ошибок нет`,
-  ].join('\n');
-
-  const sent = await sendTelegramDocument(filename, fileContent, caption);
-
-  return NextResponse.json({
-    ok: sent,
-    filename,
-    tables: totalTables,
-    rows: totalRows,
-    size_kb: sizeKb,
-    errors,
-    duration_ms: Date.now() - startedAt,
-  });
 }
