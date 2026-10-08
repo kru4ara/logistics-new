@@ -152,6 +152,24 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
       address: trip.sender3_address,
       loading_number: trip.sender3_loading_number,
     },
+    {
+      num: 4,
+      country: trip.sender4_country,
+      name: trip.sender4_name,
+      postal_code: trip.sender4_postal_code,
+      city: trip.sender4_city,
+      address: trip.sender4_address,
+      loading_number: trip.sender4_loading_number,
+    },
+    {
+      num: 5,
+      country: trip.sender5_country,
+      name: trip.sender5_name,
+      postal_code: trip.sender5_postal_code,
+      city: trip.sender5_city,
+      address: trip.sender5_address,
+      loading_number: trip.sender5_loading_number,
+    },
   ].filter((p) => p.city || p.name || p.country || p.address);
 
   const taskLines: string[] = [];
