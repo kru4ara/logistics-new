@@ -2,6 +2,16 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '../lib/supabase-server';
 import { MonthlyBars, ExpenseDonut } from './components/DashboardCharts';
+import {
+  TrendingUp,
+  TrendingDown,
+  Package,
+  Wallet,
+  Briefcase,
+  BarChart3,
+  Users,
+  Route as RouteIcon,
+} from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,24 +24,11 @@ function pickName(rel: unknown): string | undefined {
   return undefined;
 }
 
-// Палитра из 16 контрастных цветов для donut
 const CHART_PALETTE = [
-  '#ef4444', // красный
-  '#f97316', // оранжевый
-  '#f59e0b', // янтарный
-  '#eab308', // жёлтый
-  '#84cc16', // лайм
-  '#22c55e', // зелёный
-  '#10b981', // изумрудный
-  '#14b8a6', // бирюзовый
-  '#06b6d4', // голубой
-  '#0ea5e9', // светло-синий
-  '#3b82f6', // синий
-  '#6366f1', // индиго
-  '#8b5cf6', // фиолетовый
-  '#a855f7', // пурпурный
-  '#d946ef', // фуксия
-  '#ec4899', // розовый
+  '#ef4444', '#f97316', '#f59e0b', '#eab308',
+  '#84cc16', '#22c55e', '#10b981', '#14b8a6',
+  '#06b6d4', '#0ea5e9', '#3b82f6', '#6366f1',
+  '#8b5cf6', '#a855f7', '#d946ef', '#ec4899',
 ];
 
 const CATEGORY_META: Record<string, { label: string; emoji: string }> = {
@@ -55,7 +52,7 @@ const CATEGORY_META: Record<string, { label: string; emoji: string }> = {
 
 const statusStripColors: Record<string, string> = {
   planned: 'bg-slate-300',
-  active: 'bg-blue-500',
+  active: 'bg-brand-500',
   completed: 'bg-green-500',
   invoiced: 'bg-yellow-500',
   paid: 'bg-emerald-500',
@@ -130,11 +127,11 @@ export default async function Home() {
   }
 
   // ============================================================
-  // ОБЩИЕ РАСХОДЫ (fixed_costs)
+  // ОБЩИЕ РАСХОДЫ — с флагом is_capex
   // ============================================================
   const { data: fixedCosts } = await supabase
     .from('fixed_costs')
-    .select('amount_eur, month_key, cost_type, expense_date');
+    .select('amount_eur, month_key, cost_type, expense_date, is_capex, category');
 
   // ============================================================
   // ОБЩИЕ ИТОГИ (за всё время)
@@ -148,10 +145,27 @@ export default async function Home() {
   const totalForwardingExpenses = Object.values(expensesByForwarding).reduce((s, v) => s + v, 0);
   const forwardingMarginTotal = totalForwardingClient - totalForwardingContractor - totalForwardingExpenses;
 
-  const totalFixedCosts = fixedCosts?.reduce((sum, fc) => sum + (fc.amount_eur || 0), 0) || 0;
+  // Разделяем фикс-косты: операционные (в P&L) vs инвестиции (вне P&L)
+  let totalOperationalFixedCosts = 0;
+  let totalCapex = 0;
+  let totalCapexCount = 0;
+  fixedCosts?.forEach((fc) => {
+    const amount = fc.amount_eur || 0;
+    if (amount === 0) return;
+    if (fc.is_capex === true) {
+      totalCapex += amount;
+      totalCapexCount += 1;
+    } else {
+      totalOperationalFixedCosts += amount;
+    }
+  });
 
   const combinedIncome = totalTripRevenue + totalForwardingClient;
-  const combinedExpenses = totalTripExpenses + totalForwardingContractor + totalForwardingExpenses + totalFixedCosts;
+  const combinedExpenses =
+    totalTripExpenses +
+    totalForwardingContractor +
+    totalForwardingExpenses +
+    totalOperationalFixedCosts;
   const combinedProfit = combinedIncome - combinedExpenses;
 
   // ============================================================
@@ -180,18 +194,18 @@ export default async function Home() {
 
   const monthForwardingClient = monthForwarding.reduce((sum, f) => sum + (f.client_price_eur || 0), 0);
   const monthForwardingContractor = monthForwarding.reduce(
-    (sum, f) => sum + (contractorsByForwarding[f.id] || 0),
-    0
+    (sum, f) => sum + (contractorsByForwarding[f.id] || 0), 0
   );
   const monthForwardingExpenses = monthForwarding.reduce(
-    (sum, f) => sum + (expensesByForwarding[f.id] || 0),
-    0
+    (sum, f) => sum + (expensesByForwarding[f.id] || 0), 0
   );
 
+  // Операционные фикс-косты за текущий месяц (капекс ИГНОРИРУЕМ)
   let monthFixedCosts = 0;
   fixedCosts?.forEach((fc) => {
     const amount = fc.amount_eur || 0;
     if (amount === 0) return;
+    if (fc.is_capex === true) return; // инвестиции не идут в операционный месяц
 
     if (fc.cost_type === 'yearly') {
       let startDate: Date | null = null;
@@ -224,7 +238,7 @@ export default async function Home() {
   const monthTotalProfit = monthTotalIncome - monthTotalExpenses;
 
   // ============================================================
-  // ДАННЫЕ ДЛЯ ГРАФИКА ПО МЕСЯЦАМ (последние 12)
+  // ГРАФИК 12 МЕСЯЦЕВ — капекс ИГНОРИРУЕМ
   // ============================================================
   const monthlyData: { key: string; label: string; profit: number }[] = [];
 
@@ -239,8 +253,9 @@ export default async function Home() {
     let expenses = 0;
 
     trips?.forEach((t) => {
-      if (!t.start_date) return;
-      const td = new Date(t.start_date);
+      const dateStr = t.end_date || t.start_date;
+      if (!dateStr) return;
+      const td = new Date(dateStr);
       if (td.getFullYear() !== y || td.getMonth() !== m) return;
       income += t.revenue_eur || 0;
       expenses += expensesByTrip[t.id] || 0;
@@ -257,6 +272,7 @@ export default async function Home() {
     fixedCosts?.forEach((fc) => {
       const amount = fc.amount_eur || 0;
       if (amount === 0) return;
+      if (fc.is_capex === true) return; // ИНВЕСТИЦИИ НЕ В ГРАФИКЕ
 
       if (fc.cost_type === 'yearly') {
         let startDate: Date | null = null;
@@ -282,7 +298,7 @@ export default async function Home() {
   }
 
   // ============================================================
-  // ДАННЫЕ ДЛЯ ДОНАТА ПО КАТЕГОРИЯМ РАСХОДОВ — ВСЕ ненулевые
+  // DONUT
   // ============================================================
   const catAgg: Record<string, number> = {};
   tripExpenses?.forEach((e) => {
@@ -296,14 +312,13 @@ export default async function Home() {
     .filter(([, v]) => v > 0)
     .sort((a, b) => b[1] - a[1]);
 
-  const donutData: { key: string; label: string; emoji: string; color: string; amount: number }[] =
-    sortedCats.map(([key, amount], idx) => ({
-      key,
-      label: CATEGORY_META[key]?.label || key,
-      emoji: CATEGORY_META[key]?.emoji || '📌',
-      color: CHART_PALETTE[idx % CHART_PALETTE.length],
-      amount,
-    }));
+  const donutData = sortedCats.map(([key, amount], idx) => ({
+    key,
+    label: CATEGORY_META[key]?.label || key,
+    emoji: CATEGORY_META[key]?.emoji || '📌',
+    color: CHART_PALETTE[idx % CHART_PALETTE.length],
+    amount,
+  }));
 
   const donutTotal = donutData.reduce((s, c) => s + c.amount, 0);
 
@@ -338,7 +353,7 @@ export default async function Home() {
 
   const statusColors: Record<string, string> = {
     planned: 'bg-slate-100 text-slate-700 border-slate-200',
-    active: 'bg-blue-50 text-blue-700 border-blue-200',
+    active: 'bg-brand-50 text-brand-700 border-brand-200',
     completed: 'bg-green-50 text-green-700 border-green-200',
     invoiced: 'bg-yellow-50 text-yellow-700 border-yellow-200',
     paid: 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -364,15 +379,17 @@ export default async function Home() {
         {/* ПОКАЗАТЕЛИ ЗА МЕСЯЦ */}
         <div>
           <h2 className="text-xs md:text-sm font-bold text-slate-500 uppercase tracking-wide mb-3">
-            📊 Показатели за {monthName}
+            Показатели за {monthName}
           </h2>
-          <div className="grid gap-3 md:gap-5 grid-cols-2 md:grid-cols-4">
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-6">
+          <div className="grid gap-3 md:gap-4 grid-cols-2 md:grid-cols-4">
+            <div className="card card-hover p-4 md:p-5">
               <div className="flex items-center justify-between mb-2 md:mb-3">
                 <span className="text-xs md:text-sm font-medium text-slate-500">Сделок</span>
-                <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-blue-50 flex items-center justify-center text-base md:text-xl">📊</div>
+                <div className="w-8 h-8 md:w-9 md:h-9 rounded-xl bg-brand-50 flex items-center justify-center">
+                  <BarChart3 className="w-4 h-4 md:w-[18px] md:h-[18px] text-brand-600" strokeWidth={2} />
+                </div>
               </div>
-              <div className="text-2xl md:text-3xl font-bold text-blue-600">
+              <div className="text-2xl md:text-3xl font-bold text-brand-600 tabular-nums">
                 {monthTrips.length + monthForwarding.length}
               </div>
               <div className="text-[10px] md:text-xs text-slate-400 mt-1">
@@ -380,34 +397,44 @@ export default async function Home() {
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-6">
+            <div className="card card-hover p-4 md:p-5">
               <div className="flex items-center justify-between mb-2 md:mb-3">
                 <span className="text-xs md:text-sm font-medium text-slate-500">Доход</span>
-                <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-green-50 flex items-center justify-center text-base md:text-xl">💵</div>
+                <div className="w-8 h-8 md:w-9 md:h-9 rounded-xl bg-green-50 flex items-center justify-center">
+                  <TrendingUp className="w-4 h-4 md:w-[18px] md:h-[18px] text-green-600" strokeWidth={2} />
+                </div>
               </div>
-              <div className="text-xl md:text-2xl font-bold text-green-600 break-words">{monthTotalIncome.toFixed(0)} €</div>
+              <div className="text-xl md:text-2xl font-bold text-green-600 break-words tabular-nums">
+                {monthTotalIncome.toFixed(0)} €
+              </div>
               <div className="text-[10px] md:text-xs text-slate-400 mt-1 break-words">
                 Фрахт: {monthTripRevenue.toFixed(0)} · Эксп.: {monthForwardingClient.toFixed(0)}
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-6">
+            <div className="card card-hover p-4 md:p-5">
               <div className="flex items-center justify-between mb-2 md:mb-3">
                 <span className="text-xs md:text-sm font-medium text-slate-500">Расходы</span>
-                <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-red-50 flex items-center justify-center text-base md:text-xl">📉</div>
+                <div className="w-8 h-8 md:w-9 md:h-9 rounded-xl bg-red-50 flex items-center justify-center">
+                  <TrendingDown className="w-4 h-4 md:w-[18px] md:h-[18px] text-red-500" strokeWidth={2} />
+                </div>
               </div>
-              <div className="text-xl md:text-2xl font-bold text-red-500 break-words">{monthTotalExpenses.toFixed(0)} €</div>
+              <div className="text-xl md:text-2xl font-bold text-red-500 break-words tabular-nums">
+                {monthTotalExpenses.toFixed(0)} €
+              </div>
               <div className="text-[10px] md:text-xs text-slate-400 mt-1 break-words">
                 Рейсы: {monthTripExpenses.toFixed(0)} · Эксп.: {(monthForwardingContractor + monthForwardingExpenses).toFixed(0)} · Фикс.: {monthFixedCosts.toFixed(0)}
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-6">
+            <div className="card card-hover p-4 md:p-5">
               <div className="flex items-center justify-between mb-2 md:mb-3">
                 <span className="text-xs md:text-sm font-medium text-slate-500">Прибыль</span>
-                <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-base md:text-xl">📈</div>
+                <div className={`w-8 h-8 md:w-9 md:h-9 rounded-xl flex items-center justify-center ${monthTotalProfit >= 0 ? 'bg-emerald-50' : 'bg-red-50'}`}>
+                  <Wallet className={`w-4 h-4 md:w-[18px] md:h-[18px] ${monthTotalProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`} strokeWidth={2} />
+                </div>
               </div>
-              <div className={`text-xl md:text-2xl font-bold break-words ${monthTotalProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+              <div className={`text-xl md:text-2xl font-bold break-words tabular-nums ${monthTotalProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                 {monthTotalProfit.toFixed(0)} €
               </div>
             </div>
@@ -417,31 +444,57 @@ export default async function Home() {
         {/* ОБЩИЕ ЗА ВСЁ ВРЕМЯ */}
         <div>
           <h2 className="text-xs md:text-sm font-bold text-slate-500 uppercase tracking-wide mb-3">
-            🏆 За всё время
+            За всё время
           </h2>
-          <div className="grid gap-3 md:gap-5 grid-cols-2 md:grid-cols-4">
-            <div className="bg-gradient-to-br from-green-500 to-green-700 rounded-2xl shadow-lg p-4 md:p-6 text-white">
-              <div className="text-xs md:text-sm text-green-100">Общий доход</div>
-              <div className="text-xl md:text-3xl font-bold mt-2 break-words">{combinedIncome.toFixed(0)} €</div>
-              <div className="text-[10px] md:text-xs text-green-200 mt-1">Рейсы + Экспедирование</div>
+          <div className={`grid gap-3 md:gap-4 grid-cols-2 ${totalCapex > 0 ? 'md:grid-cols-5' : 'md:grid-cols-4'}`}>
+            <div className="bg-gradient-to-br from-green-500 to-green-700 rounded-2xl shadow-lg shadow-green-500/20 p-4 md:p-5 text-white">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs md:text-sm text-green-100">Общий доход</span>
+                <TrendingUp className="w-4 h-4 md:w-5 md:h-5 text-green-100" strokeWidth={2} />
+              </div>
+              <div className="text-xl md:text-2xl font-bold break-words tabular-nums">{combinedIncome.toFixed(0)} €</div>
+              <div className="text-[10px] md:text-xs text-green-200 mt-1">Рейсы + Эксп.</div>
             </div>
-            <div className="bg-gradient-to-br from-red-500 to-red-700 rounded-2xl shadow-lg p-4 md:p-6 text-white">
-              <div className="text-xs md:text-sm text-red-100">Общие расходы</div>
-              <div className="text-xl md:text-3xl font-bold mt-2 break-words">{combinedExpenses.toFixed(0)} €</div>
+
+            <div className="bg-gradient-to-br from-red-500 to-red-700 rounded-2xl shadow-lg shadow-red-500/20 p-4 md:p-5 text-white">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs md:text-sm text-red-100">Опер. расходы</span>
+                <TrendingDown className="w-4 h-4 md:w-5 md:h-5 text-red-100" strokeWidth={2} />
+              </div>
+              <div className="text-xl md:text-2xl font-bold break-words tabular-nums">{combinedExpenses.toFixed(0)} €</div>
               <div className="text-[10px] md:text-xs text-red-200 mt-1">Прямые + Эксп. + Фикс.</div>
             </div>
-            <div className="bg-gradient-to-br from-purple-600 to-purple-800 rounded-2xl shadow-lg p-4 md:p-6 text-white">
-              <div className="text-xs md:text-sm text-purple-100">📦 Экспедирование</div>
-              <div className="text-xl md:text-3xl font-bold mt-2 break-words">{forwardingMarginTotal.toFixed(0)} €</div>
-              <div className="text-[10px] md:text-xs text-purple-200 mt-1">Маржа за всё время</div>
+
+            <div className="bg-gradient-to-br from-violet-600 to-violet-800 rounded-2xl shadow-lg shadow-violet-500/20 p-4 md:p-5 text-white">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs md:text-sm text-violet-100">Экспедирование</span>
+                <Package className="w-4 h-4 md:w-5 md:h-5 text-violet-100" strokeWidth={2} />
+              </div>
+              <div className="text-xl md:text-2xl font-bold break-words tabular-nums">{forwardingMarginTotal.toFixed(0)} €</div>
+              <div className="text-[10px] md:text-xs text-violet-200 mt-1">Маржа за всё время</div>
             </div>
-            <div className={`bg-gradient-to-br ${combinedProfit >= 0 ? 'from-blue-600 to-blue-800' : 'from-red-600 to-red-800'} rounded-2xl shadow-lg p-4 md:p-6 text-white`}>
-              <div className={`text-xs md:text-sm ${combinedProfit >= 0 ? 'text-blue-100' : 'text-red-100'}`}>Чистая прибыль</div>
-              <div className="text-xl md:text-3xl font-bold mt-2 break-words">{combinedProfit.toFixed(0)} €</div>
-              <div className="text-[10px] md:text-xs text-blue-200 mt-1 break-words">
-                🚛 {tripProfitTotal.toFixed(0)} € + 📦 {forwardingMarginTotal.toFixed(0)} € − 🏢 {totalFixedCosts.toFixed(0)} €
+
+            <div className={`bg-gradient-to-br ${combinedProfit >= 0 ? 'from-brand-600 to-brand-800 shadow-brand-lg' : 'from-red-600 to-red-800 shadow-red-500/20'} rounded-2xl shadow-lg p-4 md:p-5 text-white`}>
+              <div className="flex items-center justify-between mb-2">
+                <span className={`text-xs md:text-sm ${combinedProfit >= 0 ? 'text-brand-100' : 'text-red-100'}`}>Чистая прибыль</span>
+                <Wallet className="w-4 h-4 md:w-5 md:h-5" strokeWidth={2} />
+              </div>
+              <div className="text-xl md:text-2xl font-bold break-words tabular-nums">{combinedProfit.toFixed(0)} €</div>
+              <div className={`text-[10px] md:text-xs ${combinedProfit >= 0 ? 'text-brand-200' : 'text-red-200'} mt-1 break-words`}>
+                🚛 {tripProfitTotal.toFixed(0)} + 📦 {forwardingMarginTotal.toFixed(0)} − 🏢 {totalOperationalFixedCosts.toFixed(0)}
               </div>
             </div>
+
+            {totalCapex > 0 && (
+              <div className="bg-gradient-to-br from-amber-500 to-amber-700 rounded-2xl shadow-lg shadow-amber-500/20 p-4 md:p-5 text-white col-span-2 md:col-span-1">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs md:text-sm text-amber-100">Инвестиции</span>
+                  <Briefcase className="w-4 h-4 md:w-5 md:h-5 text-amber-100" strokeWidth={2} />
+                </div>
+                <div className="text-xl md:text-2xl font-bold break-words tabular-nums">{totalCapex.toFixed(0)} €</div>
+                <div className="text-[10px] md:text-xs text-amber-200 mt-1">вне P&L · {totalCapexCount} оп.</div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -449,12 +502,15 @@ export default async function Home() {
         <MonthlyBars data={monthlyData} />
         <ExpenseDonut data={donutData} total={donutTotal} />
 
-        {/* ТОП-5 КЛИЕНТОВ И МАРШРУТОВ */}
-        <div className="grid gap-5 lg:grid-cols-2">
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+        {/* ТОП-5 */}
+        <div className="grid gap-4 md:gap-5 lg:grid-cols-2">
+          <div className="card overflow-hidden">
             <div className="p-4 md:p-5 border-b border-slate-100 flex justify-between items-center">
-              <h2 className="text-base md:text-lg font-bold text-slate-900">🤝 Топ-5 клиентов</h2>
-              <a href="/clients" className="text-sm text-blue-600 hover:underline font-medium whitespace-nowrap">Все →</a>
+              <h2 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2">
+                <Users className="w-5 h-5 text-brand-600" strokeWidth={2} />
+                Топ-5 клиентов
+              </h2>
+              <a href="/clients" className="text-sm text-brand-600 hover:underline font-medium whitespace-nowrap">Все →</a>
             </div>
             {topClients.length === 0 ? (
               <div className="p-8 md:p-10 text-center text-slate-400 text-sm">Пока нет данных</div>
@@ -474,7 +530,7 @@ export default async function Home() {
                       <div className="text-xs text-slate-400">{c.count} сделок</div>
                     </div>
                     <div className="text-right shrink-0">
-                      <div className="font-bold text-green-600 text-sm md:text-base whitespace-nowrap">{c.revenue.toFixed(0)} €</div>
+                      <div className="font-bold text-green-600 text-sm md:text-base whitespace-nowrap tabular-nums">{c.revenue.toFixed(0)} €</div>
                     </div>
                   </div>
                 ))}
@@ -482,10 +538,13 @@ export default async function Home() {
             )}
           </div>
 
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+          <div className="card overflow-hidden">
             <div className="p-4 md:p-5 border-b border-slate-100 flex justify-between items-center">
-              <h2 className="text-base md:text-lg font-bold text-slate-900">🛣 Топ-5 маршрутов</h2>
-              <a href="/routes" className="text-sm text-blue-600 hover:underline font-medium whitespace-nowrap">Все →</a>
+              <h2 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2">
+                <RouteIcon className="w-5 h-5 text-brand-600" strokeWidth={2} />
+                Топ-5 маршрутов
+              </h2>
+              <a href="/routes" className="text-sm text-brand-600 hover:underline font-medium whitespace-nowrap">Все →</a>
             </div>
             {topRoutes.length === 0 ? (
               <div className="p-8 md:p-10 text-center text-slate-400 text-sm">Пока нет данных</div>
@@ -505,7 +564,7 @@ export default async function Home() {
                       <div className="text-xs text-slate-400 mt-0.5">{r.count} рейсов</div>
                     </div>
                     <div className="text-right shrink-0">
-                      <div className="font-bold text-green-600 text-sm md:text-base whitespace-nowrap">{r.revenue.toFixed(0)} €</div>
+                      <div className="font-bold text-green-600 text-sm md:text-base whitespace-nowrap tabular-nums">{r.revenue.toFixed(0)} €</div>
                     </div>
                   </div>
                 ))}
@@ -518,8 +577,8 @@ export default async function Home() {
         {forwarding && forwarding.length > 0 && (
           <div>
             <div className="flex justify-between items-center mb-3 md:mb-4">
-              <h2 className="text-base md:text-lg font-bold text-slate-900">📦 Последние экспедиции</h2>
-              <a href="/forwarding" className="text-sm text-blue-600 hover:underline font-medium whitespace-nowrap">Все →</a>
+              <h2 className="text-base md:text-lg font-bold text-slate-900">Последние экспедиции</h2>
+              <a href="/forwarding" className="text-sm text-brand-600 hover:underline font-medium whitespace-nowrap">Все →</a>
             </div>
             <div className="grid gap-3 md:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
               {forwarding.slice(0, 4).map((f) => {
@@ -531,15 +590,14 @@ export default async function Home() {
                   <a
                     key={f.id}
                     href={`/forwarding/${f.id}`}
-                    className="group bg-white rounded-2xl border border-slate-100 shadow-sm
-                               hover:shadow-xl hover:border-blue-200 transition-all duration-200 overflow-hidden active:scale-[0.99]"
+                    className="group card card-hover overflow-hidden active:scale-[0.99]"
                   >
                     <div className={`h-1.5 ${statusStripColors[f.status] || 'bg-slate-300'}`} />
                     <div className="p-4 md:p-5">
                       <div className="flex items-start justify-between gap-2 mb-3">
                         <div className="min-w-0 flex-1">
                           <div className="text-xs text-slate-400 font-medium">№ {f.order_number || '—'}</div>
-                          <div className="text-base font-bold text-slate-900 mt-0.5 break-words group-hover:text-blue-600 transition-colors">
+                          <div className="text-base font-bold text-slate-900 mt-0.5 break-words group-hover:text-brand-600 transition-colors">
                             {clientName}
                           </div>
                         </div>
@@ -565,7 +623,7 @@ export default async function Home() {
                         <span className="text-[10px] text-slate-400">
                           {f.load_date ? new Date(f.load_date).toLocaleDateString('ru-RU') : '—'}
                         </span>
-                        <span className={`text-sm font-bold whitespace-nowrap ${margin >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                        <span className={`text-sm font-bold whitespace-nowrap tabular-nums ${margin >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                           {margin.toFixed(0)} €
                         </span>
                       </div>
@@ -580,12 +638,12 @@ export default async function Home() {
         {/* ПОСЛЕДНИЕ РЕЙСЫ */}
         <div>
           <div className="flex justify-between items-center mb-3 md:mb-4">
-            <h2 className="text-base md:text-lg font-bold text-slate-900">🚛 Последние рейсы</h2>
-            <a href="/trips" className="text-sm text-blue-600 hover:underline font-medium whitespace-nowrap">Все →</a>
+            <h2 className="text-base md:text-lg font-bold text-slate-900">Последние рейсы</h2>
+            <a href="/trips" className="text-sm text-brand-600 hover:underline font-medium whitespace-nowrap">Все →</a>
           </div>
 
           {trips?.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-slate-100 p-8 md:p-10 text-center text-slate-400">
+            <div className="card p-8 md:p-10 text-center text-slate-400">
               Рейсов пока нет
             </div>
           ) : (
@@ -596,15 +654,14 @@ export default async function Home() {
                   <a
                     key={trip.id}
                     href={`/trips/${trip.id}`}
-                    className="group bg-white rounded-2xl border border-slate-100 shadow-sm
-                               hover:shadow-xl hover:border-blue-200 transition-all duration-200 overflow-hidden active:scale-[0.99]"
+                    className="group card card-hover overflow-hidden active:scale-[0.99]"
                   >
                     <div className={`h-1.5 ${statusStripColors[trip.status] || 'bg-slate-300'}`} />
                     <div className="p-4 md:p-5">
                       <div className="flex items-start justify-between gap-2 mb-3">
                         <div className="min-w-0 flex-1">
                           <div className="text-xs text-slate-400 font-medium">№ {trip.trip_number || '—'}</div>
-                          <div className="text-base font-bold text-slate-900 mt-0.5 break-words group-hover:text-blue-600 transition-colors">
+                          <div className="text-base font-bold text-slate-900 mt-0.5 break-words group-hover:text-brand-600 transition-colors">
                             {clientName}
                           </div>
                         </div>
@@ -621,7 +678,7 @@ export default async function Home() {
                         <span className="text-[10px] text-slate-400">
                           {trip.start_date ? new Date(trip.start_date).toLocaleDateString('ru-RU') : '—'}
                         </span>
-                        <span className="text-sm font-bold text-green-600 whitespace-nowrap">
+                        <span className="text-sm font-bold text-green-600 whitespace-nowrap tabular-nums">
                           {trip.revenue_eur ? `${trip.revenue_eur} €` : '—'}
                         </span>
                       </div>
