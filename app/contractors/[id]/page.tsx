@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../../lib/supabase-server';
+import CountryFlag from '../../components/CountryFlag';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,28 +31,6 @@ type WorkItem = {
   payment_days: number | null;
   href: string;
 };
-
-function flagFor(country: string | null): string {
-  if (!country) return '';
-  const c = country.toLowerCase().trim();
-  if (c.includes('pol')) return '🇵🇱';
-  if (c === 'belarus' || c.includes('бел')) return '🇧🇾';
-  if (c.includes('lit') || c.includes('lith')) return '🇱🇹';
-  if (c.includes('latv')) return '🇱🇻';
-  if (c.includes('est')) return '🇪🇪';
-  if (c.includes('germ') || c.includes('deutsch') || c === 'de') return '🇩🇪';
-  if (c.includes('neth') || c.includes('holland') || c === 'nl') return '🇳🇱';
-  if (c.includes('belg') || c === 'be') return '🇧🇪';
-  if (c.includes('fran') || c === 'fr') return '🇫🇷';
-  if (c.includes('ital') || c === 'it') return '🇮🇹';
-  if (c.includes('spain') || c.includes('espa') || c === 'es') return '🇪🇸';
-  if (c.includes('bulg') || c === 'bg') return '🇧🇬';
-  if (c.includes('czech') || c.includes('чех') || c === 'cz') return '🇨🇿';
-  if (c.includes('slovak') || c === 'sk') return '🇸🇰';
-  if (c.includes('ukrain') || c.includes('укр') || c === 'ua') return '🇺🇦';
-  if (c.includes('russ') || c.includes('рос') || c === 'ru') return '🇷🇺';
-  return '';
-}
 
 function fmtDate(d: string | null): string {
   if (!d) return '—';
@@ -240,8 +219,9 @@ export default async function ContractorCardPage({
                 </div>
               )}
               {c.country && (
-                <div className="text-sm text-slate-500 mt-1">
-                  {flagFor(c.country)} {c.country}
+                <div className="text-sm text-slate-500 mt-1 flex items-center gap-1.5">
+                  <CountryFlag country={c.country} />
+                  <span>{c.country}</span>
                 </div>
               )}
             </div>
