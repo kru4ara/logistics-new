@@ -1,5 +1,5 @@
 import { createClient } from '../../../lib/supabase-server';
-import CountryFlag from '../../../components/CountryFlag';
+import CountryFlag from '../../../app/components/CountryFlag';
 
 export const dynamic = 'force-dynamic';
 
