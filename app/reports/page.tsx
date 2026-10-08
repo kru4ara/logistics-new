@@ -83,7 +83,7 @@ export default async function ReportsPage() {
         </div>
 
         {/* Быстрые ссылки */}
-        <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
+        <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-3">
           <a
             href="/reports/profitability"
             className="block bg-gradient-to-br from-blue-600 to-blue-800 rounded-2xl shadow-lg p-5 md:p-6
@@ -119,6 +119,26 @@ export default async function ReportsPage() {
                 </div>
               </div>
               <div className="text-emerald-100 font-semibold text-sm shrink-0 hidden sm:block">
+                Открыть →
+              </div>
+            </div>
+          </a>
+
+          <a
+            href="/reports/contractors"
+            className="block bg-gradient-to-br from-violet-600 to-violet-800 rounded-2xl shadow-lg p-5 md:p-6
+                       text-white hover:shadow-xl hover:from-violet-500 hover:to-violet-700
+                       transition-all duration-200 active:scale-[0.99]"
+          >
+            <div className="flex items-center gap-4">
+              <div className="text-4xl md:text-5xl shrink-0">🚛</div>
+              <div className="min-w-0 flex-1">
+                <div className="text-lg md:text-xl font-bold">Подрядчики</div>
+                <div className="text-sm text-violet-100 mt-1">
+                  Сколько кому заплатили: рейсы + экспедирование
+                </div>
+              </div>
+              <div className="text-violet-100 font-semibold text-sm shrink-0 hidden sm:block">
                 Открыть →
               </div>
             </div>
