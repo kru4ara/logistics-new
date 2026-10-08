@@ -1,7 +1,7 @@
 import './globals.css';
 import { Suspense } from 'react';
 import type { Viewport } from 'next';
-import Navbar from './components/Navbar';
+import AppShell from './components/AppShell';
 import Toaster from './components/Toaster';
 
 export const viewport: Viewport = {
@@ -34,13 +34,10 @@ export default function RootLayout({
   return (
     <html lang="ru">
       <body>
-        <Navbar />
         <Suspense fallback={null}>
           <Toaster />
         </Suspense>
-        <main style={{ minHeight: 'calc(100vh - 60px)' }}>
-          {children}
-        </main>
+        <AppShell>{children}</AppShell>
       </body>
     </html>
   );
