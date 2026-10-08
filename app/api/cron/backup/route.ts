@@ -8,6 +8,12 @@ export const maxDuration = 60;
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
+// Размер страницы при пагинации (Supabase лимит по умолчанию — 1000)
+const PAGE_SIZE = 1000;
+
+// Защита от бесконечного цикла (если таблица вдруг начнёт расти быстрее, чем мы её читаем)
+const MAX_PAGES = 100; // 100 * 1000 = 100 000 строк на таблицу
+
 // Таблицы для бэкапа: все ключевые данные.
 // audit_log — ограничим 5000 последних, чтобы файл не раздувался.
 const TABLES = [
@@ -69,6 +75,51 @@ async function sendTelegramDocument(
   }
 }
 
+/**
+ * Выгружает все строки таблицы порциями по PAGE_SIZE, обходя лимит 1000.
+ * Возвращает массив всех строк и количество прочитанных страниц.
+ */
+async function fetchAllRows(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  table: string
+): Promise<{ rows: unknown[]; pages: number; truncated: boolean }> {
+  const rows: unknown[] = [];
+  let page = 0;
+
+  while (page < MAX_PAGES) {
+    const from = page * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+
+    const { data, error } = await supabase
+      .from(table)
+      .select('*')
+      .range(from, to);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    if (!data || data.length === 0) {
+      break;
+    }
+
+    rows.push(...data);
+
+    // Если получили меньше PAGE_SIZE — это последняя страница
+    if (data.length < PAGE_SIZE) {
+      break;
+    }
+
+    page++;
+  }
+
+  // Если вышли из цикла по MAX_PAGES, но последняя страница была полной —
+  // значит, возможно, данных больше, чем мы прочитали
+  const truncated = page >= MAX_PAGES;
+
+  return { rows, pages: page + 1, truncated };
+}
+
 export async function GET(request: Request) {
   // Проверка CRON_SECRET
   const cronSecret = process.env.CRON_SECRET;
@@ -97,22 +148,23 @@ export async function GET(request: Request) {
     };
 
     const errors: string[] = [];
+    const truncatedTables: string[] = [];
 
-    // Выгружаем все таблицы
+    // Выгружаем все таблицы с пагинацией
     for (const table of TABLES) {
       try {
-        // supabase .select() по умолчанию отдаёт до 1000 строк.
-        // Если данных станет больше — нужно будет пагинировать. Пока — хватит.
-        const { data, error } = await supabase.from(table).select('*');
+        const { rows, truncated } = await fetchAllRows(supabase, table);
 
-        if (error) {
-          errors.push(`${table}: ${error.message}`);
-          backup.tables[table] = { count: 0, rows: [] };
-        } else {
-          backup.tables[table] = {
-            count: (data || []).length,
-            rows: data || [],
-          };
+        backup.tables[table] = {
+          count: rows.length,
+          rows,
+        };
+
+        if (truncated) {
+          truncatedTables.push(table);
+          errors.push(
+            `${table}: достигнут лимит ${MAX_PAGES * PAGE_SIZE} строк, возможна потеря данных`
+          );
         }
       } catch (e) {
         errors.push(`${table}: ${(e as Error).message}`);
@@ -120,7 +172,7 @@ export async function GET(request: Request) {
       }
     }
 
-    // audit_log — ограниченный бэкап (5000 последних)
+    // audit_log — ограниченный бэкап (5000 последних, без пагинации)
     try {
       const { data: auditData, error: auditErr } = await supabase
         .from('audit_log')
@@ -151,6 +203,7 @@ export async function GET(request: Request) {
       total_tables: totalTables,
       total_rows: totalRows,
       errors,
+      truncated_tables: truncatedTables,
       duration_ms: Date.now() - startedAt,
     };
 
@@ -185,7 +238,7 @@ export async function GET(request: Request) {
       const more = errors.length > 10 ? `\n…и ещё ${errors.length - 10}` : '';
       await sendCronSummary(
         'backup',
-        `Не выгружены ${errors.length} таблиц(ы):\n${preview}${more}`
+        `Проблемы при выгрузке (${errors.length}):\n${preview}${more}`
       );
     }
 
@@ -196,6 +249,7 @@ export async function GET(request: Request) {
       rows: totalRows,
       size_kb: sizeKb,
       errors,
+      truncated_tables: truncatedTables,
       duration_ms: Date.now() - startedAt,
     });
   } catch (e) {
