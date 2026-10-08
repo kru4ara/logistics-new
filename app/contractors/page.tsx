@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase-server';
 import { deleteContractor } from './actions';
+import CountryFlag from '../components/CountryFlag';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,7 +21,7 @@ export default async function ContractorsPage() {
     return <div className="p-8 text-red-500">Ошибка загрузки: {error.message}</div>;
   }
 
-  // Считаем сколько заявок у каждого подрядчика
+  // Считаем сколько заявок экспедирования у каждого подрядчика
   const { data: allFc } = await supabase
     .from('forwarding_contractors')
     .select('contractor_id');
@@ -30,6 +31,18 @@ export default async function ContractorsPage() {
     if (!fc.contractor_id) return;
     ordersCountByContractor[fc.contractor_id] =
       (ordersCountByContractor[fc.contractor_id] || 0) + 1;
+  });
+
+  // Считаем сколько комбинированных рейсов у каждого подрядчика
+  const { data: allTs } = await supabase
+    .from('trip_subcontractors')
+    .select('contractor_id');
+
+  const tripsCountByContractor: Record<string, number> = {};
+  allTs?.forEach((ts) => {
+    if (!ts.contractor_id) return;
+    tripsCountByContractor[ts.contractor_id] =
+      (tripsCountByContractor[ts.contractor_id] || 0) + 1;
   });
 
   return (
@@ -71,6 +84,8 @@ export default async function ContractorsPage() {
           <div className="grid gap-4 md:gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
             {contractors.map((c) => {
               const ordersCount = ordersCountByContractor[c.id] || 0;
+              const tripsCount = tripsCountByContractor[c.id] || 0;
+              const totalWorks = ordersCount + tripsCount;
 
               return (
                 <div
@@ -79,102 +94,115 @@ export default async function ContractorsPage() {
                              hover:shadow-xl hover:border-blue-200 transition-all duration-200 overflow-hidden
                              flex flex-col"
                 >
-                  {/* Шапка карточки */}
-                  <div className="p-5 border-b border-slate-100">
-                    <div className="flex items-start gap-3 mb-3">
-                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700
-                                      flex items-center justify-center text-white text-xl shrink-0">
-                        🏢
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="font-bold text-slate-900 break-words group-hover:text-blue-600 transition-colors">
-                          {c.name}
+                  {/* Кликабельная часть — переход в карточку */}
+                  <a
+                    href={`/contractors/${c.id}`}
+                    className="block flex-1 cursor-pointer"
+                    aria-label={`Открыть карточку ${c.name}`}
+                  >
+                    {/* Шапка карточки */}
+                    <div className="p-5 border-b border-slate-100 relative">
+                      <div className="flex items-start gap-3 mb-3">
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700
+                                        flex items-center justify-center text-white text-xl shrink-0">
+                          🏢
                         </div>
-                        {c.full_name && c.full_name !== c.name && (
-                          <div className="text-xs text-slate-500 mt-1 break-words leading-snug">
-                            {c.full_name}
+                        <div className="min-w-0 flex-1 pr-5">
+                          <div className="font-bold text-slate-900 break-words group-hover:text-blue-600 transition-colors">
+                            {c.name}
                           </div>
-                        )}
-                        {c.country && (
-                          <div className="text-xs text-slate-500 mt-1">
-                            🌍 {c.country}
-                          </div>
-                        )}
+                          {c.full_name && c.full_name !== c.name && (
+                            <div className="text-xs text-slate-500 mt-1 break-words leading-snug">
+                              {c.full_name}
+                            </div>
+                          )}
+                          {c.country && (
+                            <div className="text-xs text-slate-500 mt-1 flex items-center gap-1.5">
+                              <CountryFlag country={c.country} />
+                              <span>{c.country}</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
+
+                      {/* Стрелка — намёк на кликабельность */}
+                      <div className="absolute top-5 right-4 text-slate-300 group-hover:text-blue-500
+                                      group-hover:translate-x-0.5 transition-all text-lg leading-none">
+                        →
+                      </div>
+
+                      {totalWorks > 0 && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {ordersCount > 0 && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full
+                                             bg-purple-50 text-purple-700 border border-purple-200 text-[11px] font-semibold">
+                              📦 {ordersCount} {ordersCount === 1 ? 'заявка' : ordersCount < 5 ? 'заявки' : 'заявок'}
+                            </span>
+                          )}
+                          {tripsCount > 0 && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full
+                                             bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-semibold">
+                              🚛 {tripsCount} {tripsCount === 1 ? 'рейс' : tripsCount < 5 ? 'рейса' : 'рейсов'}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
 
-                    {ordersCount > 0 && (
-                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full
-                                      bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold">
-                        📦 {ordersCount} {ordersCount === 1 ? 'заявка' : ordersCount < 5 ? 'заявки' : 'заявок'}
-                      </div>
-                    )}
-                  </div>
+                    {/* Контакты и юр. данные */}
+                    <div className="p-5 space-y-2.5 text-sm">
+                      {c.contact_person && (
+                        <div className="flex items-start gap-2 text-slate-700">
+                          <span className="shrink-0">👤</span>
+                          <span className="break-words">{c.contact_person}</span>
+                        </div>
+                      )}
 
-                  {/* Контакты и юр. данные */}
-                  <div className="p-5 space-y-2.5 text-sm flex-1">
-                    {c.contact_person && (
-                      <div className="flex items-start gap-2 text-slate-700">
-                        <span className="shrink-0">👤</span>
-                        <span className="break-words">{c.contact_person}</span>
-                      </div>
-                    )}
+                      {c.phone && (
+                        <div className="flex items-start gap-2">
+                          <span className="shrink-0">📞</span>
+                          <span className="text-slate-700 break-all">{c.phone}</span>
+                        </div>
+                      )}
 
-                    {c.phone && (
-                      <div className="flex items-start gap-2">
-                        <span className="shrink-0">📞</span>
-                        <a
-                          href={`tel:${c.phone}`}
-                          className="text-blue-600 hover:underline break-all"
-                        >
-                          {c.phone}
-                        </a>
-                      </div>
-                    )}
+                      {c.email && (
+                        <div className="flex items-start gap-2">
+                          <span className="shrink-0">✉️</span>
+                          <span className="text-slate-600 break-all text-xs">{c.email}</span>
+                        </div>
+                      )}
 
-                    {c.email && (
-                      <div className="flex items-start gap-2">
-                        <span className="shrink-0">✉️</span>
-                        <a
-                          href={`mailto:${c.email}`}
-                          className="text-blue-600 hover:underline break-all text-xs"
-                        >
-                          {c.email}
-                        </a>
-                      </div>
-                    )}
+                      {c.tax_id && (
+                        <div className="flex items-start gap-2 text-slate-600">
+                          <span className="shrink-0">🏷️</span>
+                          <span className="break-words text-xs">
+                            NIP: <b>{c.tax_id}</b>
+                          </span>
+                        </div>
+                      )}
 
-                    {c.tax_id && (
-                      <div className="flex items-start gap-2 text-slate-600">
-                        <span className="shrink-0">🏷️</span>
-                        <span className="break-words text-xs">
-                          NIP: <b>{c.tax_id}</b>
-                        </span>
-                      </div>
-                    )}
+                      {c.address && (
+                        <div className="flex items-start gap-2 text-slate-600">
+                          <span className="shrink-0">📍</span>
+                          <span className="break-words text-xs">{c.address}</span>
+                        </div>
+                      )}
 
-                    {c.address && (
-                      <div className="flex items-start gap-2 text-slate-600">
-                        <span className="shrink-0">📍</span>
-                        <span className="break-words text-xs">{c.address}</span>
-                      </div>
-                    )}
+                      {c.notes && (
+                        <div className="text-xs text-slate-500 bg-slate-50 rounded-lg p-2.5 mt-3 break-words">
+                          📝 {c.notes}
+                        </div>
+                      )}
 
-                    {c.notes && (
-                      <div className="text-xs text-slate-500 bg-slate-50 rounded-lg p-2.5 mt-3 break-words">
-                        📝 {c.notes}
-                      </div>
-                    )}
+                      {!c.contact_person && !c.phone && !c.email && !c.tax_id && !c.address && !c.notes && (
+                        <div className="text-xs text-slate-400 italic text-center py-4">
+                          Контактные данные не заполнены
+                        </div>
+                      )}
+                    </div>
+                  </a>
 
-                    {/* Пустое состояние — если ничего не заполнено */}
-                    {!c.contact_person && !c.phone && !c.email && !c.tax_id && !c.address && !c.notes && (
-                      <div className="text-xs text-slate-400 italic text-center py-4">
-                        Контактные данные не заполнены
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Кнопки */}
+                  {/* Кнопки — вне ссылки, чтобы не было вложенных <a> */}
                   <div className="p-3 border-t border-slate-100 bg-slate-50/40 flex gap-2">
                     <a
                       href={`/contractors/${c.id}/edit`}
