@@ -85,11 +85,12 @@ export default async function DriverPage() {
     });
   }
 
+  // Зарплата за всё время
   let salaryTotal = 0;
   if (tripIds.length > 0) {
     const { data: salaryExpenses } = await supabase
       .from('trip_expenses')
-      .select('amount_eur, expense_date, trip_id')
+      .select('amount_eur')
       .eq('category', 'salary')
       .in('trip_id', tripIds);
     salaryTotal = salaryExpenses?.reduce((sum, e) => sum + (e.amount_eur || 0), 0) || 0;
@@ -99,23 +100,38 @@ export default async function DriverPage() {
   const currentMonth = now.getMonth();
   const currentYear = now.getFullYear();
 
+  // ============================================================
+  // РЕЙСЫ ЗА МЕСЯЦ — по дате ФИНИША (end_date), fallback на старт.
+  // Если финиша ещё нет (active/planned) — используем start_date.
+  // ============================================================
   const monthTrips = trips?.filter((t) => {
-    if (!t.start_date) return false;
-    const d = new Date(t.start_date);
+    const dateStr = t.end_date || t.start_date;
+    if (!dateStr) return false;
+    const d = new Date(dateStr);
     return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
   }) || [];
 
   const monthKm = monthTrips.reduce((sum, t) => sum + (t.actual_km || 0), 0);
   const monthLiters = monthTrips.reduce((sum, t) => sum + (t.actual_liters || 0), 0);
 
+  // ============================================================
+  // ЗАРПЛАТА ЗА МЕСЯЦ — по ДАТЕ ВЫПЛАТЫ (expense_date),
+  // а не по месяцу рейса. Если ЗП за сентябрьский рейс
+  // выдали в октябре — она считается октябрьской.
+  // ============================================================
+  const monthStart = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-01`;
+  const nextMonthDate = new Date(currentYear, currentMonth + 1, 1);
+  const nextMonthStart = `${nextMonthDate.getFullYear()}-${String(nextMonthDate.getMonth() + 1).padStart(2, '0')}-01`;
+
   let monthSalary = 0;
-  if (monthTrips.length > 0) {
-    const monthTripIds = monthTrips.map((t) => t.id);
+  if (tripIds.length > 0) {
     const { data: monthSalaryExp } = await supabase
       .from('trip_expenses')
       .select('amount_eur')
       .eq('category', 'salary')
-      .in('trip_id', monthTripIds);
+      .in('trip_id', tripIds)
+      .gte('expense_date', monthStart)
+      .lt('expense_date', nextMonthStart);
     monthSalary = monthSalaryExp?.reduce((sum, e) => sum + (e.amount_eur || 0), 0) || 0;
   }
 
