@@ -79,40 +79,23 @@ const driverSections: NavSection[] = [
   },
 ];
 
-const STORAGE_KEY = 'sidebar-pinned';
-
 export default function Sidebar({
   role,
   userName,
   mobileOpen,
   onMobileClose,
+  isPinned,
+  onTogglePin,
 }: {
   role: string | null;
   userName: string;
   mobileOpen: boolean;
   onMobileClose: () => void;
+  isPinned: boolean;
+  onTogglePin: () => void;
 }) {
   const pathname = usePathname();
-  const [isPinned, setIsPinned] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  // Читаем pin-состояние из localStorage
-  useEffect(() => {
-    setMounted(true);
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved === 'true') setIsPinned(true);
-    } catch {}
-  }, []);
-
-  // Сохраняем pin
-  useEffect(() => {
-    if (!mounted) return;
-    try {
-      localStorage.setItem(STORAGE_KEY, String(isPinned));
-    } catch {}
-  }, [isPinned, mounted]);
 
   // Блокируем скролл body на мобильном drawer
   useEffect(() => {
@@ -129,6 +112,7 @@ export default function Sidebar({
   // Закрываем мобильный drawer при смене страницы
   useEffect(() => {
     onMobileClose();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
   const isAdmin = role === 'admin';
@@ -160,7 +144,7 @@ export default function Sidebar({
   }
 
   // ============================================================
-  // Общий контент sidebar — используется в desktop и mobile
+  // Общий контент sidebar
   // ============================================================
   function SidebarContent({ mobile = false }: { mobile?: boolean }) {
     const expanded = mobile || isExpanded;
@@ -183,9 +167,8 @@ export default function Sidebar({
           )}
         </Link>
 
-        {/* Меню (скроллится) */}
+        {/* Меню */}
         <div className="flex-1 overflow-y-auto scrollbar-thin py-3">
-          {/* Главная — отдельно, до секций */}
           <div className="px-2 mb-2">
             <Link
               href={role === 'driver' ? '/driver' : '/'}
@@ -238,7 +221,7 @@ export default function Sidebar({
             </div>
           ))}
 
-          {/* Напоминания — отдельно, с акцентом */}
+          {/* Напоминания */}
           <div className="mt-4 pt-4 border-t border-white/5 px-2">
             <Link
               href={role === 'driver' ? '/driver/reminders' : '/reminders'}
@@ -255,9 +238,8 @@ export default function Sidebar({
           </div>
         </div>
 
-        {/* Низ — профиль, pin, выход */}
+        {/* Низ */}
         <div className="shrink-0 border-t border-white/5 p-2 space-y-1">
-          {/* Профиль */}
           <div
             className={`flex items-center gap-3 rounded-lg py-2 transition-all
               ${expanded ? 'px-3' : 'justify-center px-0'}`}
@@ -275,15 +257,14 @@ export default function Sidebar({
             )}
           </div>
 
-          {/* Pin (только на десктопе) */}
           {!mobile && (
             <button
               type="button"
-              onClick={() => setIsPinned((v) => !v)}
-              title={isPinned ? 'Открепить' : 'Закрепить панель'}
+              onClick={onTogglePin}
+              title={isPinned ? 'Открепить панель' : 'Закрепить панель'}
               className={`w-full flex items-center gap-3 rounded-lg py-2 text-sm font-medium transition-all
                 ${expanded ? 'px-3' : 'justify-center px-0'}
-                text-slate-400 hover:bg-white/5 hover:text-white`}
+                ${isPinned ? 'text-brand-300 bg-brand-500/10 hover:bg-brand-500/20' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}
             >
               {isPinned
                 ? <PinOff className="w-[18px] h-[18px] shrink-0" strokeWidth={2} />
@@ -292,7 +273,6 @@ export default function Sidebar({
             </button>
           )}
 
-          {/* Выйти */}
           <button
             type="button"
             onClick={handleLogout}
@@ -311,14 +291,15 @@ export default function Sidebar({
 
   return (
     <>
-      {/* DESKTOP — фиксированный sidebar с hover-expand */}
+      {/* DESKTOP — фиксированный sidebar с hover-expand и pin */}
       <aside
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         className={`hidden md:flex fixed top-0 left-0 h-screen z-40 flex-col
                     bg-ink-900 border-r border-white/5
-                    transition-[width] duration-200 ease-smooth shadow-xl shadow-ink-900/10
-                    ${isExpanded ? 'w-60' : 'w-16'}`}
+                    transition-[width] duration-200 ease-smooth
+                    ${isExpanded ? 'w-60' : 'w-16'}
+                    ${isHovered && !isPinned ? 'shadow-2xl shadow-ink-950/40' : 'shadow-lg shadow-ink-900/10'}`}
       >
         <SidebarContent />
       </aside>
