@@ -22,23 +22,34 @@ export default async function DriverStatsPage() {
 
   const tripIds = (trips || []).map((t) => t.id);
 
-  const salaryByTrip: Record<string, number> = {};
+  // ============================================================
+  // ЗАРПЛАТА — теперь по дате выплаты (expense_date), а не по trip_id.
+  // ЗП за сентябрьский рейс, выданная в октябре, попадает в октябрь.
+  // ============================================================
+  type SalaryRow = { amount_eur: number; expense_date: string | null };
+  let salaryRows: SalaryRow[] = [];
+
   if (tripIds.length > 0) {
     const { data: salaryExp } = await supabase
       .from('trip_expenses')
-      .select('trip_id, amount_eur')
+      .select('amount_eur, expense_date')
       .eq('category', 'salary')
       .in('trip_id', tripIds);
+    salaryRows = (salaryExp || []) as SalaryRow[];
+  }
 
-    (salaryExp || []).forEach((e: any) => {
-      if (!e.trip_id) return;
-      salaryByTrip[e.trip_id] = (salaryByTrip[e.trip_id] || 0) + Number(e.amount_eur || 0);
-    });
+  // Зарплата по месяцам (ключ YYYY-MM)
+  const salaryByMonth: Record<string, number> = {};
+  for (const e of salaryRows) {
+    if (!e.expense_date) continue;
+    const d = new Date(e.expense_date);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    salaryByMonth[key] = (salaryByMonth[key] || 0) + Number(e.amount_eur || 0);
   }
 
   // ============================================================
   // Разбивка по месяцам — последние 12 месяцев.
-  // Пустые месяцы (без рейсов) в итоговый список не попадают.
+  // Рейсы относим к месяцу ФИНИША (end_date), fallback на start_date.
   // ============================================================
   const now = new Date();
 
@@ -67,7 +78,6 @@ export default async function DriverStatsPage() {
     let tripsCount = 0;
     let km = 0;
     let liters = 0;
-    let salary = 0;
 
     (trips || []).forEach((t) => {
       const dateStr = t.end_date || t.start_date;
@@ -78,10 +88,10 @@ export default async function DriverStatsPage() {
       tripsCount += 1;
       km += Number(t.actual_km || 0);
       liters += Number(t.actual_liters || 0);
-      salary += salaryByTrip[t.id] || 0;
     });
 
     const consumption = km > 0 ? (liters / km) * 100 : 0;
+    const salary = salaryByMonth[key] || 0;
 
     allMonths.push({
       key,
@@ -94,8 +104,9 @@ export default async function DriverStatsPage() {
     });
   }
 
-  // Показываем только месяцы, где были рейсы
-  const monthRows = allMonths.filter((r) => r.trips > 0);
+  // Показываем месяцы, где были рейсы ИЛИ была зарплата
+  // (могут быть месяцы без рейсов, но с выплатой за прошлый период)
+  const monthRows = allMonths.filter((r) => r.trips > 0 || r.salary > 0);
 
   // ============================================================
   // Итого за всё время
@@ -103,7 +114,7 @@ export default async function DriverStatsPage() {
   const totalTrips = trips?.length || 0;
   const totalKm = (trips || []).reduce((s, t) => s + Number(t.actual_km || 0), 0);
   const totalLiters = (trips || []).reduce((s, t) => s + Number(t.actual_liters || 0), 0);
-  const totalSalary = Object.values(salaryByTrip).reduce((s, v) => s + v, 0);
+  const totalSalary = salaryRows.reduce((s, e) => s + Number(e.amount_eur || 0), 0);
   const totalConsumption = totalKm > 0 ? (totalLiters / totalKm) * 100 : 0;
 
   // ============================================================
@@ -193,33 +204,35 @@ export default async function DriverStatsPage() {
                     >
                       <div className="flex items-center justify-between mb-3">
                         <div className="font-bold text-slate-900">{r.label}</div>
-                        <div className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium">
-                          {r.trips} {tripsWord}
-                        </div>
+                        {r.trips > 0 && (
+                          <div className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium">
+                            {r.trips} {tripsWord}
+                          </div>
+                        )}
                       </div>
                       <div className="grid grid-cols-2 gap-2 text-xs">
                         <div>
                           <div className="text-slate-400">Пройдено</div>
                           <div className="font-semibold text-slate-800">
-                            {r.km.toLocaleString('ru-RU')} км
+                            {r.km > 0 ? `${r.km.toLocaleString('ru-RU')} км` : '—'}
                           </div>
                         </div>
                         <div>
                           <div className="text-slate-400">Расход</div>
                           <div className="font-semibold text-slate-800">
-                            {r.consumption.toFixed(1)} л/100
+                            {r.consumption > 0 ? `${r.consumption.toFixed(1)} л/100` : '—'}
                           </div>
                         </div>
                         <div>
                           <div className="text-slate-400">Топливо</div>
                           <div className="font-semibold text-slate-800">
-                            {r.liters.toLocaleString('ru-RU')} л
+                            {r.liters > 0 ? `${r.liters.toLocaleString('ru-RU')} л` : '—'}
                           </div>
                         </div>
                         <div>
                           <div className="text-slate-400">Зарплата</div>
                           <div className="font-semibold text-emerald-600">
-                            {r.salary.toLocaleString('ru-RU')} €
+                            {r.salary > 0 ? `${r.salary.toLocaleString('ru-RU')} €` : '—'}
                           </div>
                         </div>
                       </div>
@@ -293,19 +306,19 @@ export default async function DriverStatsPage() {
                             {r.label}
                           </td>
                           <td className="px-5 py-3 text-right text-sm text-slate-700">
-                            {r.trips}
+                            {r.trips > 0 ? r.trips : '—'}
                           </td>
                           <td className="px-5 py-3 text-right text-sm text-slate-700">
-                            {r.km.toLocaleString('ru-RU')} км
+                            {r.km > 0 ? `${r.km.toLocaleString('ru-RU')} км` : '—'}
                           </td>
                           <td className="px-5 py-3 text-right text-sm text-slate-700">
-                            {r.liters.toLocaleString('ru-RU')} л
+                            {r.liters > 0 ? `${r.liters.toLocaleString('ru-RU')} л` : '—'}
                           </td>
                           <td className="px-5 py-3 text-right text-sm text-slate-700">
-                            {r.consumption.toFixed(1)} л/100
+                            {r.consumption > 0 ? `${r.consumption.toFixed(1)} л/100` : '—'}
                           </td>
                           <td className="px-5 py-3 text-right text-sm font-semibold text-emerald-600">
-                            {r.salary.toLocaleString('ru-RU')} €
+                            {r.salary > 0 ? `${r.salary.toLocaleString('ru-RU')} €` : '—'}
                           </td>
                         </tr>
                       ))}
