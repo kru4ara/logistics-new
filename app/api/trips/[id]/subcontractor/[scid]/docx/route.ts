@@ -246,6 +246,71 @@ function buildPointChildren(params: {
   return children;
 }
 
+type LoadPointData = {
+  date: string | null;
+  country: string | null;
+  city: string | null;
+  postal_code: string | null;
+  address: string | null;
+  company: string | null;
+  loading_number: string | null;
+};
+
+function extractLoadPointsForDocx(sub: any): LoadPointData[] {
+  const raw: LoadPointData[] = [
+    {
+      date: sub.load_date,
+      country: sub.load_country,
+      city: sub.load_city,
+      postal_code: sub.load_postal_code,
+      address: sub.load_address,
+      company: sub.load_company,
+      loading_number: sub.load_number,
+    },
+    {
+      date: sub.load2_date,
+      country: sub.load2_country,
+      city: sub.load2_city,
+      postal_code: sub.load2_postal_code,
+      address: sub.load2_address,
+      company: sub.load2_company,
+      loading_number: sub.load2_number,
+    },
+    {
+      date: sub.load3_date,
+      country: sub.load3_country,
+      city: sub.load3_city,
+      postal_code: sub.load3_postal_code,
+      address: sub.load3_address,
+      company: sub.load3_company,
+      loading_number: sub.load3_number,
+    },
+    {
+      date: sub.load4_date,
+      country: sub.load4_country,
+      city: sub.load4_city,
+      postal_code: sub.load4_postal_code,
+      address: sub.load4_address,
+      company: sub.load4_company,
+      loading_number: sub.load4_number,
+    },
+    {
+      date: sub.load5_date,
+      country: sub.load5_country,
+      city: sub.load5_city,
+      postal_code: sub.load5_postal_code,
+      address: sub.load5_address,
+      company: sub.load5_company,
+      loading_number: sub.load5_number,
+    },
+  ];
+
+  return raw.filter(
+    (p) =>
+      p.date || p.country || p.city || p.address || p.company || p.postal_code || p.loading_number
+  );
+}
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string; scid: string }> }
@@ -508,54 +573,80 @@ export async function GET(
 
   children.push(txt('', { after: 200 }));
 
+  // ============================================================
+  // TRASA / MARSZRUT — N точек A + 1 точка C
+  // ============================================================
   const routeRows: TableRow[] = [];
 
-  routeRows.push(
-    new TableRow({
-      children: [
-        new TableCell({
-          margins: { top: 60, bottom: 60, left: 0, right: 0 },
-          children: buildPointChildren({
-            idx: 1,
-            kind: 'loading',
-            date: sub.load_date,
-            company: sub.load_company,
-            country: sub.load_country,
-            city: sub.load_city,
-            postal_code: sub.load_postal_code,
-            address: sub.load_address,
-            loading_number: sub.load_number,
-          }),
-        }),
-      ],
-    })
-  );
+  let loadPointsData = extractLoadPointsForDocx(sub);
+  if (loadPointsData.length === 0) {
+    // Fallback: если вдруг точки не заполнены — показываем одну пустую A
+    loadPointsData = [
+      {
+        date: null,
+        country: null,
+        city: null,
+        postal_code: null,
+        address: null,
+        company: null,
+        loading_number: null,
+      },
+    ];
+  }
 
-  routeRows.push(
-    new TableRow({
-      children: [
-        new TableCell({
-          margins: { top: 60, bottom: 60, left: 0, right: 0 },
-          children: [
-            new Paragraph({
-              spacing: { line: LINE, after: 0, before: 0 },
-              children: [
-                new TextRun({ text: '▼', size: 18, font: FONT, color: '94A3B8' }),
-              ],
+  let idxCounter = 0;
+
+  for (const lp of loadPointsData) {
+    idxCounter++;
+    routeRows.push(
+      new TableRow({
+        children: [
+          new TableCell({
+            margins: { top: 60, bottom: 60, left: 0, right: 0 },
+            children: buildPointChildren({
+              idx: idxCounter,
+              kind: 'loading',
+              date: lp.date,
+              company: lp.company,
+              country: lp.country,
+              city: lp.city,
+              postal_code: lp.postal_code,
+              address: lp.address,
+              loading_number: lp.loading_number,
             }),
-          ],
-        }),
-      ],
-    })
-  );
+          }),
+        ],
+      })
+    );
 
+    routeRows.push(
+      new TableRow({
+        children: [
+          new TableCell({
+            margins: { top: 60, bottom: 60, left: 0, right: 0 },
+            children: [
+              new Paragraph({
+                spacing: { line: LINE, after: 0, before: 0 },
+                children: [
+                  new TextRun({ text: '▼', size: 18, font: FONT, color: '94A3B8' }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      })
+    );
+  }
+
+  // Точка C — последняя, с продолжением нумерации
+  idxCounter++;
   routeRows.push(
     new TableRow({
       children: [
         new TableCell({
           margins: { top: 60, bottom: 60, left: 0, right: 0 },
           children: buildPointChildren({
-            idx: 1,
+            idx: idxCounter,
             kind: 'unloading',
             date: sub.unload_date,
             company: sub.unload_company,
