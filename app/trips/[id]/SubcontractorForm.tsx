@@ -103,6 +103,17 @@ type DefaultLoad = {
   loading_number: string | null;
 };
 
+// Точка загрузки рейса (sender / sender2 / sender3)
+export type SenderPoint = {
+  num: number;
+  country: string | null;
+  name: string | null;
+  postal_code: string | null;
+  city: string | null;
+  address: string | null;
+  loading_number: string | null;
+};
+
 const TRANSPORT_TYPES = [
   'Plandeka / Standart',
   'Chlodnia',
@@ -114,6 +125,7 @@ export default function SubcontractorForm({
   loadingLocations,
   unloadingLocations,
   defaultLoad,
+  senderPoints,
   initialData,
   subcontractorId,
   onClose,
@@ -124,6 +136,7 @@ export default function SubcontractorForm({
   loadingLocations: Location[];
   unloadingLocations: Location[];
   defaultLoad?: DefaultLoad;
+  senderPoints?: SenderPoint[];
   initialData?: SubcontractorData;
   subcontractorId?: string;
   onClose: () => void;
@@ -131,14 +144,33 @@ export default function SubcontractorForm({
 }) {
   const isEdit = Boolean(subcontractorId);
 
+  // Вычисляем начальные данные: если есть senderPoints — приоритет у них,
+  // иначе используем defaultLoad (как было раньше).
+  function getInitialLoadFields(): Partial<SubcontractorData> {
+    if (senderPoints && senderPoints.length > 0) {
+      const sp = senderPoints[0];
+      return {
+        load_country: sp.country,
+        load_city: sp.city,
+        load_address: sp.address,
+        load_company: sp.name,
+        load_postal_code: sp.postal_code,
+        load_number: sp.loading_number,
+      };
+    }
+    return {
+      load_country: defaultLoad?.country || null,
+      load_city: defaultLoad?.city || null,
+      load_address: defaultLoad?.address || null,
+      load_company: defaultLoad?.company || null,
+      load_postal_code: defaultLoad?.postal_code || null,
+      load_number: defaultLoad?.loading_number || null,
+    };
+  }
+
   const startingData: SubcontractorData = initialData || {
     ...emptyData,
-    load_country: defaultLoad?.country || null,
-    load_city: defaultLoad?.city || null,
-    load_address: defaultLoad?.address || null,
-    load_company: defaultLoad?.company || null,
-    load_postal_code: defaultLoad?.postal_code || null,
-    load_number: defaultLoad?.loading_number || null,
+    ...getInitialLoadFields(),
   };
 
   const [data, setData] = useState<SubcontractorData>(startingData);
@@ -156,6 +188,21 @@ export default function SubcontractorForm({
 
   function setField<K extends keyof SubcontractorData>(field: K, value: SubcontractorData[K]) {
     setData((prev) => ({ ...prev, [field]: value }));
+  }
+
+  function fillLoadFromSender(num: number) {
+    if (!senderPoints) return;
+    const sp = senderPoints.find((p) => p.num === num);
+    if (!sp) return;
+    setData((prev) => ({
+      ...prev,
+      load_country: sp.country,
+      load_company: sp.name,
+      load_postal_code: sp.postal_code,
+      load_city: sp.city,
+      load_address: sp.address,
+      load_number: sp.loading_number,
+    }));
   }
 
   function fillLoadFromLocation(locId: string) {
@@ -251,6 +298,7 @@ export default function SubcontractorForm({
   }
 
   const isChlodnia = data.transport_type === 'Chlodnia';
+  const hasSenderPoints = Boolean(senderPoints && senderPoints.length > 0);
 
   return (
     <div
@@ -382,16 +430,50 @@ export default function SubcontractorForm({
               </span>
             </div>
 
+            {/* НОВОЕ: селект точки загрузки рейса */}
+            {hasSenderPoints && (
+              <div>
+                <label className={labelClass}>
+                  📦 Точка загрузки рейса
+                  <span className="text-xs text-slate-400 font-normal ml-2 hidden sm:inline">
+                    (перезапишет поля ниже)
+                  </span>
+                </label>
+                <select
+                  onChange={(e) => {
+                    const num = parseInt(e.target.value);
+                    if (!Number.isNaN(num)) fillLoadFromSender(num);
+                  }}
+                  className={presetClass}
+                  defaultValue=""
+                >
+                  <option value="">— Выберите точку из рейса —</option>
+                  {senderPoints!.map((sp) => {
+                    const place = [sp.city, sp.country].filter(Boolean).join(', ');
+                    const label = sp.name || place || 'Точка';
+                    return (
+                      <option key={sp.num} value={sp.num}>
+                        #{sp.num} · {label}
+                        {place && sp.name ? ` · ${place}` : ''}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+            )}
+
             <div>
               <label className={labelClass}>
-                Выбрать из сохранённых локаций
+                {hasSenderPoints ? '📍 Или из справочника локаций' : '📍 Выбрать из сохранённых локаций'}
                 <span className="text-xs text-slate-400 font-normal ml-2 hidden sm:inline">
                   (перезапишет поля ниже)
                 </span>
               </label>
               <select
                 onChange={(e) => fillLoadFromLocation(e.target.value)}
-                className={presetClass}
+                className={hasSenderPoints
+                  ? 'w-full rounded-lg border border-slate-300 px-3 py-2.5 text-base text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all'
+                  : presetClass}
                 defaultValue=""
               >
                 <option value="">— Выберите локацию —</option>
