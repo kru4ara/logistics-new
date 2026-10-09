@@ -4,6 +4,7 @@ import { createClient } from '../lib/supabase-server';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { logAudit, diffFields } from '../lib/audit';
+import { renumberAllTrips } from '../lib/trip-renumber';
 
 // ============================================================
 // Добавление расхода
@@ -81,7 +82,6 @@ export async function addExpense(formData: FormData) {
 export async function deleteExpense(expenseId: string, tripId: string) {
   const supabase = await createClient();
 
-  // Забираем данные до удаления
   const { data: before } = await supabase
     .from('trip_expenses')
     .select('category, amount_eur, original_amount, currency')
@@ -178,7 +178,6 @@ export async function updateTrip(tripId: string, formData: FormData) {
     }
   }
 
-  // Забираем старые значения для audit
   const { data: before } = await supabase
     .from('trips')
     .select('trip_number, revenue_eur, driver_id, truck_id, client_id, start_date, end_date, route, client_request_number, start_fuel_level, start_lat, start_lng, end_lat, end_lng, sender_city, sender_country, receiver_city, receiver_country')
@@ -297,7 +296,12 @@ export async function updateTrip(tripId: string, formData: FormData) {
 
   if (error) throw new Error(`Ошибка обновления: ${error.message}`);
 
-  // Audit: логируем только значимые изменения
+  // Если изменилась дата старта — перенумеровать все рейсы
+  const dateChanged = (before?.start_date || '') !== (startDate || '');
+  if (dateChanged) {
+    await renumberAllTrips(supabase);
+  }
+
   if (before) {
     const changes = diffFields(
       {
@@ -370,6 +374,9 @@ export async function deleteTrip(tripId: string) {
     .delete()
     .eq('id', tripId);
   if (error) throw new Error(`Ошибка удаления рейса: ${error.message}`);
+
+  // Перенумерация — дырок в нумерации не остаётся
+  await renumberAllTrips(supabase);
 
   await logAudit({
     entity_type: 'trip',
