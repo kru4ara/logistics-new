@@ -1,6 +1,19 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase-server';
+import {
+  Truck as TruckIcon,
+  Container,
+  Plus,
+  CheckCircle2,
+  AlertTriangle,
+  Clock,
+  FileText,
+  BarChart3,
+  Calendar,
+  ArrowRight,
+  Inbox,
+} from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -92,19 +105,29 @@ export default async function TrucksPage() {
 
   function TruckCard({ truck }: { truck: any }) {
     const minDays = getMinDays(truck);
+    const isExpired = minDays !== null && minDays < 0;
+    const isSoon = minDays !== null && minDays >= 0 && minDays < 30;
+
     const statusColor =
-      minDays === null ? 'bg-slate-100 text-slate-600 border-slate-200' :
-      minDays < 0 ? 'bg-red-50 text-red-700 border-red-200' :
-      minDays < 30 ? 'bg-orange-50 text-orange-700 border-orange-200' :
+      minDays === null ? 'bg-slate-50 text-slate-600 border-slate-200' :
+      isExpired ? 'bg-red-50 text-red-700 border-red-200' :
+      isSoon ? 'bg-orange-50 text-orange-700 border-orange-200' :
       'bg-green-50 text-green-700 border-green-200';
+
+    const StatusIcon =
+      minDays === null ? Clock :
+      isExpired ? AlertTriangle :
+      isSoon ? Clock :
+      CheckCircle2;
+
     const statusLabel =
       minDays === null ? 'Нет данных о документах' :
-      minDays < 0 ? `⚠️ Просрочено (${Math.abs(minDays)} дн.)` :
-      minDays < 30 ? `⚡ ${minDays} дн. до срока` :
-      `✅ OK (${minDays} дн.)`;
+      isExpired ? `Просрочено (${Math.abs(minDays)} дн.)` :
+      isSoon ? `${minDays} дн. до срока` :
+      `OK (${minDays} дн.)`;
 
     const isTractor = truck.type === 'tractor';
-    const typeIcon = isTractor ? '🚛' : '🚚';
+    const TypeIcon = isTractor ? TruckIcon : Container;
     const typeLabel = isTractor ? 'Тягач' : 'Прицеп';
 
     // Подзаголовок: "Тягач · DAF XF 480 FT · 2019"
@@ -121,46 +144,56 @@ export default async function TrucksPage() {
     return (
       <a
         href={`/trucks/${truck.id}`}
-        className="group bg-white rounded-2xl border border-slate-100 shadow-sm
-                   hover:shadow-xl hover:border-blue-200 md:hover:-translate-y-0.5
-                   transition-all duration-200 overflow-hidden"
+        className="group card card-hover overflow-hidden"
       >
         <div className="p-4 md:p-5">
           <div className="flex items-center gap-4 mb-4">
-            <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700
-                            flex items-center justify-center text-white text-2xl shrink-0">
-              {typeIcon}
+            <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-brand-500 to-accent-500
+                            flex items-center justify-center text-white shrink-0 shadow-brand">
+              <TypeIcon className="w-6 h-6" strokeWidth={2.2} />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="text-lg font-bold text-slate-900 group-hover:text-blue-600 transition-colors truncate">
+              <div className="text-lg font-bold text-slate-900 group-hover:text-brand-600 transition-colors truncate tabular-nums">
                 {truck.registration_number?.trim() || '—'}
               </div>
               <div className="text-sm text-slate-500 truncate">
                 {subtitle}
               </div>
             </div>
+            <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-brand-500
+                                    group-hover:translate-x-0.5 transition-all shrink-0" strokeWidth={2.5} />
           </div>
 
-          <div className={`px-3 py-2 rounded-xl text-xs font-semibold border ${statusColor}`}>
-            {statusLabel}
+          <div className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border ${statusColor}`}>
+            <StatusIcon className="w-3.5 h-3.5 shrink-0" strokeWidth={2.2} />
+            <span>{statusLabel}</span>
           </div>
 
           <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-slate-100">
             <div>
-              <div className="text-[10px] uppercase tracking-wide text-slate-400 font-medium">Документов</div>
-              <div className={`text-xs sm:text-sm font-bold ${filledDocs === totalDocs ? 'text-emerald-600' : filledDocs > 0 ? 'text-orange-600' : 'text-slate-400'}`}>
+              <div className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-slate-400 font-medium mb-0.5">
+                <FileText className="w-3 h-3" strokeWidth={2} />
+                Документов
+              </div>
+              <div className={`text-xs sm:text-sm font-bold tabular-nums ${filledDocs === totalDocs ? 'text-emerald-600' : filledDocs > 0 ? 'text-orange-600' : 'text-slate-400'}`}>
                 {filledDocs} / {totalDocs}
               </div>
             </div>
             <div>
-              <div className="text-[10px] uppercase tracking-wide text-slate-400 font-medium">Рейсов</div>
-              <div className={`text-xs sm:text-sm font-bold ${tripsCount > 0 ? 'text-blue-600' : 'text-slate-400'}`}>
+              <div className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-slate-400 font-medium mb-0.5">
+                <BarChart3 className="w-3 h-3" strokeWidth={2} />
+                Рейсов
+              </div>
+              <div className={`text-xs sm:text-sm font-bold tabular-nums ${tripsCount > 0 ? 'text-brand-600' : 'text-slate-400'}`}>
                 {tripsCount > 0 ? tripsCount : '—'}
               </div>
             </div>
             <div>
-              <div className="text-[10px] uppercase tracking-wide text-slate-400 font-medium">Год</div>
-              <div className="text-xs sm:text-sm font-bold text-slate-700">
+              <div className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-slate-400 font-medium mb-0.5">
+                <Calendar className="w-3 h-3" strokeWidth={2} />
+                Год
+              </div>
+              <div className="text-xs sm:text-sm font-bold text-slate-700 tabular-nums">
                 {truck.year || '—'}
               </div>
             </div>
@@ -177,31 +210,33 @@ export default async function TrucksPage() {
         {/* Заголовок */}
         <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-between sm:items-center">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-slate-900">🚚 Транспорт</h1>
+            <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2.5 tracking-tight">
+              <TruckIcon className="w-6 h-6 md:w-7 md:h-7 text-brand-600" strokeWidth={2.2} />
+              Транспорт
+            </h1>
             <p className="text-slate-500 mt-1 text-sm md:text-base">
-              Тягачей: <b>{tractors.length}</b> · Прицепов: <b>{trailers.length}</b>
+              Тягачей: <b className="text-slate-700">{tractors.length}</b> · Прицепов: <b className="text-slate-700">{trailers.length}</b>
             </p>
           </div>
-          <a
-            href="/trucks/new"
-            className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white
-                       font-semibold px-4 md:px-5 py-2.5 rounded-xl shadow-md shadow-blue-600/20
-                       transition-all duration-150 active:scale-[0.98] text-sm md:text-base
-                       w-full sm:w-auto"
-          >
-            <span>➕</span>
-            <span>Добавить транспорт</span>
+          <a href="/trucks/new" className="btn btn-primary text-sm md:text-base w-full sm:w-auto justify-center">
+            <Plus className="w-4 h-4 md:w-[18px] md:h-[18px]" strokeWidth={2.5} />
+            Добавить транспорт
           </a>
         </div>
 
         {/* Тягачи */}
         <div>
           <h2 className="text-lg font-bold text-slate-900 mb-3 md:mb-4 flex items-center gap-2">
-            🚛 Тягачи <span className="text-sm font-normal text-slate-400">({tractors.length})</span>
+            <TruckIcon className="w-5 h-5 text-brand-600" strokeWidth={2.2} />
+            Тягачи
+            <span className="text-sm font-normal text-slate-400 tabular-nums">({tractors.length})</span>
           </h2>
           {tractors.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-slate-100 p-8 text-center text-slate-400 text-sm">
-              Тягачей пока нет
+            <div className="card p-8 text-center">
+              <div className="w-12 h-12 mx-auto mb-2 rounded-xl bg-slate-50 flex items-center justify-center">
+                <Inbox className="w-6 h-6 text-slate-300" strokeWidth={1.5} />
+              </div>
+              <div className="text-slate-400 text-sm">Тягачей пока нет</div>
             </div>
           ) : (
             <div className="grid gap-4 md:gap-5 md:grid-cols-2 lg:grid-cols-3">
@@ -213,11 +248,16 @@ export default async function TrucksPage() {
         {/* Прицепы */}
         <div>
           <h2 className="text-lg font-bold text-slate-900 mb-3 md:mb-4 flex items-center gap-2">
-            🚚 Прицепы <span className="text-sm font-normal text-slate-400">({trailers.length})</span>
+            <Container className="w-5 h-5 text-brand-600" strokeWidth={2.2} />
+            Прицепы
+            <span className="text-sm font-normal text-slate-400 tabular-nums">({trailers.length})</span>
           </h2>
           {trailers.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-slate-100 p-8 text-center text-slate-400 text-sm">
-              Прицепов пока нет
+            <div className="card p-8 text-center">
+              <div className="w-12 h-12 mx-auto mb-2 rounded-xl bg-slate-50 flex items-center justify-center">
+                <Inbox className="w-6 h-6 text-slate-300" strokeWidth={1.5} />
+              </div>
+              <div className="text-slate-400 text-sm">Прицепов пока нет</div>
             </div>
           ) : (
             <div className="grid gap-4 md:gap-5 md:grid-cols-2 lg:grid-cols-3">
