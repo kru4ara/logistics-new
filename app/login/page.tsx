@@ -1,3 +1,4 @@
+import { RadioTower, Lock } from 'lucide-react';
 import LoginForm from './LoginForm';
 
 export const dynamic = 'force-dynamic';
@@ -6,9 +7,9 @@ export default function LoginPage() {
   return (
     <main className="min-h-screen flex">
       {/* ЛЕВАЯ ЧАСТЬ: брендинг (только на десктопе) */}
-      <div className="hidden lg:flex lg:w-1/2 relative bg-gradient-to-br from-slate-900 via-slate-800 to-blue-900 overflow-hidden">
+      <div className="hidden lg:flex lg:w-1/2 relative bg-gradient-to-br from-ink-900 via-ink-900 to-brand-800 overflow-hidden">
         {/* Декоративные круги */}
-        <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-blue-500/10 blur-3xl" />
+        <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-brand-500/10 blur-3xl" />
         <div className="absolute -bottom-40 -right-20 w-[500px] h-[500px] rounded-full bg-amber-500/10 blur-3xl" />
 
         {/* Тонкая сетка на фоне */}
@@ -64,11 +65,11 @@ export default function LoginPage() {
               <span>Работает 24/7</span>
             </div>
             <div className="flex items-center gap-1.5 bg-white/5 backdrop-blur-sm px-3 py-1.5 rounded-full border border-white/10">
-              <span>📡</span>
+              <RadioTower className="w-3 h-3" />
               <span>Logisat</span>
             </div>
             <div className="flex items-center gap-1.5 bg-white/5 backdrop-blur-sm px-3 py-1.5 rounded-full border border-white/10">
-              <span>🔒</span>
+              <Lock className="w-3 h-3" />
               <span>Защищено</span>
             </div>
           </div>
@@ -78,7 +79,7 @@ export default function LoginPage() {
       {/* ПРАВАЯ ЧАСТЬ: форма */}
       <div className="flex-1 flex items-center justify-center p-4 sm:p-6 bg-slate-50 relative">
         {/* Мягкий градиент на фоне для мобильных */}
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 lg:hidden" />
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-brand-50/30 to-slate-50 lg:hidden" />
 
         <div className="relative w-full max-w-sm">
           {/* Логотип сверху (только мобильный / планшет) */}
