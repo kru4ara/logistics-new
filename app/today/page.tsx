@@ -6,7 +6,6 @@ import {
   MapPin,
   Flag,
   Truck,
-  Boxes,
   AlertTriangle,
   Clock,
   ArrowRight,
@@ -40,6 +39,29 @@ function pickName(rel: unknown): string | undefined {
   return undefined;
 }
 
+// Supabase relation может прийти как объект или как массив из 1 элемента.
+// Возвращаем первый элемент, если массив.
+function pickOne<T>(rel: unknown): T | null {
+  if (!rel) return null;
+  if (Array.isArray(rel)) return (rel[0] as T) ?? null;
+  return rel as T;
+}
+
+type DriverRel = { first_name: string | null; last_name: string | null };
+type TruckRel = { registration_number: string | null };
+
+function getDriverName(rel: unknown): string | null {
+  const d = pickOne<DriverRel>(rel);
+  if (!d) return null;
+  const name = `${d.first_name || ''} ${d.last_name || ''}`.trim();
+  return name || null;
+}
+
+function getTruckNumber(rel: unknown): string | null {
+  const t = pickOne<TruckRel>(rel);
+  return t?.registration_number || null;
+}
+
 type EventItem = {
   kind: 'trip' | 'sub' | 'fwd';
   tripNumber: string | null;
@@ -48,7 +70,7 @@ type EventItem = {
   city: string | null;
   country: string | null;
   date: string | null;
-  pointLabel?: string; // A1 / A2 / C / loading / unloading
+  pointLabel?: string;
   driverName?: string | null;
   truckNumber?: string | null;
   href: string;
@@ -63,9 +85,7 @@ export default async function TodayPage() {
   const supabase = await createClient();
   const today = todayIso();
 
-  // ============================================================
-  // 1. РЕЙСЫ — старт/финиш сегодня + активные
-  // ============================================================
+  // 1. РЕЙСЫ
   const { data: trips } = await supabase
     .from('trips')
     .select(`
@@ -89,9 +109,7 @@ export default async function TodayPage() {
   const todayTripUnloadings = allTrips.filter((t) => t.end_date === today);
   const activeTrips = allTrips.filter((t) => t.status === 'active');
 
-  // ============================================================
-  // 2. ПОДРЯДЧИКИ на рейсах — где точки A1..A5 или C сегодня
-  // ============================================================
+  // 2. ПОДРЯДЧИКИ
   const { data: subs } = await supabase
     .from('trip_subcontractors')
     .select(`
@@ -152,9 +170,7 @@ export default async function TodayPage() {
     }
   });
 
-  // ============================================================
-  // 3. ЭКСПЕДИРОВАНИЕ — точки сегодня
-  // ============================================================
+  // 3. ЭКСПЕДИРОВАНИЕ
   const { data: fwdPoints } = await supabase
     .from('forwarding_points')
     .select(`
@@ -165,8 +181,8 @@ export default async function TodayPage() {
     .eq('date', today);
 
   const fwdEventsToday: EventItem[] = (fwdPoints || []).map((p: any) => {
-    const loc = Array.isArray(p.locations) ? p.locations[0] : p.locations;
-    const order = Array.isArray(p.forwarding_orders) ? p.forwarding_orders[0] : p.forwarding_orders;
+    const loc = pickOne<{ name: string | null; city: string | null; country: string | null; company_name: string | null }>(p.locations);
+    const order = pickOne<{ order_number: number | null; clients: unknown }>(p.forwarding_orders);
     const orderNumber = order?.order_number ? `№${order.order_number}` : '—';
     const clientName = pickName(order?.clients) || null;
     return {
@@ -182,9 +198,7 @@ export default async function TodayPage() {
     };
   });
 
-  // ============================================================
-  // Собираем общие списки
-  // ============================================================
+  // Сборка списков
   const todayLoadings: EventItem[] = [
     ...todayTripLoadings.map<EventItem>((t) => ({
       kind: 'trip',
@@ -195,8 +209,8 @@ export default async function TodayPage() {
       country: t.sender_country,
       date: t.start_date,
       pointLabel: 'Старт рейса',
-      driverName: t.drivers ? `${t.drivers.first_name} ${t.drivers.last_name}` : null,
-      truckNumber: t.trucks?.registration_number || null,
+      driverName: getDriverName(t.drivers),
+      truckNumber: getTruckNumber(t.trucks),
       href: `/trips/${t.id}`,
       tripStatus: t.status,
     })),
@@ -214,8 +228,8 @@ export default async function TodayPage() {
       country: t.receiver_country,
       date: t.end_date,
       pointLabel: 'Финиш рейса',
-      driverName: t.drivers ? `${t.drivers.first_name} ${t.drivers.last_name}` : null,
-      truckNumber: t.trucks?.registration_number || null,
+      driverName: getDriverName(t.drivers),
+      truckNumber: getTruckNumber(t.trucks),
       href: `/trips/${t.id}`,
       tripStatus: t.status,
     })),
@@ -223,9 +237,7 @@ export default async function TodayPage() {
     ...fwdEventsToday.filter((e) => e.pointLabel === 'Выгрузка'),
   ];
 
-  // ============================================================
   // 4. ВНИМАНИЕ
-  // ============================================================
   const { data: remindersRaw } = await supabase
     .from('reminders')
     .select('id, title, due_date, status')
@@ -416,7 +428,7 @@ export default async function TodayPage() {
           </div>
         </div>
 
-        {/* СЕГОДНЯ: ЗАГРУЗКИ */}
+        {/* ЗАГРУЗКИ */}
         <div>
           <h2 className="text-base md:text-lg font-bold text-slate-900 mb-3 flex items-center gap-2">
             <MapPin className="w-5 h-5 text-green-600" strokeWidth={2.2} />
@@ -439,7 +451,7 @@ export default async function TodayPage() {
           )}
         </div>
 
-        {/* СЕГОДНЯ: ВЫГРУЗКИ */}
+        {/* ВЫГРУЗКИ */}
         <div>
           <h2 className="text-base md:text-lg font-bold text-slate-900 mb-3 flex items-center gap-2">
             <Flag className="w-5 h-5 text-red-500" strokeWidth={2.2} />
@@ -462,7 +474,7 @@ export default async function TodayPage() {
           )}
         </div>
 
-        {/* В ПУТИ СЕЙЧАС */}
+        {/* В ПУТИ */}
         <div>
           <h2 className="text-base md:text-lg font-bold text-slate-900 mb-3 flex items-center gap-2">
             <RouteIcon className="w-5 h-5 text-brand-600" strokeWidth={2.2} />
@@ -480,8 +492,8 @@ export default async function TodayPage() {
             <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
               {activeTrips.map((t) => {
                 const clientName = pickName(t.clients) || '—';
-                const driverName = t.drivers ? `${t.drivers.first_name} ${t.drivers.last_name}` : null;
-                const truckNumber = t.trucks?.registration_number || null;
+                const driverName = getDriverName(t.drivers);
+                const truckNumber = getTruckNumber(t.trucks);
                 return (
                   <Link
                     key={t.id}
