@@ -12,6 +12,7 @@ import {
   Wallet,
   Route as RouteIcon,
   Inbox,
+  RadioTower,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -41,6 +42,13 @@ const QUICK_LINKS: QuickLink[] = [
     hint: 'Кто из клиентов и какая техника приносят деньги',
     Icon: BarChart3,
     gradient: 'from-brand-600 to-brand-800',
+  },
+  {
+    href: '/reports/logisat',
+    title: 'Ошибки Logisat',
+    hint: 'Проблемы синхронизации: нет данных, сломан одометр или датчик топлива',
+    Icon: RadioTower,
+    gradient: 'from-orange-500 to-orange-700',
   },
   {
     href: '/reports/excel',
@@ -130,7 +138,7 @@ export default async function ReportsPage() {
         </div>
 
         {/* Быстрые ссылки */}
-        <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-3">
+        <div className="grid gap-3 md:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
           {QUICK_LINKS.map(({ href, title, hint, Icon, gradient }) => (
             <a
               key={href}
@@ -147,9 +155,6 @@ export default async function ReportsPage() {
                 <div className="min-w-0 flex-1">
                   <div className="text-lg md:text-xl font-bold">{title}</div>
                   <div className="text-sm text-white/80 mt-1">{hint}</div>
-                </div>
-                <div className="text-white/80 font-semibold text-sm shrink-0 hidden sm:block">
-                  →
                 </div>
               </div>
             </a>
