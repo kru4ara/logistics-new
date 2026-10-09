@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { MessageCircle, CheckCircle2, Copy, Check } from 'lucide-react';
 
 export default function TelegramLinkCard({
   driverId,
@@ -25,12 +26,13 @@ export default function TelegramLinkCard({
 
   if (isConnected) {
     return (
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+      <div className="card p-6">
         <h2 className="text-lg font-bold text-slate-900 mb-3 flex items-center gap-2">
-          📱 Telegram-уведомления
+          <MessageCircle className="w-5 h-5 text-brand-600" />
+          Telegram-уведомления
         </h2>
         <div className="flex items-center gap-2 text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3">
-          <span className="text-lg">✅</span>
+          <CheckCircle2 className="w-5 h-5 shrink-0" />
           <span className="font-medium">
             Водитель подключён и получает уведомления о новых рейсах
           </span>
@@ -40,9 +42,10 @@ export default function TelegramLinkCard({
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+    <div className="card p-6">
       <h2 className="text-lg font-bold text-slate-900 mb-3 flex items-center gap-2">
-        📱 Telegram-уведомления
+        <MessageCircle className="w-5 h-5 text-brand-600" />
+        Telegram-уведомления
       </h2>
 
       <p className="text-sm text-slate-500 mb-4">
@@ -57,18 +60,28 @@ export default function TelegramLinkCard({
           readOnly
           value={link}
           onFocus={(e) => e.target.select()}
-          className="flex-1 rounded-lg border border-slate-300 bg-slate-50 px-3 py-2.5
-                     text-sm text-slate-700 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="input flex-1 font-mono text-sm bg-slate-50"
         />
         <button
           type="button"
           onClick={handleCopy}
           className={`px-4 py-2.5 rounded-lg font-semibold text-sm whitespace-nowrap transition-all active:scale-[0.98]
+            flex items-center justify-center gap-2
             ${copied
               ? 'bg-emerald-600 text-white'
-              : 'bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-600/20'}`}
+              : 'bg-brand-600 hover:bg-brand-700 text-white shadow-brand'}`}
         >
-          {copied ? '✅ Скопировано' : '📋 Копировать'}
+          {copied ? (
+            <>
+              <Check className="w-4 h-4" />
+              Скопировано
+            </>
+          ) : (
+            <>
+              <Copy className="w-4 h-4" />
+              Копировать
+            </>
+          )}
         </button>
       </div>
 
