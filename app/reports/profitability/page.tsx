@@ -5,7 +5,6 @@ import {
   Coins,
   Handshake,
   Truck,
-  type LucideIcon,
 } from 'lucide-react';
 import { createClient } from '../../../lib/supabase-server';
 
@@ -89,7 +88,7 @@ export default async function ProfitabilityPage({
 
   const supabase = await createClient();
 
-  // РЕЙСЫ + РАСХОДЫ
+  // РЕЙСЫ
   const { data: trips } = await supabase
     .from('trips')
     .select(`
@@ -242,9 +241,7 @@ export default async function ProfitabilityPage({
   const totalProfit = totalRevenue - totalExpenses;
   const totalMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
 
-  const inputClass =
-    'w-full rounded-lg border border-slate-300 px-3 py-2.5 text-base text-slate-900 ' +
-    'focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all';
+  const inputClass = 'input';
   const labelClass = 'block text-sm font-medium text-slate-700 mb-1';
 
   return (
@@ -270,10 +267,7 @@ export default async function ProfitabilityPage({
         </div>
 
         {/* Фильтр по периоду */}
-        <form
-          className="card p-4 md:p-5"
-          method="GET"
-        >
+        <form className="card p-4 md:p-5" method="GET">
           <div className="grid gap-3 grid-cols-2 md:grid-cols-4 items-end">
             <div>
               <label className={labelClass}>С даты</label>
@@ -307,28 +301,28 @@ export default async function ProfitabilityPage({
         <div className="grid gap-3 md:gap-5 grid-cols-2 md:grid-cols-4">
           <div className="card p-4 md:p-5">
             <div className="text-xs md:text-sm text-slate-500 font-medium mb-2">Сделок</div>
-            <div className="text-2xl md:text-3xl font-bold text-brand-600">
+            <div className="text-2xl md:text-3xl font-bold text-brand-600 tabular-nums">
               {clientRows.reduce((s, r) => s + r.count, 0)}
             </div>
           </div>
           <div className="card p-4 md:p-5">
             <div className="text-xs md:text-sm text-slate-500 font-medium mb-2">Доход</div>
-            <div className="text-xl md:text-2xl font-bold text-green-600 break-words">
+            <div className="text-xl md:text-2xl font-bold text-green-600 break-words tabular-nums">
               {fmt(totalRevenue)} €
             </div>
           </div>
           <div className="card p-4 md:p-5">
             <div className="text-xs md:text-sm text-slate-500 font-medium mb-2">Расходы</div>
-            <div className="text-xl md:text-2xl font-bold text-red-500 break-words">
+            <div className="text-xl md:text-2xl font-bold text-red-500 break-words tabular-nums">
               {fmt(totalExpenses)} €
             </div>
           </div>
           <div className="card p-4 md:p-5">
             <div className="text-xs md:text-sm text-slate-500 font-medium mb-2">Прибыль / маржа</div>
-            <div className={`text-xl md:text-2xl font-bold break-words ${totalProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+            <div className={`text-xl md:text-2xl font-bold break-words tabular-nums ${totalProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
               {fmt(totalProfit)} €
             </div>
-            <div className="text-xs text-slate-400 mt-1">маржа {fmtPct(totalMargin)}</div>
+            <div className="text-xs text-slate-400 mt-1 tabular-nums">маржа {fmtPct(totalMargin)}</div>
           </div>
         </div>
 
@@ -340,8 +334,16 @@ export default async function ProfitabilityPage({
           </h2>
 
           {clientRows.length === 0 ? (
-            <div className="card p-8 text-center text-slate-400">
-              Нет данных за выбранный период
+            <div className="card p-10 md:p-14 text-center animate-fade-in">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-brand-50 flex items-center justify-center">
+                <Handshake className="w-8 h-8 text-brand-600" strokeWidth={1.5} />
+              </div>
+              <h3 className="text-lg font-bold text-slate-900 mb-1">
+                Нет данных за период
+              </h3>
+              <p className="text-sm text-slate-500 max-w-sm mx-auto">
+                Попробуйте расширить диапазон дат — возможно, за это время сделок не было.
+              </p>
             </div>
           ) : (
             <>
@@ -361,22 +363,22 @@ export default async function ProfitabilityPage({
                           {r.type} · {r.count} сделок
                         </div>
                       </div>
-                      <span className={`shrink-0 font-bold text-sm whitespace-nowrap ${r.profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                      <span className={`shrink-0 font-bold text-sm whitespace-nowrap tabular-nums ${r.profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                         {fmt(r.profit)} €
                       </span>
                     </div>
                     <div className="grid grid-cols-3 gap-2 text-xs pt-2 border-t border-slate-100">
                       <div>
                         <div className="text-slate-400">Доход</div>
-                        <div className="font-semibold text-green-600">{fmt(r.revenue)}</div>
+                        <div className="font-semibold text-green-600 tabular-nums">{fmt(r.revenue)}</div>
                       </div>
                       <div>
                         <div className="text-slate-400">Расходы</div>
-                        <div className="font-semibold text-red-500">{fmt(r.expenses)}</div>
+                        <div className="font-semibold text-red-500 tabular-nums">{fmt(r.expenses)}</div>
                       </div>
                       <div>
                         <div className="text-slate-400">Маржа</div>
-                        <div className={`font-semibold ${r.margin >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                        <div className={`font-semibold tabular-nums ${r.margin >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                           {fmtPct(r.margin)}
                         </div>
                       </div>
@@ -411,17 +413,17 @@ export default async function ProfitabilityPage({
                               {r.type}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-right text-sm text-slate-600">{r.count}</td>
-                          <td className="px-4 py-3 text-right text-sm font-semibold text-green-600 whitespace-nowrap">
+                          <td className="px-4 py-3 text-right text-sm text-slate-600 tabular-nums">{r.count}</td>
+                          <td className="px-4 py-3 text-right text-sm font-semibold text-green-600 whitespace-nowrap tabular-nums">
                             {fmt(r.revenue)} €
                           </td>
-                          <td className="px-4 py-3 text-right text-sm font-semibold text-red-500 whitespace-nowrap">
+                          <td className="px-4 py-3 text-right text-sm font-semibold text-red-500 whitespace-nowrap tabular-nums">
                             {fmt(r.expenses)} €
                           </td>
-                          <td className={`px-4 py-3 text-right text-sm font-bold whitespace-nowrap ${r.profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                          <td className={`px-4 py-3 text-right text-sm font-bold whitespace-nowrap tabular-nums ${r.profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                             {fmt(r.profit)} €
                           </td>
-                          <td className={`px-4 py-3 text-right text-sm font-semibold whitespace-nowrap ${r.margin >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                          <td className={`px-4 py-3 text-right text-sm font-semibold whitespace-nowrap tabular-nums ${r.margin >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                             {fmtPct(r.margin)}
                           </td>
                         </tr>
@@ -442,8 +444,16 @@ export default async function ProfitabilityPage({
           </h2>
 
           {truckRows.length === 0 ? (
-            <div className="card p-8 text-center text-slate-400">
-              Нет данных за выбранный период
+            <div className="card p-10 md:p-14 text-center animate-fade-in">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-brand-50 flex items-center justify-center">
+                <Truck className="w-8 h-8 text-brand-600" strokeWidth={1.5} />
+              </div>
+              <h3 className="text-lg font-bold text-slate-900 mb-1">
+                Нет данных за период
+              </h3>
+              <p className="text-sm text-slate-500 max-w-sm mx-auto">
+                За выбранный период не было рейсов с назначенным тягачом.
+              </p>
             </div>
           ) : (
             <>
@@ -456,26 +466,26 @@ export default async function ProfitabilityPage({
                         <div className="font-semibold text-slate-800 text-sm">
                           {t.registration}
                         </div>
-                        <div className="text-xs text-slate-400 mt-0.5">
+                        <div className="text-xs text-slate-400 mt-0.5 tabular-nums">
                           {t.count} рейсов · {fmt(t.km)} км
                         </div>
                       </div>
-                      <span className={`shrink-0 font-bold text-sm whitespace-nowrap ${t.profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                      <span className={`shrink-0 font-bold text-sm whitespace-nowrap tabular-nums ${t.profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                         {fmt(t.profit)} €
                       </span>
                     </div>
                     <div className="grid grid-cols-3 gap-2 text-xs pt-2 border-t border-slate-100">
                       <div>
                         <div className="text-slate-400">Фрахт</div>
-                        <div className="font-semibold text-green-600">{fmt(t.revenue)}</div>
+                        <div className="font-semibold text-green-600 tabular-nums">{fmt(t.revenue)}</div>
                       </div>
                       <div>
                         <div className="text-slate-400">Расходы</div>
-                        <div className="font-semibold text-red-500">{fmt(t.expenses)}</div>
+                        <div className="font-semibold text-red-500 tabular-nums">{fmt(t.expenses)}</div>
                       </div>
                       <div>
                         <div className="text-slate-400">Маржа</div>
-                        <div className={`font-semibold ${t.margin >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                        <div className={`font-semibold tabular-nums ${t.margin >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                           {fmtPct(t.margin)}
                         </div>
                       </div>
@@ -503,18 +513,18 @@ export default async function ProfitabilityPage({
                       {truckRows.map((t) => (
                         <tr key={t.id} className="border-b border-slate-50 hover:bg-brand-50/30 transition-colors">
                           <td className="px-4 py-3 text-sm font-medium text-slate-800">{t.registration}</td>
-                          <td className="px-4 py-3 text-right text-sm text-slate-600">{t.count}</td>
-                          <td className="px-4 py-3 text-right text-sm text-slate-600 whitespace-nowrap">{fmt(t.km)}</td>
-                          <td className="px-4 py-3 text-right text-sm font-semibold text-green-600 whitespace-nowrap">
+                          <td className="px-4 py-3 text-right text-sm text-slate-600 tabular-nums">{t.count}</td>
+                          <td className="px-4 py-3 text-right text-sm text-slate-600 whitespace-nowrap tabular-nums">{fmt(t.km)}</td>
+                          <td className="px-4 py-3 text-right text-sm font-semibold text-green-600 whitespace-nowrap tabular-nums">
                             {fmt(t.revenue)} €
                           </td>
-                          <td className="px-4 py-3 text-right text-sm font-semibold text-red-500 whitespace-nowrap">
+                          <td className="px-4 py-3 text-right text-sm font-semibold text-red-500 whitespace-nowrap tabular-nums">
                             {fmt(t.expenses)} €
                           </td>
-                          <td className={`px-4 py-3 text-right text-sm font-bold whitespace-nowrap ${t.profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                          <td className={`px-4 py-3 text-right text-sm font-bold whitespace-nowrap tabular-nums ${t.profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                             {fmt(t.profit)} €
                           </td>
-                          <td className={`px-4 py-3 text-right text-sm font-semibold whitespace-nowrap ${t.margin >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                          <td className={`px-4 py-3 text-right text-sm font-semibold whitespace-nowrap tabular-nums ${t.margin >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                             {fmtPct(t.margin)}
                           </td>
                         </tr>
