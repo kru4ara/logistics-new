@@ -3,6 +3,21 @@ import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase-server';
 import { deleteContractor } from './actions';
 import CountryFlag from '../components/CountryFlag';
+import {
+  Building2,
+  Plus,
+  Phone,
+  Mail,
+  User as UserIcon,
+  MapPin,
+  FileText,
+  Package,
+  Truck,
+  ArrowRight,
+  Pencil,
+  Trash2,
+  Inbox,
+} from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,32 +67,33 @@ export default async function ContractorsPage() {
         {/* Заголовок */}
         <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-between sm:items-center">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-slate-900">🏢 Подрядчики</h1>
+            <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2.5 tracking-tight">
+              <Building2 className="w-6 h-6 md:w-7 md:h-7 text-brand-600" strokeWidth={2.2} />
+              Подрядчики
+            </h1>
             <p className="text-slate-500 mt-1 text-sm md:text-base">
-              Всего: <b>{contractors?.length || 0}</b> фирм
+              Всего: <b className="text-slate-700">{contractors?.length || 0}</b> фирм
             </p>
           </div>
           <a
             href="/contractors/new"
-            className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white
-                       font-semibold px-4 md:px-5 py-2.5 rounded-xl shadow-md shadow-blue-600/20
-                       transition-all duration-150 active:scale-[0.98] text-sm md:text-base"
+            className="btn btn-primary text-sm md:text-base w-full sm:w-auto justify-center"
           >
-            <span>➕</span>
-            <span>Добавить подрядчика</span>
+            <Plus className="w-4 h-4 md:w-[18px] md:h-[18px]" strokeWidth={2.5} />
+            Добавить подрядчика
           </a>
         </div>
 
         {(!contractors || contractors.length === 0) ? (
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-10 md:p-16 text-center">
-            <div className="text-5xl md:text-6xl mb-4">🏢</div>
+          <div className="card p-10 md:p-16 text-center">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-slate-50 flex items-center justify-center">
+              <Inbox className="w-8 h-8 text-slate-300" strokeWidth={1.5} />
+            </div>
             <h2 className="text-xl font-bold text-slate-900 mb-2">Подрядчиков пока нет</h2>
             <p className="text-slate-500 mb-6">Добавьте первого, чтобы передавать им грузы</p>
-            <a
-              href="/contractors/new"
-              className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-xl"
-            >
-              ➕ Добавить подрядчика
+            <a href="/contractors/new" className="btn btn-primary inline-flex">
+              <Plus className="w-4 h-4" strokeWidth={2.5} />
+              Добавить подрядчика
             </a>
           </div>
         ) : (
@@ -90,9 +106,7 @@ export default async function ContractorsPage() {
               return (
                 <div
                   key={c.id}
-                  className="group bg-white rounded-2xl border border-slate-100 shadow-sm
-                             hover:shadow-xl hover:border-blue-200 transition-all duration-200 overflow-hidden
-                             flex flex-col"
+                  className="group card card-hover overflow-hidden flex flex-col"
                 >
                   {/* Кликабельная часть — переход в карточку */}
                   <a
@@ -103,12 +117,12 @@ export default async function ContractorsPage() {
                     {/* Шапка карточки */}
                     <div className="p-5 border-b border-slate-100 relative">
                       <div className="flex items-start gap-3 mb-3">
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700
-                                        flex items-center justify-center text-white text-xl shrink-0">
-                          🏢
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-brand-500 to-accent-500
+                                        flex items-center justify-center shrink-0 shadow-brand">
+                          <Building2 className="w-6 h-6 text-white" strokeWidth={2.2} />
                         </div>
                         <div className="min-w-0 flex-1 pr-5">
-                          <div className="font-bold text-slate-900 break-words group-hover:text-blue-600 transition-colors">
+                          <div className="font-bold text-slate-900 break-words group-hover:text-brand-600 transition-colors">
                             {c.name}
                           </div>
                           {c.full_name && c.full_name !== c.name && (
@@ -126,23 +140,25 @@ export default async function ContractorsPage() {
                       </div>
 
                       {/* Стрелка — намёк на кликабельность */}
-                      <div className="absolute top-5 right-4 text-slate-300 group-hover:text-blue-500
-                                      group-hover:translate-x-0.5 transition-all text-lg leading-none">
-                        →
+                      <div className="absolute top-5 right-4">
+                        <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-brand-500
+                                                group-hover:translate-x-0.5 transition-all" strokeWidth={2.5} />
                       </div>
 
                       {totalWorks > 0 && (
                         <div className="flex flex-wrap gap-1.5">
                           {ordersCount > 0 && (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full
-                                             bg-purple-50 text-purple-700 border border-purple-200 text-[11px] font-semibold">
-                              📦 {ordersCount} {ordersCount === 1 ? 'заявка' : ordersCount < 5 ? 'заявки' : 'заявок'}
+                                             bg-violet-50 text-violet-700 border border-violet-200 text-[11px] font-semibold">
+                              <Package className="w-3 h-3" strokeWidth={2.2} />
+                              {ordersCount} {ordersCount === 1 ? 'заявка' : ordersCount < 5 ? 'заявки' : 'заявок'}
                             </span>
                           )}
                           {tripsCount > 0 && (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full
                                              bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-semibold">
-                              🚛 {tripsCount} {tripsCount === 1 ? 'рейс' : tripsCount < 5 ? 'рейса' : 'рейсов'}
+                              <Truck className="w-3 h-3" strokeWidth={2.2} />
+                              {tripsCount} {tripsCount === 1 ? 'рейс' : tripsCount < 5 ? 'рейса' : 'рейсов'}
                             </span>
                           )}
                         </div>
@@ -153,44 +169,44 @@ export default async function ContractorsPage() {
                     <div className="p-5 space-y-2.5 text-sm">
                       {c.contact_person && (
                         <div className="flex items-start gap-2 text-slate-700">
-                          <span className="shrink-0">👤</span>
+                          <UserIcon className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" strokeWidth={2} />
                           <span className="break-words">{c.contact_person}</span>
                         </div>
                       )}
 
                       {c.phone && (
                         <div className="flex items-start gap-2">
-                          <span className="shrink-0">📞</span>
-                          <span className="text-slate-700 break-all">{c.phone}</span>
+                          <Phone className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" strokeWidth={2} />
+                          <span className="text-slate-700 break-all tabular-nums">{c.phone}</span>
                         </div>
                       )}
 
                       {c.email && (
                         <div className="flex items-start gap-2">
-                          <span className="shrink-0">✉️</span>
+                          <Mail className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" strokeWidth={2} />
                           <span className="text-slate-600 break-all text-xs">{c.email}</span>
                         </div>
                       )}
 
                       {c.tax_id && (
                         <div className="flex items-start gap-2 text-slate-600">
-                          <span className="shrink-0">🏷️</span>
+                          <FileText className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" strokeWidth={2} />
                           <span className="break-words text-xs">
-                            NIP: <b>{c.tax_id}</b>
+                            NIP: <b className="tabular-nums">{c.tax_id}</b>
                           </span>
                         </div>
                       )}
 
                       {c.address && (
                         <div className="flex items-start gap-2 text-slate-600">
-                          <span className="shrink-0">📍</span>
+                          <MapPin className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" strokeWidth={2} />
                           <span className="break-words text-xs">{c.address}</span>
                         </div>
                       )}
 
                       {c.notes && (
                         <div className="text-xs text-slate-500 bg-slate-50 rounded-lg p-2.5 mt-3 break-words">
-                          📝 {c.notes}
+                          {c.notes}
                         </div>
                       )}
 
@@ -202,22 +218,24 @@ export default async function ContractorsPage() {
                     </div>
                   </a>
 
-                  {/* Кнопки — вне ссылки, чтобы не было вложенных <a> */}
+                  {/* Кнопки — вне ссылки */}
                   <div className="p-3 border-t border-slate-100 bg-slate-50/40 flex gap-2">
                     <a
                       href={`/contractors/${c.id}/edit`}
-                      className="flex-1 text-center px-3 py-2 rounded-lg border border-slate-300 text-slate-700 text-xs font-medium
+                      className="flex-1 inline-flex items-center justify-center gap-1.5 text-center px-3 py-2 rounded-lg border border-slate-300 text-slate-700 text-xs font-medium
                                  hover:bg-white transition-all"
                     >
-                      ✏️ Изменить
+                      <Pencil className="w-3.5 h-3.5" strokeWidth={2} />
+                      Изменить
                     </a>
                     <form action={deleteContractor.bind(null, c.id)} className="flex-1">
                       <button
                         type="submit"
-                        className="w-full px-3 py-2 rounded-lg bg-red-500/10 text-red-600 border border-red-500/30
+                        className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-red-500/10 text-red-600 border border-red-500/30
                                    text-xs font-medium hover:bg-red-500 hover:text-white transition-all"
                       >
-                        🗑️ Удалить
+                        <Trash2 className="w-3.5 h-3.5" strokeWidth={2} />
+                        Удалить
                       </button>
                     </form>
                   </div>
