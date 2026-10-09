@@ -167,7 +167,6 @@ async function buildForwardingSheet(
 
   const ids = (orders || []).map((o: any) => o.id).filter(Boolean) as string[];
 
-  // Подрядчики одним запросом
   const contractorsByFwd: Record<string, number> = {};
   if (ids.length > 0) {
     const { data: fc, error: fcErr } = await supabase
@@ -181,7 +180,6 @@ async function buildForwardingSheet(
     });
   }
 
-  // Доп. расходы одним запросом
   const expensesByFwd: Record<string, number> = {};
   if (ids.length > 0) {
     const { data: fe, error: feErr } = await supabase
@@ -282,34 +280,58 @@ export async function GET(request: Request) {
   const type = searchParams.get('type') || 'trips';
   const from = searchParams.get('from');
   const to = searchParams.get('to');
+  const format = searchParams.get('format') === 'csv' ? 'csv' : 'xlsx';
 
   const supabase = await createClient();
 
   let sheet: XLSX.WorkSheet;
   let sheetName: string;
-  let fileName: string;
+  let baseName: string;
 
   try {
     if (type === 'trips') {
       sheet = await buildTripsSheet(supabase, from, to);
       sheetName = 'Рейсы';
-      fileName = `Trips_${from || 'all'}_${to || 'all'}.xlsx`;
+      baseName = `Trips_${from || 'all'}_${to || 'all'}`;
     } else if (type === 'expenses') {
       sheet = await buildExpensesSheet(supabase, from, to);
       sheetName = 'Расходы рейсов';
-      fileName = `Expenses_${from || 'all'}_${to || 'all'}.xlsx`;
+      baseName = `Expenses_${from || 'all'}_${to || 'all'}`;
     } else if (type === 'forwarding') {
       sheet = await buildForwardingSheet(supabase, from, to);
       sheetName = 'Экспедирование';
-      fileName = `Forwarding_${from || 'all'}_${to || 'all'}.xlsx`;
+      baseName = `Forwarding_${from || 'all'}_${to || 'all'}`;
     } else if (type === 'clients') {
       sheet = await buildClientsSheet(supabase);
       sheetName = 'Прибыльность клиентов';
-      fileName = `Clients_${new Date().toISOString().split('T')[0]}.xlsx`;
+      baseName = `Clients_${new Date().toISOString().split('T')[0]}`;
     } else {
       return NextResponse.json({ error: 'Unknown export type' }, { status: 400 });
     }
 
+    // ============================================================
+    // CSV
+    // ============================================================
+    if (format === 'csv') {
+      // FS: ';' — разделитель для Excel в русской локали,
+      // иначе Excel не распарсит CSV с запятыми (запятая = десятичный разделитель).
+      const csvBody = XLSX.utils.sheet_to_csv(sheet, { FS: ';' });
+
+      // BOM (\uFEFF) в начале — иначе Excel покажет кириллицу ромбиками.
+      const csvWithBom = '\uFEFF' + csvBody;
+
+      return new NextResponse(csvWithBom, {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/csv; charset=utf-8',
+          'Content-Disposition': `attachment; filename="${baseName}.csv"`,
+        },
+      });
+    }
+
+    // ============================================================
+    // XLSX (по умолчанию)
+    // ============================================================
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, sheet, sheetName);
     const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
@@ -318,7 +340,7 @@ export async function GET(request: Request) {
       status: 200,
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'Content-Disposition': `attachment; filename="${fileName}"`,
+        'Content-Disposition': `attachment; filename="${baseName}.xlsx"`,
       },
     });
   } catch (e) {
