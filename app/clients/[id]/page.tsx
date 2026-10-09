@@ -1,3 +1,13 @@
+import {
+  ArrowLeft,
+  Pencil,
+  User,
+  Phone,
+  Mail,
+  FileText,
+  Truck,
+  Handshake,
+} from 'lucide-react';
 import { createClient } from '../../../lib/supabase-server';
 
 export const dynamic = 'force-dynamic';
@@ -57,7 +67,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
 
   const statusColors: Record<string, string> = {
     planned: 'bg-slate-100 text-slate-700 border-slate-200',
-    active: 'bg-blue-50 text-blue-700 border-blue-200',
+    active: 'bg-brand-50 text-brand-700 border-brand-200',
     completed: 'bg-green-50 text-green-700 border-green-200',
     invoiced: 'bg-yellow-50 text-yellow-700 border-yellow-200',
     paid: 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -73,51 +83,71 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
 
   return (
     <main className="min-h-screen bg-slate-50">
-      <div className="max-w-[1400px] mx-auto px-6 py-8 space-y-6">
+      <div className="max-w-[1400px] mx-auto px-4 md:px-6 py-6 md:py-8 space-y-5 md:space-y-6">
 
-        <a href="/clients" className="inline-flex items-center gap-2 text-slate-600 hover:text-blue-600 transition-colors text-sm font-medium">
-          ← Все клиенты
+        <a
+          href="/clients"
+          className="inline-flex items-center gap-2 text-slate-600 hover:text-brand-600 transition-colors text-sm font-medium"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Все клиенты
         </a>
 
         {/* Шапка */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+        <div className="card p-5 md:p-6">
           <div className="flex flex-wrap items-center justify-between gap-5">
             <div className="flex items-center gap-5 min-w-0 flex-1">
               <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-pink-500 to-pink-700 flex items-center justify-center text-white font-bold text-2xl shrink-0">
-                {initials || '🤝'}
+                {initials || <Handshake className="w-8 h-8" />}
               </div>
               <div className="min-w-0">
-                <h1 className="text-2xl font-bold text-slate-900">{client.name}</h1>
+                <h1 className="text-2xl font-bold text-slate-900 break-words">{client.name}</h1>
                 <div className="flex flex-wrap gap-4 mt-2 text-sm text-slate-500">
-                  {client.contact_person && <span>👤 {client.contact_person}</span>}
-                  {client.phone && <span>📞 {client.phone}</span>}
-                  {client.email && <span>✉️ {client.email}</span>}
+                  {client.contact_person && (
+                    <span className="inline-flex items-center gap-1.5">
+                      <User className="w-3.5 h-3.5" />
+                      {client.contact_person}
+                    </span>
+                  )}
+                  {client.phone && (
+                    <span className="inline-flex items-center gap-1.5">
+                      <Phone className="w-3.5 h-3.5" />
+                      {client.phone}
+                    </span>
+                  )}
+                  {client.email && (
+                    <span className="inline-flex items-center gap-1.5">
+                      <Mail className="w-3.5 h-3.5" />
+                      {client.email}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
 
             <a
               href={`/clients/${clientId}/edit`}
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white
-                         font-semibold px-5 py-2.5 rounded-xl shadow-md shadow-blue-600/20
+              className="inline-flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white
+                         font-semibold px-5 py-2.5 rounded-xl shadow-brand
                          transition-all duration-150 active:scale-[0.98] shrink-0"
             >
-              ✏️ Редактировать
+              <Pencil className="w-4 h-4" />
+              Редактировать
             </a>
           </div>
         </div>
 
         {/* Финансы */}
         <div className="grid gap-5 md:grid-cols-3">
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+          <div className="card p-5 md:p-6">
             <div className="text-sm font-medium text-slate-500 mb-2">Общий фрахт</div>
             <div className="text-2xl font-bold text-green-600">{totalRevenue.toFixed(2)} €</div>
           </div>
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+          <div className="card p-5 md:p-6">
             <div className="text-sm font-medium text-slate-500 mb-2">Общие расходы</div>
             <div className="text-2xl font-bold text-red-500">{totalExpenses.toFixed(2)} €</div>
           </div>
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+          <div className="card p-5 md:p-6">
             <div className="text-sm font-medium text-slate-500 mb-2">Прибыль</div>
             <div className={`text-2xl font-bold ${profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
               {profit.toFixed(2)} €
@@ -126,8 +156,11 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
         </div>
 
         {/* Список рейсов */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-          <h2 className="text-lg font-bold text-slate-900 mb-4">📋 Рейсы клиента ({trips?.length || 0})</h2>
+        <div className="card p-5 md:p-6">
+          <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+            <FileText className="w-5 h-5 text-brand-600" />
+            Рейсы клиента ({trips?.length || 0})
+          </h2>
           {trips?.length === 0 ? (
             <div className="text-slate-400 text-center py-8">У этого клиента ещё нет рейсов</div>
           ) : (
@@ -142,12 +175,12 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
                     key={trip.id}
                     href={`/trips/${trip.id}`}
                     className="block border border-slate-100 rounded-xl p-4
-                               hover:border-blue-200 hover:bg-blue-50/30 transition-all"
+                               hover:border-brand-200 hover:bg-brand-50/30 transition-all"
                   >
                     <div className="flex items-center justify-between gap-4 mb-3">
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center text-lg shrink-0">
-                          🚛
+                        <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 shrink-0">
+                          <Truck className="w-5 h-5" />
                         </div>
                         <div className="min-w-0">
                           <div className="font-semibold text-slate-800 truncate">
@@ -175,18 +208,18 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-slate-100 text-xs">
                       <div className="flex items-center gap-2 text-slate-600">
-                        <span>🚛</span>
+                        <Truck className="w-3.5 h-3.5 shrink-0" />
                         <span>
                           {truck?.registration_number || '—'}
                           {trailerNumber && ` / ${trailerNumber}`}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 text-slate-600">
-                        <span>👤</span>
+                        <User className="w-3.5 h-3.5 shrink-0" />
                         <span>{driver ? `${driver.first_name} ${driver.last_name}` : '—'}</span>
                       </div>
                       <div className="flex items-center gap-2 text-slate-600">
-                        <span>📞</span>
+                        <Phone className="w-3.5 h-3.5 shrink-0" />
                         <span>{driver?.phone || '—'}</span>
                       </div>
                     </div>
