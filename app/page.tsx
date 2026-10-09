@@ -6,23 +6,14 @@ import {
   TrendingUp,
   TrendingDown,
   Package,
+  Truck,
   Wallet,
   Briefcase,
   BarChart3,
-  Users,
-  Route as RouteIcon,
+  AlertTriangle,
 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
-
-function pickName(rel: unknown): string | undefined {
-  if (!rel) return undefined;
-  if (Array.isArray(rel)) return rel[0]?.name;
-  if (typeof rel === 'object' && 'name' in rel) {
-    return (rel as { name?: string }).name;
-  }
-  return undefined;
-}
 
 const CHART_PALETTE = [
   '#ef4444', '#f97316', '#f59e0b', '#eab308',
@@ -50,13 +41,10 @@ const CATEGORY_META: Record<string, { label: string; emoji: string }> = {
   other: { label: 'Другое', emoji: '📌' },
 };
 
-const statusStripColors: Record<string, string> = {
-  planned: 'bg-slate-300',
-  active: 'bg-brand-500',
-  completed: 'bg-green-500',
-  invoiced: 'bg-yellow-500',
-  paid: 'bg-emerald-500',
-};
+function daysUntil(dateString: string | null): number | null {
+  if (!dateString) return null;
+  return Math.ceil((new Date(dateString).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+}
 
 export default async function Home() {
   const role = cookies().get('role')?.value;
@@ -74,7 +62,7 @@ export default async function Home() {
   // ============================================================
   const { data: trips } = await supabase
     .from('trips')
-    .select('*, clients(name)')
+    .select('*')
     .order('trip_number', { ascending: false });
 
   const { data: tripExpenses } = await supabase
@@ -93,7 +81,7 @@ export default async function Home() {
   // ============================================================
   const { data: forwarding } = await supabase
     .from('forwarding_orders')
-    .select('*, clients(name)')
+    .select('*')
     .order('load_date', { ascending: false });
 
   const forwardingIds = forwarding?.map((f) => f.id) || [];
@@ -134,6 +122,27 @@ export default async function Home() {
     .select('amount_eur, month_key, cost_type, expense_date, is_capex, category');
 
   // ============================================================
+  // НАПОМИНАНИЯ — для блока «Требует внимания»
+  // ============================================================
+  const { data: remindersRaw } = await supabase
+    .from('reminders')
+    .select('id, title, due_date, status')
+    .neq('status', 'done')
+    .order('due_date', { ascending: true });
+
+  const expiredReminders: { id: string; title: string; days: number }[] = [];
+  const soonReminders: { id: string; title: string; days: number }[] = [];
+
+  remindersRaw?.forEach((r) => {
+    const d = daysUntil(r.due_date);
+    if (d === null) return;
+    if (d < 0) expiredReminders.push({ id: r.id, title: r.title || '', days: d });
+    else if (d <= 7) soonReminders.push({ id: r.id, title: r.title || '', days: d });
+  });
+
+  const hasAttention = expiredReminders.length > 0 || soonReminders.length > 0;
+
+  // ============================================================
   // ОБЩИЕ ИТОГИ (за всё время)
   // ============================================================
   const totalTripRevenue = trips?.reduce((sum, t) => sum + (t.revenue_eur || 0), 0) || 0;
@@ -145,7 +154,6 @@ export default async function Home() {
   const totalForwardingExpenses = Object.values(expensesByForwarding).reduce((s, v) => s + v, 0);
   const forwardingMarginTotal = totalForwardingClient - totalForwardingContractor - totalForwardingExpenses;
 
-  // Разделяем фикс-косты: операционные (в P&L) vs инвестиции (вне P&L)
   let totalOperationalFixedCosts = 0;
   let totalCapex = 0;
   let totalCapexCount = 0;
@@ -200,12 +208,11 @@ export default async function Home() {
     (sum, f) => sum + (expensesByForwarding[f.id] || 0), 0
   );
 
-  // Операционные фикс-косты за текущий месяц (капекс ИГНОРИРУЕМ)
   let monthFixedCosts = 0;
   fixedCosts?.forEach((fc) => {
     const amount = fc.amount_eur || 0;
     if (amount === 0) return;
-    if (fc.is_capex === true) return; // инвестиции не идут в операционный месяц
+    if (fc.is_capex === true) return;
 
     if (fc.cost_type === 'yearly') {
       let startDate: Date | null = null;
@@ -272,7 +279,7 @@ export default async function Home() {
     fixedCosts?.forEach((fc) => {
       const amount = fc.amount_eur || 0;
       if (amount === 0) return;
-      if (fc.is_capex === true) return; // ИНВЕСТИЦИИ НЕ В ГРАФИКЕ
+      if (fc.is_capex === true) return;
 
       if (fc.cost_type === 'yearly') {
         let startDate: Date | null = null;
@@ -322,58 +329,18 @@ export default async function Home() {
 
   const donutTotal = donutData.reduce((s, c) => s + c.amount, 0);
 
-  // ============================================================
-  // ТОП-5
-  // ============================================================
-  const clientStats: Record<string, { name: string; revenue: number; count: number }> = {};
-  trips?.forEach((t) => {
-    const name = pickName(t.clients);
-    if (!name) return;
-    if (!clientStats[name]) clientStats[name] = { name, revenue: 0, count: 0 };
-    clientStats[name].revenue += t.revenue_eur || 0;
-    clientStats[name].count += 1;
-  });
-  forwarding?.forEach((f) => {
-    const name = pickName(f.clients);
-    if (!name) return;
-    if (!clientStats[name]) clientStats[name] = { name, revenue: 0, count: 0 };
-    clientStats[name].revenue += f.client_price_eur || 0;
-    clientStats[name].count += 1;
-  });
-  const topClients = Object.values(clientStats).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
-
-  const routeStats: Record<string, { route: string; revenue: number; count: number }> = {};
-  trips?.forEach((t) => {
-    if (!t.route) return;
-    if (!routeStats[t.route]) routeStats[t.route] = { route: t.route, revenue: 0, count: 0 };
-    routeStats[t.route].revenue += t.revenue_eur || 0;
-    routeStats[t.route].count += 1;
-  });
-  const topRoutes = Object.values(routeStats).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
-
-  const statusColors: Record<string, string> = {
-    planned: 'bg-slate-100 text-slate-700 border-slate-200',
-    active: 'bg-brand-50 text-brand-700 border-brand-200',
-    completed: 'bg-green-50 text-green-700 border-green-200',
-    invoiced: 'bg-yellow-50 text-yellow-700 border-yellow-200',
-    paid: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  };
-
-  const statusLabels: Record<string, string> = {
-    planned: 'Планируется',
-    active: 'В пути',
-    completed: 'Завершён',
-    invoiced: 'Выставлен счёт',
-    paid: 'Оплачен',
-  };
-
   return (
     <main className="min-h-screen bg-slate-50">
       <div className="max-w-[1600px] mx-auto px-4 md:px-6 py-6 md:py-8 space-y-6 md:space-y-8">
 
+        {/* ПРИВЕТСТВИЕ */}
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-slate-900 break-words">Привет, {userName} 👋</h1>
-          <p className="text-slate-500 mt-1 text-sm md:text-base">Обзор вашей логистики за {monthName}</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-slate-900 break-words">
+            Привет, {userName} 👋
+          </h1>
+          <p className="text-slate-500 mt-1 text-sm md:text-base">
+            Обзор вашей логистики за {monthName}
+          </p>
         </div>
 
         {/* ПОКАЗАТЕЛИ ЗА МЕСЯЦ */}
@@ -392,8 +359,16 @@ export default async function Home() {
               <div className="text-2xl md:text-3xl font-bold text-brand-600 tabular-nums">
                 {monthTrips.length + monthForwarding.length}
               </div>
-              <div className="text-[10px] md:text-xs text-slate-400 mt-1">
-                🚛 {monthTrips.length} · 📦 {monthForwarding.length}
+              <div className="text-[10px] md:text-xs text-slate-400 mt-1 inline-flex items-center gap-1.5 flex-wrap">
+                <span className="inline-flex items-center gap-0.5">
+                  <Truck className="w-3 h-3" strokeWidth={2} />
+                  <span className="tabular-nums">{monthTrips.length}</span>
+                </span>
+                <span className="text-slate-300">·</span>
+                <span className="inline-flex items-center gap-0.5">
+                  <Package className="w-3 h-3" strokeWidth={2} />
+                  <span className="tabular-nums">{monthForwarding.length}</span>
+                </span>
               </div>
             </div>
 
@@ -441,6 +416,74 @@ export default async function Home() {
           </div>
         </div>
 
+        {/* ТРЕБУЕТ ВНИМАНИЯ */}
+        {hasAttention && (
+          <div className="card border-l-4 border-l-amber-500 p-4 md:p-5 animate-fade-in">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-3">
+              <h2 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-amber-600" strokeWidth={2.2} />
+                Требует внимания
+              </h2>
+              <a
+                href="/reminders"
+                className="text-sm text-brand-600 hover:underline font-medium whitespace-nowrap self-start sm:self-auto"
+              >
+                Все напоминания →
+              </a>
+            </div>
+
+            <div className="space-y-3">
+              {expiredReminders.length > 0 && (
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-red-600 font-semibold mb-1.5">
+                    Просрочено · {expiredReminders.length}
+                  </div>
+                  <div className="space-y-1">
+                    {expiredReminders.slice(0, 3).map((r) => (
+                      <div key={r.id} className="flex items-center gap-2 text-sm text-slate-700">
+                        <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
+                        <span className="truncate">{r.title}</span>
+                        <span className="ml-auto text-xs text-red-600 whitespace-nowrap tabular-nums">
+                          {Math.abs(r.days)} дн.
+                        </span>
+                      </div>
+                    ))}
+                    {expiredReminders.length > 3 && (
+                      <div className="text-xs text-slate-400 pl-4">
+                        ...и ещё {expiredReminders.length - 3}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {soonReminders.length > 0 && (
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-amber-600 font-semibold mb-1.5">
+                    Скоро (≤7 дней) · {soonReminders.length}
+                  </div>
+                  <div className="space-y-1">
+                    {soonReminders.slice(0, 3).map((r) => (
+                      <div key={r.id} className="flex items-center gap-2 text-sm text-slate-700">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+                        <span className="truncate">{r.title}</span>
+                        <span className="ml-auto text-xs text-amber-600 whitespace-nowrap tabular-nums">
+                          {r.days} дн.
+                        </span>
+                      </div>
+                    ))}
+                    {soonReminders.length > 3 && (
+                      <div className="text-xs text-slate-400 pl-4">
+                        ...и ещё {soonReminders.length - 3}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* ОБЩИЕ ЗА ВСЁ ВРЕМЯ */}
         <div>
           <h2 className="text-xs md:text-sm font-bold text-slate-500 uppercase tracking-wide mb-3">
@@ -480,8 +523,21 @@ export default async function Home() {
                 <Wallet className="w-4 h-4 md:w-5 md:h-5" strokeWidth={2} />
               </div>
               <div className="text-xl md:text-2xl font-bold break-words tabular-nums">{combinedProfit.toFixed(0)} €</div>
-              <div className={`text-[10px] md:text-xs ${combinedProfit >= 0 ? 'text-brand-200' : 'text-red-200'} mt-1 break-words`}>
-                🚛 {tripProfitTotal.toFixed(0)} + 📦 {forwardingMarginTotal.toFixed(0)} − 🏢 {totalOperationalFixedCosts.toFixed(0)}
+              <div className={`text-[10px] md:text-xs ${combinedProfit >= 0 ? 'text-brand-200' : 'text-red-200'} mt-1 break-words inline-flex items-center flex-wrap gap-1`}>
+                <span className="inline-flex items-center gap-0.5">
+                  <Truck className="w-3 h-3" strokeWidth={2} />
+                  <span className="tabular-nums">{tripProfitTotal.toFixed(0)}</span>
+                </span>
+                <span>+</span>
+                <span className="inline-flex items-center gap-0.5">
+                  <Package className="w-3 h-3" strokeWidth={2} />
+                  <span className="tabular-nums">{forwardingMarginTotal.toFixed(0)}</span>
+                </span>
+                <span>−</span>
+                <span className="inline-flex items-center gap-0.5">
+                  <Briefcase className="w-3 h-3" strokeWidth={2} />
+                  <span className="tabular-nums">{totalOperationalFixedCosts.toFixed(0)}</span>
+                </span>
               </div>
             </div>
 
@@ -501,194 +557,6 @@ export default async function Home() {
         {/* ГРАФИКИ */}
         <MonthlyBars data={monthlyData} />
         <ExpenseDonut data={donutData} total={donutTotal} />
-
-        {/* ТОП-5 */}
-        <div className="grid gap-4 md:gap-5 lg:grid-cols-2">
-          <div className="card overflow-hidden">
-            <div className="p-4 md:p-5 border-b border-slate-100 flex justify-between items-center">
-              <h2 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2">
-                <Users className="w-5 h-5 text-brand-600" strokeWidth={2} />
-                Топ-5 клиентов
-              </h2>
-              <a href="/clients" className="text-sm text-brand-600 hover:underline font-medium whitespace-nowrap">Все →</a>
-            </div>
-            {topClients.length === 0 ? (
-              <div className="p-8 md:p-10 text-center text-slate-400 text-sm">Пока нет данных</div>
-            ) : (
-              <div className="divide-y divide-slate-100">
-                {topClients.map((c, i) => (
-                  <div key={c.name} className="flex items-center gap-3 px-4 md:px-5 py-3 md:py-4">
-                    <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center text-xs md:text-sm font-bold shrink-0
-                                     ${i === 0 ? 'bg-yellow-100 text-yellow-700' :
-                                       i === 1 ? 'bg-slate-200 text-slate-600' :
-                                       i === 2 ? 'bg-orange-100 text-orange-700' :
-                                       'bg-slate-100 text-slate-500'}`}>
-                      {i + 1}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="font-semibold text-slate-800 break-words text-sm md:text-base">{c.name}</div>
-                      <div className="text-xs text-slate-400">{c.count} сделок</div>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <div className="font-bold text-green-600 text-sm md:text-base whitespace-nowrap tabular-nums">{c.revenue.toFixed(0)} €</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="card overflow-hidden">
-            <div className="p-4 md:p-5 border-b border-slate-100 flex justify-between items-center">
-              <h2 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2">
-                <RouteIcon className="w-5 h-5 text-brand-600" strokeWidth={2} />
-                Топ-5 маршрутов
-              </h2>
-              <a href="/routes" className="text-sm text-brand-600 hover:underline font-medium whitespace-nowrap">Все →</a>
-            </div>
-            {topRoutes.length === 0 ? (
-              <div className="p-8 md:p-10 text-center text-slate-400 text-sm">Пока нет данных</div>
-            ) : (
-              <div className="divide-y divide-slate-100">
-                {topRoutes.map((r, i) => (
-                  <div key={r.route} className="flex items-start gap-3 px-4 md:px-5 py-3 md:py-4">
-                    <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center text-xs md:text-sm font-bold shrink-0
-                                     ${i === 0 ? 'bg-yellow-100 text-yellow-700' :
-                                       i === 1 ? 'bg-slate-200 text-slate-600' :
-                                       i === 2 ? 'bg-orange-100 text-orange-700' :
-                                       'bg-slate-100 text-slate-500'}`}>
-                      {i + 1}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="font-semibold text-slate-800 text-sm md:text-base break-words leading-snug">{r.route}</div>
-                      <div className="text-xs text-slate-400 mt-0.5">{r.count} рейсов</div>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <div className="font-bold text-green-600 text-sm md:text-base whitespace-nowrap tabular-nums">{r.revenue.toFixed(0)} €</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* ПОСЛЕДНИЕ ЭКСПЕДИЦИИ */}
-        {forwarding && forwarding.length > 0 && (
-          <div>
-            <div className="flex justify-between items-center mb-3 md:mb-4">
-              <h2 className="text-base md:text-lg font-bold text-slate-900">Последние экспедиции</h2>
-              <a href="/forwarding" className="text-sm text-brand-600 hover:underline font-medium whitespace-nowrap">Все →</a>
-            </div>
-            <div className="grid gap-3 md:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-              {forwarding.slice(0, 4).map((f) => {
-                const cSum = contractorsByForwarding[f.id] || 0;
-                const eSum = expensesByForwarding[f.id] || 0;
-                const margin = (f.client_price_eur || 0) - cSum - eSum;
-                const clientName = pickName(f.clients) || 'Не указан';
-                return (
-                  <a
-                    key={f.id}
-                    href={`/forwarding/${f.id}`}
-                    className="group card card-hover overflow-hidden active:scale-[0.99]"
-                  >
-                    <div className={`h-1.5 ${statusStripColors[f.status] || 'bg-slate-300'}`} />
-                    <div className="p-4 md:p-5">
-                      <div className="flex items-start justify-between gap-2 mb-3">
-                        <div className="min-w-0 flex-1">
-                          <div className="text-xs text-slate-400 font-medium">№ {f.order_number || '—'}</div>
-                          <div className="text-base font-bold text-slate-900 mt-0.5 break-words group-hover:text-brand-600 transition-colors">
-                            {clientName}
-                          </div>
-                        </div>
-                        <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold border whitespace-nowrap
-                                          ${statusColors[f.status] || 'bg-slate-100 text-slate-700 border-slate-200'}`}>
-                          {statusLabels[f.status] || f.status}
-                        </span>
-                      </div>
-                      {f.client_request_number && (
-                        <div className="text-xs text-slate-500 mb-2 break-words">
-                          📄 Заявка: <b className="text-slate-700">{f.client_request_number}</b>
-                        </div>
-                      )}
-                      <div className="flex items-start gap-1 text-xs text-slate-500 mb-3">
-                        <span className="shrink-0">🛣</span>
-                        <span className="break-words">
-                          {f.route_from || f.route_to
-                            ? `${f.route_from || '?'} → ${f.route_to || '?'}`
-                            : '—'}
-                        </span>
-                      </div>
-                      <div className="pt-3 border-t border-slate-100 flex justify-between items-center">
-                        <span className="text-[10px] text-slate-400">
-                          {f.load_date ? new Date(f.load_date).toLocaleDateString('ru-RU') : '—'}
-                        </span>
-                        <span className={`text-sm font-bold whitespace-nowrap tabular-nums ${margin >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                          {margin.toFixed(0)} €
-                        </span>
-                      </div>
-                    </div>
-                  </a>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* ПОСЛЕДНИЕ РЕЙСЫ */}
-        <div>
-          <div className="flex justify-between items-center mb-3 md:mb-4">
-            <h2 className="text-base md:text-lg font-bold text-slate-900">Последние рейсы</h2>
-            <a href="/trips" className="text-sm text-brand-600 hover:underline font-medium whitespace-nowrap">Все →</a>
-          </div>
-
-          {trips?.length === 0 ? (
-            <div className="card p-8 md:p-10 text-center text-slate-400">
-              Рейсов пока нет
-            </div>
-          ) : (
-            <div className="grid gap-3 md:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-              {trips?.slice(0, 4).map((trip) => {
-                const clientName = pickName(trip.clients) || 'Не указан';
-                return (
-                  <a
-                    key={trip.id}
-                    href={`/trips/${trip.id}`}
-                    className="group card card-hover overflow-hidden active:scale-[0.99]"
-                  >
-                    <div className={`h-1.5 ${statusStripColors[trip.status] || 'bg-slate-300'}`} />
-                    <div className="p-4 md:p-5">
-                      <div className="flex items-start justify-between gap-2 mb-3">
-                        <div className="min-w-0 flex-1">
-                          <div className="text-xs text-slate-400 font-medium">№ {trip.trip_number || '—'}</div>
-                          <div className="text-base font-bold text-slate-900 mt-0.5 break-words group-hover:text-brand-600 transition-colors">
-                            {clientName}
-                          </div>
-                        </div>
-                        <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold border whitespace-nowrap
-                                          ${statusColors[trip.status] || 'bg-slate-100 text-slate-700 border-slate-200'}`}>
-                          {statusLabels[trip.status] || trip.status}
-                        </span>
-                      </div>
-                      <div className="flex items-start gap-1 text-xs text-slate-500 mb-3">
-                        <span className="shrink-0">🛣</span>
-                        <span className="break-words">{trip.route || '—'}</span>
-                      </div>
-                      <div className="pt-3 border-t border-slate-100 flex justify-between items-center">
-                        <span className="text-[10px] text-slate-400">
-                          {trip.start_date ? new Date(trip.start_date).toLocaleDateString('ru-RU') : '—'}
-                        </span>
-                        <span className="text-sm font-bold text-green-600 whitespace-nowrap tabular-nums">
-                          {trip.revenue_eur ? `${trip.revenue_eur} €` : '—'}
-                        </span>
-                      </div>
-                    </div>
-                  </a>
-                );
-              })}
-            </div>
-          )}
-        </div>
 
       </div>
     </main>
