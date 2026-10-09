@@ -3,13 +3,10 @@ import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase-server';
 import DownloadButton from './DownloadButton';
 import SearchInput from './SearchInput';
+import TripsBulkList, { type TripCardData, type MonthGroup } from './TripsBulkList';
 import {
   Package,
   Plus,
-  FileText,
-  Route as RouteIcon,
-  Calendar,
-  UserCircle,
   Inbox,
 } from 'lucide-react';
 
@@ -23,6 +20,14 @@ function pickName(rel: unknown): string | undefined {
   }
   return undefined;
 }
+
+function pickOne<T>(rel: unknown): T | null {
+  if (!rel) return null;
+  if (Array.isArray(rel)) return (rel[0] as T) ?? null;
+  return rel as T;
+}
+
+type DriverRel = { first_name: string | null; last_name: string | null };
 
 export default async function TripsPage({
   searchParams,
@@ -64,9 +69,6 @@ export default async function TripsPage({
     return acc;
   }, {} as Record<string, number>) || {};
 
-  // ============================================================
-  // Фильтрация: поиск + статус + год/месяц
-  // ============================================================
   function matchesSearch(t: any): boolean {
     if (!qLower) return true;
     const clientName = pickName(t.clients) || '';
@@ -143,28 +145,12 @@ export default async function TripsPage({
 
   const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
 
-  const statusColors: Record<string, string> = {
-    planned: 'bg-slate-100 text-slate-700 border-slate-200',
-    active: 'bg-brand-50 text-brand-700 border-brand-200',
-    completed: 'bg-green-50 text-green-700 border-green-200',
-    invoiced: 'bg-yellow-50 text-yellow-700 border-yellow-200',
-    paid: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  };
-
   const statusLabels: Record<string, string> = {
     planned: 'Планируется',
     active: 'В пути',
     completed: 'Завершён',
     invoiced: 'Выставлен счёт',
     paid: 'Оплачен',
-  };
-
-  const statusStripColors: Record<string, string> = {
-    planned: 'bg-slate-300',
-    active: 'bg-brand-500',
-    completed: 'bg-green-500',
-    invoiced: 'bg-yellow-500',
-    paid: 'bg-emerald-500',
   };
 
   const statusPillColors: Record<string, string> = {
@@ -201,99 +187,44 @@ export default async function TripsPage({
   }
 
   // ============================================================
-  // Карточка рейса
+  // Подготовка данных для клиентского компонента
   // ============================================================
-  function renderTripCard(trip: any) {
-    const tripExpenses = expensesByTrip[trip.id] || 0;
-    const tripProfit = (trip.revenue_eur || 0) - tripExpenses;
-    const driver = trip.drivers;
-    const clientName = pickName(trip.clients) || 'Не указан';
+  function prepareTrip(t: any): TripCardData {
+    const driver = pickOne<DriverRel>(t.drivers);
+    const driverName = driver
+      ? `${driver.first_name || ''} ${driver.last_name || ''}`.trim() || null
+      : null;
 
-    return (
-      <a
-        key={trip.id}
-        href={`/trips/${trip.id}`}
-        className="group card card-hover overflow-hidden active:scale-[0.99]"
-      >
-        <div className={`h-1.5 ${statusStripColors[trip.status] || 'bg-slate-300'}`} />
-
-        <div className="p-4 md:p-5">
-          <div className="flex items-start justify-between gap-2 mb-3">
-            <div className="min-w-0 flex-1">
-              <div className="text-xs text-slate-400 font-medium tabular-nums">
-                № {trip.trip_number || '—'}
-              </div>
-              <div className="text-base md:text-lg font-bold text-slate-900 mt-0.5 group-hover:text-brand-600 transition-colors break-words">
-                {clientName}
-              </div>
-            </div>
-            <span className={`shrink-0 px-2 py-1 rounded-full text-[10px] md:text-xs font-semibold border whitespace-nowrap
-                              ${statusColors[trip.status] || 'bg-slate-100 text-slate-700 border-slate-200'}`}>
-              {statusLabels[trip.status] || trip.status}
-            </span>
-          </div>
-
-          {trip.client_request_number && (
-            <div className="flex items-center gap-1.5 text-xs text-slate-500 mb-2 break-words">
-              <FileText className="w-3.5 h-3.5 shrink-0 text-slate-400" strokeWidth={2} />
-              <span>Заявка: <b className="text-slate-700">{trip.client_request_number}</b></span>
-            </div>
-          )}
-
-          <div className="flex items-start gap-1.5 text-sm text-slate-600 mb-2">
-            <RouteIcon className="w-4 h-4 shrink-0 text-slate-400 mt-0.5" strokeWidth={2} />
-            <span className="break-words">{trip.route || '—'}</span>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs mb-2">
-            <span className="flex items-center gap-1 text-slate-500">
-              <Calendar className="w-3.5 h-3.5 shrink-0 text-slate-400" strokeWidth={2} />
-              Старт: <b className="text-slate-700 tabular-nums">
-                {trip.start_date ? new Date(trip.start_date).toLocaleDateString('ru-RU') : '—'}
-              </b>
-            </span>
-            {trip.end_date ? (
-              <span className="text-emerald-700 tabular-nums">
-                Финиш: <b>
-                  {new Date(trip.end_date).toLocaleDateString('ru-RU')}
-                </b>
-              </span>
-            ) : (
-              <span className="text-slate-400">Финиш: —</span>
-            )}
-          </div>
-
-          {driver && (
-            <div className="flex items-center gap-1.5 text-xs text-slate-400 mb-4 truncate">
-              <UserCircle className="w-3.5 h-3.5 shrink-0" strokeWidth={2} />
-              <span className="truncate">{driver.first_name} {driver.last_name}</span>
-            </div>
-          )}
-
-          <div className="pt-3 border-t border-slate-100 grid grid-cols-3 gap-2">
-            <div>
-              <div className="text-[10px] uppercase tracking-wide text-slate-400 font-medium">Фрахт</div>
-              <div className="text-sm font-bold text-slate-900 break-words tabular-nums">
-                {trip.revenue_eur ? `${trip.revenue_eur} €` : '—'}
-              </div>
-            </div>
-            <div>
-              <div className="text-[10px] uppercase tracking-wide text-slate-400 font-medium">Расходы</div>
-              <div className="text-sm font-bold text-red-500 break-words tabular-nums">
-                {tripExpenses.toFixed(0)} €
-              </div>
-            </div>
-            <div>
-              <div className="text-[10px] uppercase tracking-wide text-slate-400 font-medium">Прибыль</div>
-              <div className={`text-sm font-bold break-words tabular-nums ${tripProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                {tripProfit.toFixed(0)} €
-              </div>
-            </div>
-          </div>
-        </div>
-      </a>
-    );
+    return {
+      id: t.id,
+      trip_number: t.trip_number ?? null,
+      status: t.status,
+      route: t.route ?? null,
+      start_date: t.start_date ?? null,
+      end_date: t.end_date ?? null,
+      client_request_number: t.client_request_number ?? null,
+      revenue_eur: t.revenue_eur ?? null,
+      expenses: expensesByTrip[t.id] || 0,
+      clientName: pickName(t.clients) || 'Не указан',
+      driverName,
+    };
   }
+
+  const monthGroups: MonthGroup[] = sortedMonthKeys.map((key) => {
+    const group = tripsByMonth[key];
+    const mTrips = group.trips;
+    const mRev = mTrips.reduce((sum, t) => sum + (t.revenue_eur || 0), 0);
+    const mExp = mTrips.reduce((sum, t) => sum + (expensesByTrip[t.id] || 0), 0);
+    const isNoDate = key === 'nodate';
+    return {
+      key,
+      isNoDate,
+      title: isNoDate ? 'Без даты старта' : `${monthNames[group.month - 1]} ${year}`,
+      trips: mTrips.map(prepareTrip),
+      revenue: mRev,
+      expenses: mExp,
+    };
+  });
 
   const totalFiltered = filteredTrips.length;
   const isSearchMode = hasExtraFilter;
@@ -441,32 +372,7 @@ export default async function TripsPage({
           </div>
         </div>
 
-        {/* БЕЗ ДАТЫ СТАРТА */}
-        {!isSearchMode && tripsWithoutDate.length > 0 && (
-          <div>
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-3 md:mb-4 px-1">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
-                  <FileText className="w-4 h-4 md:w-5 md:h-5 text-amber-600" strokeWidth={2} />
-                </div>
-                <div className="min-w-0">
-                  <h2 className="text-lg md:text-xl font-bold text-slate-900">
-                    Без даты старта
-                  </h2>
-                  <div className="text-xs text-slate-400">
-                    Рейсов: {tripsWithoutDate.length} · черновики, ждут назначения машины/даты
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid gap-4 md:gap-5 md:grid-cols-2 lg:grid-cols-3">
-              {tripsWithoutDate.map((trip) => renderTripCard(trip))}
-            </div>
-          </div>
-        )}
-
-        {/* СПИСОК ПО МЕСЯЦАМ */}
+        {/* СПИСОК или ПУСТО */}
         {totalFiltered === 0 ? (
           <div className="card p-10 md:p-16 text-center">
             <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-slate-50 flex items-center justify-center">
@@ -499,61 +405,11 @@ export default async function TripsPage({
             )}
           </div>
         ) : (
-          <div className="space-y-6 md:space-y-8">
-            {sortedMonthKeys.map((key) => {
-              const group = tripsByMonth[key];
-              const monthTrips = group.trips;
-              const monthRevenue = monthTrips.reduce((sum, t) => sum + (t.revenue_eur || 0), 0);
-              const monthExpenses = monthTrips.reduce((sum, t) => sum + (expensesByTrip[t.id] || 0), 0);
-              const monthProfit = monthRevenue - monthExpenses;
-
-              const isNoDate = key === 'nodate';
-              const title = isNoDate ? 'Без даты старта' : `${monthNames[group.month - 1]} ${year}`;
-              const IconComponent = isNoDate ? FileText : Calendar;
-              const iconBg = isNoDate ? 'bg-amber-50' : 'bg-brand-50';
-              const iconColor = isNoDate ? 'text-amber-600' : 'text-brand-600';
-
-              return (
-                <div key={key} className="animate-slide-up">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-3 md:mb-4 px-1">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-9 h-9 md:w-10 md:h-10 rounded-xl ${iconBg} flex items-center justify-center shrink-0`}>
-                        <IconComponent className={`w-4 h-4 md:w-5 md:h-5 ${iconColor}`} strokeWidth={2} />
-                      </div>
-                      <div className="min-w-0">
-                        <h2 className="text-lg md:text-xl font-bold text-slate-900">
-                          {title}
-                        </h2>
-                        <div className="text-xs text-slate-400">
-                          Рейсов: {monthTrips.length}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-3 gap-3 text-right">
-                      <div>
-                        <div className="text-[10px] md:text-xs uppercase text-slate-400 font-medium">Фрахт</div>
-                        <div className="text-sm md:text-base font-bold text-green-600 tabular-nums">{monthRevenue.toFixed(0)} €</div>
-                      </div>
-                      <div>
-                        <div className="text-[10px] md:text-xs uppercase text-slate-400 font-medium">Расходы</div>
-                        <div className="text-sm md:text-base font-bold text-red-500 tabular-nums">{monthExpenses.toFixed(0)} €</div>
-                      </div>
-                      <div>
-                        <div className="text-[10px] md:text-xs uppercase text-slate-400 font-medium">Прибыль</div>
-                        <div className={`text-sm md:text-base font-bold tabular-nums ${monthProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                          {monthProfit.toFixed(0)} €
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid gap-4 md:gap-5 md:grid-cols-2 lg:grid-cols-3">
-                    {monthTrips.map((trip) => renderTripCard(trip))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <TripsBulkList
+            tripsWithoutDate={tripsWithoutDate.map(prepareTrip)}
+            monthGroups={monthGroups}
+            isSearchMode={isSearchMode}
+          />
         )}
 
       </div>
