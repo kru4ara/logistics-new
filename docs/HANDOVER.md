@@ -1,4 +1,4 @@
-# HANDOVER — Logistics CRM (08.10.2026)
+# HANDOVER — Logistics CRM (09.10.2026)
 
 ## Стек и инфраструктура
 - Next.js 14 (App Router) + Supabase + Vercel
@@ -12,20 +12,54 @@
 - NEXT_PUBLIC_SUPABASE_ANON_KEY — для клиента, RLS закрыт
 - SUPABASE_SERVICE_ROLE_KEY — server client, обходит RLS
 - LOGISAT_SERVER / LOGISAT_USERNAME / LOGISAT_PASSWORD
-- TELEGRAM_BOT_TOKEN — токен @raibuilding_bot (отозван 04.10, обновлён)
+- TELEGRAM_BOT_TOKEN — токен @raibuilding_bot
 - TELEGRAM_CHAT_ID — общий чат офиса
 - TELEGRAM_WEBHOOK_SECRET — секрет для webhook
-- CRON_SECRET — секрет для cron (обновлён 04.10)
+- CRON_SECRET — секрет для cron
 
-**Vercel Secret-переменные не редактируются** — только удалить + создать заново. После замены — обязателен Redeploy.
+**Vercel Secret-переменные не редактируются** — только удалить + создать заново + Redeploy.
 
 ## Правила работы
-- **Полные файлы на замену, не куски** — пользователь просил не давать фрагменты
-- 1 шаг за раз, с проверкой между шагами
+- **Полные файлы на замену, не куски**
+- 1 шаг за раз, с проверкой
 - Мобильная адаптация: `px-4 md:px-6`, `p-5 md:p-6`, `text-base` в инпутах
 - Server components → `createClient()` из `lib/supabase-server`
-- Клиентского supabase-клиента в проекте больше нет (легаси `lib/supabaseClient.ts` остался, но не используется)
-- **Внимательно с путями импорта:** сколько уровней вложенности — столько `../`. `app/driver/stats/page.tsx` → `../../../lib/...`. `app/driver/page.tsx` → `../../lib/...`
+- **Внимательно с путями импортов:**
+  - `app/X/page.tsx` → `../../lib/`, `../../components/`
+  - `app/X/[id]/page.tsx` → `../../../lib/`, `../../../components/`
+  - `app/X/[id]/edit/page.tsx` → `../../../../lib/`, `../../../components/`
+  - **Компоненты лежат в `app/components/`, а `lib/` — в корне проекта** (проверять оба)
+- **НЕ пишу код вслепую** — всегда запрашивать актуальную версию файла перед заменой
+
+---
+
+## 🎨 ДИЗАЙН-СИСТЕМА (внедрена 09.10.2026)
+
+### Палитра (`tailwind.config.js`)
+- **`brand`** — индиго/фиолет (заменил `blue-600`): `bg-brand-600`, `text-brand-600`, `hover:bg-brand-700`
+- **`accent`** — фиолетовый (для градиентов с `brand`)
+- **`ink`** — тёмный (для sidebar, `bg-ink-900` = `#0f172a`)
+
+### Тени (кастомные)
+- `shadow-brand` / `shadow-brand-lg` — индиго-тени для активных кнопок
+- `shadow-soft` / `shadow-soft-lg` — мягкие серые для карточек
+
+### Анимации
+- `animate-fade-in` (200ms)
+- `animate-slide-up` (250ms) — появление карточек/секций
+- `animate-slide-down` (200ms) — Toaster
+- `animate-scale-in` (150ms)
+
+### Утилитарные классы (`app/globals.css`)
+- `.card` — `bg-white rounded-2xl border border-slate-100 shadow-soft`
+- `.card-hover` — подъём при hover (`md:hover:-translate-y-0.5`, `hover:shadow-soft-lg`)
+- `.btn`, `.btn-primary`, `.btn-secondary`, `.btn-ghost`, `.btn-danger`
+- `.input` — инпут с `focus:ring-brand-500`
+- `.badge`, `.skeleton`, `.scrollbar-thin`
+
+### Иконки
+- **Lucide-react** — установлен (`^0.460.0`), используется во всём новом UI
+- Emoji остались только: в `<option>` (нативный select), в логах/Telegram-сообщениях
 
 ---
 
@@ -34,14 +68,107 @@
 
 ---
 
+## ✨ Что сделано 08-09.10.2026
+
+### 09.10.2026 — РЕДИЗАЙН (главная работа дня)
+
+**Инфраструктура дизайна:**
+- Установлен `lucide-react`
+- `tailwind.config.js` — палитра `brand`/`accent`/`ink`, тени, анимации
+- `app/globals.css` — классы `.card`, `.btn-primary`, `.input`, `.badge`
+- `app/components/CountryFlag.tsx` — SVG-флаги (работает на Windows, где emoji-флаги не рендерятся)
+
+**Sidebar (полностью новый):**
+- `AppShell.tsx` + `AppShellClient.tsx` + `Sidebar.tsx` + `Navbar.tsx`
+- Логика: **свёрнут 64px по умолчанию → hover раскрывает → pin-кнопка фиксирует 240px**
+- `localStorage` хранит `sidebar-pinned`
+- На мобильном (<768px) — выезжающий drawer с overlay
+- `NavbarClient.tsx` — **УДАЛЁН** (заменён)
+
+**Редизайн завершён по:**
+- ✅ Главная (`app/page.tsx`)
+- ✅ Рейсы: `/trips`, `/trips/new` (page), `/trips/[id]`, `/trips/[id]/edit` (page)
+- ✅ Водители: список, KPI, карточка, new, edit
+- ✅ Транспорт: список, карточка, new, edit
+- ✅ Клиенты: список, new, edit
+- ✅ Подрядчики: список, карточка, new, edit
+- ✅ Локации: список, new, edit
+- ✅ Общие расходы: список, new, edit (**+ инвестиции отделены**, поле `is_capex`)
+- ✅ Напоминания: список, new, edit
+- ✅ Экспедирование: список, new (page + форма), edit (page + форма)
+- ✅ Аудит, Поиск, Карта, Logisat (page)
+- ✅ Компоненты: `SubmitButton`, `Toaster`, `CopyBlock`, `DocumentUpload`, `DocumentList`
+
+**Статистика:**
+- ✅ Разделение P&L и инвестиций (`is_capex` в `fixed_costs`)
+- ✅ На главной — 5-я карточка «Инвестиции» (оранжевая)
+- ✅ График прибыли по месяцам без инвестиций
+- ✅ Легенда с формулами и правилами
+
+**Логика:**
+- ✅ «Рейсы за месяц» — по `end_date || start_date` (было по start_date)
+- ✅ «ЗП за месяц» — по `expense_date` (дате выплаты), а не по рейсу
+- ✅ Синхронизировано в `/driver`, `/driver/stats`, `/drivers/kpi`
+
+### 08.10.2026 (предыдущая сессия)
+
+- 🧹 Чистка данных: 11 зомби-напоминаний, опечатка `20231-05-19`, дубль GORTRANS
+- 🛠 Фикс cron backup — добавлена `trip_subcontractors` (была пропущена!)
+- 🛠 Мониторинг cron — `lib/cron-alert.ts`, алерты в Telegram при ошибках
+- 🛠 Пагинация бэкапа (>1000 строк)
+- 🚛 До 5 точек загрузки у рейса (`sender1..5`)
+- 🚛 До 5 точек A у подрядчика (`load..load5`) — маршрут A1 → A2 → … → C
+- 🚛 Селект «📦 Точка загрузки рейса» в форме подрядчика
+- 🚛 DOCX подрядчику с N точками A + C
+- 📊 Отчёт `/reports/contractors` (36 подрядчиков)
+- 🚚 Раздел Транспорт: новые поля `brand`, `model`, `year`, `vin`, `to_expiry`, `tachograph_calibration_expiry`, `customs_certificate_expiry` — разные документы для тягача/прицепа
+- ✅ Загружены данные всех 4 машин (WI042NM, WI652AX, LRA49YH, LRA59818)
+
+---
+
+## 🔴 ЧТО ОСТАЛОСЬ В РЕДИЗАЙНЕ
+
+### Пачка 2 (кнопки и формы — 4 файла):
+- `app/trips/[id]/SendTaskButton.tsx`
+- `app/driver/TripStatusButtons.tsx`
+- `app/forwarding/[id]/ForwardingStatusButtons.tsx`
+- `app/trips/[id]/SyncLogisatButton.tsx`
+
+### Пачка 3 (медиа — 3 файла):
+- `app/driver/FileUpload.tsx`
+- `app/drivers/[id]/TelegramLinkCard.tsx`
+- `app/forwarding/[id]/ContractorDocxButton.tsx`
+
+### Пачка 4 (крупняк — по одному):
+- `app/trips/[id]/SubcontractorsBlock.tsx` (14.6 KB)
+- `app/trips/[id]/SubcontractorForm.tsx` (29 KB)
+- `app/reminders/ReminderCard.tsx` (7 KB)
+- `app/logisat/LogisatTestForm.tsx` (15 KB)
+- `app/driver/logisat/LogisatForm.tsx` (7.2 KB)
+
+### Пачка 5 (misc):
+- `app/reports/excel/ExportForm.tsx`
+- `app/reports/DownloadButton.tsx` + `app/routes/DownloadButton.tsx` + `app/trips/DownloadButton.tsx`
+- `app/login/LoginForm.tsx`
+
+### Ещё не переделаны (страницы):
+- `app/forwarding/[id]/page.tsx` (28 KB — большая!)
+- `app/clients/[id]/page.tsx`
+- `app/reports/profitability/page.tsx`
+- `app/map/MapView.tsx` (только контейнер переделан)
+- `app/driver/reminders/page.tsx`
+- `app/logisat/LogisatTestForm.tsx`
+
+---
+
 ## Что работает
 
 ### Авторизация
 - Login через server action + bcrypt.compare + httpOnly cookie
 - Logout через server action
-- Навбар серверный (`Navbar.tsx` + `NavbarClient.tsx`)
+- Sidebar серверный → `AppShell.tsx` → `Sidebar.tsx` (клиентский)
 - RLS включён, публичные политики удалены
-- Страница логина: брендинг RAIBUILDING + форма, золотой грузовик
+- Страница логина: брендинг RAIBUILDING + золотой грузовик (**НЕ переделана в новом стиле**)
 
 ### Домены
 - **Рейсы** (`trips` + `trip_expenses` + `trip_documents` + `trip_subcontractors`)
@@ -49,106 +176,28 @@
 - Клиенты, водители, тягачи, локации, подрядчики
 - Напоминания + cron рассылки в Telegram (09:00 UTC)
 - Logisat: синхронизация рейса, просмотр расхода `/driver/logisat`
-- Курсы валют: cron `/api/update-rates` (06:00 UTC, open.er-api.com)
-- Документы: `documents` (полиморфная entity_type/entity_id) + `trip_documents`
-- **Бэкапы**: cron `/api/cron/backup` (03:00 UTC) → дамп 18 таблиц в Telegram
+- Курсы валют: cron `/api/update-rates` (06:00 UTC)
+- Документы: `documents` + `trip_documents`
+- **Бэкапы**: cron `/api/cron/backup` (07:00 UTC → 10:00 Минск) → 18 таблиц
 
-### Комбинированные перевозки (07.10.2026, расширено 08.10.2026)
-Схема: клиент платит за весь рейс; подрядчик везёт часть маршрута A→C; мы едем C→Б.
-
-- **Таблица `trip_subcontractors`** — до N подрядчиков на рейс (для сборных грузов)
-- **До 5 точек загрузки у одного подрядчика** (`load_*`, `load2_*`…`load5_*`): подрядчик может ехать по маршруту A1 → A2 → … → C (последовательный сбор груза)
-- Поля: contractor_id, position, price_eur, original_price, currency, payment_days, truck_number, driver_name, driver_phone, load_*/load2..5_* (дата, страна, город, адрес, компания, индекс, номер), unload_*, notes, transport_type, transport_temperature, cargo_type, cargo_quantity, customs_loading, customs_unloading
-- **`trip_expenses.subcontractor_id`** — связка расхода с подрядчиком (FK, ON DELETE CASCADE)
-- При сохранении подрядчика автоматически создаётся/обновляется расход `category='contractor'` в `trip_expenses`
-- Расход идёт в экономику **рейса**, но НЕ в статистику экспедирования
-- **Рейс может быть без машины/водителя/даты старта** — список `/trips` показывает такие в блоке «📝 Без даты старта»
-- **В карточке рейса (офис):**
-  - Блок **«🚛 Подрядчики на рейсе»** (`SubcontractorsBlock` + `SubcontractorForm`) — схема A1→A2→…→C
-  - Блок **«🚚 Наш участок (C → Б)»** — точка C = последняя выгрузка последнего подрядчика
-- **DOCX подрядчику**: `/api/trips/[id]/subcontractor/[scid]/docx` — ZLECENIE TRANSPORTOWE с клиентским номером (`client_request_number-position`), **N точками A** + точка C, деталями перевозки, условиями и печатью
-- **Задание водителю** (в `/driver/trips/[id]` и `/driver`): если есть подрядчик — блок «Загрузка (после подрядчика)» показывает точку C; иначе — точку A1 (только первую, без перечисления)
-
-### UI / UX
-- SubmitButton во всех ключевых формах (защита от дублей)
-- Toaster через `?toast=...` + error.tsx + global-error.tsx
-- Глобальный поиск `/search?q=...` (по 5 доменам)
-- Экспорт в Excel `/reports/excel` (4 выгрузки)
-- Прибыльность `/reports/profitability` (клиенты + тягачи)
-- **Статистика по подрядчикам `/reports/contractors`** — сводка по 36 подрядчикам: экспедирование + комбинированные, топ-3, сортировка по сумме
-- Аудит `/audit` (полное покрытие)
-- PWA: иконка на домашнем экране, полноэкранный режим, камера для CMR (`capture="environment"`)
-- Красивый логин
-- Дашборд с графиками на главной (`DashboardCharts.tsx`): bar chart прибыли по месяцам (SVG на десктопе, горизонтальные полосы на мобильном), donut структуры расходов
-- **Статистика водителя** `/driver/stats` — итоги за всё время + разбивка по активным месяцам (рейсы, км, топливо, расход, зарплата), пустые месяцы скрываются
-- Ссылки на Logisat и «Моя статистика» на главной `/driver`
-
-### Аудит (полное покрытие)
-- Таблица `audit_log`, `lib/audit.ts` (`logAudit` + `diffFields`)
-- Логируется: рейсы (CRUD+status), расходы рейсов, клиенты, водители, подрядчики, локации, экспедирование (CRUD+status), расходы экспедирования, напоминания, документы
-- Страница `/audit` — фильтры, русские labels, DD.MM.YYYY
-
-### Telegram
-- Бот **@raibuilding_bot**, webhook `/api/telegram/webhook`
-- `driver telegram_chat_id` — через `/start <driver_id>`
-- Персональная ссылка в карточке водителя (`TelegramLinkCard.tsx`)
-- Уведомления: водителю при новом рейсе, общий чат при смене статуса рейса и загрузке документа
-- Отправка задания водителю (кнопка SendTaskButton → `task-actions.ts`)
-
-### Бизнес-логика
-- Остаток топлива: допуск -200 л (жёлтый/красный по порогам)
-- Авто-дата старта нового рейса = `end_date` предыдущего рейса машины + 1 день (если дата известна)
-- DOCX подрядчику (экспедиция): Kraj / GPS / Kontakt / Uwagi
-- DOCX подрядчику (рейс): ZLECENIE TRANSPORTOWE с клиентским номером
-- Country у подрядчиков
-- PointRow вынесен наружу (баг с фокусом устранён)
-- Нумерация заявок экспедирования — по дате загрузки, пересчитывается при CRUD
-
----
-
-## ✨ Что сделано 08.10.2026
-
-### Гигиена данных
-- Удалено **11 «напоминаний-зомби»** в `reminders`, привязанных к несуществующим `entity_id` (старые миграции)
-- Починена опечатка в дате: `20231-05-19` → `2031-05-19` (карта тахографа Yury Kavaliou)
-- Удалён дубль подрядчика GORTRANS (было 2 карточки, осталась 1 — с сокращённым названием)
-
-### Инфраструктура
-- **Критический баг в cron backup**: таблица `trip_subcontractors` **не выгружалась** в дамп с 07.10. Починено — теперь 18 таблиц. **Это была тихая потеря данных при восстановлении из бэкапа.** Проверить завтра в 06:00 Минск.
-
-### Множественные точки рейса (до 5)
-- Миграция БД: добавлены `sender4_*`, `sender5_*` в `trips` (12 полей)
-- `NewTripForm.tsx` — 5 отправителей, точки 2-5 спрятаны за кнопкой «+ Добавить точку погрузки»
-- `EditTripForm.tsx` — то же
-- `addTripWithAddress` (geocode-actions) и `updateTrip` (trip-actions) — сохранение 5 точек
-- Карточка рейса — блок «📍 Маршрутные точки» показывает все 5
-- Селект «📦 Точка загрузки рейса» в форме подрядчика — показывает все 5
-
-### Множественные точки загрузки подрядчика (A1 → A2 → … → C)
-- Миграция БД: добавлены `load2_*`…`load5_*` в `trip_subcontractors` (28 полей)
-- `lib/trip-subcontractors.ts` — parse/save всех 5 точек
-- **`SubcontractorForm.tsx`** — новая секция «📦 Точки загрузки из рейса» (чекбоксы всех точек рейса). Отметил → появились карточки A1, A2 с автозаполнением. Плюс «+ Добавить точку вручную».
-- **`SubcontractorsBlock.tsx`** — схема A1 → A2 → … → C в карточке подрядчика
-- **DOCX подрядчику** — блок «TRASA / MARSZRUT» рендерит N точек A + точка C, сквозная нумерация
-
-### Отчёт по подрядчикам
-- Новая страница **`/reports/contractors`** — сводка по 36 подрядчикам: экспедирование + комбинированные, общая сумма, топ-3, сортировка по сумме. Флаги стран, мобильная адаптация.
-
-### Откат «лишнего» в задании водителю
-- Блок «Задание водителю» в карточке рейса (`page.tsx`) и в Telegram (`task-actions.ts`) — **только первая точка загрузки A1**, старый формат. Остальные точки (A2-A5) в задании не перечисляются — офис их не использует.
+### Комбинированные перевозки
+- Схема: клиент платит за весь рейс; подрядчик везёт A→C; мы едем C→Б
+- **`trip_subcontractors`** — до N подрядчиков, у каждого до 5 точек A (`load..load5`)
+- **`trip_expenses.subcontractor_id`** — FK, `ON DELETE CASCADE`
+- **DOCX подрядчику** — ZLECENIE TRANSPORTOWE с N точками A + C
 
 ---
 
 ## Cron (Vercel `vercel.json`)
-- `/api/update-rates` — `0 6 * * *` — курсы PLN/BYN через `open.er-api.com`
-- `/api/cron/reminders` — `0 9 * * *` — рассылка напоминаний в Telegram
-- `/api/cron/backup` — `0 3 * * *` — дамп всех таблиц в Telegram (**18 таблиц**, ~460 КБ, ~6 сек)
+- `/api/update-rates` — `0 6 * * *` — курсы PLN/BYN
+- `/api/cron/reminders` — `0 9 * * *` — рассылка напоминаний
+- `/api/cron/backup` — `0 7 * * *` — дамп 18 таблиц (10:00 Минск)
 
 ---
 
 ## Подводные камни
 
-### PostgREST и двусмысленные FK
-У `trips` **два FK на `trucks`**: `truck_id` и `trailer_id`. Везде указывать алиас:
+### PostgREST и FK
+У `trips` два FK на `trucks`: `truck_id` и `trailer_id`. Алиасы обязательны:
 ```ts
 .select('*, trucks!truck_id(registration_number), trucks!trailer_id(registration_number)')
