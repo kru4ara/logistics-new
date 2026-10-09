@@ -1,5 +1,6 @@
 import { createClient } from '../../../lib/supabase-server';
 import NewTripForm from './NewTripForm';
+import { ArrowLeft, Package, Plus } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,11 +38,7 @@ export default async function NewTripPage() {
     .in('type', ['unloading', 'both'])
     .order('name');
 
-  // ============================================================
   // Последний рейс каждой машины → для авто-подстановки даты старта.
-  // Логика (B3): если у последнего рейса нет end_date (рейс ещё в работе) —
-  // ничего не подставляем, поле остаётся пустым.
-  // ============================================================
   const tractorIds = (tractors || []).map((t) => t.id);
   const lastEndDates: Record<string, { end_date: string; trip_number: number | null }> = {};
 
@@ -62,21 +59,29 @@ export default async function NewTripPage() {
           trip_number: t.trip_number ?? null,
         };
       }
-      // Иначе — не добавляем, форма оставит поле пустым
     }
   }
 
   return (
     <main className="min-h-screen bg-slate-50">
-      <div className="max-w-[900px] mx-auto px-6 py-8 space-y-6">
+      <div className="max-w-[900px] mx-auto px-4 md:px-6 py-6 md:py-8 space-y-5 md:space-y-6">
 
-        <a href="/trips" className="inline-flex items-center gap-2 text-slate-600 hover:text-blue-600 transition-colors text-sm font-medium">
-          ← Все рейсы
+        <a
+          href="/trips"
+          className="inline-flex items-center gap-2 text-slate-600 hover:text-brand-600 transition-colors text-sm font-medium"
+        >
+          <ArrowLeft className="w-4 h-4" strokeWidth={2} />
+          Все рейсы
         </a>
 
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">➕ Создать новый рейс</h1>
-          <p className="text-slate-500 mt-1">Заполните данные для создания рейса</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2.5 tracking-tight">
+            <Package className="w-6 h-6 md:w-7 md:h-7 text-brand-600" strokeWidth={2.2} />
+            Создать новый рейс
+          </h1>
+          <p className="text-slate-500 mt-1 text-sm md:text-base">
+            Заполните данные для создания рейса
+          </p>
         </div>
 
         <NewTripForm
