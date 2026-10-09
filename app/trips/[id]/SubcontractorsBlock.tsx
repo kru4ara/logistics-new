@@ -2,6 +2,15 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import {
+  Truck,
+  Plus,
+  Pencil,
+  Trash2,
+  Printer,
+  Loader2,
+  StickyNote,
+} from 'lucide-react';
 import SubcontractorForm from './SubcontractorForm';
 import type { SenderPoint } from './SubcontractorForm';
 import { deleteTripSubcontractor } from '../../../lib/trip-subcontractors';
@@ -42,7 +51,6 @@ type Subcontractor = {
   truck_number: string | null;
   driver_name: string | null;
   driver_phone: string | null;
-  // A1
   load_date: string | null;
   load_country: string | null;
   load_city: string | null;
@@ -50,7 +58,6 @@ type Subcontractor = {
   load_company: string | null;
   load_postal_code: string | null;
   load_number: string | null;
-  // A2
   load2_date: string | null;
   load2_country: string | null;
   load2_city: string | null;
@@ -58,7 +65,6 @@ type Subcontractor = {
   load2_company: string | null;
   load2_postal_code: string | null;
   load2_number: string | null;
-  // A3
   load3_date: string | null;
   load3_country: string | null;
   load3_city: string | null;
@@ -66,7 +72,6 @@ type Subcontractor = {
   load3_company: string | null;
   load3_postal_code: string | null;
   load3_number: string | null;
-  // A4
   load4_date: string | null;
   load4_country: string | null;
   load4_city: string | null;
@@ -74,7 +79,6 @@ type Subcontractor = {
   load4_company: string | null;
   load4_postal_code: string | null;
   load4_number: string | null;
-  // A5
   load5_date: string | null;
   load5_country: string | null;
   load5_city: string | null;
@@ -82,7 +86,6 @@ type Subcontractor = {
   load5_company: string | null;
   load5_postal_code: string | null;
   load5_number: string | null;
-  // C
   unload_country: string | null;
   unload_city: string | null;
   unload_address: string | null;
@@ -109,9 +112,8 @@ type DefaultLoad = {
   loading_number: string | null;
 };
 
-// Извлекаем массив load-точек подрядчика (для отображения)
 type DisplayLoadPoint = {
-  num: number;      // порядковый номер (1-based)
+  num: number;
   date: string | null;
   country: string | null;
   city: string | null;
@@ -122,60 +124,14 @@ type DisplayLoadPoint = {
 };
 
 function extractLoadPoints(sub: Subcontractor): DisplayLoadPoint[] {
-  const raw = [
-    {
-      num: 1,
-      date: sub.load_date,
-      country: sub.load_country,
-      city: sub.load_city,
-      address: sub.load_address,
-      company: sub.load_company,
-      postal_code: sub.load_postal_code,
-      number: sub.load_number,
-    },
-    {
-      num: 2,
-      date: sub.load2_date,
-      country: sub.load2_country,
-      city: sub.load2_city,
-      address: sub.load2_address,
-      company: sub.load2_company,
-      postal_code: sub.load2_postal_code,
-      number: sub.load2_number,
-    },
-    {
-      num: 3,
-      date: sub.load3_date,
-      country: sub.load3_country,
-      city: sub.load3_city,
-      address: sub.load3_address,
-      company: sub.load3_company,
-      postal_code: sub.load3_postal_code,
-      number: sub.load3_number,
-    },
-    {
-      num: 4,
-      date: sub.load4_date,
-      country: sub.load4_country,
-      city: sub.load4_city,
-      address: sub.load4_address,
-      company: sub.load4_company,
-      postal_code: sub.load4_postal_code,
-      number: sub.load4_number,
-    },
-    {
-      num: 5,
-      date: sub.load5_date,
-      country: sub.load5_country,
-      city: sub.load5_city,
-      address: sub.load5_address,
-      company: sub.load5_company,
-      postal_code: sub.load5_postal_code,
-      number: sub.load5_number,
-    },
+  const raw: DisplayLoadPoint[] = [
+    { num: 1, date: sub.load_date,  country: sub.load_country,  city: sub.load_city,  address: sub.load_address,  company: sub.load_company,  postal_code: sub.load_postal_code,  number: sub.load_number },
+    { num: 2, date: sub.load2_date, country: sub.load2_country, city: sub.load2_city, address: sub.load2_address, company: sub.load2_company, postal_code: sub.load2_postal_code, number: sub.load2_number },
+    { num: 3, date: sub.load3_date, country: sub.load3_country, city: sub.load3_city, address: sub.load3_address, company: sub.load3_company, postal_code: sub.load3_postal_code, number: sub.load3_number },
+    { num: 4, date: sub.load4_date, country: sub.load4_country, city: sub.load4_city, address: sub.load4_address, company: sub.load4_company, postal_code: sub.load4_postal_code, number: sub.load4_number },
+    { num: 5, date: sub.load5_date, country: sub.load5_country, city: sub.load5_city, address: sub.load5_address, company: sub.load5_company, postal_code: sub.load5_postal_code, number: sub.load5_number },
   ];
 
-  // Оставляем только заполненные, перенумеровываем по порядку (1, 2, 3...)
   return raw
     .filter(
       (p) =>
@@ -256,12 +212,13 @@ export default function SubcontractorsBlock({
     : null;
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
+    <div className="card p-5 md:p-6 animate-fade-in">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
         <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-          🚛 Подрядчики на рейсе
+          <Truck className="w-5 h-5 text-brand-600" />
+          Подрядчики на рейсе
           {subcontractors.length > 0 && (
-            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">
+            <span className="text-xs bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full font-medium">
               {subcontractors.length}
             </span>
           )}
@@ -269,10 +226,10 @@ export default function SubcontractorsBlock({
         <button
           type="button"
           onClick={handleAdd}
-          className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm
-                     shadow-md shadow-blue-600/20 transition-all active:scale-[0.98]"
+          className="btn-primary inline-flex items-center gap-2 text-sm"
         >
-          ➕ Добавить
+          <Plus className="w-4 h-4" />
+          Добавить
         </button>
       </div>
 
@@ -290,7 +247,6 @@ export default function SubcontractorsBlock({
           {subcontractors.map((sub) => {
             const cInfo = getContractorName(sub.contractors);
             const loadPoints = extractLoadPoints(sub);
-
             const toLine = [sub.unload_country, sub.unload_city].filter(Boolean).join(', ') || '—';
 
             return (
@@ -400,9 +356,9 @@ export default function SubcontractorsBlock({
 
                   {tripFinalDestination && (
                     <div className="mt-2 pt-2 border-t border-dashed border-slate-200 flex items-start gap-2">
-                      <span className="shrink-0 text-blue-600">🚛</span>
+                      <Truck className="w-3.5 h-3.5 shrink-0 text-brand-600 mt-0.5" />
                       <div className="min-w-0">
-                        <div className="font-semibold text-blue-700">Дальше мы сами — до точки Б</div>
+                        <div className="font-semibold text-brand-700">Дальше мы сами — до точки Б</div>
                         <div className="text-slate-500 break-words">{tripFinalDestination}</div>
                       </div>
                     </div>
@@ -422,7 +378,7 @@ export default function SubcontractorsBlock({
                     <div className="text-slate-400">Телефон</div>
                     <div className="text-slate-700 font-medium">
                       {sub.driver_phone ? (
-                        <a href={`tel:${sub.driver_phone}`} className="hover:text-blue-600">
+                        <a href={`tel:${sub.driver_phone}`} className="hover:text-brand-600 transition-colors">
                           {sub.driver_phone}
                         </a>
                       ) : '—'}
@@ -437,8 +393,9 @@ export default function SubcontractorsBlock({
                 </div>
 
                 {sub.notes && (
-                  <div className="text-xs text-slate-500 bg-white rounded-lg p-2 border border-slate-100 break-words">
-                    📝 {sub.notes}
+                  <div className="flex items-start gap-2 text-xs text-slate-500 bg-white rounded-lg p-2 border border-slate-100 break-words">
+                    <StickyNote className="w-3.5 h-3.5 mt-0.5 shrink-0 text-slate-400" />
+                    <span>{sub.notes}</span>
                   </div>
                 )}
 
@@ -447,28 +404,39 @@ export default function SubcontractorsBlock({
                     href={`/api/trips/${tripId}/subcontractor/${sub.id}/docx?t=${Date.now()}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 border border-blue-200
-                               hover:bg-blue-100 text-xs font-medium transition-all"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-50 text-brand-700 border border-brand-200
+                               hover:bg-brand-100 text-xs font-medium transition-all active:scale-[0.97]"
                   >
-                    🖨 Заявка DOCX
+                    <Printer className="w-3 h-3" />
+                    Заявка DOCX
                   </a>
                   <button
                     type="button"
                     onClick={() => handleEdit(sub.id)}
-                    className="px-3 py-1.5 rounded-lg border border-slate-300 text-slate-700
-                               hover:bg-white text-xs font-medium transition-all"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 text-slate-700
+                               hover:bg-white text-xs font-medium transition-all active:scale-[0.97]"
                   >
-                    ✏️ Изменить
+                    <Pencil className="w-3 h-3" />
+                    Изменить
                   </button>
                   <button
                     type="button"
                     onClick={() => handleDelete(sub.id, cInfo.name)}
                     disabled={isDeletingId === sub.id}
-                    className="px-3 py-1.5 rounded-lg bg-red-50 text-red-600 border border-red-200
-                               hover:bg-red-100 text-xs font-medium transition-all disabled:opacity-50
-                               ml-auto"
+                    className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 text-red-600 border border-red-200
+                               hover:bg-red-100 text-xs font-medium transition-all active:scale-[0.97] disabled:opacity-50"
                   >
-                    {isDeletingId === sub.id ? '⏳ Удаление…' : '🗑 Удалить'}
+                    {isDeletingId === sub.id ? (
+                      <>
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        Удаление…
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="w-3 h-3" />
+                        Удалить
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
