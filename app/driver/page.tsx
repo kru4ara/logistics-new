@@ -2,11 +2,11 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase-server';
 import TripsList from './TripsList';
+import OnboardingCard from './OnboardingCard';
 import {
   Rocket,
   RadioTower,
   BarChart3,
-  Truck,
   Inbox,
   ArrowRight,
 } from 'lucide-react';
@@ -34,6 +34,15 @@ export default async function DriverPage() {
   }
 
   const supabase = await createClient();
+
+  // Профиль водителя — нужен для onboarded_at
+  const { data: driver } = await supabase
+    .from('drivers')
+    .select('first_name, last_name, onboarded_at')
+    .eq('id', driverId)
+    .maybeSingle();
+
+  const showOnboarding = !driver?.onboarded_at;
 
   const { data: trips, error } = await supabase
     .from('trips')
@@ -99,7 +108,6 @@ export default async function DriverPage() {
   const currentMonth = now.getMonth();
   const currentYear = now.getFullYear();
 
-  // РЕЙСЫ ЗА МЕСЯЦ — по дате ФИНИША (end_date), fallback на старт
   const monthTrips = trips?.filter((t) => {
     const dateStr = t.end_date || t.start_date;
     if (!dateStr) return false;
@@ -110,7 +118,6 @@ export default async function DriverPage() {
   const monthKm = monthTrips.reduce((sum, t) => sum + (t.actual_km || 0), 0);
   const monthLiters = monthTrips.reduce((sum, t) => sum + (t.actual_liters || 0), 0);
 
-  // ЗАРПЛАТА ЗА МЕСЯЦ — по ДАТЕ ВЫПЛАТЫ (expense_date)
   const monthStart = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-01`;
   const nextMonthDate = new Date(currentYear, currentMonth + 1, 1);
   const nextMonthStart = `${nextMonthDate.getFullYear()}-${String(nextMonthDate.getMonth() + 1).padStart(2, '0')}-01`;
@@ -144,6 +151,9 @@ export default async function DriverPage() {
             Всего рейсов: <span className="font-bold text-white tabular-nums">{trips?.length || 0}</span>
           </div>
         </div>
+
+        {/* Онбординг — только при первом входе */}
+        {showOnboarding && <OnboardingCard driverName={userName} />}
 
         {/* АКТИВНЫЕ РЕЙСЫ */}
         {activeTrips.length > 0 && (
