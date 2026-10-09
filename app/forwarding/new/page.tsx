@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../../lib/supabase-server';
 import NewForwardingForm from './NewForwardingForm';
+import { ArrowLeft, Boxes } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,13 +38,22 @@ export default async function NewForwardingPage() {
     <main className="min-h-screen bg-slate-50">
       <div className="max-w-[900px] mx-auto px-4 md:px-6 py-6 md:py-8 space-y-5 md:space-y-6">
 
-        <a href="/forwarding" className="inline-flex items-center gap-2 text-slate-600 hover:text-blue-600 transition-colors text-sm font-medium">
-          ← Все заявки
+        <a
+          href="/forwarding"
+          className="inline-flex items-center gap-2 text-slate-600 hover:text-brand-600 transition-colors text-sm font-medium"
+        >
+          <ArrowLeft className="w-4 h-4" strokeWidth={2} />
+          Все заявки
         </a>
 
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-slate-900">➕ Новая заявка экспедирования</h1>
-          <p className="text-slate-500 mt-1 text-sm md:text-base">Клиент → Мы → Подрядчики</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2.5 tracking-tight">
+            <Boxes className="w-6 h-6 md:w-7 md:h-7 text-brand-600" strokeWidth={2.2} />
+            Новая заявка экспедирования
+          </h1>
+          <p className="text-slate-500 mt-1 text-sm md:text-base">
+            Клиент → Мы → Подрядчики
+          </p>
         </div>
 
         <NewForwardingForm
