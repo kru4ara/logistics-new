@@ -102,6 +102,7 @@ export default async function TrucksPage() {
 
   const tractors = trucks?.filter((t) => t.type === 'tractor') || [];
   const trailers = trucks?.filter((t) => t.type === 'trailer') || [];
+  const hasAnyTrucks = (trucks?.length || 0) > 0;
 
   function TruckCard({ truck }: { truck: any }) {
     const minDays = getMinDays(truck);
@@ -130,7 +131,6 @@ export default async function TrucksPage() {
     const TypeIcon = isTractor ? TruckIcon : Container;
     const typeLabel = isTractor ? 'Тягач' : 'Прицеп';
 
-    // Подзаголовок: "Тягач · DAF XF 480 FT · 2019"
     const subtitleParts = [typeLabel];
     if (truck.brand) subtitleParts.push(truck.brand);
     if (truck.model) subtitleParts.push(truck.model);
@@ -224,47 +224,69 @@ export default async function TrucksPage() {
           </a>
         </div>
 
-        {/* Тягачи */}
-        <div>
-          <h2 className="text-lg font-bold text-slate-900 mb-3 md:mb-4 flex items-center gap-2">
-            <TruckIcon className="w-5 h-5 text-brand-600" strokeWidth={2.2} />
-            Тягачи
-            <span className="text-sm font-normal text-slate-400 tabular-nums">({tractors.length})</span>
-          </h2>
-          {tractors.length === 0 ? (
-            <div className="card p-8 text-center">
-              <div className="w-12 h-12 mx-auto mb-2 rounded-xl bg-slate-50 flex items-center justify-center">
-                <Inbox className="w-6 h-6 text-slate-300" strokeWidth={1.5} />
-              </div>
-              <div className="text-slate-400 text-sm">Тягачей пока нет</div>
+        {/* Полностью пусто — одна большая empty state */}
+        {!hasAnyTrucks ? (
+          <div className="card p-10 md:p-16 text-center animate-fade-in">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-brand-50 flex items-center justify-center">
+              <TruckIcon className="w-8 h-8 text-brand-600" strokeWidth={1.5} />
             </div>
-          ) : (
-            <div className="grid gap-4 md:gap-5 md:grid-cols-2 lg:grid-cols-3">
-              {tractors.map((truck) => <TruckCard key={truck.id} truck={truck} />)}
+            <h2 className="text-xl font-bold text-slate-900 mb-2">
+              Транспорт не добавлен
+            </h2>
+            <p className="text-slate-500 mb-6 max-w-md mx-auto">
+              Добавьте тягачи и прицепы, чтобы назначать их на рейсы
+              и следить за сроками документов.
+            </p>
+            <a href="/trucks/new" className="btn btn-primary inline-flex">
+              <Plus className="w-4 h-4" strokeWidth={2.5} />
+              Добавить транспорт
+            </a>
+          </div>
+        ) : (
+          <>
+            {/* Тягачи */}
+            <div>
+              <h2 className="text-lg font-bold text-slate-900 mb-3 md:mb-4 flex items-center gap-2">
+                <TruckIcon className="w-5 h-5 text-brand-600" strokeWidth={2.2} />
+                Тягачи
+                <span className="text-sm font-normal text-slate-400 tabular-nums">({tractors.length})</span>
+              </h2>
+              {tractors.length === 0 ? (
+                <div className="card p-8 text-center">
+                  <div className="w-12 h-12 mx-auto mb-2 rounded-xl bg-slate-50 flex items-center justify-center">
+                    <Inbox className="w-6 h-6 text-slate-300" strokeWidth={1.5} />
+                  </div>
+                  <div className="text-slate-400 text-sm">Тягачей пока нет</div>
+                </div>
+              ) : (
+                <div className="grid gap-4 md:gap-5 md:grid-cols-2 lg:grid-cols-3">
+                  {tractors.map((truck) => <TruckCard key={truck.id} truck={truck} />)}
+                </div>
+              )}
             </div>
-          )}
-        </div>
 
-        {/* Прицепы */}
-        <div>
-          <h2 className="text-lg font-bold text-slate-900 mb-3 md:mb-4 flex items-center gap-2">
-            <Container className="w-5 h-5 text-brand-600" strokeWidth={2.2} />
-            Прицепы
-            <span className="text-sm font-normal text-slate-400 tabular-nums">({trailers.length})</span>
-          </h2>
-          {trailers.length === 0 ? (
-            <div className="card p-8 text-center">
-              <div className="w-12 h-12 mx-auto mb-2 rounded-xl bg-slate-50 flex items-center justify-center">
-                <Inbox className="w-6 h-6 text-slate-300" strokeWidth={1.5} />
-              </div>
-              <div className="text-slate-400 text-sm">Прицепов пока нет</div>
+            {/* Прицепы */}
+            <div>
+              <h2 className="text-lg font-bold text-slate-900 mb-3 md:mb-4 flex items-center gap-2">
+                <Container className="w-5 h-5 text-brand-600" strokeWidth={2.2} />
+                Прицепы
+                <span className="text-sm font-normal text-slate-400 tabular-nums">({trailers.length})</span>
+              </h2>
+              {trailers.length === 0 ? (
+                <div className="card p-8 text-center">
+                  <div className="w-12 h-12 mx-auto mb-2 rounded-xl bg-slate-50 flex items-center justify-center">
+                    <Inbox className="w-6 h-6 text-slate-300" strokeWidth={1.5} />
+                  </div>
+                  <div className="text-slate-400 text-sm">Прицепов пока нет</div>
+                </div>
+              ) : (
+                <div className="grid gap-4 md:gap-5 md:grid-cols-2 lg:grid-cols-3">
+                  {trailers.map((truck) => <TruckCard key={truck.id} truck={truck} />)}
+                </div>
+              )}
             </div>
-          ) : (
-            <div className="grid gap-4 md:gap-5 md:grid-cols-2 lg:grid-cols-3">
-              {trailers.map((truck) => <TruckCard key={truck.id} truck={truck} />)}
-            </div>
-          )}
-        </div>
+          </>
+        )}
 
       </div>
     </main>
