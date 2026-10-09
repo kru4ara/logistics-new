@@ -3,6 +3,18 @@
 import { useState } from 'react';
 import { updateForwarding } from '../../actions';
 import SubmitButton from '../../../components/SubmitButton';
+import {
+  Users,
+  FileText,
+  Wallet,
+  Truck,
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  Package,
+  ClipboardList,
+  Trash2,
+  Plus,
+} from 'lucide-react';
 
 type Option = { id: string; label: string };
 
@@ -104,41 +116,39 @@ function PointRow({
   onUpdate: (idx: number, field: keyof PointEntry, value: string) => void;
   onRemove: (idx: number) => void;
 }) {
-  const icon = type === 'loading' ? '📍' : '🏁';
+  const Icon = type === 'loading' ? ArrowDownToLine : ArrowUpFromLine;
   const label = type === 'loading' ? 'Погрузка' : 'Выгрузка';
   const color = type === 'loading' ? 'border-green-500' : 'border-red-500';
-
-  const inputClass =
-    'w-full rounded-lg border border-slate-300 px-3 py-2.5 text-base text-slate-900 ' +
-    'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-150';
-  const labelClass = 'block text-sm font-medium text-slate-700 mb-1';
+  const iconColor = type === 'loading' ? 'text-green-600' : 'text-red-600';
 
   return (
     <div className={`border-l-4 ${color} rounded-xl p-3 md:p-4 bg-slate-50/40 space-y-3`}>
       <div className="flex items-center justify-between gap-2">
-        <div className="text-sm font-semibold text-slate-700">
-          {icon} {label} #{idx + 1}
+        <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+          <Icon className={`w-4 h-4 ${iconColor}`} strokeWidth={2.2} />
+          <span>{label} #{idx + 1}</span>
         </div>
         {isRemovable && (
           <button
             type="button"
             onClick={() => onRemove(idx)}
-            className="text-red-600 hover:text-red-700 text-xs md:text-sm font-medium px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 transition-colors"
+            className="inline-flex items-center gap-1 text-red-600 hover:text-red-700 text-xs md:text-sm font-medium px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 transition-colors"
           >
-            ✕ Удалить
+            <Trash2 className="w-3.5 h-3.5" strokeWidth={2.2} />
+            Удалить
           </button>
         )}
       </div>
 
       <div className="grid gap-3 grid-cols-1 md:grid-cols-2">
         <div className="md:col-span-2">
-          <label className={labelClass}>Локация *</label>
+          <label className="block text-sm font-medium text-slate-700 mb-1">Локация *</label>
           <select
             name={`${type}_${idx}_location_id`}
             required
             value={point.location_id}
             onChange={(e) => onUpdate(idx, 'location_id', e.target.value)}
-            className={inputClass}
+            className="input"
           >
             <option value="">— Выберите локацию —</option>
             {locations.map((loc) => (
@@ -148,37 +158,37 @@ function PointRow({
         </div>
 
         <div>
-          <label className={labelClass}>Дата</label>
+          <label className="block text-sm font-medium text-slate-700 mb-1">Дата</label>
           <input
             type="date"
             name={`${type}_${idx}_date`}
             value={point.date}
             onChange={(e) => onUpdate(idx, 'date', e.target.value)}
-            className={inputClass}
+            className="input"
           />
         </div>
 
         <div>
-          <label className={labelClass}>Погрузочный номер</label>
+          <label className="block text-sm font-medium text-slate-700 mb-1">Погрузочный номер</label>
           <input
             type="text"
             name={`${type}_${idx}_loading_number`}
             value={point.loading_number}
             onChange={(e) => onUpdate(idx, 'loading_number', e.target.value)}
             placeholder="Ramp 4"
-            className={inputClass}
+            className="input"
           />
         </div>
 
         <div className="md:col-span-2">
-          <label className={labelClass}>Заметки к точке</label>
+          <label className="block text-sm font-medium text-slate-700 mb-1">Заметки к точке</label>
           <input
             type="text"
             name={`${type}_${idx}_notes`}
             value={point.notes}
             onChange={(e) => onUpdate(idx, 'notes', e.target.value)}
             placeholder="Контакт на месте, доп. инфо"
-            className={inputClass}
+            className="input"
           />
         </div>
       </div>
@@ -277,13 +287,6 @@ export default function EditForwardingForm({
     setter(arr.map((it, i) => (i === idx ? { ...it, [field]: value } : it)));
   }
 
-  const inputClass =
-    'w-full rounded-lg border border-slate-300 px-3 py-2.5 text-base text-slate-900 ' +
-    'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-150';
-  const labelClass = 'block text-sm font-medium text-slate-700 mb-1';
-  const sectionClass = 'bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-6 space-y-4';
-  const sectionTitleClass = 'text-base md:text-lg font-bold text-slate-900 mb-2 flex items-center gap-2';
-
   const allEur = contractorItems.every((i) => i.currency === 'EUR');
   const eurTotal = contractorItems.reduce((s, i) => s + (parseFloat(i.price) || 0), 0);
 
@@ -292,12 +295,15 @@ export default function EditForwardingForm({
   return (
     <form action={updateForwarding.bind(null, orderId)} className="space-y-4 md:space-y-6">
 
-      <div className={sectionClass}>
-        <h2 className={sectionTitleClass}>🤝 Клиент</h2>
+      <div className="card p-5 md:p-6 space-y-4">
+        <h2 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2">
+          <Users className="w-5 h-5 text-brand-600" strokeWidth={2} />
+          Клиент
+        </h2>
         <div>
-          <label className={labelClass}>Клиент (заказчик)</label>
-          <select name="client_id" defaultValue={order.client_id || ''} className={inputClass}>
-            <option value="">Выберите клиента...</option>
+          <label className="block text-sm font-medium text-slate-700 mb-1">Клиент (заказчик)</label>
+          <select name="client_id" defaultValue={order.client_id || ''} className="input">
+            <option value="">Выберите клиента…</option>
             {clients.map((c) => (
               <option key={c.id} value={c.id}>{c.label}</option>
             ))}
@@ -305,55 +311,62 @@ export default function EditForwardingForm({
         </div>
       </div>
 
-      <div className={sectionClass}>
-        <h2 className={sectionTitleClass}>📄 Заявка клиента</h2>
+      <div className="card p-5 md:p-6 space-y-4">
+        <h2 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2">
+          <FileText className="w-5 h-5 text-brand-600" strokeWidth={2} />
+          Заявка клиента
+        </h2>
         <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
           <div>
-            <label className={labelClass}>Номер заявки</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Номер заявки</label>
             <input
               type="text" name="client_request_number"
               defaultValue={order.client_request_number || ''}
-              className={inputClass}
+              className="input"
             />
           </div>
           <div>
-            <label className={labelClass}>Дата заявки</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Дата заявки</label>
             <input
               type="date" name="client_request_date"
               defaultValue={order.client_request_date || ''}
-              className={inputClass}
+              className="input"
             />
           </div>
         </div>
       </div>
 
-      <div className={sectionClass}>
-        <h2 className={sectionTitleClass}>💰 Сколько платит клиент</h2>
+      <div className="card p-5 md:p-6 space-y-4">
+        <h2 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2">
+          <Wallet className="w-5 h-5 text-brand-600" strokeWidth={2} />
+          Сколько платит клиент
+        </h2>
         <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
           <div>
-            <label className={labelClass}>Валюта</label>
-            <select name="currency" className={inputClass} defaultValue={order.original_currency || 'EUR'}>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Валюта</label>
+            <select name="currency" className="input" defaultValue={order.original_currency || 'EUR'}>
               <option value="EUR">EUR €</option>
               <option value="PLN">PLN zł</option>
               <option value="BYN">BYN Br</option>
             </select>
           </div>
           <div>
-            <label className={labelClass}>Сумма от клиента *</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Сумма от клиента *</label>
             <input
               type="number" name="client_price" step="0.01" required
               defaultValue={order.original_client_price || 0}
-              className={inputClass}
+              className="input"
             />
           </div>
         </div>
       </div>
 
-      <div className={sectionClass}>
-        <h2 className={sectionTitleClass}>
-          🚛 Подрядчики
+      <div className="card p-5 md:p-6 space-y-4">
+        <h2 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2">
+          <Truck className="w-5 h-5 text-brand-600" strokeWidth={2} />
+          Подрядчики
           {contractorItems.length > 0 && (
-            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">
+            <span className="text-xs bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full font-medium">
               {contractorItems.length}
             </span>
           )}
@@ -368,21 +381,22 @@ export default function EditForwardingForm({
                   <button
                     type="button"
                     onClick={() => removeContractor(idx)}
-                    className="text-red-600 hover:text-red-700 text-xs md:text-sm font-medium px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 transition-colors"
+                    className="inline-flex items-center gap-1 text-red-600 hover:text-red-700 text-xs md:text-sm font-medium px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 transition-colors"
                   >
-                    ✕ Удалить
+                    <Trash2 className="w-3.5 h-3.5" strokeWidth={2.2} />
+                    Удалить
                   </button>
                 )}
               </div>
 
               <div className="grid gap-3 grid-cols-1 md:grid-cols-2">
                 <div className="md:col-span-2">
-                  <label className={labelClass}>Подрядчик *</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Подрядчик *</label>
                   <select
                     name={`contractor_${idx}_id`} required
                     value={item.contractor_id}
                     onChange={(e) => updateContractor(idx, 'contractor_id', e.target.value)}
-                    className={inputClass}
+                    className="input"
                   >
                     <option value="">— Выберите подрядчика —</option>
                     {contractors.map((c) => (
@@ -392,23 +406,23 @@ export default function EditForwardingForm({
                 </div>
 
                 <div>
-                  <label className={labelClass}>Сумма *</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Сумма *</label>
                   <input
                     type="number" step="0.01" required
                     value={item.price}
                     onChange={(e) => updateContractor(idx, 'price', e.target.value)}
                     name={`contractor_${idx}_price`}
-                    className={inputClass}
+                    className="input"
                   />
                 </div>
 
                 <div>
-                  <label className={labelClass}>Валюта</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Валюта</label>
                   <select
                     name={`contractor_${idx}_currency`}
                     value={item.currency}
                     onChange={(e) => updateContractor(idx, 'currency', e.target.value)}
-                    className={inputClass}
+                    className="input"
                   >
                     <option value="EUR">EUR €</option>
                     <option value="PLN">PLN zł</option>
@@ -417,49 +431,49 @@ export default function EditForwardingForm({
                 </div>
 
                 <div className="md:col-span-2">
-                  <label className={labelClass}>№ машины</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">№ машины</label>
                   <input
                     type="text"
                     name={`contractor_${idx}_truck_number`}
                     value={item.truck_number}
                     onChange={(e) => updateContractor(idx, 'truck_number', e.target.value)}
                     placeholder="WSI42316 / WLS73FF"
-                    className={inputClass}
+                    className="input"
                   />
                 </div>
 
                 <div>
-                  <label className={labelClass}>Водитель</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Водитель</label>
                   <input
                     type="text"
                     name={`contractor_${idx}_driver_name`}
                     value={item.driver_name}
                     onChange={(e) => updateContractor(idx, 'driver_name', e.target.value)}
                     placeholder="Daniel Wojtczuk"
-                    className={inputClass}
+                    className="input"
                   />
                 </div>
 
                 <div>
-                  <label className={labelClass}>Срок оплаты (дней)</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Срок оплаты (дней)</label>
                   <input
                     type="number"
                     name={`contractor_${idx}_payment_days`}
                     value={item.payment_days}
                     onChange={(e) => updateContractor(idx, 'payment_days', e.target.value)}
                     placeholder="30"
-                    className={inputClass}
+                    className="input"
                   />
                 </div>
 
                 <div className="md:col-span-2">
-                  <label className={labelClass}>Заметки для этого подрядчика</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Заметки для этого подрядчика</label>
                   <input
                     type="text"
                     name={`contractor_${idx}_notes`}
                     value={item.notes}
                     onChange={(e) => updateContractor(idx, 'notes', e.target.value)}
-                    className={inputClass}
+                    className="input"
                   />
                 </div>
               </div>
@@ -471,25 +485,27 @@ export default function EditForwardingForm({
           <button
             type="button"
             onClick={addContractor}
-            className="w-full py-3 rounded-xl border-2 border-dashed border-blue-300 text-blue-600 font-medium
-                       hover:bg-blue-50 hover:border-blue-400 transition-all duration-150
-                       text-sm md:text-base active:scale-[0.99]"
+            className="w-full py-3 rounded-xl border-2 border-dashed border-brand-300 text-brand-600 font-medium
+                       hover:bg-brand-50 hover:border-brand-400 transition-all duration-150
+                       text-sm md:text-base active:scale-[0.99] inline-flex items-center justify-center gap-2"
           >
-            + Добавить подрядчика
+            <Plus className="w-4 h-4" strokeWidth={2.5} />
+            Добавить подрядчика
           </button>
         )}
 
         {allEur && eurTotal > 0 && (
           <div className="pt-3 border-t border-slate-200 flex justify-between items-center">
             <span className="text-sm font-medium text-slate-600">Итого подрядчикам</span>
-            <span className="text-lg font-bold text-red-500">{eurTotal.toFixed(2)} €</span>
+            <span className="text-lg font-bold text-red-500 tabular-nums">{eurTotal.toFixed(2)} €</span>
           </div>
         )}
       </div>
 
-      <div className={sectionClass}>
-        <h2 className={sectionTitleClass}>
-          📍 Погрузка
+      <div className="card p-5 md:p-6 space-y-4">
+        <h2 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2">
+          <ArrowDownToLine className="w-5 h-5 text-green-600" strokeWidth={2} />
+          Погрузка
           <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
             {loadingPoints.length}
           </span>
@@ -516,16 +532,18 @@ export default function EditForwardingForm({
             onClick={() => addPoint('loading')}
             className="w-full py-3 rounded-xl border-2 border-dashed border-green-300 text-green-600 font-medium
                        hover:bg-green-50 hover:border-green-400 transition-all duration-150
-                       text-sm md:text-base active:scale-[0.99]"
+                       text-sm md:text-base active:scale-[0.99] inline-flex items-center justify-center gap-2"
           >
-            + Добавить точку погрузки
+            <Plus className="w-4 h-4" strokeWidth={2.5} />
+            Добавить точку погрузки
           </button>
         )}
       </div>
 
-      <div className={sectionClass}>
-        <h2 className={sectionTitleClass}>
-          🏁 Выгрузка
+      <div className="card p-5 md:p-6 space-y-4">
+        <h2 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2">
+          <ArrowUpFromLine className="w-5 h-5 text-red-600" strokeWidth={2} />
+          Выгрузка
           <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium">
             {unloadingPoints.length}
           </span>
@@ -552,23 +570,27 @@ export default function EditForwardingForm({
             onClick={() => addPoint('unloading')}
             className="w-full py-3 rounded-xl border-2 border-dashed border-red-300 text-red-600 font-medium
                        hover:bg-red-50 hover:border-red-400 transition-all duration-150
-                       text-sm md:text-base active:scale-[0.99]"
+                       text-sm md:text-base active:scale-[0.99] inline-flex items-center justify-center gap-2"
           >
-            + Добавить точку выгрузки
+            <Plus className="w-4 h-4" strokeWidth={2.5} />
+            Добавить точку выгрузки
           </button>
         )}
       </div>
 
-      <div className={sectionClass}>
-        <h2 className={sectionTitleClass}>📦 Детали перевозки</h2>
+      <div className="card p-5 md:p-6 space-y-4">
+        <h2 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2">
+          <Package className="w-5 h-5 text-brand-600" strokeWidth={2} />
+          Детали перевозки
+        </h2>
         <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
           <div>
-            <label className={labelClass}>Тип транспорта</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Тип транспорта</label>
             <select
               name="transport_type"
               value={transportType}
               onChange={(e) => setTransportType(e.target.value)}
-              className={inputClass}
+              className="input"
             >
               <option value="">— Выберите тип —</option>
               {TRANSPORT_TYPES.map((t) => (
@@ -579,46 +601,49 @@ export default function EditForwardingForm({
 
           {isChlodnia && (
             <div>
-              <label className={labelClass}>Temperatura</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Temperatura</label>
               <input
                 type="text"
                 name="transport_temperature"
                 defaultValue={order.transport_temperature || ''}
                 placeholder="+15°C / -18°C"
-                className={inputClass}
+                className="input"
               />
             </div>
           )}
 
           <div>
-            <label className={labelClass}>Тип груза</label>
-            <input type="text" name="cargo_type" defaultValue={order.cargo_type || ''} className={inputClass} />
+            <label className="block text-sm font-medium text-slate-700 mb-1">Тип груза</label>
+            <input type="text" name="cargo_type" defaultValue={order.cargo_type || ''} className="input" />
           </div>
           <div>
-            <label className={labelClass}>Количество груза</label>
-            <input type="text" name="cargo_quantity" defaultValue={order.cargo_quantity || ''} className={inputClass} />
+            <label className="block text-sm font-medium text-slate-700 mb-1">Количество груза</label>
+            <input type="text" name="cargo_quantity" defaultValue={order.cargo_quantity || ''} className="input" />
           </div>
           <div>
-            <label className={labelClass}>Таможня при загрузке</label>
-            <input type="text" name="customs_loading" defaultValue={order.customs_loading || ''} className={inputClass} />
+            <label className="block text-sm font-medium text-slate-700 mb-1">Таможня при загрузке</label>
+            <input type="text" name="customs_loading" defaultValue={order.customs_loading || ''} className="input" />
           </div>
           <div>
-            <label className={labelClass}>Таможня при разгрузке</label>
-            <input type="text" name="customs_unloading" defaultValue={order.customs_unloading || ''} className={inputClass} />
+            <label className="block text-sm font-medium text-slate-700 mb-1">Таможня при разгрузке</label>
+            <input type="text" name="customs_unloading" defaultValue={order.customs_unloading || ''} className="input" />
           </div>
           <div className="md:col-span-2">
-            <label className={labelClass}>Описание груза (внутр.)</label>
-            <input type="text" name="cargo_description" defaultValue={order.cargo_description || ''} className={inputClass} />
+            <label className="block text-sm font-medium text-slate-700 mb-1">Описание груза (внутр.)</label>
+            <input type="text" name="cargo_description" defaultValue={order.cargo_description || ''} className="input" />
           </div>
         </div>
       </div>
 
-      <div className={sectionClass}>
-        <h2 className={sectionTitleClass}>📋 Статус</h2>
+      <div className="card p-5 md:p-6 space-y-4">
+        <h2 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2">
+          <ClipboardList className="w-5 h-5 text-brand-600" strokeWidth={2} />
+          Статус
+        </h2>
         <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
           <div>
-            <label className={labelClass}>Статус</label>
-            <select name="status" className={inputClass} defaultValue={order.status || 'planned'}>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Статус</label>
+            <select name="status" className="input" defaultValue={order.status || 'planned'}>
               <option value="planned">Планируется</option>
               <option value="active">В пути</option>
               <option value="completed">Завершена</option>
@@ -627,8 +652,8 @@ export default function EditForwardingForm({
             </select>
           </div>
           <div className="md:col-span-2">
-            <label className={labelClass}>Заметки (общие)</label>
-            <textarea name="notes" rows={3} defaultValue={order.notes || ''} className={inputClass} />
+            <label className="block text-sm font-medium text-slate-700 mb-1">Заметки (общие)</label>
+            <textarea name="notes" rows={3} defaultValue={order.notes || ''} className="input" />
           </div>
         </div>
       </div>
@@ -645,10 +670,11 @@ export default function EditForwardingForm({
           Отмена
         </a>
         <SubmitButton
-          className="w-full sm:flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl shadow-md shadow-blue-600/20 transition-all duration-150 active:scale-[0.98]"
-          pendingText="⏳ Сохраняю…"
+          className="btn btn-primary w-full sm:flex-1 py-3"
+          pendingText="Сохраняю…"
         >
-          ✅ Сохранить изменения
+          <Plus className="w-4 h-4" strokeWidth={2.5} />
+          Сохранить изменения
         </SubmitButton>
       </div>
 
