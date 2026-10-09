@@ -1,6 +1,7 @@
 'use client';
 
 import { useFormState, useFormStatus } from 'react-dom';
+import { Loader2, ArrowRight, AlertCircle } from 'lucide-react';
 import { login, type LoginState } from './actions';
 
 function SubmitButton() {
@@ -16,13 +17,13 @@ function SubmitButton() {
     >
       {pending ? (
         <>
-          <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+          <Loader2 className="w-4 h-4 animate-spin" />
           <span>Вход…</span>
         </>
       ) : (
         <>
           <span>Войти</span>
-          <span>→</span>
+          <ArrowRight className="w-4 h-4" />
         </>
       )}
     </button>
@@ -35,7 +36,7 @@ export default function LoginForm() {
   const inputClass =
     'w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-base text-slate-900 ' +
     'placeholder:text-slate-400 ' +
-    'focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 focus:bg-white ' +
+    'focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-400 focus:bg-white ' +
     'transition-all duration-150';
 
   return (
@@ -69,8 +70,8 @@ export default function LoginForm() {
       </div>
 
       {state?.error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3 flex items-start gap-2">
-          <span className="shrink-0 mt-0.5">⚠️</span>
+        <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3 flex items-start gap-2 animate-fade-in">
+          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
           <span>{state.error}</span>
         </div>
       )}
