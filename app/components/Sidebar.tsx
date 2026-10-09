@@ -23,6 +23,7 @@ import {
   PinOff,
   X,
   Home,
+  Calendar,
   type LucideIcon,
 } from 'lucide-react';
 import { logout } from '../login/actions';
@@ -69,8 +70,6 @@ const adminSections: NavSection[] = [
   },
 ];
 
-// Для водителя «Напоминания» рендерятся отдельным блоком снизу (как у админа),
-// чтобы не было дублей. Здесь оставляем только «Мои рейсы».
 const driverSections: NavSection[] = [
   {
     title: 'Моё',
@@ -98,7 +97,6 @@ export default function Sidebar({
   const pathname = usePathname();
   const [isHovered, setIsHovered] = useState(false);
 
-  // Блокируем скролл body на мобильном drawer
   useEffect(() => {
     if (mobileOpen) {
       document.body.style.overflow = 'hidden';
@@ -110,7 +108,6 @@ export default function Sidebar({
     };
   }, [mobileOpen]);
 
-  // Закрываем мобильный drawer при смене страницы
   useEffect(() => {
     onMobileClose();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -132,7 +129,7 @@ export default function Sidebar({
   const isExpanded = isPinned || isHovered;
 
   function isActive(href: string): boolean {
-    if (href === '/' || href === '/driver') return pathname === href;
+    if (href === '/' || href === '/driver' || href === '/today') return pathname === href;
     return pathname === href || pathname.startsWith(href);
   }
 
@@ -144,9 +141,6 @@ export default function Sidebar({
     }
   }
 
-  // ============================================================
-  // Общий контент sidebar
-  // ============================================================
   function SidebarContent({ mobile = false }: { mobile?: boolean }) {
     const expanded = mobile || isExpanded;
 
@@ -170,10 +164,9 @@ export default function Sidebar({
 
         {/* Меню */}
         <div className="flex-1 overflow-y-auto scrollbar-thin py-3">
-          {/* Верхний блок «Главная» — только для админа.
-              У водителя эту роль выполняет «Мои рейсы» в секции «Моё». */}
+          {/* Для админа: Главная + Сегодня */}
           {isAdmin && (
-            <div className="px-2 mb-2">
+            <div className="px-2 mb-2 space-y-0.5">
               <Link
                 href="/"
                 className={`flex items-center gap-3 rounded-lg text-sm font-medium transition-all duration-150
@@ -185,6 +178,18 @@ export default function Sidebar({
               >
                 <Home className="w-[18px] h-[18px] shrink-0" strokeWidth={2} />
                 {expanded && <span className="whitespace-nowrap">Главная</span>}
+              </Link>
+              <Link
+                href="/today"
+                className={`flex items-center gap-3 rounded-lg text-sm font-medium transition-all duration-150
+                  ${expanded ? 'px-3 py-2' : 'justify-center px-0 py-2 w-10 mx-auto'}
+                  ${isActive('/today')
+                    ? 'bg-brand-600 text-white shadow-brand'
+                    : 'text-slate-300 hover:bg-white/5 hover:text-white'}`}
+                title={expanded ? undefined : 'Сегодня'}
+              >
+                <Calendar className="w-[18px] h-[18px] shrink-0" strokeWidth={2} />
+                {expanded && <span className="whitespace-nowrap">Сегодня</span>}
               </Link>
             </div>
           )}
@@ -226,7 +231,7 @@ export default function Sidebar({
             </div>
           ))}
 
-          {/* Напоминания — отдельным блоком внизу */}
+          {/* Напоминания */}
           <div className="mt-4 pt-4 border-t border-white/5 px-2">
             <Link
               href={role === 'driver' ? '/driver/reminders' : '/reminders'}
@@ -296,7 +301,7 @@ export default function Sidebar({
 
   return (
     <>
-      {/* DESKTOP — фиксированный sidebar с hover-expand и pin */}
+      {/* DESKTOP */}
       <aside
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
@@ -309,7 +314,7 @@ export default function Sidebar({
         <SidebarContent />
       </aside>
 
-      {/* MOBILE — drawer с overlay */}
+      {/* MOBILE */}
       {mobileOpen && (
         <>
           <div
