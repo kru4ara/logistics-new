@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import NewTruckForm from './NewTruckForm';
+import { ArrowLeft, Truck as TruckIcon } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,13 +15,17 @@ export default function NewTruckPage() {
 
         <a
           href="/trucks"
-          className="inline-flex items-center gap-2 text-slate-600 hover:text-blue-600 transition-colors text-sm font-medium"
+          className="inline-flex items-center gap-2 text-slate-600 hover:text-brand-600 transition-colors text-sm font-medium"
         >
-          ← Все машины
+          <ArrowLeft className="w-4 h-4" strokeWidth={2} />
+          Все машины
         </a>
 
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-slate-900">➕ Добавить машину</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2.5 tracking-tight">
+            <TruckIcon className="w-6 h-6 md:w-7 md:h-7 text-brand-600" strokeWidth={2.2} />
+            Добавить машину
+          </h1>
           <p className="text-slate-500 mt-1 text-sm md:text-base">
             Заполните данные о технике
           </p>
