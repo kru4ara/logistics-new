@@ -4,6 +4,7 @@ import { createClient } from '../lib/supabase-server';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { logAudit } from '../lib/audit';
+import { renumberAllTrips } from '../lib/trip-renumber';
 
 async function notifyDriverAboutNewTrip(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -125,20 +126,6 @@ export async function addTripWithAddress(formData: FormData) {
 
   const route = `${senderCity || ''}, ${senderCountry || ''} → ${receiverCity || ''}, ${receiverCountry || ''}`;
 
-  const { data: existingTrips } = await supabase
-    .from('trips')
-    .select('trip_number')
-    .not('trip_number', 'is', null);
-
-  const usedNumbers = new Set<number>(
-    (existingTrips || []).map((t) => t.trip_number).filter((n) => n !== null)
-  );
-
-  let nextNumber = 1;
-  while (usedNumbers.has(nextNumber)) {
-    nextNumber++;
-  }
-
   let startFuelLevel = manualFuel;
 
   if (truckId) {
@@ -211,6 +198,7 @@ export async function addTripWithAddress(formData: FormData) {
     clientName = cl?.name || '';
   }
 
+  // Временный номер 0 — после insert перенумеруем всё
   const { data: created, error } = await supabase
     .from('trips')
     .insert([
@@ -272,29 +260,39 @@ export async function addTripWithAddress(formData: FormData) {
         start_lng: startLng,
         end_lat: endLat,
         end_lng: endLng,
-        trip_number: nextNumber,
+        trip_number: 0, // временно, будет пересчитан ниже
         status: 'planned',
       },
     ])
     .select('id')
     .single();
 
-  if (error) throw new Error(`Ошибка создания рейса: ${error.message}`);
+  if (error || !created) throw new Error(`Ошибка создания рейса: ${error?.message || 'unknown'}`);
 
-  if (created?.id) {
-    await logAudit({
-      entity_type: 'trip',
-      entity_id: created.id,
-      action: 'create',
-      summary: `Создан рейс №${nextNumber}${clientName ? ' · ' + clientName : ''}${route ? ' · ' + route : ''}`,
-    });
-  }
+  // Перенумерация всех рейсов по start_date ASC
+  await renumberAllTrips(supabase);
+
+  // Получаем финальный номер
+  const { data: finalTrip } = await supabase
+    .from('trips')
+    .select('trip_number')
+    .eq('id', created.id)
+    .single();
+
+  const finalNumber = finalTrip?.trip_number ?? 0;
+
+  await logAudit({
+    entity_type: 'trip',
+    entity_id: created.id,
+    action: 'create',
+    summary: `Создан рейс №${finalNumber}${clientName ? ' · ' + clientName : ''}${route ? ' · ' + route : ''}`,
+  });
 
   if (driverId) {
     await notifyDriverAboutNewTrip(
       supabase,
       driverId,
-      nextNumber,
+      finalNumber,
       clientName,
       route,
       startDate || '',
