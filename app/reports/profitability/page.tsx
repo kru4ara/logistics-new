@@ -1,5 +1,12 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
+import {
+  ArrowLeft,
+  Coins,
+  Handshake,
+  Truck,
+  type LucideIcon,
+} from 'lucide-react';
 import { createClient } from '../../../lib/supabase-server';
 
 export const dynamic = 'force-dynamic';
@@ -82,9 +89,7 @@ export default async function ProfitabilityPage({
 
   const supabase = await createClient();
 
-  // ============================================================
   // РЕЙСЫ + РАСХОДЫ
-  // ============================================================
   const { data: trips } = await supabase
     .from('trips')
     .select(`
@@ -109,9 +114,7 @@ export default async function ProfitabilityPage({
     });
   }
 
-  // ============================================================
-  // ЭКСПЕДИРОВАНИЕ + ПОДРЯДЧИКИ + РАСХОДЫ
-  // ============================================================
+  // ЭКСПЕДИРОВАНИЕ
   const { data: forwarding } = await supabase
     .from('forwarding_orders')
     .select('id, client_id, client_price_eur, load_date, clients(name)')
@@ -147,12 +150,9 @@ export default async function ProfitabilityPage({
     });
   }
 
-  // ============================================================
   // АГРЕГАЦИЯ ПО КЛИЕНТАМ
-  // ============================================================
   const clientRows: ClientRow[] = [];
 
-  // Рейсы клиента
   const byClientTrips: Record<string, { name: string; count: number; revenue: number; expenses: number }> = {};
   for (const t of trips || []) {
     const name = pickName((t as any).clients);
@@ -176,7 +176,6 @@ export default async function ProfitabilityPage({
     });
   }
 
-  // Экспедирование клиента
   const byClientFwd: Record<string, { name: string; count: number; revenue: number; expenses: number }> = {};
   for (const f of forwarding || []) {
     const name = pickName((f as any).clients);
@@ -203,9 +202,7 @@ export default async function ProfitabilityPage({
 
   clientRows.sort((a, b) => b.profit - a.profit);
 
-  // ============================================================
-  // АГРЕГАЦИЯ ПО МАШИНАМ (только рейсы)
-  // ============================================================
+  // АГРЕГАЦИЯ ПО МАШИНАМ
   const byTruck: Record<
     string,
     { id: string; registration: string; count: number; km: number; revenue: number; expenses: number }
@@ -239,9 +236,7 @@ export default async function ProfitabilityPage({
   });
   truckRows.sort((a, b) => b.profit - a.profit);
 
-  // ============================================================
   // ИТОГИ
-  // ============================================================
   const totalRevenue = clientRows.reduce((s, r) => s + r.revenue, 0);
   const totalExpenses = clientRows.reduce((s, r) => s + r.expenses, 0);
   const totalProfit = totalRevenue - totalExpenses;
@@ -249,7 +244,7 @@ export default async function ProfitabilityPage({
 
   const inputClass =
     'w-full rounded-lg border border-slate-300 px-3 py-2.5 text-base text-slate-900 ' +
-    'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all';
+    'focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all';
   const labelClass = 'block text-sm font-medium text-slate-700 mb-1';
 
   return (
@@ -258,14 +253,16 @@ export default async function ProfitabilityPage({
 
         <a
           href="/reports"
-          className="inline-flex items-center gap-2 text-slate-600 hover:text-blue-600 transition-colors text-sm font-medium"
+          className="inline-flex items-center gap-2 text-slate-600 hover:text-brand-600 transition-colors text-sm font-medium"
         >
-          ← Отчёты
+          <ArrowLeft className="w-4 h-4" />
+          Отчёты
         </a>
 
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-slate-900">
-            💰 Прибыльность
+          <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2">
+            <Coins className="w-7 h-7 text-brand-600" />
+            Прибыльность
           </h1>
           <p className="text-slate-500 mt-1 text-sm md:text-base">
             Кто из клиентов и какая техника приносят деньги
@@ -274,7 +271,7 @@ export default async function ProfitabilityPage({
 
         {/* Фильтр по периоду */}
         <form
-          className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-5"
+          className="card p-4 md:p-5"
           method="GET"
         >
           <div className="grid gap-3 grid-cols-2 md:grid-cols-4 items-end">
@@ -289,7 +286,7 @@ export default async function ProfitabilityPage({
             <div className="col-span-2 md:col-span-2 flex gap-2">
               <button
                 type="submit"
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg transition-all active:scale-[0.98]"
+                className="flex-1 bg-brand-600 hover:bg-brand-700 text-white font-semibold py-2.5 rounded-lg transition-all active:scale-[0.98]"
               >
                 Показать
               </button>
@@ -306,27 +303,27 @@ export default async function ProfitabilityPage({
           </div>
         </form>
 
-        {/* Общие итоги за период */}
+        {/* Общие итоги */}
         <div className="grid gap-3 md:gap-5 grid-cols-2 md:grid-cols-4">
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-5">
+          <div className="card p-4 md:p-5">
             <div className="text-xs md:text-sm text-slate-500 font-medium mb-2">Сделок</div>
-            <div className="text-2xl md:text-3xl font-bold text-blue-600">
+            <div className="text-2xl md:text-3xl font-bold text-brand-600">
               {clientRows.reduce((s, r) => s + r.count, 0)}
             </div>
           </div>
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-5">
+          <div className="card p-4 md:p-5">
             <div className="text-xs md:text-sm text-slate-500 font-medium mb-2">Доход</div>
             <div className="text-xl md:text-2xl font-bold text-green-600 break-words">
               {fmt(totalRevenue)} €
             </div>
           </div>
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-5">
+          <div className="card p-4 md:p-5">
             <div className="text-xs md:text-sm text-slate-500 font-medium mb-2">Расходы</div>
             <div className="text-xl md:text-2xl font-bold text-red-500 break-words">
               {fmt(totalExpenses)} €
             </div>
           </div>
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-5">
+          <div className="card p-4 md:p-5">
             <div className="text-xs md:text-sm text-slate-500 font-medium mb-2">Прибыль / маржа</div>
             <div className={`text-xl md:text-2xl font-bold break-words ${totalProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
               {fmt(totalProfit)} €
@@ -335,14 +332,15 @@ export default async function ProfitabilityPage({
           </div>
         </div>
 
-        {/* ============ ПРИБЫЛЬНОСТЬ КЛИЕНТОВ ============ */}
+        {/* ПРИБЫЛЬНОСТЬ КЛИЕНТОВ */}
         <div>
-          <h2 className="text-base md:text-lg font-bold text-slate-900 mb-3">
-            🤝 Прибыльность клиентов
+          <h2 className="text-base md:text-lg font-bold text-slate-900 mb-3 flex items-center gap-2">
+            <Handshake className="w-5 h-5 text-brand-600" />
+            Прибыльность клиентов
           </h2>
 
           {clientRows.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-slate-100 p-8 text-center text-slate-400">
+            <div className="card p-8 text-center text-slate-400">
               Нет данных за выбранный период
             </div>
           ) : (
@@ -352,7 +350,7 @@ export default async function ProfitabilityPage({
                 {clientRows.map((r, i) => (
                   <div
                     key={`${r.name}-${r.type}-${i}`}
-                    className="bg-white rounded-xl border border-slate-100 p-3"
+                    className="card p-3"
                   >
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <div className="min-w-0">
@@ -388,7 +386,7 @@ export default async function ProfitabilityPage({
               </div>
 
               {/* Desktop */}
-              <div className="hidden md:block bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+              <div className="hidden md:block card overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
@@ -404,12 +402,12 @@ export default async function ProfitabilityPage({
                     </thead>
                     <tbody>
                       {clientRows.map((r, i) => (
-                        <tr key={`${r.name}-${r.type}-${i}`} className="border-b border-slate-50 hover:bg-blue-50/30 transition-colors">
+                        <tr key={`${r.name}-${r.type}-${i}`} className="border-b border-slate-50 hover:bg-brand-50/30 transition-colors">
                           <td className="px-4 py-3 text-sm font-medium text-slate-800 break-words">
                             {r.name}
                           </td>
                           <td className="px-4 py-3 text-sm text-slate-600">
-                            <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${r.type === 'Рейсы' ? 'bg-blue-50 text-blue-700' : 'bg-purple-50 text-purple-700'}`}>
+                            <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${r.type === 'Рейсы' ? 'bg-brand-50 text-brand-700' : 'bg-purple-50 text-purple-700'}`}>
                               {r.type}
                             </span>
                           </td>
@@ -436,14 +434,15 @@ export default async function ProfitabilityPage({
           )}
         </div>
 
-        {/* ============ ПРИБЫЛЬНОСТЬ МАШИН ============ */}
+        {/* ПРИБЫЛЬНОСТЬ МАШИН */}
         <div>
-          <h2 className="text-base md:text-lg font-bold text-slate-900 mb-3">
-            🚛 Прибыльность тягачей (по рейсам)
+          <h2 className="text-base md:text-lg font-bold text-slate-900 mb-3 flex items-center gap-2">
+            <Truck className="w-5 h-5 text-brand-600" />
+            Прибыльность тягачей (по рейсам)
           </h2>
 
           {truckRows.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-slate-100 p-8 text-center text-slate-400">
+            <div className="card p-8 text-center text-slate-400">
               Нет данных за выбранный период
             </div>
           ) : (
@@ -451,7 +450,7 @@ export default async function ProfitabilityPage({
               {/* Mobile */}
               <div className="md:hidden space-y-2">
                 {truckRows.map((t) => (
-                  <div key={t.id} className="bg-white rounded-xl border border-slate-100 p-3">
+                  <div key={t.id} className="card p-3">
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <div className="min-w-0">
                         <div className="font-semibold text-slate-800 text-sm">
@@ -486,7 +485,7 @@ export default async function ProfitabilityPage({
               </div>
 
               {/* Desktop */}
-              <div className="hidden md:block bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+              <div className="hidden md:block card overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
@@ -502,7 +501,7 @@ export default async function ProfitabilityPage({
                     </thead>
                     <tbody>
                       {truckRows.map((t) => (
-                        <tr key={t.id} className="border-b border-slate-50 hover:bg-blue-50/30 transition-colors">
+                        <tr key={t.id} className="border-b border-slate-50 hover:bg-brand-50/30 transition-colors">
                           <td className="px-4 py-3 text-sm font-medium text-slate-800">{t.registration}</td>
                           <td className="px-4 py-3 text-right text-sm text-slate-600">{t.count}</td>
                           <td className="px-4 py-3 text-right text-sm text-slate-600 whitespace-nowrap">{fmt(t.km)}</td>
