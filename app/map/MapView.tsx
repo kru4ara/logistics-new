@@ -46,7 +46,7 @@ function createClusterCustomIcon(cluster: any): L.DivIcon {
   return L.divIcon({
     html: `
       <div style="
-        background: linear-gradient(135deg, #3b82f6, #1e40af);
+        background: linear-gradient(135deg, #4f46e5, #3730a3);
         color: white;
         width: ${size}px;
         height: ${size}px;
@@ -76,7 +76,7 @@ const statusLabels: Record<string, string> = {
 
 const statusColors: Record<string, string> = {
   planned: '#94a3b8',
-  active: '#3b82f6',
+  active: '#4f46e5',
   completed: '#22c55e',
   invoiced: '#eab308',
   paid: '#10b981',
@@ -119,7 +119,7 @@ export default function MapView({ trips }: { trips: Trip[] }) {
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
 
-      {/* Линии маршрутов (не кластеризуются — всегда видны) */}
+      {/* Линии маршрутов */}
       {withBoth.map((trip) => (
         <Polyline
           key={`line-${trip.id}`}
@@ -136,7 +136,7 @@ export default function MapView({ trips }: { trips: Trip[] }) {
         />
       ))}
 
-      {/* 🟢 Кластер маркеров загрузки */}
+      {/* Кластер маркеров загрузки */}
       <MarkerClusterGroup
         chunkedLoading
         iconCreateFunction={createClusterCustomIcon}
@@ -155,8 +155,9 @@ export default function MapView({ trips }: { trips: Trip[] }) {
             >
               <Popup>
                 <div style={{ fontFamily: 'system-ui', minWidth: '200px' }}>
-                  <div style={{ fontWeight: 700, fontSize: '14px', marginBottom: '6px' }}>
-                    🟢 Загрузка · №{trip.trip_number || '—'}
+                  <div style={{ fontWeight: 700, fontSize: '14px', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#16a34a' }} />
+                    Загрузка · №{trip.trip_number || '—'}
                   </div>
                   <div style={{ fontSize: '12px', color: '#475569', marginBottom: '4px' }}>
                     {trip.sender_city}, {trip.sender_country}
@@ -165,7 +166,7 @@ export default function MapView({ trips }: { trips: Trip[] }) {
                     <b>Маршрут:</b> {trip.route || '—'}
                   </div>
                   <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '8px' }}>
-                    📅 {trip.start_date ? new Date(trip.start_date).toLocaleDateString('ru-RU') : '—'}
+                    {trip.start_date ? new Date(trip.start_date).toLocaleDateString('ru-RU') : '—'}
                     {' · '}
                     <span style={{ color: statusColors[trip.status] || '#64748b', fontWeight: 600 }}>
                       {statusLabels[trip.status] || trip.status}
@@ -173,7 +174,7 @@ export default function MapView({ trips }: { trips: Trip[] }) {
                   </div>
                   <a
                     href={`/trips/${trip.id}`}
-                    style={{ color: '#2563eb', fontWeight: 600, fontSize: '12px' }}
+                    style={{ color: '#4f46e5', fontWeight: 600, fontSize: '12px' }}
                   >
                     Открыть рейс →
                   </a>
@@ -184,7 +185,7 @@ export default function MapView({ trips }: { trips: Trip[] }) {
         })}
       </MarkerClusterGroup>
 
-      {/* 🔴 Кластер маркеров выгрузки */}
+      {/* Кластер маркеров выгрузки */}
       <MarkerClusterGroup
         chunkedLoading
         iconCreateFunction={createClusterCustomIcon}
@@ -203,8 +204,9 @@ export default function MapView({ trips }: { trips: Trip[] }) {
             >
               <Popup>
                 <div style={{ fontFamily: 'system-ui', minWidth: '200px' }}>
-                  <div style={{ fontWeight: 700, fontSize: '14px', marginBottom: '6px' }}>
-                    🔴 Выгрузка · №{trip.trip_number || '—'}
+                  <div style={{ fontWeight: 700, fontSize: '14px', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#dc2626' }} />
+                    Выгрузка · №{trip.trip_number || '—'}
                   </div>
                   <div style={{ fontSize: '12px', color: '#475569', marginBottom: '4px' }}>
                     {trip.receiver_city}, {trip.receiver_country}
@@ -213,7 +215,7 @@ export default function MapView({ trips }: { trips: Trip[] }) {
                     <b>Маршрут:</b> {trip.route || '—'}
                   </div>
                   <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '8px' }}>
-                    📅 {trip.start_date ? new Date(trip.start_date).toLocaleDateString('ru-RU') : '—'}
+                    {trip.start_date ? new Date(trip.start_date).toLocaleDateString('ru-RU') : '—'}
                     {' · '}
                     <span style={{ color: statusColors[trip.status] || '#64748b', fontWeight: 600 }}>
                       {statusLabels[trip.status] || trip.status}
@@ -221,7 +223,7 @@ export default function MapView({ trips }: { trips: Trip[] }) {
                   </div>
                   <a
                     href={`/trips/${trip.id}`}
-                    style={{ color: '#2563eb', fontWeight: 600, fontSize: '12px' }}
+                    style={{ color: '#4f46e5', fontWeight: 600, fontSize: '12px' }}
                   >
                     Открыть рейс →
                   </a>
