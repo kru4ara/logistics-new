@@ -1,6 +1,7 @@
 import { createClient } from '../../../../lib/supabase-server';
 import { redirect } from 'next/navigation';
 import EditTruckForm from './EditTruckForm';
+import { ArrowLeft, Pencil } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,14 +26,16 @@ export default async function EditTruckPage({ params }: { params: Promise<{ id: 
 
         <a
           href={`/trucks/${truckId}`}
-          className="inline-flex items-center gap-2 text-slate-600 hover:text-blue-600 transition-colors text-sm font-medium"
+          className="inline-flex items-center gap-2 text-slate-600 hover:text-brand-600 transition-colors text-sm font-medium"
         >
-          ← Назад к карточке
+          <ArrowLeft className="w-4 h-4" strokeWidth={2} />
+          Назад к карточке
         </a>
 
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-slate-900">
-            ✏️ Редактировать машину
+          <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2.5 tracking-tight">
+            <Pencil className="w-6 h-6 md:w-7 md:h-7 text-brand-600" strokeWidth={2.2} />
+            Редактировать машину
           </h1>
         </div>
 
