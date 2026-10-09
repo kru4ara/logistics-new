@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '../../../../lib/supabase-server';
 import { updateLocation } from '../../actions';
 import { EUROPEAN_COUNTRIES } from '../../../../lib/countries';
-import SubmitButton from '../../../../components/SubmitButton';
+import SubmitButton from '../../../components/SubmitButton';
 import { ArrowLeft, MapPin, Globe, Save } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
