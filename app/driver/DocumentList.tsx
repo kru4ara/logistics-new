@@ -2,6 +2,14 @@
 
 import { useState, useTransition } from 'react';
 import { deleteDocument } from './upload-actions';
+import {
+  FileText,
+  ExternalLink,
+  Trash2,
+  Check,
+  Inbox,
+  AlertCircle,
+} from 'lucide-react';
 
 type Doc = {
   id: string;
@@ -29,8 +37,11 @@ export default function DocumentList({
 
   if (documents.length === 0) {
     return (
-      <div className="text-slate-400 text-sm text-center py-6">
-        Файлы ещё не загружены
+      <div className="text-center py-8">
+        <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-slate-50 flex items-center justify-center">
+          <Inbox className="w-7 h-7 text-slate-300" strokeWidth={1.5} />
+        </div>
+        <div className="text-slate-400 text-sm">Файлы ещё не загружены</div>
       </div>
     );
   }
@@ -38,7 +49,6 @@ export default function DocumentList({
   function handleDelete(id: string, name: string) {
     if (confirmId !== id) {
       setConfirmId(id);
-      // Авто-отмена подтверждения через 4 сек
       setTimeout(() => {
         setConfirmId((prev) => (prev === id ? null : prev));
       }, 4000);
@@ -59,8 +69,9 @@ export default function DocumentList({
   return (
     <div className="space-y-2">
       {error && (
-        <div className="px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700">
-          ❌ {error}
+        <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700">
+          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" strokeWidth={2} />
+          <span>{error}</span>
         </div>
       )}
 
@@ -78,15 +89,17 @@ export default function DocumentList({
               ${isPending ? 'opacity-60' : ''}
               ${isConfirming
                 ? 'border-red-300 bg-red-50'
-                : 'border-slate-100 hover:border-blue-200 hover:bg-blue-50/30'}`}
+                : 'border-slate-100 hover:border-brand-200 hover:bg-brand-50/30'}`}
           >
             <div className="flex items-center gap-3 min-w-0 flex-1">
-              <span className="text-xl shrink-0">📄</span>
+              <div className="w-9 h-9 rounded-lg bg-brand-50 flex items-center justify-center shrink-0">
+                <FileText className="w-4 h-4 text-brand-600" strokeWidth={2} />
+              </div>
               <div className="min-w-0">
                 <div className="font-medium text-slate-800 truncate text-sm">
                   {doc.original_name || doc.document_type || 'Документ'}
                 </div>
-                <div className="text-xs text-slate-400">
+                <div className="text-xs text-slate-400 tabular-nums">
                   {doc.uploaded_at
                     ? new Date(doc.uploaded_at).toLocaleDateString('ru-RU')
                     : '—'}
@@ -100,8 +113,9 @@ export default function DocumentList({
                   href={fileUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-blue-600 hover:bg-blue-50 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors"
+                  className="inline-flex items-center gap-1.5 text-brand-600 hover:bg-brand-50 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors"
                 >
+                  <ExternalLink className="w-3.5 h-3.5" strokeWidth={2.2} />
                   Открыть
                 </a>
               )}
@@ -111,13 +125,23 @@ export default function DocumentList({
                   type="button"
                   onClick={() => handleDelete(doc.id, doc.original_name || '')}
                   disabled={isPending}
-                  className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap
+                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap
                     ${isConfirming
                       ? 'bg-red-500 text-white hover:bg-red-600'
                       : 'text-red-600 hover:bg-red-50'}
                     ${isPending ? 'cursor-wait' : ''}`}
                 >
-                  {isConfirming ? '✓ Точно?' : '🗑'}
+                  {isConfirming ? (
+                    <>
+                      <Check className="w-3.5 h-3.5" strokeWidth={2.5} />
+                      Точно?
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-3.5 h-3.5" strokeWidth={2.2} />
+                      Удалить
+                    </>
+                  )}
                 </button>
               )}
             </div>
