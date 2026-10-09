@@ -1,5 +1,24 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
+import {
+  Package,
+  Pencil,
+  Trash2,
+  Coins,
+  Handshake,
+  MapPin,
+  Flag,
+  Truck,
+  Thermometer,
+  Receipt,
+  Plus,
+  StickyNote,
+  Phone,
+  User,
+  Calendar,
+  DoorOpen,
+  ArrowLeft,
+} from 'lucide-react';
 import { createClient } from '../../../lib/supabase-server';
 import { deleteForwarding } from '../actions';
 import { addForwardingExpense, deleteForwardingExpense } from '../expense-actions';
@@ -19,7 +38,7 @@ const statusLabels: Record<string, string> = {
 
 const statusColors: Record<string, string> = {
   planned: 'bg-slate-100 text-slate-700 border-slate-200',
-  active: 'bg-blue-50 text-blue-700 border-blue-200',
+  active: 'bg-brand-50 text-brand-700 border-brand-200',
   completed: 'bg-green-50 text-green-700 border-green-200',
   invoiced: 'bg-yellow-50 text-yellow-700 border-yellow-200',
   paid: 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -117,31 +136,38 @@ export default async function ForwardingDetailPage({ params }: { params: Promise
   const clientContact = pickField(order.clients, 'contact_person');
   const clientPhone = pickField(order.clients, 'phone');
 
-  const inputClass = "w-full rounded-lg border border-slate-300 px-3 py-2.5 text-base text-slate-900 " +
-    "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all";
-  const labelClass = "block text-sm font-medium text-slate-700 mb-1";
+  const inputClass =
+    'w-full rounded-lg border border-slate-300 px-3 py-2.5 text-base text-slate-900 ' +
+    'focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all';
+  const labelClass = 'block text-sm font-medium text-slate-700 mb-1';
 
   return (
     <main className="min-h-screen bg-slate-50">
       <div className="max-w-[1000px] mx-auto px-4 md:px-6 py-6 md:py-8 space-y-5 md:space-y-6">
 
-        <a href="/forwarding" className="inline-flex items-center gap-2 text-slate-600 hover:text-blue-600 transition-colors text-sm font-medium">
-          ← Все заявки
+        <a
+          href="/forwarding"
+          className="inline-flex items-center gap-2 text-slate-600 hover:text-brand-600 transition-colors text-sm font-medium"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Все заявки
         </a>
 
         {/* Заголовок */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
+        <div className="card p-5 md:p-6">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
             <div className="min-w-0">
-              <h1 className="text-2xl md:text-3xl font-bold text-slate-900 break-words">
-                📦 Заявка #{order.order_number || '—'}
+              <h1 className="text-2xl md:text-3xl font-bold text-slate-900 break-words flex items-center gap-2">
+                <Package className="w-6 h-6 text-brand-600 shrink-0" />
+                Заявка #{order.order_number || '—'}
               </h1>
               <p className="text-slate-500 mt-1 text-sm">
                 {order.load_date ? new Date(order.load_date).toLocaleDateString('ru-RU') : 'Дата не указана'}
               </p>
               {order.client_request_number && (
-                <p className="text-sm text-slate-500 mt-1">
-                  📄 Заявка клиента № <b className="text-slate-700">{order.client_request_number}</b>
+                <p className="text-sm text-slate-500 mt-1 inline-flex items-center gap-1.5">
+                  <Receipt className="w-3.5 h-3.5" />
+                  Заявка клиента № <b className="text-slate-700">{order.client_request_number}</b>
                   {order.client_request_date && (
                     <span className="text-slate-400 ml-2">
                       от {new Date(order.client_request_date).toLocaleDateString('ru-RU')}
@@ -153,18 +179,20 @@ export default async function ForwardingDetailPage({ params }: { params: Promise
             <div className="flex flex-wrap gap-2 sm:gap-3 sm:shrink-0">
               <a
                 href={`/forwarding/${id}/edit`}
-                className="flex-1 sm:flex-none text-center px-4 py-2 rounded-lg border border-slate-300 text-slate-700 font-medium
-                           hover:bg-slate-100 transition-all text-sm"
+                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-slate-300 text-slate-700 font-medium
+                           hover:bg-slate-100 transition-all text-sm active:scale-[0.97]"
               >
-                ✏️ Редактировать
+                <Pencil className="w-4 h-4" />
+                Редактировать
               </a>
               <form action={deleteForwarding.bind(null, id)} className="flex-1 sm:flex-none">
                 <button
                   type="submit"
-                  className="w-full px-4 py-2 rounded-lg bg-red-500/10 text-red-600 border border-red-500/30
-                             hover:bg-red-500 hover:text-white transition-all text-sm font-medium"
+                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-red-500/10 text-red-600 border border-red-500/30
+                             hover:bg-red-500 hover:text-white transition-all text-sm font-medium active:scale-[0.97]"
                 >
-                  🗑️ Удалить
+                  <Trash2 className="w-4 h-4" />
+                  Удалить
                 </button>
               </form>
             </div>
@@ -172,7 +200,7 @@ export default async function ForwardingDetailPage({ params }: { params: Promise
         </div>
 
         {/* Статус */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
+        <div className="card p-5 md:p-6">
           <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-2">Статус</div>
           <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold border
             ${statusColors[order.status] || 'bg-slate-100 text-slate-700 border-slate-200'}`}>
@@ -184,8 +212,11 @@ export default async function ForwardingDetailPage({ params }: { params: Promise
         </div>
 
         {/* Экономика */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
-          <h2 className="text-lg font-bold text-slate-900 mb-4">💰 Экономика</h2>
+        <div className="card p-5 md:p-6">
+          <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+            <Coins className="w-5 h-5 text-brand-600" />
+            Экономика
+          </h2>
 
           <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 mb-4">
             <div>
@@ -226,28 +257,39 @@ export default async function ForwardingDetailPage({ params }: { params: Promise
         </div>
 
         {/* Клиент */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
-          <h2 className="text-lg font-bold text-slate-900 mb-4">🤝 Клиент</h2>
+        <div className="card p-5 md:p-6">
+          <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+            <Handshake className="w-5 h-5 text-brand-600" />
+            Клиент
+          </h2>
           <div className="border-l-4 border-green-500 pl-4 py-1">
             <div className="font-bold text-slate-900 break-words">{clientName}</div>
             {clientContact && (
-              <div className="text-sm text-slate-600 mt-1">👤 {clientContact}</div>
+              <div className="text-sm text-slate-600 mt-1 inline-flex items-center gap-1.5">
+                <User className="w-3.5 h-3.5" />
+                {clientContact}
+              </div>
             )}
             {clientPhone && (
-              <div className="text-sm text-slate-600 mt-1">
-                📞 <a href={`tel:${clientPhone}`} className="hover:text-blue-600">{clientPhone}</a>
+              <div className="text-sm text-slate-600 mt-1 inline-flex items-center gap-1.5">
+                <Phone className="w-3.5 h-3.5" />
+                <a href={`tel:${clientPhone}`} className="hover:text-brand-600 transition-colors">{clientPhone}</a>
               </div>
             )}
           </div>
         </div>
 
         {/* ТОЧКИ МАРШРУТА */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
-          <h2 className="text-lg font-bold text-slate-900 mb-4">📍 Точки маршрута</h2>
+        <div className="card p-5 md:p-6">
+          <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+            <MapPin className="w-5 h-5 text-brand-600" />
+            Точки маршрута
+          </h2>
 
           <div className="mb-6">
             <div className="text-sm font-semibold text-green-700 mb-3 flex items-center gap-2">
-              📍 Погрузка
+              <MapPin className="w-4 h-4" />
+              Погрузка
               {loadingPoints.length > 1 && (
                 <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
                   {loadingPoints.length}
@@ -270,8 +312,9 @@ export default async function ForwardingDetailPage({ params }: { params: Promise
                           {loc?.name || '—'}
                         </div>
                         {p.date && (
-                          <span className="text-xs text-slate-500">
-                            📅 {new Date(p.date).toLocaleDateString('ru-RU')}
+                          <span className="text-xs text-slate-500 inline-flex items-center gap-1">
+                            <Calendar className="w-3 h-3" />
+                            {new Date(p.date).toLocaleDateString('ru-RU')}
                           </span>
                         )}
                       </div>
@@ -281,16 +324,23 @@ export default async function ForwardingDetailPage({ params }: { params: Promise
                       {(p.loading_number || loc?.contact_person) && (
                         <div className="text-xs text-slate-500 mt-1 flex flex-wrap gap-x-3 gap-y-1">
                           {p.loading_number && (
-                            <span>🚪 № погрузки: <b className="text-slate-700">{p.loading_number}</b></span>
+                            <span className="inline-flex items-center gap-1">
+                              <DoorOpen className="w-3 h-3" />
+                              № погрузки: <b className="text-slate-700">{p.loading_number}</b>
+                            </span>
                           )}
                           {loc?.contact_person && (
-                            <span>👤 {loc.contact_person}</span>
+                            <span className="inline-flex items-center gap-1">
+                              <User className="w-3 h-3" />
+                              {loc.contact_person}
+                            </span>
                           )}
                         </div>
                       )}
                       {p.notes && (
-                        <div className="text-xs text-slate-500 bg-slate-50 rounded-lg p-2 mt-2 break-words">
-                          📝 {p.notes}
+                        <div className="flex items-start gap-1.5 text-xs text-slate-500 bg-slate-50 rounded-lg p-2 mt-2 break-words">
+                          <StickyNote className="w-3 h-3 mt-0.5 shrink-0" />
+                          <span>{p.notes}</span>
                         </div>
                       )}
                     </div>
@@ -302,7 +352,8 @@ export default async function ForwardingDetailPage({ params }: { params: Promise
 
           <div className="pt-4 border-t border-slate-100">
             <div className="text-sm font-semibold text-red-700 mb-3 flex items-center gap-2">
-              🏁 Выгрузка
+              <Flag className="w-4 h-4" />
+              Выгрузка
               {unloadingPoints.length > 1 && (
                 <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium">
                   {unloadingPoints.length}
@@ -325,8 +376,9 @@ export default async function ForwardingDetailPage({ params }: { params: Promise
                           {loc?.name || '—'}
                         </div>
                         {p.date && (
-                          <span className="text-xs text-slate-500">
-                            📅 {new Date(p.date).toLocaleDateString('ru-RU')}
+                          <span className="text-xs text-slate-500 inline-flex items-center gap-1">
+                            <Calendar className="w-3 h-3" />
+                            {new Date(p.date).toLocaleDateString('ru-RU')}
                           </span>
                         )}
                       </div>
@@ -336,16 +388,23 @@ export default async function ForwardingDetailPage({ params }: { params: Promise
                       {(p.loading_number || loc?.contact_person) && (
                         <div className="text-xs text-slate-500 mt-1 flex flex-wrap gap-x-3 gap-y-1">
                           {p.loading_number && (
-                            <span>🚪 № погрузки: <b className="text-slate-700">{p.loading_number}</b></span>
+                            <span className="inline-flex items-center gap-1">
+                              <DoorOpen className="w-3 h-3" />
+                              № выгрузки: <b className="text-slate-700">{p.loading_number}</b>
+                            </span>
                           )}
                           {loc?.contact_person && (
-                            <span>👤 {loc.contact_person}</span>
+                            <span className="inline-flex items-center gap-1">
+                              <User className="w-3 h-3" />
+                              {loc.contact_person}
+                            </span>
                           )}
                         </div>
                       )}
                       {p.notes && (
-                        <div className="text-xs text-slate-500 bg-slate-50 rounded-lg p-2 mt-2 break-words">
-                          📝 {p.notes}
+                        <div className="flex items-start gap-1.5 text-xs text-slate-500 bg-slate-50 rounded-lg p-2 mt-2 break-words">
+                          <StickyNote className="w-3 h-3 mt-0.5 shrink-0" />
+                          <span>{p.notes}</span>
                         </div>
                       )}
                     </div>
@@ -357,11 +416,12 @@ export default async function ForwardingDetailPage({ params }: { params: Promise
         </div>
 
         {/* Подрядчики */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
+        <div className="card p-5 md:p-6">
           <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-            🚛 Подрядчики
+            <Truck className="w-5 h-5 text-brand-600" />
+            Подрядчики
             {contractorsList && contractorsList.length > 0 && (
-              <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">
+              <span className="text-xs bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full font-medium">
                 {contractorsList.length}
               </span>
             )}
@@ -370,7 +430,7 @@ export default async function ForwardingDetailPage({ params }: { params: Promise
           {(!contractorsList || contractorsList.length === 0) ? (
             <div className="text-center py-6 text-slate-400 text-sm">
               Подрядчики не указаны.{' '}
-              <a href={`/forwarding/${id}/edit`} className="text-blue-600 hover:underline">
+              <a href={`/forwarding/${id}/edit`} className="text-brand-600 hover:underline">
                 Добавить
               </a>
             </div>
@@ -400,23 +460,25 @@ export default async function ForwardingDetailPage({ params }: { params: Promise
                         </div>
                       )}
                       {cPhone && (
-                        <a href={`tel:${cPhone}`} className="text-slate-600 hover:text-blue-600 text-xs">
-                          📞 {cPhone}
+                        <a href={`tel:${cPhone}`} className="text-slate-600 hover:text-brand-600 text-xs inline-flex items-center gap-1">
+                          <Phone className="w-3 h-3" />
+                          {cPhone}
                         </a>
                       )}
                     </div>
 
                     {(c.truck_number || c.driver_name || c.payment_days) && (
                       <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-slate-600">
-                        {c.truck_number && <span>🚛 <b>{c.truck_number}</b></span>}
-                        {c.driver_name && <span>👤 {c.driver_name}</span>}
-                        {c.payment_days && <span>💶 {c.payment_days} дн.</span>}
+                        {c.truck_number && <span className="inline-flex items-center gap-1"><Truck className="w-3 h-3" /><b>{c.truck_number}</b></span>}
+                        {c.driver_name && <span className="inline-flex items-center gap-1"><User className="w-3 h-3" />{c.driver_name}</span>}
+                        {c.payment_days && <span className="inline-flex items-center gap-1"><Coins className="w-3 h-3" />{c.payment_days} дн.</span>}
                       </div>
                     )}
 
                     {c.notes && (
-                      <div className="text-xs text-slate-500 bg-slate-50 rounded-lg p-2 mt-2 break-words">
-                        📝 {c.notes}
+                      <div className="flex items-start gap-1.5 text-xs text-slate-500 bg-slate-50 rounded-lg p-2 mt-2 break-words">
+                        <StickyNote className="w-3 h-3 mt-0.5 shrink-0" />
+                        <span>{c.notes}</span>
                       </div>
                     )}
 
@@ -443,8 +505,11 @@ export default async function ForwardingDetailPage({ params }: { params: Promise
 
         {/* Детали перевозки */}
         {(order.transport_type || order.transport_temperature || order.cargo_type || order.cargo_quantity || order.customs_loading || order.customs_unloading) && (
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
-            <h2 className="text-lg font-bold text-slate-900 mb-4">📦 Детали перевозки</h2>
+          <div className="card p-5 md:p-6">
+            <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+              <Package className="w-5 h-5 text-brand-600" />
+              Детали перевозки
+            </h2>
             <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
               {order.transport_type && (
                 <div>
@@ -455,7 +520,10 @@ export default async function ForwardingDetailPage({ params }: { params: Promise
               {order.transport_temperature && (
                 <div>
                   <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Temperatura</div>
-                  <div className="text-slate-800 font-medium break-words">🌡 {order.transport_temperature}</div>
+                  <div className="text-slate-800 font-medium break-words inline-flex items-center gap-1.5">
+                    <Thermometer className="w-4 h-4" />
+                    {order.transport_temperature}
+                  </div>
                 </div>
               )}
               {order.cargo_type && (
@@ -487,8 +555,11 @@ export default async function ForwardingDetailPage({ params }: { params: Promise
         )}
 
         {/* Расходы */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
-          <h2 className="text-lg font-bold text-slate-900 mb-4">💸 Доп. расходы</h2>
+        <div className="card p-5 md:p-6">
+          <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+            <Receipt className="w-5 h-5 text-brand-600" />
+            Доп. расходы
+          </h2>
 
           {(!expenses || expenses.length === 0) ? (
             <div className="text-center py-6 text-slate-400 text-sm">Пока нет расходов</div>
@@ -515,8 +586,9 @@ export default async function ForwardingDetailPage({ params }: { params: Promise
                     </div>
                   )}
                   <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200/60">
-                    <span className="text-xs text-slate-400">
-                      📅 {exp.expense_date ? new Date(exp.expense_date).toLocaleDateString('ru-RU') : '—'}
+                    <span className="text-xs text-slate-400 inline-flex items-center gap-1">
+                      <Calendar className="w-3 h-3" />
+                      {exp.expense_date ? new Date(exp.expense_date).toLocaleDateString('ru-RU') : '—'}
                     </span>
                     <form action={async () => {
                       'use server';
@@ -524,9 +596,10 @@ export default async function ForwardingDetailPage({ params }: { params: Promise
                     }}>
                       <button
                         type="submit"
-                        className="text-red-500 hover:text-red-700 hover:bg-red-50 text-xs font-medium px-3 py-1 rounded-lg transition-colors"
+                        className="inline-flex items-center gap-1 text-red-500 hover:text-red-700 hover:bg-red-50 text-xs font-medium px-3 py-1 rounded-lg transition-colors"
                       >
-                        🗑 Удалить
+                        <Trash2 className="w-3 h-3" />
+                        Удалить
                       </button>
                     </form>
                   </div>
@@ -542,8 +615,11 @@ export default async function ForwardingDetailPage({ params }: { params: Promise
         </div>
 
         {/* Добавить расход */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
-          <h2 className="text-lg font-bold text-slate-900 mb-4">➕ Добавить расход</h2>
+        <div className="card p-5 md:p-6">
+          <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+            <Plus className="w-5 h-5 text-brand-600" />
+            Добавить расход
+          </h2>
           <form action={addForwardingExpense} className="space-y-4">
             <input type="hidden" name="forwarding_id" value={id} />
 
@@ -583,18 +659,21 @@ export default async function ForwardingDetailPage({ params }: { params: Promise
             </div>
 
             <SubmitButton
-              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl shadow-md shadow-blue-600/20 transition-all duration-150 active:scale-[0.98]"
-              pendingText="⏳ Добавляю расход…"
+              className="w-full bg-brand-600 hover:bg-brand-700 disabled:bg-brand-400 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl shadow-brand transition-all duration-150 active:scale-[0.98]"
+              pendingText="Добавляю расход…"
             >
-              ✅ Добавить расход
+              Добавить расход
             </SubmitButton>
           </form>
         </div>
 
         {/* Заметки */}
         {order.notes && (
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
-            <h2 className="text-lg font-bold text-slate-900 mb-3">📝 Заметки</h2>
+          <div className="card p-5 md:p-6">
+            <h2 className="text-lg font-bold text-slate-900 mb-3 flex items-center gap-2">
+              <StickyNote className="w-5 h-5 text-brand-600" />
+              Заметки
+            </h2>
             <div className="text-slate-700 whitespace-pre-wrap break-words">{order.notes}</div>
           </div>
         )}
