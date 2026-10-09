@@ -2,6 +2,16 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase-server';
 import ReminderCard, { ReminderCardData } from './ReminderCard';
+import {
+  Bell,
+  Plus,
+  AlertTriangle,
+  Clock,
+  CheckCircle2,
+  List as ListIcon,
+  Check,
+  Inbox,
+} from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,7 +29,6 @@ export default async function RemindersPage({
 
   const show = searchParams.show || 'active';
 
-  // Загружаем всё — фильтр делаем на клиенте, чтобы считать статистику по всем
   const { data: allReminders, error } = await supabase
     .from('reminders')
     .select('*')
@@ -48,7 +57,6 @@ export default async function RemindersPage({
     daysLeft: getDaysUntil(r.due_date),
   }));
 
-  // Счётчики
   const activeReminders = enriched.filter((r) => r.status !== 'done');
   const doneReminders = enriched.filter((r) => r.status === 'done');
 
@@ -56,102 +64,109 @@ export default async function RemindersPage({
   const soonCount = activeReminders.filter((r) => r.daysLeft !== null && r.daysLeft >= 0 && r.daysLeft < 30).length;
   const okCount = activeReminders.filter((r) => r.daysLeft !== null && r.daysLeft >= 30).length;
 
-  // Фильтрация для отображения
   const visible =
     show === 'done' ? doneReminders :
     show === 'all' ? enriched :
     activeReminders;
 
-  // Сортируем активные — просроченные вперёд
   if (show === 'active') {
     visible.sort((a, b) => (a.daysLeft ?? 99999) - (b.daysLeft ?? 99999));
   }
 
   return (
     <main className="min-h-screen bg-slate-50">
-      <div className="max-w-[1600px] mx-auto px-6 py-8 space-y-6">
+      <div className="max-w-[1600px] mx-auto px-4 md:px-6 py-6 md:py-8 space-y-5 md:space-y-6">
 
         {/* Заголовок */}
-        <div className="flex flex-wrap justify-between items-center gap-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-between sm:items-center">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">⏰ Напоминания</h1>
-            <p className="text-slate-500 mt-1">
-              Активных: <b>{activeReminders.length}</b> · Выполненных: <b>{doneReminders.length}</b>
+            <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2.5 tracking-tight">
+              <Bell className="w-6 h-6 md:w-7 md:h-7 text-brand-600" strokeWidth={2.2} />
+              Напоминания
+            </h1>
+            <p className="text-slate-500 mt-1 text-sm md:text-base">
+              Активных: <b className="text-slate-700">{activeReminders.length}</b> · Выполненных: <b className="text-slate-700">{doneReminders.length}</b>
             </p>
           </div>
-          <a
-            href="/reminders/new"
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white
-                       font-semibold px-5 py-2.5 rounded-xl shadow-md shadow-blue-600/20
-                       transition-all duration-150 active:scale-[0.98]"
-          >
-            <span>➕</span>
-            <span>Добавить напоминание</span>
+          <a href="/reminders/new" className="btn btn-primary text-sm md:text-base w-full sm:w-auto justify-center">
+            <Plus className="w-4 h-4 md:w-[18px] md:h-[18px]" strokeWidth={2.5} />
+            Добавить напоминание
           </a>
         </div>
 
-        {/* Счётчики активных */}
-        <div className="grid gap-5 md:grid-cols-3">
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-medium text-slate-500">Сроки истекли</span>
-              <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center text-xl">⚠️</div>
+        {/* Счётчики */}
+        <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-3">
+          <div className="card p-4 md:p-5">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs md:text-sm font-medium text-slate-500">Сроки истекли</span>
+              <div className="w-9 h-9 rounded-xl bg-red-50 flex items-center justify-center">
+                <AlertTriangle className="w-4 h-4 text-red-600" strokeWidth={2.2} />
+              </div>
             </div>
-            <div className="text-3xl font-bold text-red-600">{expiredCount}</div>
+            <div className="text-2xl md:text-3xl font-bold text-red-600 tabular-nums">{expiredCount}</div>
           </div>
 
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-medium text-slate-500">Скоро (до 30 дней)</span>
-              <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center text-xl">⚡</div>
+          <div className="card p-4 md:p-5">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs md:text-sm font-medium text-slate-500">Скоро (до 30 дней)</span>
+              <div className="w-9 h-9 rounded-xl bg-orange-50 flex items-center justify-center">
+                <Clock className="w-4 h-4 text-orange-600" strokeWidth={2.2} />
+              </div>
             </div>
-            <div className="text-3xl font-bold text-orange-500">{soonCount}</div>
+            <div className="text-2xl md:text-3xl font-bold text-orange-500 tabular-nums">{soonCount}</div>
           </div>
 
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-medium text-slate-500">В порядке</span>
-              <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center text-xl">✅</div>
+          <div className="card p-4 md:p-5">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs md:text-sm font-medium text-slate-500">В порядке</span>
+              <div className="w-9 h-9 rounded-xl bg-green-50 flex items-center justify-center">
+                <CheckCircle2 className="w-4 h-4 text-green-600" strokeWidth={2.2} />
+              </div>
             </div>
-            <div className="text-3xl font-bold text-emerald-600">{okCount}</div>
+            <div className="text-2xl md:text-3xl font-bold text-emerald-600 tabular-nums">{okCount}</div>
           </div>
         </div>
 
         {/* Фильтр */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-3 flex flex-wrap gap-2">
+        <div className="card p-3 flex flex-wrap gap-2">
           <a
             href="/reminders?show=active"
-            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all
+            className={`inline-flex items-center gap-1.5 px-3 md:px-4 py-2 rounded-lg text-sm font-semibold transition-all
               ${show === 'active'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
+                ? 'bg-brand-600 text-white shadow-brand'
                 : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
           >
-            🟢 Активные ({activeReminders.length})
+            <Clock className="w-4 h-4" strokeWidth={2.2} />
+            Активные ({activeReminders.length})
           </a>
           <a
             href="/reminders?show=done"
-            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all
+            className={`inline-flex items-center gap-1.5 px-3 md:px-4 py-2 rounded-lg text-sm font-semibold transition-all
               ${show === 'done'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
+                ? 'bg-brand-600 text-white shadow-brand'
                 : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
           >
-            ✅ Выполненные ({doneReminders.length})
+            <Check className="w-4 h-4" strokeWidth={2.2} />
+            Выполненные ({doneReminders.length})
           </a>
           <a
             href="/reminders?show=all"
-            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all
+            className={`inline-flex items-center gap-1.5 px-3 md:px-4 py-2 rounded-lg text-sm font-semibold transition-all
               ${show === 'all'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
+                ? 'bg-brand-600 text-white shadow-brand'
                 : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
           >
-            📋 Все ({enriched.length})
+            <ListIcon className="w-4 h-4" strokeWidth={2.2} />
+            Все ({enriched.length})
           </a>
         </div>
 
         {/* Список */}
         {visible.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-slate-100 p-16 text-center">
-            <div className="text-6xl mb-4">⏰</div>
+          <div className="card p-10 md:p-16 text-center">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-slate-50 flex items-center justify-center">
+              <Inbox className="w-8 h-8 text-slate-300" strokeWidth={1.5} />
+            </div>
             <h2 className="text-xl font-bold text-slate-900 mb-2">
               {show === 'done' ? 'Нет выполненных' :
                show === 'all' ? 'Напоминаний пока нет' :
@@ -163,11 +178,9 @@ export default async function RemindersPage({
                 : 'Переключитесь на другую вкладку'}
             </p>
             {show === 'active' && (
-              <a
-                href="/reminders/new"
-                className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-xl"
-              >
-                ➕ Добавить напоминание
+              <a href="/reminders/new" className="btn btn-primary inline-flex">
+                <Plus className="w-4 h-4" strokeWidth={2.5} />
+                Добавить напоминание
               </a>
             )}
           </div>
