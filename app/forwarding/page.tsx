@@ -1,6 +1,18 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase-server';
+import {
+  Boxes,
+  Plus,
+  Calendar,
+  FileText,
+  Route as RouteIcon,
+  Truck,
+  Inbox,
+  TrendingUp,
+  TrendingDown,
+  Wallet,
+} from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,7 +26,7 @@ const statusLabels: Record<string, string> = {
 
 const statusColors: Record<string, string> = {
   planned: 'bg-slate-100 text-slate-700 border-slate-200',
-  active: 'bg-blue-50 text-blue-700 border-blue-200',
+  active: 'bg-brand-50 text-brand-700 border-brand-200',
   completed: 'bg-green-50 text-green-700 border-green-200',
   invoiced: 'bg-yellow-50 text-yellow-700 border-yellow-200',
   paid: 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -22,7 +34,7 @@ const statusColors: Record<string, string> = {
 
 const statusStripColors: Record<string, string> = {
   planned: 'bg-slate-300',
-  active: 'bg-blue-500',
+  active: 'bg-brand-500',
   completed: 'bg-green-500',
   invoiced: 'bg-yellow-500',
   paid: 'bg-emerald-500',
@@ -73,15 +85,10 @@ export default async function ForwardingPage({
 
   const orderIds = orders?.map((o) => o.id) || [];
 
-  // Подрядчики
   let contractorsByOrder: Record<string, number> = {};
   let contractorNamesByOrder: Record<string, string[]> = {};
-
-  // Точки (маршрут)
   let loadingCitiesByOrder: Record<string, string[]> = {};
   let unloadingCitiesByOrder: Record<string, string[]> = {};
-
-  // Расходы
   let expensesByOrder: Record<string, number> = {};
 
   if (orderIds.length > 0) {
@@ -146,7 +153,6 @@ export default async function ForwardingPage({
 
   const years = [currentYear, currentYear - 1, currentYear - 2];
 
-  // Группировка по месяцам загрузки
   const ordersByMonth: Record<string, { month: number; orders: any[] }> = {};
   orders?.forEach((o) => {
     if (!o.load_date) return;
@@ -158,7 +164,6 @@ export default async function ForwardingPage({
 
   const sortedMonthKeys = Object.keys(ordersByMonth).sort().reverse();
 
-  // Формируем короткое описание маршрута
   function buildRouteText(orderId: string): string {
     const loading = loadingCitiesByOrder[orderId] || [];
     const unloading = unloadingCitiesByOrder[orderId] || [];
@@ -179,27 +184,24 @@ export default async function ForwardingPage({
     <main className="min-h-screen bg-slate-50">
       <div className="max-w-[1600px] mx-auto px-4 md:px-6 py-6 md:py-8 space-y-5 md:space-y-6">
 
-        {/* Заголовок */}
         <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:justify-between sm:items-center">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-slate-900">📦 Экспедирование</h1>
+            <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2.5 tracking-tight">
+              <Boxes className="w-6 h-6 md:w-7 md:h-7 text-brand-600" strokeWidth={2.2} />
+              Экспедирование
+            </h1>
             <p className="text-slate-500 mt-1 text-sm md:text-base">
-              Заявок: <b>{orders?.length || 0}</b>
+              Заявок: <b className="text-slate-700">{orders?.length || 0}</b>
             </p>
           </div>
-          <a
-            href="/forwarding/new"
-            className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white
-                       font-semibold px-4 md:px-5 py-2.5 rounded-xl shadow-md shadow-blue-600/20
-                       transition-all duration-150 active:scale-[0.98] text-sm md:text-base"
-          >
-            <span>➕</span>
-            <span>Новая заявка</span>
+          <a href="/forwarding/new" className="btn btn-primary text-sm md:text-base w-full sm:w-auto justify-center">
+            <Plus className="w-4 h-4 md:w-[18px] md:h-[18px]" strokeWidth={2.5} />
+            Новая заявка
           </a>
         </div>
 
         {/* Фильтры */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-5 space-y-3">
+        <div className="card p-4 md:p-5 space-y-3">
           <div>
             <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2">Год</div>
             <div className="flex flex-wrap gap-2">
@@ -207,9 +209,9 @@ export default async function ForwardingPage({
                 <a
                   key={y}
                   href={`/forwarding?year=${y}${monthFilter ? `&month=${monthFilter}` : ''}`}
-                  className={`px-3 md:px-4 py-2 rounded-lg text-sm font-semibold transition-all
+                  className={`px-3 md:px-4 py-2 rounded-lg text-sm font-semibold transition-all tabular-nums
                     ${year === y
-                      ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
+                      ? 'bg-brand-600 text-white shadow-brand'
                       : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
                 >
                   {y}
@@ -224,9 +226,7 @@ export default async function ForwardingPage({
               <a
                 href={`/forwarding?year=${year}`}
                 className={`px-2.5 md:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all
-                  ${!monthFilter
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+                  ${!monthFilter ? 'bg-brand-600 text-white shadow-brand' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
               >
                 Все
               </a>
@@ -238,7 +238,7 @@ export default async function ForwardingPage({
                     key={m}
                     href={`/forwarding?year=${year}&month=${m}`}
                     className={`px-2.5 md:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all
-                      ${isActive ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+                      ${isActive ? 'bg-brand-600 text-white shadow-brand' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
                   >
                     {name.slice(0, 3)}
                   </a>
@@ -251,19 +251,25 @@ export default async function ForwardingPage({
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-3 border-t border-slate-100">
             <div>
               <div className="text-xs text-slate-400 font-medium">Доход от клиентов</div>
-              <div className="text-base md:text-lg font-bold text-green-600 break-words">{totalClient.toFixed(0)} €</div>
+              <div className="text-base md:text-lg font-bold text-green-600 break-words tabular-nums">
+                {totalClient.toFixed(0)} €
+              </div>
             </div>
             <div>
               <div className="text-xs text-slate-400 font-medium">Подрядчикам</div>
-              <div className="text-base md:text-lg font-bold text-red-500 break-words">{totalContractor.toFixed(0)} €</div>
+              <div className="text-base md:text-lg font-bold text-red-500 break-words tabular-nums">
+                {totalContractor.toFixed(0)} €
+              </div>
             </div>
             <div>
               <div className="text-xs text-slate-400 font-medium">Доп. расходы</div>
-              <div className="text-base md:text-lg font-bold text-orange-600 break-words">{totalExpenses.toFixed(0)} €</div>
+              <div className="text-base md:text-lg font-bold text-orange-600 break-words tabular-nums">
+                {totalExpenses.toFixed(0)} €
+              </div>
             </div>
             <div>
               <div className="text-xs text-slate-400 font-medium">Наша маржа</div>
-              <div className={`text-base md:text-lg font-bold break-words ${totalMargin >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+              <div className={`text-base md:text-lg font-bold break-words tabular-nums ${totalMargin >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                 {totalMargin.toFixed(0)} €
               </div>
             </div>
@@ -272,18 +278,17 @@ export default async function ForwardingPage({
 
         {/* Список */}
         {(!orders || orders.length === 0) ? (
-          <div className="bg-white rounded-2xl border border-slate-100 p-10 md:p-16 text-center">
-            <div className="text-6xl mb-4">📦</div>
+          <div className="card p-10 md:p-16 text-center">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-slate-50 flex items-center justify-center">
+              <Inbox className="w-8 h-8 text-slate-300" strokeWidth={1.5} />
+            </div>
             <h2 className="text-xl font-bold text-slate-900 mb-2">Заявок не найдено</h2>
             <p className="text-slate-500 mb-6">
               {monthFilter ? `За ${monthNames[monthFilter - 1]} ${year} нет заявок` : `За ${year} год нет заявок`}
             </p>
-            <a
-              href="/forwarding/new"
-              className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white
-                         font-semibold px-6 py-3 rounded-xl transition-all"
-            >
-              ➕ Создать заявку
+            <a href="/forwarding/new" className="btn btn-primary inline-flex">
+              <Plus className="w-4 h-4" strokeWidth={2.5} />
+              Создать заявку
             </a>
           </div>
         ) : (
@@ -298,12 +303,11 @@ export default async function ForwardingPage({
               const mMargin = mClient - mContractor - mExpenses;
 
               return (
-                <div key={key}>
-                  {/* Заголовок месяца */}
+                <div key={key} className="animate-slide-up">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-3 md:mb-4 px-1">
                     <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-blue-50 flex items-center justify-center text-lg md:text-xl shrink-0">
-                        📅
+                      <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-brand-50 flex items-center justify-center shrink-0">
+                        <Calendar className="w-4 h-4 md:w-5 md:h-5 text-brand-600" strokeWidth={2} />
                       </div>
                       <div className="min-w-0">
                         <h2 className="text-lg md:text-xl font-bold text-slate-900">
@@ -317,22 +321,21 @@ export default async function ForwardingPage({
                     <div className="grid grid-cols-3 gap-3 text-right">
                       <div>
                         <div className="text-[10px] md:text-xs uppercase text-slate-400 font-medium">Доход</div>
-                        <div className="text-sm md:text-base font-bold text-green-600">{mClient.toFixed(0)} €</div>
+                        <div className="text-sm md:text-base font-bold text-green-600 tabular-nums">{mClient.toFixed(0)} €</div>
                       </div>
                       <div>
                         <div className="text-[10px] md:text-xs uppercase text-slate-400 font-medium">Расходы</div>
-                        <div className="text-sm md:text-base font-bold text-red-500">{(mContractor + mExpenses).toFixed(0)} €</div>
+                        <div className="text-sm md:text-base font-bold text-red-500 tabular-nums">{(mContractor + mExpenses).toFixed(0)} €</div>
                       </div>
                       <div>
                         <div className="text-[10px] md:text-xs uppercase text-slate-400 font-medium">Маржа</div>
-                        <div className={`text-sm md:text-base font-bold ${mMargin >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                        <div className={`text-sm md:text-base font-bold tabular-nums ${mMargin >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                           {mMargin.toFixed(0)} €
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Карточки */}
                   <div className="grid gap-4 md:gap-5 md:grid-cols-2 lg:grid-cols-3">
                     {monthOrders.map((o) => {
                       const cSum = contractorsByOrder[o.id] || 0;
@@ -353,20 +356,17 @@ export default async function ForwardingPage({
                         <a
                           key={o.id}
                           href={`/forwarding/${o.id}`}
-                          className="group bg-white rounded-2xl border border-slate-100 shadow-sm
-                                     hover:shadow-xl hover:border-blue-200 md:hover:-translate-y-0.5
-                                     transition-all duration-200 overflow-hidden active:scale-[0.99]"
+                          className="group card card-hover overflow-hidden active:scale-[0.99]"
                         >
                           <div className={`h-1.5 ${statusStripColors[o.status] || 'bg-slate-300'}`} />
 
                           <div className="p-4 md:p-5">
-                            {/* № + статус */}
                             <div className="flex items-start justify-between gap-2 mb-3">
                               <div className="min-w-0 flex-1">
-                                <div className="text-xs text-slate-400 font-medium">
+                                <div className="text-xs text-slate-400 font-medium tabular-nums">
                                   № {o.order_number || '—'}
                                 </div>
-                                <div className="text-base md:text-lg font-bold text-slate-900 mt-0.5 group-hover:text-blue-600 transition-colors break-words">
+                                <div className="text-base md:text-lg font-bold text-slate-900 mt-0.5 group-hover:text-brand-600 transition-colors break-words">
                                   {clientName}
                                 </div>
                               </div>
@@ -376,61 +376,60 @@ export default async function ForwardingPage({
                               </span>
                             </div>
 
-                            {/* Заявка клиента */}
                             {o.client_request_number && (
-                              <div className="text-xs text-slate-500 mb-2 break-words">
-                                📄 Заявка: <b className="text-slate-700">{o.client_request_number}</b>
-                                {o.client_request_date && (
-                                  <span className="text-slate-400 ml-1">
-                                    от {new Date(o.client_request_date).toLocaleDateString('ru-RU')}
-                                  </span>
-                                )}
+                              <div className="flex items-center gap-1.5 text-xs text-slate-500 mb-2 break-words">
+                                <FileText className="w-3.5 h-3.5 shrink-0 text-slate-400" strokeWidth={2} />
+                                <span>Заявка: <b className="text-slate-700">{o.client_request_number}</b>
+                                  {o.client_request_date && (
+                                    <span className="text-slate-400 ml-1">
+                                      от {new Date(o.client_request_date).toLocaleDateString('ru-RU')}
+                                    </span>
+                                  )}
+                                </span>
                               </div>
                             )}
 
-                            {/* Маршрут */}
-                            <div className="flex items-start gap-2 text-sm text-slate-600 mb-2">
-                              <span className="shrink-0">🛣</span>
+                            <div className="flex items-start gap-1.5 text-sm text-slate-600 mb-2">
+                              <RouteIcon className="w-4 h-4 shrink-0 text-slate-400 mt-0.5" strokeWidth={2} />
                               <span className="break-words">{routeText}</span>
                             </div>
 
-                            {/* Дата + подрядчики */}
                             <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400 mb-4">
-                              <span>
-                                📅 {o.load_date ? new Date(o.load_date).toLocaleDateString('ru-RU') : '—'}
+                              <span className="flex items-center gap-1 tabular-nums">
+                                <Calendar className="w-3.5 h-3.5" strokeWidth={2} />
+                                {o.load_date ? new Date(o.load_date).toLocaleDateString('ru-RU') : '—'}
                               </span>
                               {cNames.length > 0 && (
-                                <span className="truncate max-w-[60%]" title={cNames.join(', ')}>
-                                  🚛 {contractorsDisplay}
+                                <span className="flex items-center gap-1 truncate max-w-[60%]" title={cNames.join(', ')}>
+                                  <Truck className="w-3.5 h-3.5 shrink-0" strokeWidth={2} />
+                                  {contractorsDisplay}
                                 </span>
                               )}
                             </div>
 
-                            {/* Экономика */}
                             <div className="pt-3 border-t border-slate-100 grid grid-cols-3 gap-2">
                               <div>
                                 <div className="text-[10px] uppercase tracking-wide text-slate-400 font-medium">Клиент</div>
-                                <div className="text-sm font-bold text-green-600 break-words">
+                                <div className="text-sm font-bold text-green-600 break-words tabular-nums">
                                   {(o.client_price_eur || 0).toFixed(0)} €
                                 </div>
                               </div>
                               <div>
                                 <div className="text-[10px] uppercase tracking-wide text-slate-400 font-medium">Подряд.</div>
-                                <div className="text-sm font-bold text-red-500 break-words">
+                                <div className="text-sm font-bold text-red-500 break-words tabular-nums">
                                   {cSum > 0 ? `−${cSum.toFixed(0)} €` : '—'}
                                 </div>
                               </div>
                               <div>
                                 <div className="text-[10px] uppercase tracking-wide text-slate-400 font-medium">Маржа</div>
-                                <div className={`text-sm font-bold break-words ${margin >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                                <div className={`text-sm font-bold break-words tabular-nums ${margin >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                                   {margin.toFixed(0)} €
                                 </div>
                               </div>
                             </div>
 
-                            {/* Доп. расходы */}
                             {eSum > 0 && (
-                              <div className="mt-2 pt-2 border-t border-slate-100 text-[10px] text-orange-600 font-medium">
+                              <div className="mt-2 pt-2 border-t border-slate-100 text-[10px] text-orange-600 font-medium tabular-nums">
                                 Доп. расходы: −{eSum.toFixed(0)} €
                               </div>
                             )}
