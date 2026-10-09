@@ -52,7 +52,7 @@ async function renumberAllOrders(
   const { data: orders, error } = await supabase
     .from('forwarding_orders')
     .select('id, order_number, load_date, created_at')
-    .order('load_date', { ascending: true })
+    .order('load_date', { ascending: true, nullsFirst: false })
     .order('created_at', { ascending: true });
 
   if (error) {
@@ -62,33 +62,33 @@ async function renumberAllOrders(
 
   if (!orders || orders.length === 0) return;
 
-  // Собираем список тех, у кого номер изменится
-  const updates: { id: string; newNumber: number }[] = [];
-  orders.forEach((o, idx) => {
-    const expected = idx + 1;
-    if (o.order_number !== expected) {
-      updates.push({ id: o.id, newNumber: expected });
-    }
-  });
+  // ВСЕГДА обновляем ВСЕ заявки, даже если их номер "не меняется".
+  // Иначе коллизия: заявка B сидит на "правильном" 2, а заявка A
+  // пытается занять тот же 2 — UNIQUE-констрейнт падает.
+  const updates = orders.map((o, idx) => ({ id: o.id, newNumber: idx + 1 }));
 
-  if (updates.length === 0) return;
-
-  // Двухфазная схема — защищает от конфликта по UNIQUE(order_number), если он есть.
-  // Фаза 1: временно уводим в отрицательные числа.
-  // Фаза 2: присваиваем финальные положительные.
-  // Схема самовосстанавливающаяся: если процесс упадёт между фазами,
-  // следующий вызов renumber снова приведёт всё в порядок.
+  // Фаза 1: все уходят в отрицательные (гарантированно свободные)
   for (const u of updates) {
-    await supabase
+    const { error: e1 } = await supabase
       .from('forwarding_orders')
       .update({ order_number: -u.newNumber })
       .eq('id', u.id);
+    if (e1) {
+      console.error('[renumber] phase 1 failed:', u.id, e1.message);
+      return;
+    }
   }
+
+  // Фаза 2: все возвращаются в положительные по порядку
   for (const u of updates) {
-    await supabase
+    const { error: e2 } = await supabase
       .from('forwarding_orders')
       .update({ order_number: u.newNumber })
       .eq('id', u.id);
+    if (e2) {
+      console.error('[renumber] phase 2 failed:', u.id, e2.message);
+      return;
+    }
   }
 }
 
