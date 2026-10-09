@@ -4,6 +4,7 @@ import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet'
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
+import { MapPin, Inbox } from 'lucide-react';
 
 // ============================================================
 // Кастомные иконки — цветной кружок с номером рейса
@@ -106,6 +107,29 @@ export default function MapView({ trips }: { trips: Trip[] }) {
   const onlyStart = trips.filter(
     (t) => t.start_lat && t.start_lng && (!t.end_lat || !t.end_lng)
   );
+
+  const hasAnyTrip = withBoth.length > 0 || onlyStart.length > 0;
+
+  // Если ни одной точки нет — вместо пустой карты показываем заглушку
+  if (!hasAnyTrip) {
+    return (
+      <div className="w-full h-full flex items-center justify-center p-6 bg-slate-50">
+        <div className="card p-10 md:p-14 text-center max-w-md animate-fade-in">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-brand-50 flex items-center justify-center">
+            <MapPin className="w-8 h-8 text-brand-600" strokeWidth={1.5} />
+          </div>
+          <h2 className="text-lg font-bold text-slate-900 mb-1">
+            Нет рейсов с координатами
+          </h2>
+          <p className="text-sm text-slate-500">
+            Чтобы точки появились на карте, у рейсов должны быть заполнены
+            координаты загрузки или выгрузки. Заполните их в карточке рейса — и они
+            появятся здесь.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <MapContainer
