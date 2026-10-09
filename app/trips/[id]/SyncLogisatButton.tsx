@@ -2,6 +2,13 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import {
+  RadioTower,
+  CheckCircle2,
+  XCircle,
+  AlertTriangle,
+  Loader2,
+} from 'lucide-react';
 
 type Result = {
   success: boolean;
@@ -70,26 +77,31 @@ export default function SyncLogisatButton({ tripId }: { tripId: string }) {
                    bg-emerald-50 hover:bg-emerald-100 font-medium text-sm transition-all
                    disabled:opacity-50 active:scale-[0.98] flex items-center justify-center gap-1.5"
       >
-        <span>📡</span>
+        <RadioTower className="w-4 h-4" />
         <span>Logisat</span>
       </button>
 
       {isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50"
-             onClick={() => !isPending && setIsOpen(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4"
-               onClick={(e) => e.stopPropagation()}>
-
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 animate-fade-in"
+          onClick={() => !isPending && setIsOpen(false)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-soft-lg max-w-md w-full p-6 space-y-4 animate-scale-in"
+            onClick={(e) => e.stopPropagation()}
+          >
             {isPending || !result ? (
               <div className="text-center py-6">
-                <div className="inline-block w-10 h-10 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+                <Loader2 className="w-10 h-10 text-emerald-600 animate-spin mx-auto" />
                 <div className="mt-4 text-slate-600 font-medium">Запрашиваем данные из Logisat...</div>
                 <div className="mt-2 text-xs text-slate-400">Обычно 2-10 секунд</div>
               </div>
             ) : result.success ? (
               <>
                 <div className="text-center">
-                  <div className="text-5xl mb-2">✅</div>
+                  <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 mb-3">
+                    <CheckCircle2 className="w-7 h-7" />
+                  </div>
                   <h3 className="text-lg font-bold text-slate-900">Данные обновлены</h3>
                   {result.truck && (
                     <div className="text-xs text-slate-400 mt-1">
@@ -119,20 +131,24 @@ export default function SyncLogisatButton({ tripId }: { tripId: string }) {
                   </div>
                 )}
                 {!hasDistance && (
-                  <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2">
-                    ⚠️ Одометр не передаёт данные — пробег не рассчитан
+                  <div className="flex items-start gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2">
+                    <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                    <span>Одометр не передаёт данные — пробег не рассчитан</span>
                   </div>
                 )}
                 {!hasFuel && (
-                  <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2">
-                    ⚠️ Датчик топлива не передаёт данные
+                  <div className="flex items-start gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2">
+                    <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                    <span>Датчик топлива не передаёт данные</span>
                   </div>
                 )}
               </>
             ) : (
               <>
                 <div className="text-center">
-                  <div className="text-5xl mb-2">❌</div>
+                  <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-red-50 text-red-600 mb-3">
+                    <XCircle className="w-7 h-7" />
+                  </div>
                   <h3 className="text-lg font-bold text-slate-900">Не удалось</h3>
                 </div>
                 <div className="text-sm text-slate-700 bg-red-50 border border-red-200 rounded-xl p-3 break-words">
@@ -141,7 +157,7 @@ export default function SyncLogisatButton({ tripId }: { tripId: string }) {
                 <button
                   type="button"
                   onClick={() => setIsOpen(false)}
-                  className="w-full px-4 py-2 rounded-xl border border-slate-300 text-slate-700 font-medium hover:bg-slate-100 transition-all"
+                  className="btn-secondary w-full"
                 >
                   Закрыть
                 </button>
