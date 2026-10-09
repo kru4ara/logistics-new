@@ -9,10 +9,13 @@ import {
   Check,
   Info,
   Download,
+  FileSpreadsheet,
+  FileText,
   type LucideIcon,
 } from 'lucide-react';
 
 type ExportType = 'trips' | 'expenses' | 'forwarding' | 'clients';
+type ExportFormat = 'xlsx' | 'csv';
 
 const OPTIONS: { value: ExportType; label: string; Icon: LucideIcon; hint: string }[] = [
   {
@@ -41,6 +44,21 @@ const OPTIONS: { value: ExportType; label: string; Icon: LucideIcon; hint: strin
   },
 ];
 
+const FORMAT_OPTIONS: { value: ExportFormat; label: string; hint: string; Icon: LucideIcon }[] = [
+  {
+    value: 'xlsx',
+    label: 'Excel (.xlsx)',
+    hint: 'Открывается в Excel/Google Sheets, сохраняет форматирование',
+    Icon: FileSpreadsheet,
+  },
+  {
+    value: 'csv',
+    label: 'CSV (.csv)',
+    hint: 'Универсальный формат, подходит для импорта в другие программы',
+    Icon: FileText,
+  },
+];
+
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -52,13 +70,14 @@ function firstDayOfMonthIso() {
 
 export default function ExportForm() {
   const [type, setType] = useState<ExportType>('trips');
+  const [format, setFormat] = useState<ExportFormat>('xlsx');
   const [from, setFrom] = useState(firstDayOfMonthIso);
   const [to, setTo] = useState(todayIso);
 
   const isPeriodless = type === 'clients';
 
   function handleDownload(e: React.MouseEvent<HTMLAnchorElement>) {
-    if (isPeriodless) return; // для clients — без параметров
+    if (isPeriodless) return;
     if (from > to) {
       e.preventDefault();
       alert('Дата «с» позже даты «по»');
@@ -66,8 +85,8 @@ export default function ExportForm() {
   }
 
   const href = isPeriodless
-    ? `/api/export?type=${type}`
-    : `/api/export?type=${type}&from=${from}&to=${to}`;
+    ? `/api/export?type=${type}&format=${format}`
+    : `/api/export?type=${type}&from=${from}&to=${to}&format=${format}`;
 
   const inputClass = 'input';
   const labelClass = 'block text-sm font-medium text-slate-700 mb-1';
@@ -86,6 +105,43 @@ export default function ExportForm() {
                 key={value}
                 type="button"
                 onClick={() => setType(value)}
+                className={`text-left p-4 rounded-xl border-2 transition-all active:scale-[0.99]
+                  ${active
+                    ? 'border-brand-500 bg-brand-50 shadow-brand'
+                    : 'border-slate-200 bg-white hover:border-brand-300 hover:bg-brand-50/30'}`}
+              >
+                <div className="flex items-start gap-3">
+                  <span className={`shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-lg
+                    ${active ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                    <Icon className="w-4 h-4" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className={`font-semibold ${active ? 'text-brand-700' : 'text-slate-800'}`}>
+                      {label}
+                    </div>
+                    <div className="text-xs text-slate-500 mt-0.5">{hint}</div>
+                  </div>
+                  {active && (
+                    <Check className="w-5 h-5 text-brand-600 shrink-0 mt-0.5" />
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Формат файла */}
+      <div className="card p-5 space-y-3">
+        <h2 className="text-sm font-bold text-slate-700 mb-2">Формат файла</h2>
+        <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
+          {FORMAT_OPTIONS.map(({ value, label, hint, Icon }) => {
+            const active = format === value;
+            return (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setFormat(value)}
                 className={`text-left p-4 rounded-xl border-2 transition-all active:scale-[0.99]
                   ${active
                     ? 'border-brand-500 bg-brand-50 shadow-brand'
@@ -158,7 +214,7 @@ export default function ExportForm() {
                    transition-all active:scale-[0.98] text-base"
       >
         <Download className="w-5 h-5" />
-        Скачать .xlsx
+        Скачать {format === 'csv' ? '.csv' : '.xlsx'}
       </a>
 
     </div>
