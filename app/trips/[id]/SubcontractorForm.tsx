@@ -3,6 +3,16 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import {
+  Building2,
+  Truck,
+  Package,
+  MapPin,
+  X,
+  Check,
+  Loader2,
+  Plus,
+} from 'lucide-react';
+import {
   createTripSubcontractor,
   updateTripSubcontractor,
 } from '../../../lib/trip-subcontractors';
@@ -31,7 +41,6 @@ type Contractor = {
   email: string | null;
 };
 
-// Точка загрузки рейса (sender / sender2 / ... / sender5)
 export type SenderPoint = {
   num: number;
   country: string | null;
@@ -42,9 +51,8 @@ export type SenderPoint = {
   loading_number: string | null;
 };
 
-// Одна точка загрузки подрядчика (A1..A5)
 type LoadPoint = {
-  sourceNum: number | null; // если из рейса — num, иначе null
+  sourceNum: number | null;
   date: string | null;
   country: string | null;
   city: string | null;
@@ -77,7 +85,6 @@ type SubcontractorData = {
   cargo_quantity: string | null;
   customs_loading: string | null;
   customs_unloading: string | null;
-  // Плюс load_* поля для совместимости с бэком
   load_date?: string | null;
   load_country?: string | null;
   load_city?: string | null;
@@ -164,61 +171,15 @@ const TRANSPORT_TYPES = [
   'Chlodnia',
 ];
 
-// Возвращает массив load-точек из initialData (для редактирования)
 function extractLoadPoints(initialData?: SubcontractorData): LoadPoint[] {
   if (!initialData) return [];
 
   const raw: LoadPoint[] = [
-    {
-      sourceNum: null,
-      date: initialData.load_date || null,
-      country: initialData.load_country || null,
-      city: initialData.load_city || null,
-      address: initialData.load_address || null,
-      company: initialData.load_company || null,
-      postal_code: initialData.load_postal_code || null,
-      number: initialData.load_number || null,
-    },
-    {
-      sourceNum: null,
-      date: initialData.load2_date || null,
-      country: initialData.load2_country || null,
-      city: initialData.load2_city || null,
-      address: initialData.load2_address || null,
-      company: initialData.load2_company || null,
-      postal_code: initialData.load2_postal_code || null,
-      number: initialData.load2_number || null,
-    },
-    {
-      sourceNum: null,
-      date: initialData.load3_date || null,
-      country: initialData.load3_country || null,
-      city: initialData.load3_city || null,
-      address: initialData.load3_address || null,
-      company: initialData.load3_company || null,
-      postal_code: initialData.load3_postal_code || null,
-      number: initialData.load3_number || null,
-    },
-    {
-      sourceNum: null,
-      date: initialData.load4_date || null,
-      country: initialData.load4_country || null,
-      city: initialData.load4_city || null,
-      address: initialData.load4_address || null,
-      company: initialData.load4_company || null,
-      postal_code: initialData.load4_postal_code || null,
-      number: initialData.load4_number || null,
-    },
-    {
-      sourceNum: null,
-      date: initialData.load5_date || null,
-      country: initialData.load5_country || null,
-      city: initialData.load5_city || null,
-      address: initialData.load5_address || null,
-      company: initialData.load5_company || null,
-      postal_code: initialData.load5_postal_code || null,
-      number: initialData.load5_number || null,
-    },
+    { sourceNum: null, date: initialData.load_date  || null, country: initialData.load_country  || null, city: initialData.load_city  || null, address: initialData.load_address  || null, company: initialData.load_company  || null, postal_code: initialData.load_postal_code  || null, number: initialData.load_number  || null },
+    { sourceNum: null, date: initialData.load2_date || null, country: initialData.load2_country || null, city: initialData.load2_city || null, address: initialData.load2_address || null, company: initialData.load2_company || null, postal_code: initialData.load2_postal_code || null, number: initialData.load2_number || null },
+    { sourceNum: null, date: initialData.load3_date || null, country: initialData.load3_country || null, city: initialData.load3_city || null, address: initialData.load3_address || null, company: initialData.load3_company || null, postal_code: initialData.load3_postal_code || null, number: initialData.load3_number || null },
+    { sourceNum: null, date: initialData.load4_date || null, country: initialData.load4_country || null, city: initialData.load4_city || null, address: initialData.load4_address || null, company: initialData.load4_company || null, postal_code: initialData.load4_postal_code || null, number: initialData.load4_number || null },
+    { sourceNum: null, date: initialData.load5_date || null, country: initialData.load5_country || null, city: initialData.load5_city || null, address: initialData.load5_address || null, company: initialData.load5_company || null, postal_code: initialData.load5_postal_code || null, number: initialData.load5_number || null },
   ];
 
   return raw.filter(
@@ -252,12 +213,10 @@ export default function SubcontractorForm({
   const isEdit = Boolean(subcontractorId);
   const hasSenderPoints = Boolean(senderPoints && senderPoints.length > 0);
 
-  // Инициализация: восстанавливаем load-точки либо из initialData, либо создаём пустую
   function initLoadPoints(): LoadPoint[] {
     if (isEdit && initialData) {
       const restored = extractLoadPoints(initialData);
       if (restored.length > 0) {
-        // Пытаемся связать с senderPoints по city+country
         if (senderPoints) {
           return restored.map((p) => {
             const match = senderPoints.find(
@@ -274,13 +233,10 @@ export default function SubcontractorForm({
       }
     }
 
-    // Новая запись
     if (hasSenderPoints) {
-      // Ничего не отмечаем, пусть пользователь выберет
       return [];
     }
 
-    // Fallback — если есть defaultLoad, используем его
     if (defaultLoad && (defaultLoad.city || defaultLoad.company || defaultLoad.country)) {
       return [
         {
@@ -295,16 +251,13 @@ export default function SubcontractorForm({
       ];
     }
 
-    // Совсем пустой старт
     return [{ ...emptyLoadPoint }];
   }
 
   const [data, setData] = useState<SubcontractorData>(
     initialData
       ? { ...emptyData, ...initialData }
-      : {
-          ...emptyData,
-        }
+      : { ...emptyData }
   );
   const [loadPoints, setLoadPoints] = useState<LoadPoint[]>(initLoadPoints);
   const [error, setError] = useState<string | null>(null);
@@ -313,20 +266,18 @@ export default function SubcontractorForm({
 
   const inputClass =
     'w-full rounded-lg border border-slate-300 px-3 py-2.5 text-base text-slate-900 ' +
-    'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all';
+    'focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all';
   const labelClass = 'block text-sm font-medium text-slate-700 mb-1';
   const presetClass =
-    'w-full rounded-lg border-2 border-dashed border-blue-300 bg-blue-50 px-3 py-2.5 text-base text-slate-900 font-medium ' +
-    'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-solid focus:border-blue-500 transition-all';
+    'w-full rounded-lg border-2 border-dashed border-brand-300 bg-brand-50 px-3 py-2.5 text-base text-slate-900 font-medium ' +
+    'focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-solid focus:border-brand-500 transition-all';
 
   function setField<K extends keyof SubcontractorData>(field: K, value: SubcontractorData[K]) {
     setData((prev) => ({ ...prev, [field]: value }));
   }
 
-  // Точки загрузки
   function toggleSenderPoint(num: number, checked: boolean) {
     if (checked) {
-      // Добавляем точку из senderPoints
       if (loadPoints.some((p) => p.sourceNum === num)) return;
       if (loadPoints.length >= 5) return;
       const sp = senderPoints!.find((s) => s.num === num);
@@ -341,7 +292,6 @@ export default function SubcontractorForm({
         postal_code: sp.postal_code,
         number: sp.loading_number,
       };
-      // Сортируем по sourceNum (null в конце)
       const next = [...loadPoints, newPoint].sort((a, b) => {
         if (a.sourceNum === null && b.sourceNum === null) return 0;
         if (a.sourceNum === null) return 1;
@@ -350,7 +300,6 @@ export default function SubcontractorForm({
       });
       setLoadPoints(next);
     } else {
-      // Удаляем точку
       setLoadPoints(loadPoints.filter((p) => p.sourceNum !== num));
     }
   }
@@ -437,7 +386,6 @@ export default function SubcontractorForm({
     formData.set('driver_name', data.driver_name || '');
     formData.set('driver_phone', data.driver_phone || '');
 
-    // Раскладываем loadPoints по полям load_*, load2_*, ..., load5_*
     const prefixes = ['load', 'load2', 'load3', 'load4', 'load5'];
     for (let i = 0; i < 5; i++) {
       const p = loadPoints[i];
@@ -451,7 +399,6 @@ export default function SubcontractorForm({
         formData.set(`${prefix}_postal_code`, p.postal_code || '');
         formData.set(`${prefix}_number`, p.number || '');
       } else {
-        // Пустые
         formData.set(`${prefix}_date`, '');
         formData.set(`${prefix}_country`, '');
         formData.set(`${prefix}_city`, '');
@@ -498,24 +445,34 @@ export default function SubcontractorForm({
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-start justify-center p-4 bg-black/50 overflow-y-auto"
+      className="fixed inset-0 z-[100] flex items-start justify-center p-4 bg-black/50 overflow-y-auto animate-fade-in"
       onClick={() => !isPending && onClose()}
     >
       <div
-        className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full my-8 p-5 md:p-6 space-y-4"
+        className="bg-white rounded-2xl shadow-soft-lg max-w-2xl w-full my-8 p-5 md:p-6 space-y-4 animate-scale-in"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3">
-          <h3 className="text-lg font-bold text-slate-900">
-            {isEdit ? '✏️ Редактировать подрядчика' : '➕ Добавить подрядчика'}
+          <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+            {isEdit ? (
+              <>
+                <Package className="w-5 h-5 text-brand-600" />
+                Редактировать подрядчика
+              </>
+            ) : (
+              <>
+                <Plus className="w-5 h-5 text-brand-600" />
+                Добавить подрядчика
+              </>
+            )}
           </h3>
           <button
             type="button"
             onClick={onClose}
             disabled={isPending}
-            className="text-slate-400 hover:text-slate-600 text-xl leading-none px-2"
+            className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors"
           >
-            ×
+            <X className="w-5 h-5" />
           </button>
         </div>
 
@@ -523,7 +480,10 @@ export default function SubcontractorForm({
 
           {/* ПОДРЯДЧИК */}
           <div className="bg-slate-50 rounded-xl p-4 space-y-3">
-            <h4 className="text-sm font-bold text-slate-700">🏢 Подрядчик</h4>
+            <h4 className="text-sm font-bold text-slate-700 flex items-center gap-2">
+              <Building2 className="w-4 h-4 text-brand-600" />
+              Подрядчик
+            </h4>
 
             <div>
               <label className={labelClass}>Компания *</label>
@@ -581,7 +541,10 @@ export default function SubcontractorForm({
 
           {/* МАШИНА / ВОДИТЕЛЬ */}
           <div className="bg-slate-50 rounded-xl p-4 space-y-3">
-            <h4 className="text-sm font-bold text-slate-700">🚛 Машина и водитель</h4>
+            <h4 className="text-sm font-bold text-slate-700 flex items-center gap-2">
+              <Truck className="w-4 h-4 text-brand-600" />
+              Машина и водитель
+            </h4>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="md:col-span-2">
@@ -619,15 +582,18 @@ export default function SubcontractorForm({
 
           {/* ЧЕКБОКСЫ: ТОЧКИ ЗАГРУЗКИ ИЗ РЕЙСА */}
           {hasSenderPoints && (
-            <div className="bg-blue-50 rounded-xl p-4 space-y-3 border border-blue-200">
+            <div className="bg-brand-50 rounded-xl p-4 space-y-3 border border-brand-200">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <h4 className="text-sm font-bold text-blue-800">📦 Точки загрузки из рейса</h4>
-                <span className="text-[10px] text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full">
+                <h4 className="text-sm font-bold text-brand-800 flex items-center gap-2">
+                  <Package className="w-4 h-4" />
+                  Точки загрузки из рейса
+                </h4>
+                <span className="text-[10px] text-brand-700 bg-brand-100 px-2 py-0.5 rounded-full">
                   отметьте, откуда подрядчик забирает
                 </span>
               </div>
 
-              <p className="text-xs text-blue-700">
+              <p className="text-xs text-brand-700">
                 {loadPoints.length === 0
                   ? 'Ничего не отмечено — выберите одну или несколько точек ниже, или добавьте вручную.'
                   : 'Отмеченные точки появятся в блоке «Погрузка» ниже.'}
@@ -643,10 +609,10 @@ export default function SubcontractorForm({
                       key={sp.num}
                       className={`flex items-start gap-3 p-2.5 rounded-lg border transition-all cursor-pointer ${
                         isChecked
-                          ? 'bg-white border-blue-400 shadow-sm'
+                          ? 'bg-white border-brand-400 shadow-sm'
                           : disabled
                             ? 'bg-slate-50 border-slate-200 opacity-50 cursor-not-allowed'
-                            : 'bg-white/60 border-blue-100 hover:bg-white hover:border-blue-300'
+                            : 'bg-white/60 border-brand-100 hover:bg-white hover:border-brand-300'
                       }`}
                     >
                       <input
@@ -654,7 +620,7 @@ export default function SubcontractorForm({
                         checked={isChecked}
                         disabled={disabled}
                         onChange={(e) => toggleSenderPoint(sp.num, e.target.checked)}
-                        className="mt-1 w-4 h-4 accent-blue-600 cursor-pointer"
+                        className="mt-1 w-4 h-4 accent-brand-600 cursor-pointer"
                       />
                       <div className="min-w-0 flex-1">
                         <div className="text-sm font-semibold text-slate-800 break-words">
@@ -674,8 +640,10 @@ export default function SubcontractorForm({
           {/* ЗАГРУЗКА: A1..A5 */}
           <div className="bg-green-50 rounded-xl p-4 space-y-4">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h4 className="text-sm font-bold text-green-800">
-                🟢 Погрузка (A) {loadPoints.length > 1 && <span className="font-normal">· {loadPoints.length} точки</span>}
+              <h4 className="text-sm font-bold text-green-800 flex items-center gap-2">
+                <MapPin className="w-4 h-4" />
+                Погрузка (A)
+                {loadPoints.length > 1 && <span className="font-normal">· {loadPoints.length} точки</span>}
               </h4>
               <span className="text-[10px] text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
                 {hasSenderPoints ? 'A1 → A2 → ... → C' : 'откуда подрядчик забирает'}
@@ -713,17 +681,16 @@ export default function SubcontractorForm({
                           <button
                             type="button"
                             onClick={() => removePoint(idx)}
-                            className="text-red-600 hover:text-red-700 text-xs font-medium px-2 py-0.5 rounded hover:bg-red-50 transition-colors"
+                            className="inline-flex items-center gap-1 text-red-600 hover:text-red-700 text-xs font-medium px-2 py-0.5 rounded hover:bg-red-50 transition-colors"
                           >
-                            ✕ Удалить
+                            <X className="w-3 h-3" />
+                            Удалить
                           </button>
                         )}
                       </div>
 
                       <div>
-                        <label className={labelClass}>
-                          📌 Подставить из справочника
-                        </label>
+                        <label className={labelClass}>Подставить из справочника</label>
                         <select
                           onChange={(e) => {
                             fillPointFromLocation(idx, e.target.value);
@@ -824,9 +791,11 @@ export default function SubcontractorForm({
                 type="button"
                 onClick={addManualPoint}
                 className="w-full py-2.5 rounded-lg border-2 border-dashed border-green-300 text-green-700 font-medium text-sm
-                           hover:bg-green-100 hover:border-green-400 transition-all active:scale-[0.99]"
+                           hover:bg-green-100 hover:border-green-400 transition-all active:scale-[0.99]
+                           inline-flex items-center justify-center gap-2"
               >
-                + Добавить точку вручную
+                <Plus className="w-4 h-4" />
+                Добавить точку вручную
               </button>
             )}
           </div>
@@ -834,7 +803,10 @@ export default function SubcontractorForm({
           {/* ВЫГРУЗКА (C) */}
           <div className="bg-amber-50 rounded-xl p-4 space-y-3">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h4 className="text-sm font-bold text-amber-800">🔴 Выгрузка (точка C)</h4>
+              <h4 className="text-sm font-bold text-amber-800 flex items-center gap-2">
+                <MapPin className="w-4 h-4" />
+                Выгрузка (точка C)
+              </h4>
               <span className="text-[10px] text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full">
                 куда довозит подрядчик
               </span>
@@ -936,7 +908,10 @@ export default function SubcontractorForm({
 
           {/* ДЕТАЛИ ПЕРЕВОЗКИ */}
           <div className="bg-slate-50 rounded-xl p-4 space-y-3">
-            <h4 className="text-sm font-bold text-slate-700">📦 Детали перевозки</h4>
+            <h4 className="text-sm font-bold text-slate-700 flex items-center gap-2">
+              <Package className="w-4 h-4 text-brand-600" />
+              Детали перевозки
+            </h4>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
@@ -1022,7 +997,7 @@ export default function SubcontractorForm({
 
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-3 py-2">
-              ❌ {error}
+              {error}
             </div>
           )}
 
@@ -1031,25 +1006,25 @@ export default function SubcontractorForm({
               type="button"
               onClick={onClose}
               disabled={isPending}
-              className="flex-1 px-4 py-3 rounded-xl border border-slate-300 text-slate-700 font-medium
-                         hover:bg-slate-50 transition-all disabled:opacity-50"
+              className="btn-secondary flex-1"
             >
               Отмена
             </button>
             <button
               type="submit"
               disabled={isPending}
-              className="flex-1 px-4 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold
-                         shadow-md shadow-blue-600/20 transition-all active:scale-[0.98] disabled:opacity-50
-                         flex items-center justify-center gap-2"
+              className="btn-primary flex-1 flex items-center justify-center gap-2"
             >
               {isPending ? (
                 <>
-                  <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <Loader2 className="w-4 h-4 animate-spin" />
                   Сохранение...
                 </>
               ) : (
-                <>✅ Сохранить</>
+                <>
+                  <Check className="w-4 h-4" />
+                  Сохранить
+                </>
               )}
             </button>
           </div>
