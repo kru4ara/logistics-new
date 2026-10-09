@@ -15,6 +15,27 @@ const STATUS_LABELS: Record<string, string> = {
   paid: 'Оплачен',
 };
 
+// ============================================================
+// Хелперы для relations (Supabase может вернуть объект ИЛИ массив)
+// ============================================================
+function pickOne<T>(rel: unknown): T | null {
+  if (!rel) return null;
+  if (Array.isArray(rel)) return (rel[0] as T) ?? null;
+  return rel as T;
+}
+
+function pickName(rel: unknown): string {
+  if (!rel) return '';
+  if (Array.isArray(rel)) return rel[0]?.name || '';
+  if (typeof rel === 'object' && 'name' in rel) {
+    return (rel as { name?: string }).name || '';
+  }
+  return '';
+}
+
+// ============================================================
+// Telegram: в офисный чат
+// ============================================================
 async function sendTelegramMessage(text: string) {
   if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) return;
   try {
@@ -25,13 +46,44 @@ async function sendTelegramMessage(text: string) {
         chat_id: TELEGRAM_CHAT_ID,
         text,
         parse_mode: 'Markdown',
+        disable_web_page_preview: true,
       }),
+      cache: 'no-store',
     });
   } catch (e) {
-    console.error('Ошибка отправки в Telegram:', e);
+    console.error('[telegram/office] failed:', e);
   }
 }
 
+// ============================================================
+// Telegram: водителю лично
+// ============================================================
+async function sendTelegramToDriver(chatId: string, text: string) {
+  if (!TELEGRAM_BOT_TOKEN || !chatId) return;
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text,
+        parse_mode: 'Markdown',
+        disable_web_page_preview: true,
+      }),
+      cache: 'no-store',
+    });
+    if (!res.ok) {
+      const body = await res.text();
+      console.error('[telegram/driver] failed:', res.status, body);
+    }
+  } catch (e) {
+    console.error('[telegram/driver] exception:', e);
+  }
+}
+
+// ============================================================
+// changeTripStatus
+// ============================================================
 export async function changeTripStatus(
   tripId: string,
   status: string,
@@ -39,14 +91,18 @@ export async function changeTripStatus(
 ) {
   const supabase = await createClient();
 
-  // 1. Получаем данные рейса перед обновлением.
-  // ВАЖНО: используем явные FK-алиасы (!driver_id и !truck_id),
-  // потому что у trips ДВА внешних ключа на trucks (truck_id и trailer_id),
-  // и без явного указания PostgREST вернёт ошибку "more than one relationship found",
-  // из-за которой data = null и логика молча ломается.
+  // Забираем рейс + relations.
+  // ВАЖНО: явные FK-алиасы (!driver_id и !truck_id), потому что у trips
+  // два внешних ключа на trucks (truck_id и trailer_id). Без этого
+  // PostgREST падает с "more than one relationship found".
   const { data: trip, error: tripError } = await supabase
     .from('trips')
-    .select('*, drivers!driver_id(first_name, last_name), trucks!truck_id(registration_number), clients(name)')
+    .select(`
+      *,
+      drivers!driver_id(first_name, last_name, telegram_chat_id),
+      trucks!truck_id(registration_number),
+      clients(name)
+    `)
     .eq('id', tripId)
     .single();
 
@@ -59,12 +115,12 @@ export async function changeTripStatus(
   const updateData: Record<string, any> = { status };
   const todayDate = new Date().toISOString().split('T')[0];
 
-  // 2. Старт рейса — если пусто, ставим сегодня
+  // Старт рейса — если пусто, ставим сегодня
   if (status === 'active' && !trip?.start_date) {
     updateData.start_date = todayDate;
   }
 
-  // 3. Завершение — дата обязательна
+  // Завершение — дата обязательна
   if (status === 'completed') {
     const finalEndDate = endDate || todayDate;
 
@@ -85,7 +141,7 @@ export async function changeTripStatus(
     }
   }
 
-  // 4. Обновляем
+  // Обновляем
   const { error } = await supabase
     .from('trips')
     .update(updateData)
@@ -93,7 +149,7 @@ export async function changeTripStatus(
 
   if (error) throw new Error(`Ошибка обновления: ${error.message}`);
 
-  // 5. Логируем смену статуса
+  // Логируем смену статуса
   if (trip && oldStatus !== status) {
     const fromLabel = STATUS_LABELS[oldStatus || ''] || oldStatus || '—';
     const toLabel = STATUS_LABELS[status] || status;
@@ -113,7 +169,7 @@ export async function changeTripStatus(
     }
   }
 
-  // 6. Автосинхронизация Logisat при завершении
+  // Автосинхронизация Logisat при завершении
   if (status === 'completed') {
     try {
       const { syncTripFromLogisat } = await import('../../lib/logisat');
@@ -132,49 +188,98 @@ export async function changeTripStatus(
     }
   }
 
-  // 7. Telegram
-  const statusEmoji: Record<string, string> = {
-    active: '🚛',
-    completed: '✅',
-    invoiced: '💰',
-    paid: '💶',
-  };
+  // ============================================================
+  // Telegram
+  // ============================================================
+  if (trip && oldStatus !== status) {
+    const driver = pickOne<{
+      first_name: string | null;
+      last_name: string | null;
+      telegram_chat_id: string | null;
+    }>(trip.drivers);
 
-  const statusText: Record<string, string> = {
-    active: 'Начат',
-    completed: 'Завершён',
-    invoiced: 'Выставлен счёт',
-    paid: 'Оплачен',
-  };
+    const truck = pickOne<{ registration_number: string | null }>(trip.trucks);
+    const clientName = pickName(trip.clients) || '—';
 
-  if (trip) {
-    const driverName = trip.drivers
-      ? `${trip.drivers.first_name} ${trip.drivers.last_name}`
+    const driverName = driver
+      ? `${driver.first_name || ''} ${driver.last_name || ''}`.trim() || 'Не указан'
       : 'Не указан';
-    const truckNumber = trip.trucks?.registration_number || '—';
-    const clientName = trip.clients?.name || '—';
+    const truckNumber = truck?.registration_number || '—';
+    const tripNumber = trip.trip_number || '—';
+    const route = trip.route || '—';
 
-    const lines = [
-      `${statusEmoji[status] || '📋'} *Статус рейса изменён*`,
-      '',
-      `*Рейс:* № ${trip.trip_number || '—'}`,
-      `*Клиент:* ${clientName}`,
-      `*Маршрут:* ${trip.route || '—'}`,
-      `*Водитель:* ${driverName}`,
-      `*Машина:* ${truckNumber}`,
-      '',
-      `*Новый статус:* ${statusText[status] || status}`,
-    ];
+    // ==========================================================
+    // ВОДИТЕЛЮ ЛИЧНО — только active / completed
+    // ==========================================================
+    if (driver?.telegram_chat_id && (status === 'active' || status === 'completed')) {
+      let driverText = '';
 
-    if (status === 'completed' && updateData.end_date) {
-      lines.push(`*Дата завершения:* ${updateData.end_date}`);
+      if (status === 'active') {
+        driverText = [
+          `🚛 *Рейс №${tripNumber} начат*`,
+          '',
+          `*Клиент:* ${clientName}`,
+          `*Маршрут:* ${route}`,
+          `*Машина:* ${truckNumber}`,
+          '',
+          `Удачной дороги! 🛣`,
+        ].join('\n');
+      } else if (status === 'completed') {
+        const endDateStr = updateData.end_date
+          ? new Date(updateData.end_date).toLocaleDateString('ru-RU')
+          : '—';
+        driverText = [
+          `✅ *Рейс №${tripNumber} завершён*`,
+          '',
+          `*Клиент:* ${clientName}`,
+          `*Маршрут:* ${route}`,
+          `*Дата завершения:* ${endDateStr}`,
+          '',
+          `📎 Не забудь загрузить CMR с отметкой о выгрузке.`,
+        ].join('\n');
+      }
+
+      if (driverText) {
+        await sendTelegramToDriver(driver.telegram_chat_id, driverText);
+      }
     }
 
-    await sendTelegramMessage(lines.join('\n'));
+    // ==========================================================
+    // В ОФИСНЫЙ ЧАТ — только active / completed (не invoiced/paid)
+    // ==========================================================
+    if (status === 'active' || status === 'completed') {
+      const statusEmoji: Record<string, string> = {
+        active: '🚛',
+        completed: '✅',
+      };
+      const statusText: Record<string, string> = {
+        active: 'Начат',
+        completed: 'Завершён',
+      };
+
+      const lines = [
+        `${statusEmoji[status] || '📋'} *Рейс №${tripNumber} · статус изменён*`,
+        '',
+        `*Клиент:* ${clientName}`,
+        `*Маршрут:* ${route}`,
+        `*Водитель:* ${driverName}`,
+        `*Машина:* ${truckNumber}`,
+        '',
+        `*Новый статус:* ${statusText[status] || status}`,
+      ];
+
+      if (status === 'completed' && updateData.end_date) {
+        const endRu = new Date(updateData.end_date).toLocaleDateString('ru-RU');
+        lines.push(`*Дата завершения:* ${endRu}`);
+      }
+
+      await sendTelegramMessage(lines.join('\n'));
+    }
   }
 
   revalidatePath(`/trips/${tripId}`);
   revalidatePath(`/driver/trips/${tripId}`);
   revalidatePath('/trips');
   revalidatePath('/driver');
+  revalidatePath('/today');
 }
