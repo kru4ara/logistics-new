@@ -9,9 +9,6 @@ import {
   Route as RouteIcon,
   Truck,
   Inbox,
-  TrendingUp,
-  TrendingDown,
-  Wallet,
 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -64,24 +61,41 @@ export default async function ForwardingPage({
   const year = parseInt(searchParams.year || '') || currentYear;
   const monthFilter = searchParams.month ? parseInt(searchParams.month) : null;
 
-  let query = supabase
-    .from('forwarding_orders')
-    .select('*, clients(name)')
-    .order('load_date', { ascending: false });
+  // Собираем годы из данных (для фильтра) — параллельно с основным запросом
+  const [{ data: allDates }, ordersResult] = await Promise.all([
+    supabase.from('forwarding_orders').select('load_date'),
+    (async () => {
+      let q = supabase
+        .from('forwarding_orders')
+        .select('*, clients(name)')
+        .order('load_date', { ascending: false });
 
-  if (monthFilter) {
-    const firstDay = `${year}-${String(monthFilter).padStart(2, '0')}-01`;
-    const lastDay = new Date(year, monthFilter, 0).toISOString().split('T')[0];
-    query = query.gte('load_date', firstDay).lte('load_date', lastDay);
-  } else {
-    query = query.gte('load_date', `${year}-01-01`).lte('load_date', `${year}-12-31`);
-  }
+      if (monthFilter) {
+        const firstDay = `${year}-${String(monthFilter).padStart(2, '0')}-01`;
+        const lastDay = new Date(year, monthFilter, 0).toISOString().split('T')[0];
+        q = q.gte('load_date', firstDay).lte('load_date', lastDay);
+      } else {
+        q = q.gte('load_date', `${year}-01-01`).lte('load_date', `${year}-12-31`);
+      }
 
-  const { data: orders, error } = await query;
+      return q;
+    })(),
+  ]);
+
+  const { data: orders, error } = ordersResult;
 
   if (error) {
     return <div className="p-8 text-red-500">Ошибка загрузки: {error.message}</div>;
   }
+
+  // Годы: все из данных + текущий + выбранный
+  const yearsSet = new Set<number>();
+  yearsSet.add(currentYear);
+  yearsSet.add(year);
+  (allDates || []).forEach((o) => {
+    if (o.load_date) yearsSet.add(new Date(o.load_date).getFullYear());
+  });
+  const years = Array.from(yearsSet).sort((a, b) => b - a);
 
   const orderIds = orders?.map((o) => o.id) || [];
 
@@ -150,8 +164,6 @@ export default async function ForwardingPage({
     'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
     'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь',
   ];
-
-  const years = [currentYear, currentYear - 1, currentYear - 2];
 
   const ordersByMonth: Record<string, { month: number; orders: any[] }> = {};
   orders?.forEach((o) => {
@@ -247,7 +259,6 @@ export default async function ForwardingPage({
             </div>
           </div>
 
-          {/* Итоги по фильтру */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-3 border-t border-slate-100">
             <div>
               <div className="text-xs text-slate-400 font-medium">Доход от клиентов</div>
