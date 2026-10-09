@@ -1,6 +1,16 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import {
+  RadioTower,
+  Loader2,
+  CheckCircle2,
+  XCircle,
+  AlertTriangle,
+  Circle,
+  Battery,
+  MapPin,
+} from 'lucide-react';
 
 type Truck = { id: string; registration: string; deviceId: string };
 type NotConnected = { id: string; registration: string };
@@ -101,18 +111,16 @@ export default function LogisatTestForm({ connectedTrucks, notConnectedTrucks }:
     return connectedTrucks.find((t) => t.deviceId === deviceId)?.registration || deviceId;
   }
 
-  const inputClass = "w-full rounded-lg border border-slate-300 px-3 py-2.5 text-base text-slate-900 " +
-    "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all";
-  const labelClass = "block text-sm font-medium text-slate-700 mb-1";
+  const inputClass = 'input';
+  const labelClass = 'block text-sm font-medium text-slate-700 mb-1';
 
   return (
     <div className="space-y-5">
 
       {/* ФОРМА */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6 space-y-4">
+      <div className="card p-5 md:p-6 space-y-4">
         <h2 className="text-lg font-bold text-slate-900">Параметры запроса</h2>
 
-        {/* Период */}
         <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
           <div>
             <label className={labelClass}>Дата с</label>
@@ -134,51 +142,49 @@ export default function LogisatTestForm({ connectedTrucks, notConnectedTrucks }:
           </div>
         </div>
 
-        {/* Пресеты */}
         <div>
           <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2">Быстрый выбор</div>
           <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={() => preset(0)} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">
-              Сегодня
-            </button>
-            <button type="button" onClick={() => preset(1)} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">
-              2 дня
-            </button>
-            <button type="button" onClick={() => preset(3)} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">
-              3 дня
-            </button>
-            <button type="button" onClick={() => preset(7)} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">
-              7 дней
-            </button>
-            <button type="button" onClick={() => preset(14)} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">
-              14 дней
-            </button>
-            <button type="button" onClick={() => preset(30)} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">
-              30 дней
-            </button>
+            {[
+              { d: 0, l: 'Сегодня' },
+              { d: 1, l: '2 дня' },
+              { d: 3, l: '3 дня' },
+              { d: 7, l: '7 дней' },
+              { d: 14, l: '14 дней' },
+              { d: 30, l: '30 дней' },
+            ].map(({ d, l }) => (
+              <button
+                key={d}
+                type="button"
+                onClick={() => preset(d)}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors active:scale-[0.97]"
+              >
+                {l}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Машины */}
         <div>
           <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
             <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold">
               Машины с Logisat ({connectedTrucks.length})
             </div>
             <div className="flex gap-2 text-xs">
-              <button type="button" onClick={selectAll} className="text-blue-600 hover:underline font-medium">
+              <button type="button" onClick={selectAll} className="text-brand-600 hover:underline font-medium">
                 Все
               </button>
               <span className="text-slate-300">·</span>
-              <button type="button" onClick={selectNone} className="text-blue-600 hover:underline font-medium">
+              <button type="button" onClick={selectNone} className="text-brand-600 hover:underline font-medium">
                 Ничего
               </button>
             </div>
           </div>
 
           {connectedTrucks.length === 0 ? (
-            <div className="text-sm text-slate-500 bg-amber-50 border border-amber-200 rounded-lg p-3">
-              ⚠️ Нет машин с привязкой к Logisat
+            <div className="flex items-start gap-2 text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3">
+              <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+              <span>Нет машин с привязкой к Logisat</span>
             </div>
           ) : (
             <div className="flex flex-wrap gap-2">
@@ -191,12 +197,12 @@ export default function LogisatTestForm({ connectedTrucks, notConnectedTrucks }:
                     onClick={() => toggleDevice(t.deviceId)}
                     className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all
                       ${isSelected
-                        ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
+                        ? 'bg-brand-600 text-white shadow-brand'
                         : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
                   >
                     <span className={`w-4 h-4 rounded border-2 flex items-center justify-center
                       ${isSelected ? 'bg-white border-white' : 'border-slate-400'}`}>
-                      {isSelected && <span className="text-blue-600 text-xs font-bold">✓</span>}
+                      {isSelected && <span className="text-brand-600 text-xs font-bold">✓</span>}
                     </span>
                     <span>{t.registration}</span>
                   </button>
@@ -212,10 +218,10 @@ export default function LogisatTestForm({ connectedTrucks, notConnectedTrucks }:
           )}
         </div>
 
-        {/* Кнопка запроса */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
-            ❌ {error}
+          <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+            <XCircle className="w-4 h-4 mt-0.5 shrink-0" />
+            <span>{error}</span>
           </div>
         )}
 
@@ -226,22 +232,25 @@ export default function LogisatTestForm({ connectedTrucks, notConnectedTrucks }:
           className={`w-full flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-semibold transition-all
             ${isPending || selectedIds.length === 0
               ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
-              : 'bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-600/20 active:scale-[0.98]'}`}
+              : 'bg-brand-600 hover:bg-brand-700 text-white shadow-brand active:scale-[0.98]'}`}
         >
           {isPending ? (
             <>
-              <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              <Loader2 className="w-4 h-4 animate-spin" />
               Запрашиваем Logisat...
             </>
           ) : (
-            <>📡 Запросить данные</>
+            <>
+              <RadioTower className="w-4 h-4" />
+              Запросить данные
+            </>
           )}
         </button>
       </div>
 
       {/* РЕЗУЛЬТАТЫ */}
       {results && period && (
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6 space-y-4">
+        <div className="card p-5 md:p-6 space-y-4 animate-fade-in">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-lg font-bold text-slate-900">
               Результаты ({results.length} машин)
@@ -260,7 +269,11 @@ export default function LogisatTestForm({ connectedTrucks, notConnectedTrucks }:
               >
                 <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl">{r.success ? '✅' : '❌'}</span>
+                    {r.success ? (
+                      <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+                    ) : (
+                      <XCircle className="w-6 h-6 text-red-600" />
+                    )}
                     <div>
                       <div className="font-bold text-slate-900 text-lg">
                         {truckByDeviceId(r.deviceId)}
@@ -308,36 +321,47 @@ export default function LogisatTestForm({ connectedTrucks, notConnectedTrucks }:
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
                       <div className="bg-white rounded-xl p-3 text-xs">
-                        <div className="font-semibold text-slate-700 mb-1">🔵 Первый кадр</div>
+                        <div className="font-semibold text-slate-700 mb-1 inline-flex items-center gap-1.5">
+                          <Circle className="w-3 h-3 fill-brand-500 text-brand-500" />
+                          Первый кадр
+                        </div>
                         <div className="text-slate-600">{r.firstFrame.time}</div>
                         <div className="text-slate-500 mt-1 font-mono">
                           {r.firstFrame.totaldistance} м · {r.firstFrame.totalfuel} мл
                         </div>
-                        <div className="text-slate-400 mt-1">
-                          🔋 {r.firstFrame.fuellevelperc}% · {r.firstFrame.ignitionState}
+                        <div className="text-slate-400 mt-1 inline-flex items-center gap-1.5">
+                          <Battery className="w-3 h-3" />
+                          {r.firstFrame.fuellevelperc}% · {r.firstFrame.ignitionState}
                         </div>
-                        <div className="text-slate-400 mt-1">
-                          📍 {r.firstFrame.lat?.toFixed(4)}, {r.firstFrame.lng?.toFixed(4)}
+                        <div className="text-slate-400 mt-1 inline-flex items-center gap-1.5">
+                          <MapPin className="w-3 h-3" />
+                          {r.firstFrame.lat?.toFixed(4)}, {r.firstFrame.lng?.toFixed(4)}
                         </div>
                       </div>
                       <div className="bg-white rounded-xl p-3 text-xs">
-                        <div className="font-semibold text-slate-700 mb-1">🔴 Последний кадр</div>
+                        <div className="font-semibold text-slate-700 mb-1 inline-flex items-center gap-1.5">
+                          <Circle className="w-3 h-3 fill-red-500 text-red-500" />
+                          Последний кадр
+                        </div>
                         <div className="text-slate-600">{r.lastFrame.time}</div>
                         <div className="text-slate-500 mt-1 font-mono">
                           {r.lastFrame.totaldistance} м · {r.lastFrame.totalfuel} мл
                         </div>
-                        <div className="text-slate-400 mt-1">
-                          🔋 {r.lastFrame.fuellevelperc}% · {r.lastFrame.ignitionState}
+                        <div className="text-slate-400 mt-1 inline-flex items-center gap-1.5">
+                          <Battery className="w-3 h-3" />
+                          {r.lastFrame.fuellevelperc}% · {r.lastFrame.ignitionState}
                         </div>
-                        <div className="text-slate-400 mt-1">
-                          📍 {r.lastFrame.lat?.toFixed(4)}, {r.lastFrame.lng?.toFixed(4)}
+                        <div className="text-slate-400 mt-1 inline-flex items-center gap-1.5">
+                          <MapPin className="w-3 h-3" />
+                          {r.lastFrame.lat?.toFixed(4)}, {r.lastFrame.lng?.toFixed(4)}
                         </div>
                       </div>
                     </div>
 
                     {r.errors && r.errors.length > 0 && (
-                      <div className="mt-3 text-xs text-orange-600 bg-orange-50 rounded-lg p-2">
-                        ⚠️ {r.errors.join(' · ')}
+                      <div className="mt-3 flex items-start gap-2 text-xs text-orange-700 bg-orange-50 rounded-lg p-2">
+                        <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                        <span>{r.errors.join(' · ')}</span>
                       </div>
                     )}
                   </>
