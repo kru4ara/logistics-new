@@ -1,6 +1,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
+import { Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 export default function DownloadButton({ data }: { data: any[] }) {
@@ -33,7 +34,8 @@ export default function DownloadButton({ data }: { data: any[] }) {
 
   return (
     <Button onClick={handleDownload} variant="default">
-      📥 Скачать Excel
+      <Download className="w-4 h-4 mr-2" />
+      Скачать Excel
     </Button>
   );
 }
