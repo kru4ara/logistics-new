@@ -1,4 +1,23 @@
 import { createClient } from '../../../lib/supabase-server';
+import {
+  ArrowLeft,
+  Pencil,
+  Truck as TruckIcon,
+  Container,
+  BarChart3,
+  TrendingUp,
+  Gauge,
+  Fuel,
+  Route as RouteIcon,
+  Calendar,
+  UserCircle,
+  Shield,
+  Wrench,
+  ClipboardCheck,
+  Globe,
+  FileCheck,
+  Inbox,
+} from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,7 +31,7 @@ const statusLabels: Record<string, string> = {
 
 const statusColors: Record<string, string> = {
   planned: 'bg-slate-100 text-slate-700 border-slate-200',
-  active: 'bg-blue-50 text-blue-700 border-blue-200',
+  active: 'bg-brand-50 text-brand-700 border-brand-200',
   completed: 'bg-green-50 text-green-700 border-green-200',
   invoiced: 'bg-yellow-50 text-yellow-700 border-yellow-200',
   paid: 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -84,22 +103,22 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ id
 
   const isTractor = truck.type === 'tractor';
   const typeLabel = isTractor ? 'Тягач' : truck.type === 'trailer' ? 'Прицеп' : truck.type;
-  const typeIcon = isTractor ? '🚛' : '🚚';
+  const TypeIcon = isTractor ? TruckIcon : Container;
 
   // Набор документов — разный для тягача и прицепа
   const documentFields = isTractor
     ? [
-        { label: 'Страховка ОС', value: truck.truck_insurance_expiry, icon: '🛡' },
-        { label: 'ТО (техобслуживание)', value: truck.to_expiry, icon: '🛠' },
-        { label: 'Техосмотр', value: truck.tech_inspection_expiry, icon: '🔧' },
-        { label: 'Пограничная страховка РБ', value: truck.border_insurance_expiry, icon: '🛂' },
-        { label: 'Калибровка тахографа', value: truck.tachograph_calibration_expiry, icon: '⚙️' },
+        { label: 'Страховка ОС', value: truck.truck_insurance_expiry, Icon: Shield },
+        { label: 'ТО (техобслуживание)', value: truck.to_expiry, Icon: Wrench },
+        { label: 'Техосмотр', value: truck.tech_inspection_expiry, Icon: ClipboardCheck },
+        { label: 'Пограничная страховка РБ', value: truck.border_insurance_expiry, Icon: Globe },
+        { label: 'Калибровка тахографа', value: truck.tachograph_calibration_expiry, Icon: Gauge },
       ]
     : [
-        { label: 'Страховка ОС', value: truck.truck_insurance_expiry, icon: '🛡' },
-        { label: 'Техосмотр', value: truck.tech_inspection_expiry, icon: '🔧' },
-        { label: 'Пограничная страховка РБ', value: truck.border_insurance_expiry, icon: '🛂' },
-        { label: 'Таможенное свидетельство', value: truck.customs_certificate_expiry, icon: '📄' },
+        { label: 'Страховка ОС', value: truck.truck_insurance_expiry, Icon: Shield },
+        { label: 'Техосмотр', value: truck.tech_inspection_expiry, Icon: ClipboardCheck },
+        { label: 'Пограничная страховка РБ', value: truck.border_insurance_expiry, Icon: Globe },
+        { label: 'Таможенное свидетельство', value: truck.customs_certificate_expiry, Icon: FileCheck },
       ];
 
   const hasTechData = truck.brand || truck.model || truck.year || truck.vin || truck.fuel_card_number || truck.trailer_number;
@@ -108,21 +127,22 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ id
     <main className="min-h-screen bg-slate-50">
       <div className="max-w-[1400px] mx-auto px-4 md:px-6 py-6 md:py-8 space-y-5 md:space-y-6">
 
-        <a href="/trucks" className="inline-flex items-center gap-2 text-slate-600 hover:text-blue-600 transition-colors text-sm font-medium">
-          ← Все машины
+        <a href="/trucks" className="inline-flex items-center gap-2 text-slate-600 hover:text-brand-600 transition-colors text-sm font-medium">
+          <ArrowLeft className="w-4 h-4" strokeWidth={2} />
+          Все машины
         </a>
 
         {/* Шапка профиля */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
+        <div className="card p-5 md:p-6">
           <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-4">
             <div className="flex items-center gap-4 md:gap-5">
-              <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700
-                              flex items-center justify-center text-white text-3xl md:text-4xl shrink-0">
-                {typeIcon}
+              <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-gradient-to-br from-brand-500 to-accent-500
+                              flex items-center justify-center text-white shrink-0 shadow-brand">
+                <TypeIcon className="w-8 h-8 md:w-10 md:h-10" strokeWidth={2.2} />
               </div>
               <div className="min-w-0">
-                <h1 className="text-xl md:text-2xl font-bold text-slate-900 break-words">
-                  {truck.registration_number}
+                <h1 className="text-xl md:text-2xl font-bold text-slate-900 break-words tracking-tight tabular-nums">
+                  {truck.registration_number?.trim() || '—'}
                 </h1>
                 <p className="text-slate-500 mt-1 text-sm md:text-base break-words">
                   {typeLabel}
@@ -135,11 +155,10 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ id
 
             <a
               href={`/trucks/${truckId}/edit`}
-              className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white
-                         font-semibold px-5 py-2.5 rounded-xl shadow-md shadow-blue-600/20
-                         transition-all duration-150 active:scale-[0.98] w-full sm:w-auto text-sm md:text-base"
+              className="btn btn-primary w-full sm:w-auto text-sm md:text-base"
             >
-              ✏️ Редактировать
+              <Pencil className="w-4 h-4" strokeWidth={2} />
+              Редактировать
             </a>
           </div>
         </div>
@@ -147,31 +166,43 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ id
         {/* 📊 Сводка по работе */}
         <div>
           <h2 className="text-xs md:text-sm font-bold text-slate-500 uppercase tracking-wide mb-3 px-1">
-            📊 Работа
+            Работа
           </h2>
           <div className="grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-4">
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-5">
-              <div className="text-xs text-slate-400 font-medium mb-1">Всего рейсов</div>
-              <div className="text-2xl md:text-3xl font-bold text-blue-600">{totalTrips}</div>
+            <div className="card p-4 md:p-5">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs text-slate-400 font-medium">Всего рейсов</span>
+                <BarChart3 className="w-4 h-4 text-brand-600" strokeWidth={2} />
+              </div>
+              <div className="text-2xl md:text-3xl font-bold text-brand-600 tabular-nums">{totalTrips}</div>
               {activeTripsCount > 0 && (
-                <div className="text-xs text-blue-500 mt-1">🚀 в пути: {activeTripsCount}</div>
+                <div className="text-xs text-brand-500 mt-1">в пути: {activeTripsCount}</div>
               )}
             </div>
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-5">
-              <div className="text-xs text-slate-400 font-medium mb-1">Общий фрахт</div>
-              <div className="text-xl md:text-2xl font-bold text-green-600 break-words">
+            <div className="card p-4 md:p-5">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs text-slate-400 font-medium">Общий фрахт</span>
+                <TrendingUp className="w-4 h-4 text-green-600" strokeWidth={2} />
+              </div>
+              <div className="text-xl md:text-2xl font-bold text-green-600 break-words tabular-nums">
                 {totalRevenue > 0 ? `${Math.round(totalRevenue).toLocaleString('ru-RU')} €` : '—'}
               </div>
             </div>
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-5">
-              <div className="text-xs text-slate-400 font-medium mb-1">Пройдено</div>
-              <div className="text-xl md:text-2xl font-bold text-slate-800 break-words">
+            <div className="card p-4 md:p-5">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs text-slate-400 font-medium">Пройдено</span>
+                <Gauge className="w-4 h-4 text-slate-600" strokeWidth={2} />
+              </div>
+              <div className="text-xl md:text-2xl font-bold text-slate-800 break-words tabular-nums">
                 {totalKm > 0 ? `${Math.round(totalKm).toLocaleString('ru-RU')} км` : '—'}
               </div>
             </div>
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-5">
-              <div className="text-xs text-slate-400 font-medium mb-1">Ср. расход</div>
-              <div className="text-xl md:text-2xl font-bold text-slate-800">
+            <div className="card p-4 md:p-5">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs text-slate-400 font-medium">Ср. расход</span>
+                <Fuel className="w-4 h-4 text-slate-600" strokeWidth={2} />
+              </div>
+              <div className="text-xl md:text-2xl font-bold text-slate-800 tabular-nums">
                 {avgConsumption !== null ? `${avgConsumption.toFixed(1)} л/100` : '—'}
               </div>
             </div>
@@ -180,11 +211,14 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ id
 
         {/* 🚚 Последние рейсы */}
         {lastTrips.length > 0 && (
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
+          <div className="card p-5 md:p-6">
             <div className="flex items-baseline justify-between gap-2 mb-4 flex-wrap">
-              <h2 className="text-lg font-bold text-slate-900">🚚 Последние рейсы</h2>
+              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <RouteIcon className="w-5 h-5 text-brand-600" strokeWidth={2} />
+                Последние рейсы
+              </h2>
               {totalTrips > 5 && (
-                <span className="text-xs text-slate-400">
+                <span className="text-xs text-slate-400 tabular-nums">
                   показано 5 из {totalTrips}
                 </span>
               )}
@@ -195,30 +229,32 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ id
                 const driverName = pickDriverName(t.drivers);
                 const dateStr = t.end_date || t.start_date;
                 const isOurTruck = t.truck_id === truckId;
-                const roleLabel = isOurTruck ? '🚛 тягач' : '🚚 прицеп';
+                const RoleIcon = isOurTruck ? TruckIcon : Container;
+                const roleLabel = isOurTruck ? 'тягач' : 'прицеп';
 
                 return (
                   <a
                     key={t.id}
                     href={`/trips/${t.id}`}
                     className="block border border-slate-100 rounded-xl p-3 md:p-4 bg-slate-50/40
-                               hover:bg-blue-50/40 hover:border-blue-200 transition-all"
+                               hover:bg-brand-50/40 hover:border-brand-200 transition-all"
                   >
                     <div className="flex items-start justify-between gap-3 flex-wrap">
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap mb-1">
-                          <span className="text-xs font-semibold text-slate-400">
+                          <span className="text-xs font-semibold text-slate-400 tabular-nums">
                             № {t.trip_number || '—'}
                           </span>
                           <span className={`text-[10px] md:text-xs font-semibold px-2 py-0.5 rounded-full border whitespace-nowrap
                                             ${statusColors[t.status] || 'bg-slate-100 text-slate-700 border-slate-200'}`}>
                             {statusLabels[t.status] || t.status}
                           </span>
-                          <span className="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
+                          <span className="inline-flex items-center gap-1 text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                            <RoleIcon className="w-3 h-3" strokeWidth={2} />
                             {roleLabel}
                           </span>
                           {dateStr && (
-                            <span className="text-xs text-slate-500">
+                            <span className="text-xs text-slate-500 tabular-nums">
                               · {new Date(dateStr).toLocaleDateString('ru-RU')}
                             </span>
                           )}
@@ -226,21 +262,23 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ id
                         <div className="text-sm font-semibold text-slate-800 break-words">
                           {clientName}
                         </div>
-                        <div className="text-xs text-slate-500 mt-0.5 break-words">
-                          {t.route || '—'}
+                        <div className="flex items-start gap-1.5 text-xs text-slate-500 mt-0.5">
+                          <RouteIcon className="w-3.5 h-3.5 shrink-0 mt-0.5" strokeWidth={2} />
+                          <span className="break-words">{t.route || '—'}</span>
                         </div>
                         {driverName && (
-                          <div className="text-xs text-slate-400 mt-0.5">
-                            🧑‍✈️ {driverName}
+                          <div className="flex items-center gap-1.5 text-xs text-slate-400 mt-0.5">
+                            <UserCircle className="w-3.5 h-3.5 shrink-0" strokeWidth={2} />
+                            <span>{driverName}</span>
                           </div>
                         )}
                       </div>
                       <div className="shrink-0 text-right">
-                        <div className="text-sm font-bold text-green-600 whitespace-nowrap">
+                        <div className="text-sm font-bold text-green-600 whitespace-nowrap tabular-nums">
                           {t.revenue_eur ? `${t.revenue_eur} €` : '—'}
                         </div>
                         {t.actual_km && (
-                          <div className="text-xs text-slate-400">
+                          <div className="text-xs text-slate-400 tabular-nums">
                             {Math.round(t.actual_km)} км
                           </div>
                         )}
@@ -255,8 +293,11 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ id
 
         {/* Технические данные */}
         {hasTechData && (
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
-            <h2 className="text-lg font-bold text-slate-900 mb-4">⚙️ Технические данные</h2>
+          <div className="card p-5 md:p-6">
+            <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+              <Wrench className="w-5 h-5 text-brand-600" strokeWidth={2} />
+              Технические данные
+            </h2>
             <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
               {truck.brand && (
                 <div>
@@ -273,25 +314,25 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ id
               {truck.year && (
                 <div>
                   <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Год выпуска</div>
-                  <div className="text-slate-800 font-medium">{truck.year}</div>
+                  <div className="text-slate-800 font-medium tabular-nums">{truck.year}</div>
                 </div>
               )}
               {truck.vin && (
                 <div className="sm:col-span-2">
                   <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">VIN</div>
-                  <div className="text-slate-800 font-medium break-all">{truck.vin}</div>
+                  <div className="text-slate-800 font-medium break-all tabular-nums">{truck.vin}</div>
                 </div>
               )}
               {isTractor && truck.fuel_card_number && (
                 <div>
                   <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Топливная карта</div>
-                  <div className="text-slate-800 font-medium break-words">{truck.fuel_card_number}</div>
+                  <div className="text-slate-800 font-medium break-words tabular-nums">{truck.fuel_card_number}</div>
                 </div>
               )}
               {isTractor && truck.trailer_number && (
                 <div>
                   <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Прицеп (текстом)</div>
-                  <div className="text-slate-800 font-medium break-words">{truck.trailer_number}</div>
+                  <div className="text-slate-800 font-medium break-words tabular-nums">{truck.trailer_number}</div>
                 </div>
               )}
             </div>
@@ -299,21 +340,25 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ id
         )}
 
         {/* 📅 Сроки документов */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
-          <h2 className="text-lg font-bold text-slate-900 mb-4">📅 Сроки документов</h2>
+        <div className="card p-5 md:p-6">
+          <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+            <Calendar className="w-5 h-5 text-brand-600" strokeWidth={2} />
+            Сроки документов
+          </h2>
           <div className="grid gap-3 md:gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
             {documentFields.map((doc) => {
               const badge = daysBadge(doc.value);
+              const Icon = doc.Icon;
               return (
                 <div key={doc.label} className="border border-slate-100 rounded-xl p-4">
                   <div className="flex items-center gap-2 mb-2">
-                    <span className="text-xl">{doc.icon}</span>
+                    <Icon className="w-4 h-4 text-brand-600 shrink-0" strokeWidth={2} />
                     <span className="text-sm font-semibold text-slate-700">{doc.label}</span>
                   </div>
-                  <div className="text-slate-800 font-medium mb-2">
+                  <div className="text-slate-800 font-medium mb-2 tabular-nums">
                     {doc.value ? new Date(doc.value).toLocaleDateString('ru-RU') : '—'}
                   </div>
-                  <div className={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold border ${badge.color}`}>
+                  <div className={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold border tabular-nums ${badge.color}`}>
                     {badge.label}
                   </div>
                 </div>
