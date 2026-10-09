@@ -2,17 +2,16 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase-server';
 import TripsList from './TripsList';
+import {
+  Rocket,
+  RadioTower,
+  BarChart3,
+  Truck,
+  Inbox,
+  ArrowRight,
+} from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
-
-function pickName(rel: unknown): string | undefined {
-  if (!rel) return undefined;
-  if (Array.isArray(rel)) return rel[0]?.name;
-  if (typeof rel === 'object' && 'name' in rel) {
-    return (rel as { name?: string }).name;
-  }
-  return undefined;
-}
 
 type ConsolidationPoint = {
   country: string | null;
@@ -100,10 +99,7 @@ export default async function DriverPage() {
   const currentMonth = now.getMonth();
   const currentYear = now.getFullYear();
 
-  // ============================================================
-  // РЕЙСЫ ЗА МЕСЯЦ — по дате ФИНИША (end_date), fallback на старт.
-  // Если финиша ещё нет (active/planned) — используем start_date.
-  // ============================================================
+  // РЕЙСЫ ЗА МЕСЯЦ — по дате ФИНИША (end_date), fallback на старт
   const monthTrips = trips?.filter((t) => {
     const dateStr = t.end_date || t.start_date;
     if (!dateStr) return false;
@@ -114,11 +110,7 @@ export default async function DriverPage() {
   const monthKm = monthTrips.reduce((sum, t) => sum + (t.actual_km || 0), 0);
   const monthLiters = monthTrips.reduce((sum, t) => sum + (t.actual_liters || 0), 0);
 
-  // ============================================================
-  // ЗАРПЛАТА ЗА МЕСЯЦ — по ДАТЕ ВЫПЛАТЫ (expense_date),
-  // а не по месяцу рейса. Если ЗП за сентябрьский рейс
-  // выдали в октябре — она считается октябрьской.
-  // ============================================================
+  // ЗАРПЛАТА ЗА МЕСЯЦ — по ДАТЕ ВЫПЛАТЫ (expense_date)
   const monthStart = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-01`;
   const nextMonthDate = new Date(currentYear, currentMonth + 1, 1);
   const nextMonthStart = `${nextMonthDate.getFullYear()}-${String(nextMonthDate.getMonth() + 1).padStart(2, '0')}-01`;
@@ -137,7 +129,6 @@ export default async function DriverPage() {
 
   const monthName = now.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
 
-  // Разделяем рейсы: активные (в пути) — отдельно, остальные — в истории
   const activeTrips = (trips || []).filter((t) => t.status === 'active');
   const otherTrips = (trips || []).filter((t) => t.status !== 'active');
 
@@ -146,26 +137,24 @@ export default async function DriverPage() {
       <div className="max-w-[900px] mx-auto px-4 py-6 space-y-5">
 
         {/* Приветствие */}
-        <div className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-2xl p-5 shadow-lg text-white">
-          <div className="text-sm text-blue-200">Привет,</div>
-          <div className="text-2xl font-bold mt-1 break-words">{userName} 👋</div>
-          <div className="text-sm text-blue-200 mt-3">
-            Всего рейсов: <span className="font-bold text-white">{trips?.length || 0}</span>
+        <div className="bg-gradient-to-br from-brand-600 to-brand-800 rounded-2xl p-5 shadow-brand-lg text-white">
+          <div className="text-sm text-brand-100">Привет,</div>
+          <div className="text-2xl font-bold mt-1 break-words">{userName}</div>
+          <div className="text-sm text-brand-100 mt-3">
+            Всего рейсов: <span className="font-bold text-white tabular-nums">{trips?.length || 0}</span>
           </div>
         </div>
 
-        {/* 🚀 АКТИВНЫЕ РЕЙСЫ — в пути */}
+        {/* АКТИВНЫЕ РЕЙСЫ */}
         {activeTrips.length > 0 && (
           <div>
             <div className="flex items-center gap-3 mb-3 px-1">
-              <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center text-lg shrink-0">
-                🚀
+              <div className="w-9 h-9 rounded-xl bg-brand-50 flex items-center justify-center shrink-0">
+                <Rocket className="w-5 h-5 text-brand-600" strokeWidth={2.2} />
               </div>
               <div className="min-w-0">
-                <h2 className="text-lg font-bold text-slate-900">
-                  В пути
-                </h2>
-                <div className="text-xs text-slate-400">
+                <h2 className="text-lg font-bold text-slate-900">В пути</h2>
+                <div className="text-xs text-slate-400 tabular-nums">
                   Активных рейсов: {activeTrips.length}
                 </div>
               </div>
@@ -181,75 +170,79 @@ export default async function DriverPage() {
         {/* Ссылка на Logisat */}
         <a
           href="/driver/logisat"
-          className="block bg-white rounded-2xl border border-slate-100 shadow-sm p-5
-                     hover:shadow-lg hover:border-blue-200 transition-all active:scale-[0.99]"
+          className="block card card-hover p-5 active:scale-[0.99]"
         >
           <div className="flex items-center gap-4">
-            <div className="text-4xl shrink-0">📡</div>
+            <div className="w-11 h-11 rounded-xl bg-brand-50 flex items-center justify-center shrink-0">
+              <RadioTower className="w-6 h-6 text-brand-600" strokeWidth={2.2} />
+            </div>
             <div className="min-w-0 flex-1">
               <div className="text-lg font-bold text-slate-900">Logisat — расход топлива</div>
               <div className="text-sm text-slate-500 mt-0.5">
                 Проверить пробег и расход по машине за период
               </div>
             </div>
-            <div className="text-blue-600 font-semibold text-sm shrink-0">Открыть →</div>
+            <ArrowRight className="w-5 h-5 text-slate-300 shrink-0" strokeWidth={2.5} />
           </div>
         </a>
 
         {/* Ссылка на статистику */}
         <a
           href="/driver/stats"
-          className="block bg-white rounded-2xl border border-slate-100 shadow-sm p-5
-                     hover:shadow-lg hover:border-blue-200 transition-all active:scale-[0.99]"
+          className="block card card-hover p-5 active:scale-[0.99]"
         >
           <div className="flex items-center gap-4">
-            <div className="text-4xl shrink-0">📊</div>
+            <div className="w-11 h-11 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
+              <BarChart3 className="w-6 h-6 text-emerald-600" strokeWidth={2.2} />
+            </div>
             <div className="min-w-0 flex-1">
               <div className="text-lg font-bold text-slate-900">Моя статистика</div>
               <div className="text-sm text-slate-500 mt-0.5">
                 Рейсы, км, расход топлива и зарплата по месяцам
               </div>
             </div>
-            <div className="text-blue-600 font-semibold text-sm shrink-0">Открыть →</div>
+            <ArrowRight className="w-5 h-5 text-slate-300 shrink-0" strokeWidth={2.5} />
           </div>
         </a>
 
         {/* Статистика за месяц */}
         <div>
-          <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wide mb-3 px-1">
-            📊 {monthName}
+          <h2 className="text-xs md:text-sm font-bold text-slate-500 uppercase tracking-wide mb-3 px-1">
+            {monthName}
           </h2>
           <div className="grid grid-cols-2 gap-3 sm:gap-4">
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 sm:p-5">
+            <div className="card p-4 sm:p-5">
               <div className="text-xs text-slate-400 font-medium mb-1">Рейсов за месяц</div>
-              <div className="text-2xl font-bold text-blue-600">{monthTrips.length}</div>
+              <div className="text-2xl font-bold text-brand-600 tabular-nums">{monthTrips.length}</div>
             </div>
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 sm:p-5">
+            <div className="card p-4 sm:p-5">
               <div className="text-xs text-slate-400 font-medium mb-1">Зарплата за месяц</div>
-              <div className="text-2xl font-bold text-emerald-600">{monthSalary.toFixed(0)} €</div>
+              <div className="text-2xl font-bold text-emerald-600 tabular-nums">{monthSalary.toFixed(0)} €</div>
             </div>
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 sm:p-5">
+            <div className="card p-4 sm:p-5">
               <div className="text-xs text-slate-400 font-medium mb-1">Пройдено км</div>
-              <div className="text-2xl font-bold text-slate-800">{monthKm.toFixed(0)}</div>
+              <div className="text-2xl font-bold text-slate-800 tabular-nums">{monthKm.toFixed(0)}</div>
             </div>
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 sm:p-5">
+            <div className="card p-4 sm:p-5">
               <div className="text-xs text-slate-400 font-medium mb-1">Израсходовано топлива</div>
-              <div className="text-2xl font-bold text-slate-800">{monthLiters.toFixed(0)} л</div>
+              <div className="text-2xl font-bold text-slate-800 tabular-nums">{monthLiters.toFixed(0)} л</div>
             </div>
           </div>
           <div className="text-xs text-slate-400 mt-2 px-1">
-            Зарплата за всё время: <b className="text-slate-600">{salaryTotal.toFixed(0)} €</b>
+            Зарплата за всё время: <b className="text-slate-600 tabular-nums">{salaryTotal.toFixed(0)} €</b>
           </div>
         </div>
 
-        {/* Список рейсов (история) */}
+        {/* История рейсов */}
         <div>
-          <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wide mb-3 px-1">
-            🚚 История рейсов
+          <h2 className="text-xs md:text-sm font-bold text-slate-500 uppercase tracking-wide mb-3 px-1">
+            История рейсов
           </h2>
           {otherTrips.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-slate-100 p-10 text-center">
-              <div className="text-5xl mb-3">📭</div>
+            <div className="card p-10 text-center">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-brand-50 flex items-center justify-center">
+                <Inbox className="w-8 h-8 text-brand-500" strokeWidth={1.5} />
+              </div>
               <h2 className="text-lg font-bold text-slate-900 mb-1">
                 {activeTrips.length > 0 ? 'Завершённых рейсов пока нет' : 'Рейсов пока нет'}
               </h2>
