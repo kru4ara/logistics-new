@@ -12,6 +12,7 @@ import {
   AlertTriangle,
   Shield,
   Wrench,
+  ClipboardCheck,
   type LucideIcon,
 } from 'lucide-react';
 import { createClient } from '../../../lib/supabase-server';
@@ -79,12 +80,23 @@ export default async function DriverRemindersPage() {
     { label: 'АДР', value: driver.adr_expiry, Icon: AlertTriangle },
   ] : [];
 
-  const truckDocs: DocDef[] = truck ? [
-    { label: 'Страховка ОС', value: truck.truck_insurance_expiry, Icon: Shield },
-    { label: 'Техосмотр', value: truck.tech_inspection_expiry, Icon: Wrench },
-    { label: 'Пограничная страховка РБ', value: truck.border_insurance_expiry, Icon: ScanLine },
-    { label: 'Легализация тахографа', value: truck.tachograph_legalization_expiry, Icon: CreditCard },
-  ] : [];
+  // Набор документов зависит от типа ТС: тягач vs прицеп
+  const truckDocs: DocDef[] = truck
+    ? truck.type === 'tractor'
+      ? [
+          { label: 'Страховка ОС', value: truck.truck_insurance_expiry, Icon: Shield },
+          { label: 'ТО (техобслуживание)', value: truck.to_expiry, Icon: Wrench },
+          { label: 'Техосмотр', value: truck.tech_inspection_expiry, Icon: ClipboardCheck },
+          { label: 'Пограничная страховка РБ', value: truck.border_insurance_expiry, Icon: ScanLine },
+          { label: 'Калибровка тахографа', value: truck.tachograph_calibration_expiry, Icon: CreditCard },
+        ]
+      : [
+          { label: 'Страховка ОС', value: truck.truck_insurance_expiry, Icon: Shield },
+          { label: 'Техосмотр', value: truck.tech_inspection_expiry, Icon: ClipboardCheck },
+          { label: 'Пограничная страховка РБ', value: truck.border_insurance_expiry, Icon: ScanLine },
+          { label: 'Таможенный сертификат', value: truck.customs_certificate_expiry, Icon: FileBadge },
+        ]
+    : [];
 
   return (
     <main className="min-h-screen bg-slate-50">
