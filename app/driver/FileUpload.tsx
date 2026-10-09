@@ -1,6 +1,14 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import {
+  Camera,
+  Image as ImageIcon,
+  Upload,
+  Loader2,
+  CheckCircle2,
+  XCircle,
+} from 'lucide-react';
 import { uploadDocument } from './upload-actions';
 
 // Максимальный размер файла (из-за лимитов Vercel Serverless = 4.5 MB)
@@ -37,7 +45,7 @@ export default function FileUpload({ tripId }: { tripId: string }) {
 
     // Проверка размера
     if (f.size > MAX_FILE_SIZE_BYTES) {
-      setStatus(`❌ Файл больше ${MAX_FILE_SIZE_MB} МБ (${(f.size / 1024 / 1024).toFixed(2)} МБ). Сожмите или выберите другой.`);
+      setStatus(`Файл больше ${MAX_FILE_SIZE_MB} МБ (${(f.size / 1024 / 1024).toFixed(2)} МБ). Сожмите или выберите другой.`);
       setStatusType('error');
       setFile(null);
       if (cameraInputRef.current) cameraInputRef.current.value = '';
@@ -48,7 +56,7 @@ export default function FileUpload({ tripId }: { tripId: string }) {
     // Проверка расширения
     const ext = f.name.split('.').pop()?.toLowerCase() || '';
     if (!ALLOWED_EXTENSIONS.includes(ext) && !ALLOWED_MIMES.includes(f.type)) {
-      setStatus(`❌ Неподдерживаемый формат. Разрешены: JPG, PNG, HEIC, PDF`);
+      setStatus('Неподдерживаемый формат. Разрешены: JPG, PNG, HEIC, PDF');
       setStatusType('error');
       setFile(null);
       if (cameraInputRef.current) cameraInputRef.current.value = '';
@@ -82,7 +90,7 @@ export default function FileUpload({ tripId }: { tripId: string }) {
       const result = await uploadDocument(tripId, 'cmr', base64Data, file.name);
 
       if (result.success) {
-        setStatus('✅ ' + result.message);
+        setStatus(result.message);
         setStatusType('success');
         setFile(null);
         resetInputs();
@@ -91,12 +99,12 @@ export default function FileUpload({ tripId }: { tripId: string }) {
           setStatusType('idle');
         }, 5000);
       } else {
-        setStatus('❌ ' + result.message);
+        setStatus(result.message);
         setStatusType('error');
       }
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Неизвестная ошибка';
-      setStatus('❌ ' + msg);
+      setStatus(msg);
       setStatusType('error');
     } finally {
       setIsUploading(false);
@@ -106,8 +114,13 @@ export default function FileUpload({ tripId }: { tripId: string }) {
   const statusClass =
     statusType === 'success' ? 'text-emerald-700 bg-emerald-50 border-emerald-200' :
     statusType === 'error' ? 'text-red-700 bg-red-50 border-red-200' :
-    statusType === 'loading' ? 'text-blue-700 bg-blue-50 border-blue-200' :
+    statusType === 'loading' ? 'text-brand-700 bg-brand-50 border-brand-200' :
     'hidden';
+
+  const StatusIcon =
+    statusType === 'success' ? CheckCircle2 :
+    statusType === 'error' ? XCircle :
+    Loader2;
 
   return (
     <div className="space-y-3">
@@ -135,10 +148,10 @@ export default function FileUpload({ tripId }: { tripId: string }) {
           type="button"
           onClick={() => cameraInputRef.current?.click()}
           className="md:hidden w-full flex items-center justify-center gap-2 px-5 py-4 rounded-xl
-                     bg-blue-600 hover:bg-blue-700 text-white font-semibold
-                     shadow-md shadow-blue-600/20 active:scale-[0.98] transition-all text-base"
+                     bg-brand-600 hover:bg-brand-700 text-white font-semibold
+                     shadow-brand active:scale-[0.98] transition-all text-base"
         >
-          <span className="text-xl">📸</span>
+          <Camera className="w-5 h-5" />
           <span>Сфотографировать</span>
         </button>
 
@@ -149,7 +162,7 @@ export default function FileUpload({ tripId }: { tripId: string }) {
                      border border-slate-300 text-slate-700 font-semibold
                      hover:bg-slate-50 active:scale-[0.98] transition-all"
         >
-          <span className="text-lg">🖼</span>
+          <ImageIcon className="w-5 h-5" />
           <span>Выбрать файл</span>
         </button>
       </div>
@@ -174,17 +187,21 @@ export default function FileUpload({ tripId }: { tripId: string }) {
       >
         {isUploading ? (
           <>
-            <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            <Loader2 className="w-4 h-4 animate-spin" />
             Загрузка...
           </>
         ) : (
-          <>📤 Загрузить CMR</>
+          <>
+            <Upload className="w-4 h-4" />
+            Загрузить CMR
+          </>
         )}
       </button>
 
       {status && (
-        <div className={`px-4 py-3 rounded-xl border text-sm font-medium ${statusClass}`}>
-          {status}
+        <div className={`flex items-start gap-2 px-4 py-3 rounded-xl border text-sm font-medium animate-fade-in ${statusClass}`}>
+          <StatusIcon className={`w-4 h-4 shrink-0 mt-0.5 ${statusType === 'loading' ? 'animate-spin' : ''}`} />
+          <span>{status}</span>
         </div>
       )}
 
