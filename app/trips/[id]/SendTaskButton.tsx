@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import { Send, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import { sendTaskToDriver } from './task-actions';
 
 export default function SendTaskButton({
@@ -23,13 +24,13 @@ export default function SendTaskButton({
       try {
         const res = await sendTaskToDriver(tripId);
         if (res.success) {
-          setStatus({ kind: 'ok', text: '✅ Задание отправлено водителю' });
+          setStatus({ kind: 'ok', text: 'Задание отправлено водителю' });
           setTimeout(() => setStatus(null), 5000);
         } else {
-          setStatus({ kind: 'err', text: '❌ ' + res.error });
+          setStatus({ kind: 'err', text: res.error });
         }
       } catch (e) {
-        setStatus({ kind: 'err', text: '❌ ' + (e as Error).message });
+        setStatus({ kind: 'err', text: (e as Error).message });
       }
     });
   }
@@ -44,16 +45,19 @@ export default function SendTaskButton({
         className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all
           ${isPending || disabled
             ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-            : 'bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-600/20 active:scale-[0.98]'
+            : 'bg-brand-600 hover:bg-brand-700 text-white shadow-brand active:scale-[0.98]'
           }`}
       >
         {isPending ? (
           <>
-            <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            <Loader2 className="w-4 h-4 animate-spin" />
             Отправка...
           </>
         ) : (
-          <>📤 Отправить водителю в Telegram</>
+          <>
+            <Send className="w-4 h-4" />
+            Отправить водителю в Telegram
+          </>
         )}
       </button>
 
@@ -63,13 +67,18 @@ export default function SendTaskButton({
 
       {status && (
         <p
-          className={`text-xs text-center rounded-lg px-3 py-2 font-medium ${
+          className={`flex items-center justify-center gap-1.5 text-xs text-center rounded-lg px-3 py-2 font-medium animate-fade-in ${
             status.kind === 'ok'
               ? 'text-emerald-700 bg-emerald-50 border border-emerald-200'
               : 'text-red-700 bg-red-50 border border-red-200'
           }`}
         >
-          {status.text}
+          {status.kind === 'ok' ? (
+            <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+          ) : (
+            <XCircle className="w-3.5 h-3.5 shrink-0" />
+          )}
+          <span>{status.text}</span>
         </p>
       )}
     </div>
