@@ -32,7 +32,14 @@ type DriverRel = { first_name: string | null; last_name: string | null };
 export default async function TripsPage({
   searchParams,
 }: {
-  searchParams: { year?: string; month?: string; q?: string; status?: string };
+  searchParams: {
+    year?: string;
+    month?: string;
+    q?: string;
+    status?: string;
+    driver?: string;
+    truck?: string;
+  };
 }) {
   const role = cookies().get('role')?.value;
   if (role === 'driver') redirect('/driver');
@@ -47,20 +54,40 @@ export default async function TripsPage({
   const q = (searchParams?.q || '').trim();
   const qLower = q.toLowerCase();
   const statusFilter = searchParams?.status || null;
-  const hasExtraFilter = Boolean(q) || Boolean(statusFilter);
+  const driverFilter = searchParams?.driver || null;
+  const truckFilter = searchParams?.truck || null;
+  const hasExtraFilter =
+    Boolean(q) || Boolean(statusFilter) || Boolean(driverFilter) || Boolean(truckFilter);
 
-  const { data: trips, error } = await supabase
-    .from('trips')
-    .select('*, clients(name), drivers!driver_id(first_name, last_name)')
-    .order('trip_number', { ascending: false });
+  const [tripsResult, expensesResult, driversResult, tractorsResult] = await Promise.all([
+    supabase
+      .from('trips')
+      .select('*, clients(name), drivers!driver_id(first_name, last_name)')
+      .order('trip_number', { ascending: false }),
+    supabase
+      .from('trip_expenses')
+      .select('trip_id, amount_eur'),
+    supabase
+      .from('drivers')
+      .select('id, first_name, last_name')
+      .order('last_name'),
+    supabase
+      .from('trucks')
+      .select('id, registration_number')
+      .eq('type', 'tractor')
+      .order('registration_number'),
+  ]);
 
-  if (error) {
-    return <div className="p-8 text-red-500">Ошибка загрузки рейсов: {error.message}</div>;
+  const trips = tripsResult.data;
+  const tripsError = tripsResult.error;
+
+  if (tripsError) {
+    return <div className="p-8 text-red-500">Ошибка загрузки рейсов: {tripsError.message}</div>;
   }
 
-  const { data: expenses } = await supabase
-    .from('trip_expenses')
-    .select('trip_id, amount_eur');
+  const expenses = expensesResult.data;
+  const driversList = driversResult.data || [];
+  const tractorsList = tractorsResult.data || [];
 
   const expensesByTrip = expenses?.reduce((acc, e) => {
     if (!e.trip_id) return acc;
@@ -94,6 +121,16 @@ export default async function TripsPage({
     return t.status === statusFilter;
   }
 
+  function matchesDriver(t: any): boolean {
+    if (!driverFilter) return true;
+    return t.driver_id === driverFilter;
+  }
+
+  function matchesTruck(t: any): boolean {
+    if (!truckFilter) return true;
+    return t.truck_id === truckFilter;
+  }
+
   const tripsWithoutDate = (trips || []).filter(
     (t) => !t.start_date && !t.end_date && !hasExtraFilter
   );
@@ -101,6 +138,8 @@ export default async function TripsPage({
   const filteredTrips = (trips || []).filter((t) => {
     if (!matchesSearch(t)) return false;
     if (!matchesStatus(t)) return false;
+    if (!matchesDriver(t)) return false;
+    if (!matchesTruck(t)) return false;
 
     const date = t.end_date || t.start_date;
     if (!date) {
@@ -172,23 +211,26 @@ export default async function TripsPage({
     month?: number | null;
     q?: string | null;
     status?: string | null;
+    driver?: string | null;
+    truck?: string | null;
   }): string {
     const params = new URLSearchParams();
     const y = overrides.year !== undefined ? overrides.year : year;
     const m = overrides.month === undefined ? monthFilter : overrides.month;
     const qq = overrides.q === undefined ? (q || null) : overrides.q;
     const st = overrides.status === undefined ? statusFilter : overrides.status;
+    const dr = overrides.driver === undefined ? driverFilter : overrides.driver;
+    const tr = overrides.truck === undefined ? truckFilter : overrides.truck;
     if (y) params.set('year', String(y));
     if (m) params.set('month', String(m));
     if (qq) params.set('q', qq);
     if (st) params.set('status', st);
+    if (dr) params.set('driver', dr);
+    if (tr) params.set('truck', tr);
     const s = params.toString();
     return s ? `/trips?${s}` : '/trips';
   }
 
-  // ============================================================
-  // Подготовка данных для клиентского компонента
-  // ============================================================
   function prepareTrip(t: any): TripCardData {
     const driver = pickOne<DriverRel>(t.drivers);
     const driverName = driver
@@ -299,6 +341,66 @@ export default async function TripsPage({
             </div>
           </div>
 
+          {/* Водитель */}
+          {driversList.length > 0 && (
+            <div>
+              <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2">Водитель</div>
+              <div className="flex flex-wrap gap-1.5 md:gap-2">
+                <a
+                  href={buildUrl({ driver: null })}
+                  className={`px-2.5 md:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all
+                    ${!driverFilter
+                      ? 'bg-brand-600 text-white shadow-brand'
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+                >
+                  Все
+                </a>
+                {driversList.map((d) => (
+                  <a
+                    key={d.id}
+                    href={buildUrl({ driver: d.id })}
+                    className={`px-2.5 md:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all
+                      ${driverFilter === d.id
+                        ? 'bg-brand-600 text-white shadow-brand'
+                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+                  >
+                    {d.first_name} {d.last_name}
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Тягач */}
+          {tractorsList.length > 0 && (
+            <div>
+              <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2">Тягач</div>
+              <div className="flex flex-wrap gap-1.5 md:gap-2">
+                <a
+                  href={buildUrl({ truck: null })}
+                  className={`px-2.5 md:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all
+                    ${!truckFilter
+                      ? 'bg-brand-600 text-white shadow-brand'
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+                >
+                  Все
+                </a>
+                {tractorsList.map((t) => (
+                  <a
+                    key={t.id}
+                    href={buildUrl({ truck: t.id })}
+                    className={`px-2.5 md:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all tabular-nums
+                      ${truckFilter === t.id
+                        ? 'bg-brand-600 text-white shadow-brand'
+                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+                  >
+                    {t.registration_number}
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Год */}
           <div>
             <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2">Год</div>
@@ -388,7 +490,7 @@ export default async function TripsPage({
             </p>
             {isSearchMode ? (
               <a
-                href={buildUrl({ q: null, status: null })}
+                href={buildUrl({ q: null, status: null, driver: null, truck: null })}
                 className="inline-flex items-center gap-2 bg-slate-200 hover:bg-slate-300 text-slate-700
                            font-semibold px-6 py-3 rounded-xl transition-all"
               >
