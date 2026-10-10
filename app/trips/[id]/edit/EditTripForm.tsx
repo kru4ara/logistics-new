@@ -1,8 +1,17 @@
 'use client';
 
 import { useState } from 'react';
+import {
+  Truck,
+  FileText,
+  MapPin,
+  Flag,
+  Plus,
+  X,
+} from 'lucide-react';
 import { updateTrip } from '../../../trip-actions';
 import SubmitButton from '../../../components/SubmitButton';
+import OverlapWarning from '../../OverlapWarning';
 
 type Location = {
   id: string;
@@ -105,6 +114,11 @@ function toAddr(
   };
 }
 
+function toIsoDate(d: string | null): string {
+  if (!d) return '';
+  return d.split('T')[0];
+}
+
 export default function EditTripForm({
   trip,
   tripId,
@@ -121,6 +135,11 @@ export default function EditTripForm({
   const [receiver, setReceiver] = useState<AddrState>(
     toAddr(trip.receiver_country, trip.receiver_name, trip.receiver_postal_code, trip.receiver_city, trip.receiver_address, trip.receiver_loading_number)
   );
+
+  // Controlled — для OverlapWarning
+  const [truckId, setTruckId] = useState(trip.truck_id || '');
+  const [startDate, setStartDate] = useState(toIsoDate(trip.start_date));
+  const [endDate, setEndDate] = useState(toIsoDate(trip.end_date));
 
   const initialExtras: AddrState[] = [];
   const s2 = toAddr(trip.sender2_country, trip.sender2_name, trip.sender2_postal_code, trip.sender2_city, trip.sender2_address, trip.sender2_loading_number);
@@ -195,21 +214,22 @@ export default function EditTripForm({
     );
   }
 
-  const inputClass =
-    'w-full rounded-lg border border-slate-300 px-3 py-2.5 text-base text-slate-900 ' +
-    'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-150';
+  const inputClass = 'input';
   const labelClass = 'block text-sm font-medium text-slate-700 mb-1';
-  const sectionClass = 'bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-6 space-y-4';
+  const sectionClass = 'card p-4 md:p-6 space-y-4';
   const sectionTitleClass = 'text-base md:text-lg font-bold text-slate-900 mb-2 flex items-center gap-2';
   const presetClass =
-    'w-full rounded-lg border-2 border-dashed border-blue-300 bg-blue-50 px-3 py-2.5 text-base text-slate-900 font-medium ' +
-    'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-solid focus:border-blue-500 transition-all duration-150';
+    'w-full rounded-lg border-2 border-dashed border-brand-300 bg-brand-50 px-3 py-2.5 text-base text-slate-900 font-medium ' +
+    'focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-solid focus:border-brand-500 transition-all duration-150';
 
   return (
     <form action={updateTrip.bind(null, tripId)} className="space-y-4 md:space-y-6">
 
       <div className={sectionClass}>
-        <h2 className={sectionTitleClass}>🚛 Основные данные</h2>
+        <h2 className={sectionTitleClass}>
+          <Truck className="w-5 h-5 text-brand-600" strokeWidth={2.2} />
+          Основные данные
+        </h2>
         <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-3">
           <div>
             <label className={labelClass}>Клиент</label>
@@ -220,10 +240,22 @@ export default function EditTripForm({
           </div>
           <div>
             <label className={labelClass}>Тягач</label>
-            <select name="truck_id" defaultValue={trip.truck_id || ''} className={inputClass}>
+            <select
+              name="truck_id"
+              value={truckId}
+              onChange={(e) => setTruckId(e.target.value)}
+              className={inputClass}
+            >
               <option value="">Выберите тягач...</option>
               {tractors.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
             </select>
+            {/* Проверка пересечений — исключаем сам рейс через excludeTripId */}
+            <OverlapWarning
+              truckId={truckId}
+              startDate={startDate}
+              endDate={endDate}
+              excludeTripId={tripId}
+            />
           </div>
           <div>
             <label className={labelClass}>Прицеп</label>
@@ -241,11 +273,24 @@ export default function EditTripForm({
           </div>
           <div>
             <label className={labelClass}>Дата старта</label>
-            <input type="date" name="start_date" defaultValue={trip.start_date?.split('T')[0] || ''} required className={inputClass} />
+            <input
+              type="date"
+              name="start_date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              required
+              className={inputClass}
+            />
           </div>
           <div>
             <label className={labelClass}>Дата финиша</label>
-            <input type="date" name="end_date" defaultValue={trip.end_date?.split('T')[0] || ''} className={inputClass} />
+            <input
+              type="date"
+              name="end_date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className={inputClass}
+            />
             <p className="text-xs text-slate-400 mt-1">Оставьте пустым, если рейс ещё не завершён</p>
           </div>
           <div>
@@ -260,7 +305,10 @@ export default function EditTripForm({
       </div>
 
       <div className={sectionClass}>
-        <h2 className={sectionTitleClass}>📄 Заявка клиента</h2>
+        <h2 className={sectionTitleClass}>
+          <FileText className="w-5 h-5 text-brand-600" strokeWidth={2.2} />
+          Заявка клиента
+        </h2>
         <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
           <div>
             <label className={labelClass}>Номер заявки</label>
@@ -274,7 +322,10 @@ export default function EditTripForm({
       </div>
 
       <div className={sectionClass}>
-        <h2 className={sectionTitleClass}>📍 Отправитель (основная загрузка)</h2>
+        <h2 className={sectionTitleClass}>
+          <MapPin className="w-5 h-5 text-brand-600" strokeWidth={2.2} />
+          Отправитель (основная загрузка)
+        </h2>
 
         <div>
           <label className={labelClass}>
@@ -327,17 +378,19 @@ export default function EditTripForm({
         {extras.map((extra, idx) => {
           const n = idx + 2;
           return (
-            <div key={idx} className="border-t-2 border-blue-200 pt-4 mt-4">
+            <div key={idx} className="border-t-2 border-brand-200 pt-4 mt-4">
               <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
-                <h3 className="font-semibold text-slate-800 text-sm md:text-base">
-                  📍 Доп. точка погрузки №{idx + 1}
+                <h3 className="font-semibold text-slate-800 text-sm md:text-base flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-brand-600" strokeWidth={2.2} />
+                  Доп. точка погрузки №{idx + 1}
                 </h3>
                 <button
                   type="button"
                   onClick={() => removeExtra(idx)}
-                  className="text-red-600 hover:text-red-700 text-xs md:text-sm font-medium px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 transition-colors"
+                  className="inline-flex items-center gap-1 text-red-600 hover:text-red-700 text-xs md:text-sm font-medium px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 transition-colors"
                 >
-                  ✕ Удалить
+                  <X className="w-3.5 h-3.5" strokeWidth={2.5} />
+                  Удалить
                 </button>
               </div>
 
@@ -393,17 +446,22 @@ export default function EditTripForm({
           <button
             type="button"
             onClick={addExtra}
-            className="w-full mt-4 py-3 rounded-xl border-2 border-dashed border-blue-300 text-blue-600 font-medium
-                       hover:bg-blue-50 hover:border-blue-400 transition-all duration-150
-                       text-sm md:text-base active:scale-[0.99]"
+            className="w-full mt-4 py-3 rounded-xl border-2 border-dashed border-brand-300 text-brand-600 font-medium
+                       hover:bg-brand-50 hover:border-brand-400 transition-all duration-150
+                       text-sm md:text-base active:scale-[0.99]
+                       inline-flex items-center justify-center gap-2"
           >
-            + Добавить точку погрузки
+            <Plus className="w-4 h-4" strokeWidth={2.5} />
+            Добавить точку погрузки
           </button>
         )}
       </div>
 
       <div className={sectionClass}>
-        <h2 className={sectionTitleClass}>🏁 Получатель (выгрузка)</h2>
+        <h2 className={sectionTitleClass}>
+          <Flag className="w-5 h-5 text-brand-600" strokeWidth={2.2} />
+          Получатель (выгрузка)
+        </h2>
 
         <div>
           <label className={labelClass}>
@@ -466,10 +524,10 @@ export default function EditTripForm({
           Отмена
         </a>
         <SubmitButton
-          className="w-full sm:flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl shadow-md shadow-blue-600/20 transition-all duration-150 active:scale-[0.98]"
-          pendingText="⏳ Сохраняю изменения…"
+          className="w-full sm:flex-1 bg-brand-600 hover:bg-brand-700 disabled:bg-brand-400 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl shadow-brand transition-all duration-150 active:scale-[0.98]"
+          pendingText="Сохраняю изменения…"
         >
-          ✅ Сохранить изменения
+          Сохранить изменения
         </SubmitButton>
       </div>
 
