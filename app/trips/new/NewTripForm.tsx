@@ -1,8 +1,17 @@
 'use client';
 
 import { useState } from 'react';
+import {
+  Truck,
+  FileText,
+  MapPin,
+  Flag,
+  Plus,
+  X,
+} from 'lucide-react';
 import { addTripWithAddress } from '../../geocode-actions';
 import SubmitButton from '../../components/SubmitButton';
+import OverlapWarning from '../OverlapWarning';
 
 type Location = {
   id: string;
@@ -73,10 +82,13 @@ export default function NewTripForm({
   const [receiver, setReceiver] = useState<AddrState>({ ...emptyAddr });
   const [extras, setExtras] = useState<AddrState[]>([]);
 
+  const [truckId, setTruckId] = useState('');
   const [startDate, setStartDate] = useState('');
   const [autoHint, setAutoHint] = useState<string | null>(null);
 
   function handleTractorChange(newTruckId: string) {
+    setTruckId(newTruckId);
+
     if (!newTruckId) {
       setStartDate('');
       setAutoHint(null);
@@ -158,22 +170,23 @@ export default function NewTripForm({
     );
   }
 
-  const inputClass =
-    'w-full rounded-lg border border-slate-300 px-3 py-2.5 text-base text-slate-900 ' +
-    'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-150';
+  const inputClass = 'input';
   const labelClass = 'block text-sm font-medium text-slate-700 mb-1';
-  const sectionClass = 'bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-6 space-y-4';
+  const sectionClass = 'card p-4 md:p-6 space-y-4';
   const sectionTitleClass = 'text-base md:text-lg font-bold text-slate-900 mb-2 flex items-center gap-2';
   const presetClass =
-    'w-full rounded-lg border-2 border-dashed border-blue-300 bg-blue-50 px-3 py-2.5 text-base text-slate-900 font-medium ' +
-    'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-solid focus:border-blue-500 transition-all duration-150';
+    'w-full rounded-lg border-2 border-dashed border-brand-300 bg-brand-50 px-3 py-2.5 text-base text-slate-900 font-medium ' +
+    'focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-solid focus:border-brand-500 transition-all duration-150';
 
   return (
     <form action={addTripWithAddress} className="space-y-4 md:space-y-6">
 
       {/* ОСНОВНЫЕ ДАННЫЕ */}
       <div className={sectionClass}>
-        <h2 className={sectionTitleClass}>🚛 Основные данные</h2>
+        <h2 className={sectionTitleClass}>
+          <Truck className="w-5 h-5 text-brand-600" strokeWidth={2.2} />
+          Основные данные
+        </h2>
         <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-3">
           <div>
             <label className={labelClass}>Клиент</label>
@@ -188,15 +201,21 @@ export default function NewTripForm({
             <label className={labelClass}>Тягач</label>
             <select
               name="truck_id"
-              className={inputClass}
+              value={truckId}
               onChange={(e) => handleTractorChange(e.target.value)}
-              defaultValue=""
+              className={inputClass}
             >
               <option value="">Выберите тягач...</option>
               {tractors.map((t) => (
                 <option key={t.id} value={t.id}>{t.label}</option>
               ))}
             </select>
+            {/* Проверка пересечений — только если есть тягач и дата старта */}
+            <OverlapWarning
+              truckId={truckId}
+              startDate={startDate}
+              endDate=""
+            />
           </div>
           <div>
             <label className={labelClass}>Прицеп</label>
@@ -248,7 +267,10 @@ export default function NewTripForm({
 
       {/* ЗАЯВКА КЛИЕНТА */}
       <div className={sectionClass}>
-        <h2 className={sectionTitleClass}>📄 Заявка клиента</h2>
+        <h2 className={sectionTitleClass}>
+          <FileText className="w-5 h-5 text-brand-600" strokeWidth={2.2} />
+          Заявка клиента
+        </h2>
         <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
           <div>
             <label className={labelClass}>Номер заявки</label>
@@ -263,7 +285,10 @@ export default function NewTripForm({
 
       {/* ЗАГРУЗКА */}
       <div className={sectionClass}>
-        <h2 className={sectionTitleClass}>📍 Отправитель (основная загрузка)</h2>
+        <h2 className={sectionTitleClass}>
+          <MapPin className="w-5 h-5 text-brand-600" strokeWidth={2.2} />
+          Отправитель (основная загрузка)
+        </h2>
 
         <div>
           <label className={labelClass}>
@@ -323,17 +348,19 @@ export default function NewTripForm({
         {extras.map((extra, idx) => {
           const n = idx + 2;
           return (
-            <div key={idx} className="border-t-2 border-blue-200 pt-4 mt-4">
+            <div key={idx} className="border-t-2 border-brand-200 pt-4 mt-4">
               <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
-                <h3 className="font-semibold text-slate-800 text-sm md:text-base">
-                  📍 Доп. точка погрузки №{idx + 1}
+                <h3 className="font-semibold text-slate-800 text-sm md:text-base flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-brand-600" strokeWidth={2.2} />
+                  Доп. точка погрузки №{idx + 1}
                 </h3>
                 <button
                   type="button"
                   onClick={() => removeExtra(idx)}
-                  className="text-red-600 hover:text-red-700 text-xs md:text-sm font-medium px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 transition-colors"
+                  className="inline-flex items-center gap-1 text-red-600 hover:text-red-700 text-xs md:text-sm font-medium px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 transition-colors"
                 >
-                  ✕ Удалить
+                  <X className="w-3.5 h-3.5" strokeWidth={2.5} />
+                  Удалить
                 </button>
               </div>
 
@@ -399,18 +426,23 @@ export default function NewTripForm({
           <button
             type="button"
             onClick={addExtra}
-            className="w-full mt-4 py-3 rounded-xl border-2 border-dashed border-blue-300 text-blue-600 font-medium
-                       hover:bg-blue-50 hover:border-blue-400 transition-all duration-150
-                       text-sm md:text-base active:scale-[0.99]"
+            className="w-full mt-4 py-3 rounded-xl border-2 border-dashed border-brand-300 text-brand-600 font-medium
+                       hover:bg-brand-50 hover:border-brand-400 transition-all duration-150
+                       text-sm md:text-base active:scale-[0.99]
+                       inline-flex items-center justify-center gap-2"
           >
-            + Добавить точку погрузки
+            <Plus className="w-4 h-4" strokeWidth={2.5} />
+            Добавить точку погрузки
           </button>
         )}
       </div>
 
       {/* ВЫГРУЗКА */}
       <div className={sectionClass}>
-        <h2 className={sectionTitleClass}>🏁 Получатель (выгрузка)</h2>
+        <h2 className={sectionTitleClass}>
+          <Flag className="w-5 h-5 text-brand-600" strokeWidth={2.2} />
+          Получатель (выгрузка)
+        </h2>
 
         <div>
           <label className={labelClass}>
@@ -480,10 +512,10 @@ export default function NewTripForm({
           Отмена
         </a>
         <SubmitButton
-          className="w-full sm:flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl shadow-md shadow-blue-600/20 transition-all duration-150 active:scale-[0.98]"
-          pendingText="⏳ Создаю рейс…"
+          className="w-full sm:flex-1 bg-brand-600 hover:bg-brand-700 disabled:bg-brand-400 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl shadow-brand transition-all duration-150 active:scale-[0.98]"
+          pendingText="Создаю рейс…"
         >
-          ✅ Создать рейс
+          Создать рейс
         </SubmitButton>
       </div>
 
