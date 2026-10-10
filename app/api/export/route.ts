@@ -6,6 +6,46 @@ import { createClient } from '../../../lib/supabase-server';
 export const dynamic = 'force-dynamic';
 
 // ============================================================
+// Словари
+// ============================================================
+const STATUS_LABELS: Record<string, string> = {
+  planned: 'Планируется',
+  active: 'В пути',
+  completed: 'Завершён',
+  invoiced: 'Выставлен счёт',
+  paid: 'Оплачен',
+};
+
+const CATEGORY_LABELS: Record<string, string> = {
+  fuel: 'Топливо',
+  epi: 'EPI',
+  etoll: 'e-TOLL',
+  border: 'Граница',
+  salary: 'ЗП водителя',
+  contractor: 'Подрядчик',
+  permit: 'Дозвол',
+  tlc: 'ТЛЦ',
+  waiting: 'Зона ожидания',
+  repair: 'Ремонт',
+  parking: 'Паркинг',
+  disinfection: 'Дезинфекция',
+  ex1: 'ЕХ-1',
+  otkat: 'Откат',
+  gps_seal: 'GPS пломба',
+  other: 'Другое',
+};
+
+function statusLabel(s: string | null | undefined): string {
+  if (!s) return '';
+  return STATUS_LABELS[s] || s;
+}
+
+function categoryLabel(c: string | null | undefined): string {
+  if (!c) return '';
+  return CATEGORY_LABELS[c] || c;
+}
+
+// ============================================================
 // Утилиты
 // ============================================================
 function isoDate(d: string | null): string {
@@ -29,6 +69,10 @@ function pickName(rel: unknown): string {
 function toNumber(n: unknown): number {
   const x = Number(n);
   return Number.isFinite(x) ? x : 0;
+}
+
+function r2(n: number): number {
+  return Math.round(n * 100) / 100;
 }
 
 // ============================================================
@@ -70,7 +114,7 @@ async function buildTripsSheet(
     });
   }
 
-  const rows = (trips || []).map((t: any) => {
+  const rows: Record<string, unknown>[] = (trips || []).map((t: any) => {
     const exp = expensesByTrip[t.id] || 0;
     const revenue = toNumber(t.revenue_eur);
     const driver = t.drivers
@@ -84,19 +128,41 @@ async function buildTripsSheet(
       'Тягач': t.trucks?.registration_number || '',
       'Водитель': driver,
       'Маршрут': t.route || '',
-      'Фрахт (EUR)': revenue,
-      'Расходы (EUR)': Math.round(exp * 100) / 100,
-      'Прибыль (EUR)': Math.round((revenue - exp) * 100) / 100,
+      'Фрахт (EUR)': r2(revenue),
+      'Расходы (EUR)': r2(exp),
+      'Прибыль (EUR)': r2(revenue - exp),
       'Пробег (км)': toNumber(t.actual_km),
-      'Статус': t.status || '',
+      'Статус': statusLabel(t.status),
     };
   });
+
+  // Итоговая строка
+  const totalRevenue = rows.reduce((s, r) => s + (r['Фрахт (EUR)'] as number || 0), 0);
+  const totalExpenses = rows.reduce((s, r) => s + (r['Расходы (EUR)'] as number || 0), 0);
+  const totalKm = rows.reduce((s, r) => s + (r['Пробег (км)'] as number || 0), 0);
+
+  if (rows.length > 0) {
+    rows.push({
+      '№ рейса': 'ИТОГО',
+      'Старт': '',
+      'Финиш': '',
+      'Клиент': '',
+      'Тягач': '',
+      'Водитель': '',
+      'Маршрут': '',
+      'Фрахт (EUR)': r2(totalRevenue),
+      'Расходы (EUR)': r2(totalExpenses),
+      'Прибыль (EUR)': r2(totalRevenue - totalExpenses),
+      'Пробег (км)': r2(totalKm),
+      'Статус': '',
+    });
+  }
 
   const ws = XLSX.utils.json_to_sheet(rows);
   ws['!cols'] = [
     { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 25 }, { wch: 12 },
     { wch: 20 }, { wch: 40 }, { wch: 14 }, { wch: 14 }, { wch: 14 },
-    { wch: 12 }, { wch: 14 },
+    { wch: 12 }, { wch: 16 },
   ];
   return ws;
 }
@@ -123,16 +189,32 @@ async function buildExpensesSheet(
   const { data, error } = await query;
   if (error) console.error('[export/expenses] error:', error);
 
-  const rows = (data || []).map((e: any) => ({
+  const rows: Record<string, unknown>[] = (data || []).map((e: any) => ({
     'Дата': isoDate(e.expense_date),
     'Рейс №': e.trips?.trip_number || '',
-    'Категория': e.category || '',
+    'Категория': categoryLabel(e.category),
     'Описание': e.description || '',
     'Сумма': toNumber(e.original_amount),
     'Валюта': e.currency || '',
-    'В EUR': Math.round(toNumber(e.amount_eur) * 100) / 100,
+    'В EUR': r2(toNumber(e.amount_eur)),
     'Литры': e.liters != null ? toNumber(e.liters) : '',
   }));
+
+  const totalEur = rows.reduce((s, r) => s + (r['В EUR'] as number || 0), 0);
+  const totalLiters = rows.reduce((s, r) => s + (typeof r['Литры'] === 'number' ? r['Литры'] : 0), 0);
+
+  if (rows.length > 0) {
+    rows.push({
+      'Дата': 'ИТОГО',
+      'Рейс №': '',
+      'Категория': '',
+      'Описание': '',
+      'Сумма': '',
+      'Валюта': '',
+      'В EUR': r2(totalEur),
+      'Литры': totalLiters > 0 ? r2(totalLiters) : '',
+    });
+  }
 
   const ws = XLSX.utils.json_to_sheet(rows);
   ws['!cols'] = [
@@ -193,7 +275,7 @@ async function buildForwardingSheet(
     });
   }
 
-  const rows = (orders || []).map((o: any) => {
+  const rows: Record<string, unknown>[] = (orders || []).map((o: any) => {
     const clientPrice = toNumber(o.client_price_eur);
     const cSum = contractorsByFwd[o.id] || 0;
     const eSum = expensesByFwd[o.id] || 0;
@@ -202,18 +284,36 @@ async function buildForwardingSheet(
       'Дата загрузки': isoDate(o.load_date),
       'Дата выгрузки': isoDate(o.unload_date),
       'Клиент': pickName(o.clients),
-      'Клиент платит (EUR)': Math.round(clientPrice * 100) / 100,
-      'Подрядчикам (EUR)': Math.round(cSum * 100) / 100,
-      'Доп. расходы (EUR)': Math.round(eSum * 100) / 100,
-      'Маржа (EUR)': Math.round((clientPrice - cSum - eSum) * 100) / 100,
-      'Статус': o.status || '',
+      'Клиент платит (EUR)': r2(clientPrice),
+      'Подрядчикам (EUR)': r2(cSum),
+      'Доп. расходы (EUR)': r2(eSum),
+      'Маржа (EUR)': r2(clientPrice - cSum - eSum),
+      'Статус': statusLabel(o.status),
     };
   });
+
+  const totalClient = rows.reduce((s, r) => s + (r['Клиент платит (EUR)'] as number || 0), 0);
+  const totalContractor = rows.reduce((s, r) => s + (r['Подрядчикам (EUR)'] as number || 0), 0);
+  const totalExtra = rows.reduce((s, r) => s + (r['Доп. расходы (EUR)'] as number || 0), 0);
+
+  if (rows.length > 0) {
+    rows.push({
+      '№ заявки': 'ИТОГО',
+      'Дата загрузки': '',
+      'Дата выгрузки': '',
+      'Клиент': '',
+      'Клиент платит (EUR)': r2(totalClient),
+      'Подрядчикам (EUR)': r2(totalContractor),
+      'Доп. расходы (EUR)': r2(totalExtra),
+      'Маржа (EUR)': r2(totalClient - totalContractor - totalExtra),
+      'Статус': '',
+    });
+  }
 
   const ws = XLSX.utils.json_to_sheet(rows);
   ws['!cols'] = [
     { wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 25 },
-    { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 14 }, { wch: 14 },
+    { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 14 }, { wch: 16 },
   ];
   return ws;
 }
@@ -253,14 +353,26 @@ async function buildClientsSheet(
     stats[key].count += 1;
   });
 
-  const rows = Object.values(stats)
+  const rows: Record<string, unknown>[] = Object.values(stats)
     .sort((a, b) => b.revenue - a.revenue)
     .map((s) => ({
       'Клиент': s.name,
       'Тип': s.type,
       'Сделок': s.count,
-      'Доход (EUR)': Math.round(s.revenue * 100) / 100,
+      'Доход (EUR)': r2(s.revenue),
     }));
+
+  const totalRevenue = rows.reduce((s, r) => s + (r['Доход (EUR)'] as number || 0), 0);
+  const totalDeals = rows.reduce((s, r) => s + (r['Сделок'] as number || 0), 0);
+
+  if (rows.length > 0) {
+    rows.push({
+      'Клиент': 'ИТОГО',
+      'Тип': '',
+      'Сделок': totalDeals,
+      'Доход (EUR)': r2(totalRevenue),
+    });
+  }
 
   const ws = XLSX.utils.json_to_sheet(rows);
   ws['!cols'] = [{ wch: 35 }, { wch: 16 }, { wch: 10 }, { wch: 16 }];
@@ -309,15 +421,9 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unknown export type' }, { status: 400 });
     }
 
-    // ============================================================
     // CSV
-    // ============================================================
     if (format === 'csv') {
-      // FS: ';' — разделитель для Excel в русской локали,
-      // иначе Excel не распарсит CSV с запятыми (запятая = десятичный разделитель).
       const csvBody = XLSX.utils.sheet_to_csv(sheet, { FS: ';' });
-
-      // BOM (\uFEFF) в начале — иначе Excel покажет кириллицу ромбиками.
       const csvWithBom = '\uFEFF' + csvBody;
 
       return new NextResponse(csvWithBom, {
@@ -329,9 +435,7 @@ export async function GET(request: Request) {
       });
     }
 
-    // ============================================================
     // XLSX (по умолчанию)
-    // ============================================================
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, sheet, sheetName);
     const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
