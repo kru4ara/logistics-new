@@ -81,23 +81,32 @@ export default async function ReportsPage() {
     return <div className="p-8 text-red-500">Ошибка загрузки: {tripsError.message}</div>;
   }
 
-  const { data: expenses, error: expensesError } = await supabase
-    .from('trip_expenses')
-    .select('trip_id, amount_eur');
+  // ВАЖНО: тянем расходы ТОЛЬКО по актуальным рейсам.
+  // Иначе PostgREST отдаёт первые 1000 строк из trip_expenses
+  // и старые/новые расходы не попадают в выборку → расходы = 0.
+  const tripIds = (trips || []).map((t) => t.id).filter(Boolean) as string[];
 
-  if (expensesError) {
-    return <div className="p-8 text-red-500">Ошибка загрузки: {expensesError.message}</div>;
+  let expenses: { trip_id: string | null; amount_eur: number | null }[] = [];
+  if (tripIds.length > 0) {
+    const { data, error } = await supabase
+      .from('trip_expenses')
+      .select('trip_id, amount_eur')
+      .in('trip_id', tripIds);
+    if (error) {
+      return <div className="p-8 text-red-500">Ошибка загрузки: {error.message}</div>;
+    }
+    expenses = data || [];
   }
 
-  const expensesByTrip = expenses?.reduce((acc, e) => {
+  const expensesByTrip = expenses.reduce((acc, e) => {
     if (!e.trip_id) return acc;
     if (!acc[e.trip_id]) acc[e.trip_id] = 0;
     acc[e.trip_id] += e.amount_eur || 0;
     return acc;
-  }, {} as Record<string, number>) || {};
+  }, {} as Record<string, number>);
 
   const totalRevenue = trips?.reduce((sum, t) => sum + (t.revenue_eur || 0), 0) || 0;
-  const totalExpenses = expenses?.reduce((sum, e) => sum + (e.amount_eur || 0), 0) || 0;
+  const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount_eur || 0), 0);
   const profit = totalRevenue - totalExpenses;
 
   const tripsWithExpenses = trips?.map((trip) => ({
