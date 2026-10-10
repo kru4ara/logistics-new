@@ -10,12 +10,13 @@ import {
   Sparkles,
   Loader2,
   X,
+  type LucideIcon,
 } from 'lucide-react';
 import { markDriverOnboarded } from './onboarding-actions';
 
 type Step = {
   num: number;
-  Icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+  Icon: LucideIcon;
   iconBg: string;
   iconColor: string;
   title: string;
@@ -74,7 +75,6 @@ export default function OnboardingCard({ driverName }: { driverName: string }) {
 
   return (
     <div className="card overflow-hidden border-brand-200 animate-fade-in relative">
-      {/* Close — на случай если водитель хочет пропустить */}
       <button
         type="button"
         onClick={handleDismiss}
