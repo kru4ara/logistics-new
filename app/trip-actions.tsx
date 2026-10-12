@@ -7,6 +7,39 @@ import { logAudit, diffFields } from '../lib/audit';
 import { renumberAllTrips } from '../lib/trip-renumber';
 
 // ============================================================
+// Конвертация в EUR по курсу на дату
+// ============================================================
+async function toEur(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  amount: number,
+  currency: string,
+  date: string
+): Promise<number> {
+  if (currency === 'EUR' || !currency) return amount;
+  if (currency === 'PLN') {
+    const { data: rate } = await supabase
+      .from('rates')
+      .select('pln_to_eur')
+      .lte('rate_date', date)
+      .order('rate_date', { ascending: false })
+      .limit(1)
+      .single();
+    return amount * (rate?.pln_to_eur ?? 0.23);
+  }
+  if (currency === 'BYN') {
+    const { data: rate } = await supabase
+      .from('rates')
+      .select('byn_to_eur')
+      .lte('rate_date', date)
+      .order('rate_date', { ascending: false })
+      .limit(1)
+      .single();
+    return amount * (rate?.byn_to_eur ?? 0.30);
+  }
+  return amount;
+}
+
+// ============================================================
 // Добавление расхода
 // ============================================================
 export async function addExpense(formData: FormData) {
@@ -19,6 +52,7 @@ export async function addExpense(formData: FormData) {
   const liters = parseFloat(formData.get('liters') as string) || 0;
   const description = formData.get('description') as string;
   const expenseDate = formData.get('expense_date') as string;
+  const segmentId = (formData.get('segment_id') as string) || null;
 
   const dateForRate = expenseDate || new Date().toISOString().split('T')[0];
   let amountEur = originalAmount;
@@ -48,6 +82,7 @@ export async function addExpense(formData: FormData) {
     .insert([
       {
         trip_id: tripId,
+        segment_id: segmentId,
         category: category,
         amount_eur: amountEur,
         original_amount: originalAmount,
@@ -67,7 +102,7 @@ export async function addExpense(formData: FormData) {
       entity_type: 'trip_expense',
       entity_id: created.id,
       action: 'create',
-      summary: `Добавлен расход по рейсу: ${category} · ${originalAmount} ${currency} (≈ ${Math.round(amountEur * 100) / 100} €)`,
+      summary: `Добавлен расход по рейсу: ${category} · ${originalAmount} ${currency} (≈ ${Math.round(amountEur * 100) / 100} €)${segmentId ? ' · привязан к участку' : ''}`,
     });
   }
 
@@ -296,7 +331,6 @@ export async function updateTrip(tripId: string, formData: FormData) {
 
   if (error) throw new Error(`Ошибка обновления: ${error.message}`);
 
-  // Если изменилась дата старта — перенумеровать все рейсы
   const dateChanged = (before?.start_date || '') !== (startDate || '');
   if (dateChanged) {
     await renumberAllTrips(supabase);
@@ -375,7 +409,6 @@ export async function deleteTrip(tripId: string) {
     .eq('id', tripId);
   if (error) throw new Error(`Ошибка удаления рейса: ${error.message}`);
 
-  // Перенумерация — дырок в нумерации не остаётся
   await renumberAllTrips(supabase);
 
   await logAudit({
