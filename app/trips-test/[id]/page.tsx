@@ -121,7 +121,6 @@ export default async function TripsTestDetailPage({
       .order('position', { ascending: true }),
   ]);
 
-  // Связи segment → cargo (только для сегментов этого рейса)
   const segmentIds = (segmentsRes.data || []).map((s: any) => s.id);
   const segmentCargoRes = segmentIds.length > 0
     ? await supabase
@@ -151,7 +150,6 @@ export default async function TripsTestDetailPage({
     to_postal_code: c.to_postal_code,
   }));
 
-  // Собираем связи сегмент → грузы
   const cargoLinksBySegment: Record<string, { cargo_id: string; position: number; label: string }[]> = {};
   (segmentCargoRes.data || []).forEach((sc: any) => {
     if (!sc.segment_id || !sc.cargo_id) return;
@@ -183,16 +181,6 @@ export default async function TripsTestDetailPage({
       date_from: s.date_from,
       date_to: s.date_to,
       notes: s.notes,
-      from_country: s.from_country,
-      from_city: s.from_city,
-      from_company: s.from_company,
-      from_address: s.from_address,
-      from_postal_code: s.from_postal_code,
-      to_country: s.to_country,
-      to_city: s.to_city,
-      to_company: s.to_company,
-      to_address: s.to_address,
-      to_postal_code: s.to_postal_code,
       cargoLinks: cargoLinksBySegment[s.id] || [],
     };
   });
@@ -307,8 +295,6 @@ export default async function TripsTestDetailPage({
           contractors={contractorsList.map((c) => ({ id: c.id, label: c.name }))}
           trucks={trucksList.map((t) => ({ id: t.id, label: t.registration_number }))}
           drivers={driversList.map((d) => ({ id: d.id, label: `${d.first_name} ${d.last_name}` }))}
-          loadingLocations={loadingLocations as any}
-          unloadingLocations={unloadingLocations as any}
           cargoList={cargoList.map((c) => ({
             id: c.id,
             position: c.position,
