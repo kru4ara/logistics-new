@@ -10,11 +10,10 @@ import {
   Check,
   Loader2,
   Package,
-  AlertTriangle,
-  RotateCcw,
   Plus,
   Trash2,
   ArrowRight,
+  Wand2,
 } from 'lucide-react';
 import { createSegment, updateSegment } from './segment-actions';
 
@@ -104,16 +103,8 @@ function toAddr(
   };
 }
 
-function addrIsEmpty(a: Addr): boolean {
-  return !a.country && !a.city && !a.company && !a.address && !a.postal_code;
-}
-
 function stopIsEmpty(s: Stop): boolean {
   return !s.country && !s.city && !s.company && !s.address && !s.postal_code;
-}
-
-function fmtPlace(company: string | null, city: string | null, country: string | null): string {
-  return [company, city, country].filter(Boolean).join(', ') || '—';
 }
 
 const STOP_TYPE_LABELS: Record<Stop['type'], string> = {
@@ -214,9 +205,6 @@ export default function SegmentForm({
     'w-full rounded-lg border-2 border-dashed border-brand-300 bg-brand-50 px-3 py-2.5 text-base text-slate-900 font-medium ' +
     'focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-solid focus:border-brand-500 transition-all';
 
-  const selectedCargos = cargoList.filter((c) => selectedCargo.has(c.id));
-  const firstCargo = selectedCargos[0] || null;
-
   function fillFromLocation(locId: string) {
     if (!locId) return;
     const loc = loadingLocations.find((l) => l.id === locId);
@@ -246,51 +234,11 @@ export default function SegmentForm({
   function toggleCargo(id: string) {
     setSelectedCargo((prev) => {
       const next = new Set(prev);
-      const isChecking = !next.has(id);
-      if (isChecking) next.add(id);
-      else next.delete(id);
-
-      if (isChecking && addrIsEmpty(from) && addrIsEmpty(to)) {
-        const c = cargoList.find((x) => x.id === id);
-        if (c) {
-          setFrom({
-            country: c.from_country || '',
-            city: c.from_city || '',
-            company: c.from_company || '',
-            address: c.from_address || '',
-            postal_code: c.from_postal_code || '',
-          });
-          setTo({
-            country: c.to_country || '',
-            city: c.to_city || '',
-            company: c.to_company || '',
-            address: c.to_address || '',
-            postal_code: c.to_postal_code || '',
-          });
-        }
-      }
-
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   }
-
-  const toDiffers =
-    firstCargo != null &&
-    (
-      (to.country || '') !== (firstCargo.to_country || '') ||
-      (to.city || '') !== (firstCargo.to_city || '') ||
-      (to.company || '') !== (firstCargo.to_company || '') ||
-      (to.address || '') !== (firstCargo.to_address || '')
-    );
-
-  const fromDiffers =
-    firstCargo != null &&
-    (
-      (from.country || '') !== (firstCargo.from_country || '') ||
-      (from.city || '') !== (firstCargo.from_city || '') ||
-      (from.company || '') !== (firstCargo.from_company || '') ||
-      (from.address || '') !== (firstCargo.from_address || '')
-    );
 
   function addStop() {
     setStops([
@@ -348,12 +296,11 @@ export default function SegmentForm({
       setError('Выберите хотя бы один груз для этого участка');
       return;
     }
-    if (addrIsEmpty(from) && addrIsEmpty(to)) {
+    if (!from.city && !from.country && !to.city && !to.country) {
       setError('Заполните «Откуда» или «Куда»');
       return;
     }
 
-    // Фильтруем пустые stops (или с типом без данных)
     const cleanStops = stops.filter((s) => !stopIsEmpty(s));
 
     const formData = new FormData();
@@ -566,33 +513,45 @@ export default function SegmentForm({
 
           {/* ОТКУДА */}
           <div className="bg-green-50 rounded-xl p-4 space-y-3 border border-green-200">
-            <div className="flex items-center justify-between gap-2 flex-wrap">
-              <div className="flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-green-700" strokeWidth={2.2} />
-                <h4 className="text-sm font-bold text-green-800">Откуда</h4>
-                {fromDiffers && (
-                  <span className="text-[10px] uppercase tracking-wide bg-amber-100 text-amber-700 border border-amber-300 px-1.5 py-0.5 rounded font-semibold">
-                    изменено
-                  </span>
-                )}
-              </div>
-              {firstCargo && fromDiffers && (
-                <button
-                  type="button"
-                  onClick={() => setFrom({
-                    country: firstCargo.from_country || '',
-                    city: firstCargo.from_city || '',
-                    company: firstCargo.from_company || '',
-                    address: firstCargo.from_address || '',
-                    postal_code: firstCargo.from_postal_code || '',
-                  })}
-                  className="text-[11px] text-green-700 hover:text-green-900 font-medium inline-flex items-center gap-1"
-                >
-                  <RotateCcw className="w-3 h-3" strokeWidth={2.5} />
-                  Вернуть как у груза
-                </button>
-              )}
+            <div className="flex items-center gap-2">
+              <MapPin className="w-4 h-4 text-green-700" strokeWidth={2.2} />
+              <h4 className="text-sm font-bold text-green-800">Откуда</h4>
             </div>
+
+            {cargoList.length > 0 && (
+              <div>
+                <label className="text-xs font-semibold text-green-800 mb-1 flex items-center gap-1.5">
+                  <Wand2 className="w-3.5 h-3.5" strokeWidth={2.2} />
+                  Подставить из груза
+                </label>
+                <select
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    if (!id) return;
+                    const c = cargoList.find((x) => x.id === id);
+                    if (c) {
+                      setFrom({
+                        country: c.from_country || '',
+                        city: c.from_city || '',
+                        company: c.from_company || '',
+                        address: c.from_address || '',
+                        postal_code: c.from_postal_code || '',
+                      });
+                    }
+                    e.target.value = '';
+                  }}
+                  className="input bg-white mb-2"
+                  defaultValue=""
+                >
+                  <option value="">— Выберите груз —</option>
+                  {cargoList.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      #{c.position} · {c.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div>
               <label className={labelClass}>Подставить из справочника</label>
@@ -803,33 +762,45 @@ export default function SegmentForm({
 
           {/* КУДА */}
           <div className="bg-red-50 rounded-xl p-4 space-y-3 border border-red-200">
-            <div className="flex items-center justify-between gap-2 flex-wrap">
-              <div className="flex items-center gap-2">
-                <Flag className="w-4 h-4 text-red-700" strokeWidth={2.2} />
-                <h4 className="text-sm font-bold text-red-800">Куда</h4>
-                {toDiffers && (
-                  <span className="text-[10px] uppercase tracking-wide bg-amber-100 text-amber-700 border border-amber-300 px-1.5 py-0.5 rounded font-semibold">
-                    изменено
-                  </span>
-                )}
-              </div>
-              {firstCargo && toDiffers && (
-                <button
-                  type="button"
-                  onClick={() => setTo({
-                    country: firstCargo.to_country || '',
-                    city: firstCargo.to_city || '',
-                    company: firstCargo.to_company || '',
-                    address: firstCargo.to_address || '',
-                    postal_code: firstCargo.to_postal_code || '',
-                  })}
-                  className="text-[11px] text-red-700 hover:text-red-900 font-medium inline-flex items-center gap-1"
-                >
-                  <RotateCcw className="w-3 h-3" strokeWidth={2.5} />
-                  Вернуть как у груза
-                </button>
-              )}
+            <div className="flex items-center gap-2">
+              <Flag className="w-4 h-4 text-red-700" strokeWidth={2.2} />
+              <h4 className="text-sm font-bold text-red-800">Куда</h4>
             </div>
+
+            {cargoList.length > 0 && (
+              <div>
+                <label className="text-xs font-semibold text-red-800 mb-1 flex items-center gap-1.5">
+                  <Wand2 className="w-3.5 h-3.5" strokeWidth={2.2} />
+                  Подставить из груза
+                </label>
+                <select
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    if (!id) return;
+                    const c = cargoList.find((x) => x.id === id);
+                    if (c) {
+                      setTo({
+                        country: c.to_country || '',
+                        city: c.to_city || '',
+                        company: c.to_company || '',
+                        address: c.to_address || '',
+                        postal_code: c.to_postal_code || '',
+                      });
+                    }
+                    e.target.value = '';
+                  }}
+                  className="input bg-white mb-2"
+                  defaultValue=""
+                >
+                  <option value="">— Выберите груз —</option>
+                  {cargoList.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      #{c.position} · {c.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div>
               <label className={labelClass}>Подставить из справочника</label>
@@ -898,20 +869,6 @@ export default function SegmentForm({
               </div>
             </div>
           </div>
-
-          {/* ПОДСКАЗКА ПРО ПРОМЕЖУТОЧНУЮ ТОЧКУ */}
-          {toDiffers && firstCargo && (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start gap-2">
-              <AlertTriangle className="w-3.5 h-3.5 text-amber-600 mt-0.5 shrink-0" strokeWidth={2.2} />
-              <div className="text-xs text-amber-800">
-                Куда участка ≠ куда груза. Участок довозит только до <b>промежуточной точки</b> —
-                дальше груз поедет другим участком.
-                <div className="mt-1 text-amber-700">
-                  Груз ждёт: {fmtPlace(firstCargo.to_company, firstCargo.to_city, firstCargo.to_country)}
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* ЗАМЕТКИ */}
           <div>
