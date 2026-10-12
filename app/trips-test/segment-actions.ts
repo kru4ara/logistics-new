@@ -14,6 +14,53 @@ function parseCargoIds(formData: FormData): string[] {
   return ids.filter(Boolean);
 }
 
+/**
+ * Берёт первый груз из списка и копирует его from/to в сегмент.
+ * Нужно для обратной совместимости — старые запросы читают s.from_city и т.п.
+ * Но реальный UI рендерит маршрут из привязанных грузов.
+ */
+async function deriveRouteFromFirstCargo(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  cargoIds: string[]
+): Promise<{
+  from_country: string | null;
+  from_city: string | null;
+  from_company: string | null;
+  from_address: string | null;
+  from_postal_code: string | null;
+  to_country: string | null;
+  to_city: string | null;
+  to_company: string | null;
+  to_address: string | null;
+  to_postal_code: string | null;
+}> {
+  if (cargoIds.length === 0) {
+    return {
+      from_country: null, from_city: null, from_company: null, from_address: null, from_postal_code: null,
+      to_country: null, to_city: null, to_company: null, to_address: null, to_postal_code: null,
+    };
+  }
+
+  const { data: first } = await supabase
+    .from('trip_cargo')
+    .select('from_country, from_city, from_company, from_address, from_postal_code, to_country, to_city, to_company, to_address, to_postal_code')
+    .eq('id', cargoIds[0])
+    .maybeSingle();
+
+  return {
+    from_country: first?.from_country || null,
+    from_city: first?.from_city || null,
+    from_company: first?.from_company || null,
+    from_address: first?.from_address || null,
+    from_postal_code: first?.from_postal_code || null,
+    to_country: first?.to_country || null,
+    to_city: first?.to_city || null,
+    to_company: first?.to_company || null,
+    to_address: first?.to_address || null,
+    to_postal_code: first?.to_postal_code || null,
+  };
+}
+
 export async function createSegment(tripId: string, formData: FormData) {
   const supabase = await createClient();
 
@@ -26,25 +73,15 @@ export async function createSegment(tripId: string, formData: FormData) {
   const notes = str(formData, 'notes');
   const cargoIds = parseCargoIds(formData);
 
-  const fromCountry = str(formData, 'from_country');
-  const fromCity = str(formData, 'from_city');
-  const fromCompany = str(formData, 'from_company');
-  const fromAddress = str(formData, 'from_address');
-  const fromPostalCode = str(formData, 'from_postal_code');
-
-  const toCountry = str(formData, 'to_country');
-  const toCity = str(formData, 'to_city');
-  const toCompany = str(formData, 'to_company');
-  const toAddress = str(formData, 'to_address');
-  const toPostalCode = str(formData, 'to_postal_code');
-
   if (executorType === 'contractor' && !contractorId) {
     throw new Error('Выберите подрядчика');
   }
 
-  if (!fromCity && !fromCountry && !toCity && !toCountry) {
-    throw new Error('Заполните хотя бы откуда или куда');
+  if (cargoIds.length === 0) {
+    throw new Error('Выберите хотя бы один груз для этого участка');
   }
+
+  const route = await deriveRouteFromFirstCargo(supabase, cargoIds);
 
   const { data: last } = await supabase
     .from('trip_segments')
@@ -67,36 +104,34 @@ export async function createSegment(tripId: string, formData: FormData) {
       driver_id: executorType === 'us' ? driverId : null,
       date_from: dateFrom,
       date_to: dateTo,
-      from_country: fromCountry,
-      from_city: fromCity,
-      from_company: fromCompany,
-      from_address: fromAddress,
-      from_postal_code: fromPostalCode,
-      to_country: toCountry,
-      to_city: toCity,
-      to_company: toCompany,
-      to_address: toAddress,
-      to_postal_code: toPostalCode,
+      from_country: route.from_country,
+      from_city: route.from_city,
+      from_company: route.from_company,
+      from_address: route.from_address,
+      from_postal_code: route.from_postal_code,
+      to_country: route.to_country,
+      to_city: route.to_city,
+      to_company: route.to_company,
+      to_address: route.to_address,
+      to_postal_code: route.to_postal_code,
       notes,
     }])
     .select('id')
     .single();
 
-  if (error || !created) throw new Error(`Ошибка создания сегмента: ${error?.message || 'unknown'}`);
+  if (error || !created) throw new Error(`Ошибка создания участка: ${error?.message || 'unknown'}`);
 
-  if (cargoIds.length > 0) {
-    const links = cargoIds.map((cid) => ({ segment_id: created.id, cargo_id: cid }));
-    const { error: linkErr } = await supabase
-      .from('trip_segment_cargo')
-      .insert(links);
-    if (linkErr) throw new Error(`Ошибка привязки грузов: ${linkErr.message}`);
-  }
+  const links = cargoIds.map((cid) => ({ segment_id: created.id, cargo_id: cid }));
+  const { error: linkErr } = await supabase
+    .from('trip_segment_cargo')
+    .insert(links);
+  if (linkErr) throw new Error(`Ошибка привязки грузов: ${linkErr.message}`);
 
   await logAudit({
     entity_type: 'trip',
     entity_id: tripId,
     action: 'update',
-    summary: `Добавлен сегмент №${nextPosition} (${executorType === 'us' ? 'мы' : 'подрядчик'})`,
+    summary: `Добавлен участок №${nextPosition} (${executorType === 'us' ? 'мы' : 'подрядчик'}, грузов: ${cargoIds.length})`,
   });
 
   revalidatePath(`/trips-test/${tripId}`);
@@ -115,25 +150,15 @@ export async function updateSegment(segmentId: string, tripId: string, formData:
   const notes = str(formData, 'notes');
   const cargoIds = parseCargoIds(formData);
 
-  const fromCountry = str(formData, 'from_country');
-  const fromCity = str(formData, 'from_city');
-  const fromCompany = str(formData, 'from_company');
-  const fromAddress = str(formData, 'from_address');
-  const fromPostalCode = str(formData, 'from_postal_code');
-
-  const toCountry = str(formData, 'to_country');
-  const toCity = str(formData, 'to_city');
-  const toCompany = str(formData, 'to_company');
-  const toAddress = str(formData, 'to_address');
-  const toPostalCode = str(formData, 'to_postal_code');
-
   if (executorType === 'contractor' && !contractorId) {
     throw new Error('Выберите подрядчика');
   }
 
-  if (!fromCity && !fromCountry && !toCity && !toCountry) {
-    throw new Error('Заполните хотя бы откуда или куда');
+  if (cargoIds.length === 0) {
+    throw new Error('Выберите хотя бы один груз для этого участка');
   }
+
+  const route = await deriveRouteFromFirstCargo(supabase, cargoIds);
 
   const { error } = await supabase
     .from('trip_segments')
@@ -144,35 +169,32 @@ export async function updateSegment(segmentId: string, tripId: string, formData:
       driver_id: executorType === 'us' ? driverId : null,
       date_from: dateFrom,
       date_to: dateTo,
-      from_country: fromCountry,
-      from_city: fromCity,
-      from_company: fromCompany,
-      from_address: fromAddress,
-      from_postal_code: fromPostalCode,
-      to_country: toCountry,
-      to_city: toCity,
-      to_company: toCompany,
-      to_address: toAddress,
-      to_postal_code: toPostalCode,
+      from_country: route.from_country,
+      from_city: route.from_city,
+      from_company: route.from_company,
+      from_address: route.from_address,
+      from_postal_code: route.from_postal_code,
+      to_country: route.to_country,
+      to_city: route.to_city,
+      to_company: route.to_company,
+      to_address: route.to_address,
+      to_postal_code: route.to_postal_code,
       notes,
     })
     .eq('id', segmentId);
 
-  if (error) throw new Error(`Ошибка обновления сегмента: ${error.message}`);
+  if (error) throw new Error(`Ошибка обновления участка: ${error.message}`);
 
-  // Пересоздаём связи с грузами
   await supabase
     .from('trip_segment_cargo')
     .delete()
     .eq('segment_id', segmentId);
 
-  if (cargoIds.length > 0) {
-    const links = cargoIds.map((cid) => ({ segment_id: segmentId, cargo_id: cid }));
-    const { error: linkErr } = await supabase
-      .from('trip_segment_cargo')
-      .insert(links);
-    if (linkErr) throw new Error(`Ошибка привязки грузов: ${linkErr.message}`);
-  }
+  const links = cargoIds.map((cid) => ({ segment_id: segmentId, cargo_id: cid }));
+  const { error: linkErr } = await supabase
+    .from('trip_segment_cargo')
+    .insert(links);
+  if (linkErr) throw new Error(`Ошибка привязки грузов: ${linkErr.message}`);
 
   revalidatePath(`/trips-test/${tripId}`);
   return { success: true };
@@ -192,13 +214,13 @@ export async function deleteSegment(segmentId: string, tripId: string) {
     .delete()
     .eq('id', segmentId);
 
-  if (error) throw new Error(`Ошибка удаления сегмента: ${error.message}`);
+  if (error) throw new Error(`Ошибка удаления участка: ${error.message}`);
 
   await logAudit({
     entity_type: 'trip',
     entity_id: tripId,
     action: 'update',
-    summary: `Удалён сегмент №${before?.position || '—'}`,
+    summary: `Удалён участок №${before?.position || '—'}`,
   });
 
   revalidatePath(`/trips-test/${tripId}`);
