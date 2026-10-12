@@ -24,6 +24,7 @@ import {
   X,
   Home,
   Calendar,
+  FlaskConical,
   type LucideIcon,
 } from 'lucide-react';
 import { logout } from '../login/actions';
@@ -44,6 +45,7 @@ const adminSections: NavSection[] = [
     title: 'Работа',
     items: [
       { href: '/trips', label: 'Рейсы', icon: Package },
+      { href: '/trips-test', label: 'Рейсы (тест)', icon: FlaskConical },
       { href: '/forwarding', label: 'Экспедирование', icon: Boxes },
       { href: '/routes', label: 'Маршруты', icon: Route },
       { href: '/map', label: 'Карта', icon: Map },
@@ -130,6 +132,13 @@ export default function Sidebar({
 
   function isActive(href: string): boolean {
     if (href === '/' || href === '/driver' || href === '/today') return pathname === href;
+    if (href === '/trips') {
+      // /trips активен только если это ТОЧНО /trips или /trips/[id], но НЕ /trips-test
+      return pathname === '/trips' || (pathname.startsWith('/trips/') && !pathname.startsWith('/trips-test'));
+    }
+    if (href === '/trips-test') {
+      return pathname === '/trips-test' || pathname.startsWith('/trips-test/');
+    }
     return pathname === href || pathname.startsWith(href);
   }
 
@@ -146,7 +155,6 @@ export default function Sidebar({
 
     return (
       <div className="flex flex-col h-full">
-        {/* Логотип */}
         <Link
           href={role === 'driver' ? '/driver' : '/'}
           className={`flex items-center gap-3 px-4 h-14 shrink-0 border-b border-white/5
@@ -162,9 +170,7 @@ export default function Sidebar({
           )}
         </Link>
 
-        {/* Меню */}
         <div className="flex-1 overflow-y-auto scrollbar-thin py-3">
-          {/* Для админа: Главная + Сегодня */}
           {isAdmin && (
             <div className="px-2 mb-2 space-y-0.5">
               <Link
@@ -231,7 +237,6 @@ export default function Sidebar({
             </div>
           ))}
 
-          {/* Напоминания */}
           <div className="mt-4 pt-4 border-t border-white/5 px-2">
             <Link
               href={role === 'driver' ? '/driver/reminders' : '/reminders'}
@@ -248,7 +253,6 @@ export default function Sidebar({
           </div>
         </div>
 
-        {/* Низ */}
         <div className="shrink-0 border-t border-white/5 p-2 space-y-1">
           <div
             className={`flex items-center gap-3 rounded-lg py-2 transition-all
@@ -301,7 +305,6 @@ export default function Sidebar({
 
   return (
     <>
-      {/* DESKTOP */}
       <aside
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
@@ -314,7 +317,6 @@ export default function Sidebar({
         <SidebarContent />
       </aside>
 
-      {/* MOBILE */}
       {mobileOpen && (
         <>
           <div
