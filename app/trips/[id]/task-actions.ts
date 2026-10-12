@@ -2,20 +2,33 @@
 
 import { createClient } from '../../../lib/supabase-server';
 import { revalidatePath } from 'next/cache';
+import { buildDriverTaskText } from '../../../lib/trip-task-text';
 
 export type SendTaskResult =
   | { success: true }
   | { success: false; error: string };
 
-function fmtDate(d: string | null): string {
-  if (!d) return '—';
-  const dt = new Date(d);
-  return `${String(dt.getDate()).padStart(2, '0')}.${String(dt.getMonth() + 1).padStart(2, '0')}.${dt.getFullYear()}`;
+function pickOne<T>(rel: unknown): T | null {
+  if (!rel) return null;
+  if (Array.isArray(rel)) return (rel[0] as T) ?? null;
+  return rel as T;
+}
+
+function pickName(rel: unknown): string | undefined {
+  if (!rel) return undefined;
+  if (Array.isArray(rel)) return rel[0]?.name;
+  if (typeof rel === 'object' && 'name' in rel) {
+    return (rel as { name?: string }).name;
+  }
+  return undefined;
 }
 
 export async function sendTaskToDriver(tripId: string): Promise<SendTaskResult> {
   const supabase = await createClient();
 
+  // ============================================================
+  // Рейс + связи
+  // ============================================================
   const { data: trip, error: tripErr } = await supabase
     .from('trips')
     .select('*, clients(name), drivers!driver_id(id, first_name, last_name, telegram_chat_id), trucks!truck_id(registration_number)')
@@ -26,28 +39,12 @@ export async function sendTaskToDriver(tripId: string): Promise<SendTaskResult> 
     return { success: false, error: 'Рейс не найден' };
   }
 
-  // Подрядчики — чтобы понять, откуда водитель забирает груз
-  const { data: subs } = await supabase
-    .from('trip_subcontractors')
-    .select('position, unload_country, unload_city, unload_company, unload_postal_code, unload_address, unload_date')
-    .eq('trip_id', tripId)
-    .order('position', { ascending: true });
-
-  let consolidationPoint: any = null;
-  if (subs && subs.length > 0) {
-    const sorted = [...subs].sort((a: any, b: any) => {
-      const posDiff = (b.position || 0) - (a.position || 0);
-      if (posDiff !== 0) return posDiff;
-      const aDate = a.unload_date ? new Date(a.unload_date).getTime() : 0;
-      const bDate = b.unload_date ? new Date(b.unload_date).getTime() : 0;
-      return bDate - aDate;
-    });
-    consolidationPoint = sorted[0];
-  }
-
-  const driver = Array.isArray((trip as any).drivers)
-    ? (trip as any).drivers[0]
-    : (trip as any).drivers;
+  const driver = pickOne<{
+    id: string;
+    first_name: string | null;
+    last_name: string | null;
+    telegram_chat_id: string | null;
+  }>((trip as any).drivers);
 
   if (!driver) {
     return { success: false, error: 'У рейса не назначен водитель' };
@@ -59,105 +56,96 @@ export async function sendTaskToDriver(tripId: string): Promise<SendTaskResult> 
     };
   }
 
-  // Собираем текст задания
-  const lines: string[] = [];
-  lines.push(`🚛 *Задание на рейс №${trip.trip_number || '—'}*`);
-  lines.push('');
+  const truck = pickOne<{ registration_number: string | null }>((trip as any).trucks);
 
-  if ((trip as any).clients?.name) {
-    lines.push(`*Клиент:* ${(trip as any).clients.name}`);
-  }
-  lines.push(`*Маршрут:* ${trip.route || '—'}`);
-  if (trip.start_date) {
-    lines.push(`*Старт:* ${fmtDate(trip.start_date)}`);
-  }
-  lines.push('');
-
-  const truck = Array.isArray((trip as any).trucks)
-    ? (trip as any).trucks[0]
-    : (trip as any).trucks;
-
-  if (truck?.registration_number) {
-    lines.push(`🚚 *Тягач:* ${truck.registration_number}`);
-    lines.push('');
+  // Прицеп
+  let trailerNumber: string | null = null;
+  if ((trip as any).trailer_id) {
+    const { data: trailer } = await supabase
+      .from('trucks')
+      .select('registration_number')
+      .eq('id', (trip as any).trailer_id)
+      .maybeSingle();
+    trailerNumber = trailer?.registration_number || null;
   }
 
-  if (consolidationPoint) {
-    // Наш участок C → Б
-    lines.push('📍 *ЗАБИРАЕШЬ ГРУЗ У ПОДРЯДЧИКА:*');
-    lines.push(`${consolidationPoint.unload_company || '—'}`);
-    const cAddr = [
-      consolidationPoint.unload_postal_code,
-      consolidationPoint.unload_city,
-      consolidationPoint.unload_country,
-    ]
-      .filter(Boolean)
-      .join(', ');
-    lines.push(`${cAddr || '—'}`);
-    if (consolidationPoint.unload_address) {
-      lines.push(`${consolidationPoint.unload_address}`);
-    }
-    if (consolidationPoint.unload_date) {
-      lines.push(`📅 ${fmtDate(consolidationPoint.unload_date)}`);
-    }
-    lines.push('');
-    lines.push('🏁 *ВЕЗЁШЬ ПОЛУЧАТЕЛЮ:*');
-    lines.push(`${trip.receiver_name || '—'}`);
-    const recvParts = [
-      trip.receiver_country,
-      trip.receiver_postal_code,
-      trip.receiver_city,
-      trip.receiver_address,
-    ]
-      .filter(Boolean)
-      .join(', ');
-    lines.push(`${recvParts || '—'}`);
-    if (trip.receiver_loading_number) {
-      lines.push(`№ погрузки: ${trip.receiver_loading_number}`);
-    }
-  } else {
-    // Полный маршрут A → Б (только первая точка загрузки)
-    if (trip.sender_city || trip.sender_name || trip.sender_country) {
-      lines.push('📍 *ЗАГРУЗКА:*');
-      lines.push(`${trip.sender_name || '—'}`);
-      const addr = [
-        trip.sender_country,
-        trip.sender_postal_code,
-        trip.sender_city,
-        trip.sender_address,
-      ]
-        .filter(Boolean)
-        .join(', ');
-      lines.push(`   ${addr || '—'}`);
-      if (trip.sender_loading_number) {
-        lines.push(`   № погрузки: ${trip.sender_loading_number}`);
-      }
-      lines.push('');
-    }
+  // ============================================================
+  // Сегменты + грузы сегментов
+  // ============================================================
+  const { data: segmentsRaw } = await supabase
+    .from('trip_segments')
+    .select('*')
+    .eq('trip_id', tripId)
+    .order('position', { ascending: true });
 
-    if (trip.receiver_city || trip.receiver_name) {
-      lines.push('🏁 *ВЫГРУЗКА:*');
-      lines.push(`${trip.receiver_name || '—'}`);
-      const recvParts = [
-        trip.receiver_country,
-        trip.receiver_postal_code,
-        trip.receiver_city,
-        trip.receiver_address,
-      ]
-        .filter(Boolean)
-        .join(', ');
-      lines.push(`${recvParts || '—'}`);
-      if (trip.receiver_loading_number) {
-        lines.push(`№ погрузки: ${trip.receiver_loading_number}`);
-      }
-    }
-  }
+  const segmentIds = (segmentsRaw || []).map((s: any) => s.id);
+  const segmentCargoRes = segmentIds.length > 0
+    ? await supabase
+        .from('trip_segment_cargo')
+        .select('segment_id, cargo_id, trip_cargo(position, label)')
+        .in('segment_id', segmentIds)
+    : { data: [] as any[] };
 
-  lines.push('');
-  lines.push(`Открыть в приложении: https://logistics-new-ebon.vercel.app/driver/trips/${tripId}`);
+  const cargoLinksBySegment: Record<string, { cargo_id: string; position: number; label: string }[]> = {};
+  (segmentCargoRes.data || []).forEach((sc: any) => {
+    if (!sc.segment_id || !sc.cargo_id) return;
+    const meta = pickOne<{ position: number; label: string | null }>(sc.trip_cargo);
+    if (!cargoLinksBySegment[sc.segment_id]) cargoLinksBySegment[sc.segment_id] = [];
+    cargoLinksBySegment[sc.segment_id].push({
+      cargo_id: sc.cargo_id,
+      position: meta?.position || 0,
+      label: meta?.label || '—',
+    });
+  });
 
-  const text = lines.join('\n');
+  const segments = (segmentsRaw || []).map((s: any) => ({
+    id: s.id,
+    position: s.position,
+    executor_type: s.executor_type,
+    date_from: s.date_from,
+    date_to: s.date_to,
+    from_country: s.from_country,
+    from_city: s.from_city,
+    from_company: s.from_company,
+    from_address: s.from_address,
+    from_postal_code: s.from_postal_code,
+    to_country: s.to_country,
+    to_city: s.to_city,
+    to_company: s.to_company,
+    to_address: s.to_address,
+    to_postal_code: s.to_postal_code,
+    stops: Array.isArray(s.stops) ? s.stops : [],
+    cargoLinks: cargoLinksBySegment[s.id] || [],
+  }));
 
+  // ============================================================
+  // Подрядчики — для fallback, если сегментов нет
+  // ============================================================
+  const { data: subcontractors } = await supabase
+    .from('trip_subcontractors')
+    .select('position, unload_country, unload_city, unload_company, unload_postal_code, unload_address, unload_date')
+    .eq('trip_id', tripId)
+    .order('position', { ascending: true });
+
+  // ============================================================
+  // Собираем текст
+  // ============================================================
+  const text = buildDriverTaskText({
+    trip: {
+      ...trip,
+      clients: { name: pickName((trip as any).clients) || null },
+    },
+    driver,
+    truck,
+    trailerNumber,
+    segments,
+    subcontractors: (subcontractors || []) as any,
+    markdown: true,
+  });
+
+  // ============================================================
+  // Отправка в Telegram
+  // ============================================================
   const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!token) {
     return { success: false, error: 'Не настроен TELEGRAM_BOT_TOKEN' };
