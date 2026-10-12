@@ -13,7 +13,7 @@ import {
   Plus,
   Trash2,
   ArrowRight,
-  Wand2,
+  Coins,
 } from 'lucide-react';
 import { createSegment, updateSegment } from './segment-actions';
 
@@ -85,6 +85,8 @@ type SegmentData = {
   to_address: string | null;
   to_postal_code: string | null;
   stops?: Stop[] | null;
+  price?: number | null;
+  currency?: string | null;
 };
 
 function toAddr(
@@ -157,6 +159,10 @@ export default function SegmentForm({
   const [dateFrom, setDateFrom] = useState(initialData?.date_from || '');
   const [dateTo, setDateTo] = useState(initialData?.date_to || '');
   const [notes, setNotes] = useState(initialData?.notes || '');
+  const [price, setPrice] = useState<string>(
+    initialData?.price != null ? String(initialData.price) : ''
+  );
+  const [currency, setCurrency] = useState(initialData?.currency || 'EUR');
 
   const [from, setFrom] = useState<Addr>(
     toAddr(
@@ -322,6 +328,10 @@ export default function SegmentForm({
     formData.set('to_address', to.address);
     formData.set('to_postal_code', to.postal_code);
     formData.set('stops', JSON.stringify(cleanStops));
+    if (executorType === 'contractor') {
+      formData.set('price', price);
+      formData.set('currency', currency);
+    }
 
     selectedCargo.forEach((cid) => formData.append('cargo_ids', cid));
 
@@ -403,20 +413,58 @@ export default function SegmentForm({
             </div>
 
             {executorType === 'contractor' && (
-              <div>
-                <label className={labelClass}>Подрядчик *</label>
-                <select
-                  value={contractorId}
-                  onChange={(e) => setContractorId(e.target.value)}
-                  required
-                  className={inputClass}
-                >
-                  <option value="">— Выберите подрядчика —</option>
-                  {contractors.map((c) => (
-                    <option key={c.id} value={c.id}>{c.label}</option>
-                  ))}
-                </select>
-              </div>
+              <>
+                <div>
+                  <label className={labelClass}>Подрядчик *</label>
+                  <select
+                    value={contractorId}
+                    onChange={(e) => setContractorId(e.target.value)}
+                    required
+                    className={inputClass}
+                  >
+                    <option value="">— Выберите подрядчика —</option>
+                    {contractors.map((c) => (
+                      <option key={c.id} value={c.id}>{c.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* ЦЕНА ПОДРЯДЧИКУ */}
+                <div className="bg-white rounded-lg border border-amber-200 p-3 space-y-2">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-amber-800">
+                    <Coins className="w-3.5 h-3.5" strokeWidth={2.2} />
+                    Стоимость подрядчику
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Сумма</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={price}
+                        onChange={(e) => setPrice(e.target.value)}
+                        placeholder="1500"
+                        className="input text-base py-2"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Валюта</label>
+                      <select
+                        value={currency}
+                        onChange={(e) => setCurrency(e.target.value)}
+                        className="input text-base py-2"
+                      >
+                        <option value="EUR">EUR €</option>
+                        <option value="PLN">PLN zł</option>
+                        <option value="BYN">BYN Br</option>
+                      </select>
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-amber-700">
+                    Расход по этому участку создастся автоматически.
+                  </p>
+                </div>
+              </>
             )}
 
             {executorType === 'us' && (
@@ -501,9 +549,6 @@ export default function SegmentForm({
                       <span className="text-sm text-slate-800 break-words flex-1">
                         {c.label}
                       </span>
-                      <span className="text-[10px] text-slate-400 whitespace-nowrap hidden sm:inline tabular-nums">
-                        {c.from_city || c.from_country || '?'} → {c.to_city || c.to_country || '?'}
-                      </span>
                     </label>
                   );
                 })}
@@ -517,41 +562,6 @@ export default function SegmentForm({
               <MapPin className="w-4 h-4 text-green-700" strokeWidth={2.2} />
               <h4 className="text-sm font-bold text-green-800">Откуда</h4>
             </div>
-
-            {cargoList.length > 0 && (
-              <div>
-                <label className="text-xs font-semibold text-green-800 mb-1 flex items-center gap-1.5">
-                  <Wand2 className="w-3.5 h-3.5" strokeWidth={2.2} />
-                  Подставить из груза
-                </label>
-                <select
-                  onChange={(e) => {
-                    const id = e.target.value;
-                    if (!id) return;
-                    const c = cargoList.find((x) => x.id === id);
-                    if (c) {
-                      setFrom({
-                        country: c.from_country || '',
-                        city: c.from_city || '',
-                        company: c.from_company || '',
-                        address: c.from_address || '',
-                        postal_code: c.from_postal_code || '',
-                      });
-                    }
-                    e.target.value = '';
-                  }}
-                  className="input bg-white mb-2"
-                  defaultValue=""
-                >
-                  <option value="">— Выберите груз —</option>
-                  {cargoList.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      #{c.position} · {c.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
 
             <div>
               <label className={labelClass}>Подставить из справочника</label>
@@ -766,41 +776,6 @@ export default function SegmentForm({
               <Flag className="w-4 h-4 text-red-700" strokeWidth={2.2} />
               <h4 className="text-sm font-bold text-red-800">Куда</h4>
             </div>
-
-            {cargoList.length > 0 && (
-              <div>
-                <label className="text-xs font-semibold text-red-800 mb-1 flex items-center gap-1.5">
-                  <Wand2 className="w-3.5 h-3.5" strokeWidth={2.2} />
-                  Подставить из груза
-                </label>
-                <select
-                  onChange={(e) => {
-                    const id = e.target.value;
-                    if (!id) return;
-                    const c = cargoList.find((x) => x.id === id);
-                    if (c) {
-                      setTo({
-                        country: c.to_country || '',
-                        city: c.to_city || '',
-                        company: c.to_company || '',
-                        address: c.to_address || '',
-                        postal_code: c.to_postal_code || '',
-                      });
-                    }
-                    e.target.value = '';
-                  }}
-                  className="input bg-white mb-2"
-                  defaultValue=""
-                >
-                  <option value="">— Выберите груз —</option>
-                  {cargoList.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      #{c.position} · {c.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
 
             <div>
               <label className={labelClass}>Подставить из справочника</label>
