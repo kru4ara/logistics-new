@@ -12,6 +12,8 @@ import {
   Package,
   AlertTriangle,
   RotateCcw,
+  Plus,
+  Trash2,
   ArrowRight,
 } from 'lucide-react';
 import { createSegment, updateSegment } from './segment-actions';
@@ -54,6 +56,16 @@ type Addr = {
   postal_code: string;
 };
 
+type Stop = {
+  type: 'load' | 'reload' | 'unload';
+  country: string;
+  city: string;
+  company: string;
+  address: string;
+  postal_code: string;
+  date: string;
+};
+
 type SegmentData = {
   id?: string;
   executor_type: string;
@@ -73,6 +85,7 @@ type SegmentData = {
   to_company: string | null;
   to_address: string | null;
   to_postal_code: string | null;
+  stops?: Stop[] | null;
 };
 
 function toAddr(
@@ -95,9 +108,25 @@ function addrIsEmpty(a: Addr): boolean {
   return !a.country && !a.city && !a.company && !a.address && !a.postal_code;
 }
 
+function stopIsEmpty(s: Stop): boolean {
+  return !s.country && !s.city && !s.company && !s.address && !s.postal_code;
+}
+
 function fmtPlace(company: string | null, city: string | null, country: string | null): string {
   return [company, city, country].filter(Boolean).join(', ') || '—';
 }
+
+const STOP_TYPE_LABELS: Record<Stop['type'], string> = {
+  load: 'Загрузка',
+  reload: 'Догруз / перегруз',
+  unload: 'Выгрузка',
+};
+
+const STOP_TYPE_COLORS: Record<Stop['type'], string> = {
+  load: 'bg-green-100 text-green-800 border-green-300',
+  reload: 'bg-amber-100 text-amber-800 border-amber-300',
+  unload: 'bg-red-100 text-red-800 border-red-300',
+};
 
 export default function SegmentForm({
   tripId,
@@ -157,6 +186,21 @@ export default function SegmentForm({
     )
   );
 
+  const [stops, setStops] = useState<Stop[]>(() => {
+    if (initialData?.stops && Array.isArray(initialData.stops)) {
+      return initialData.stops.map((s) => ({
+        type: s.type || 'reload',
+        country: s.country || '',
+        city: s.city || '',
+        company: s.company || '',
+        address: s.address || '',
+        postal_code: s.postal_code || '',
+        date: s.date || '',
+      }));
+    }
+    return [];
+  });
+
   const [selectedCargo, setSelectedCargo] = useState<Set<string>>(
     new Set(initialCargoIds || [])
   );
@@ -170,7 +214,6 @@ export default function SegmentForm({
     'w-full rounded-lg border-2 border-dashed border-brand-300 bg-brand-50 px-3 py-2.5 text-base text-slate-900 font-medium ' +
     'focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-solid focus:border-brand-500 transition-all';
 
-  // Маршрут груза-образца (для индикатора «как у груза» / «изменено»)
   const selectedCargos = cargoList.filter((c) => selectedCargo.has(c.id));
   const firstCargo = selectedCargos[0] || null;
 
@@ -200,33 +243,13 @@ export default function SegmentForm({
     });
   }
 
-  function resetFromToCargo() {
-    if (!firstCargo) return;
-    setFrom({
-      country: firstCargo.from_country || '',
-      city: firstCargo.from_city || '',
-      company: firstCargo.from_company || '',
-      address: firstCargo.from_address || '',
-      postal_code: firstCargo.from_postal_code || '',
-    });
-    setTo({
-      country: firstCargo.to_country || '',
-      city: firstCargo.to_city || '',
-      company: firstCargo.to_company || '',
-      address: firstCargo.to_address || '',
-      postal_code: firstCargo.to_postal_code || '',
-    });
-  }
-
   function toggleCargo(id: string) {
     setSelectedCargo((prev) => {
       const next = new Set(prev);
       const isChecking = !next.has(id);
-
       if (isChecking) next.add(id);
       else next.delete(id);
 
-      // Автозаполнение только когда «Откуда/Куда» ещё пустые
       if (isChecking && addrIsEmpty(from) && addrIsEmpty(to)) {
         const c = cargoList.find((x) => x.id === id);
         if (c) {
@@ -251,7 +274,6 @@ export default function SegmentForm({
     });
   }
 
-  // Отличается ли текущее to сегмента от to первого груза?
   const toDiffers =
     firstCargo != null &&
     (
@@ -270,6 +292,50 @@ export default function SegmentForm({
       (from.address || '') !== (firstCargo.from_address || '')
     );
 
+  function addStop() {
+    setStops([
+      ...stops,
+      {
+        type: 'reload',
+        country: '',
+        city: '',
+        company: '',
+        address: '',
+        postal_code: '',
+        date: '',
+      },
+    ]);
+  }
+
+  function removeStop(idx: number) {
+    setStops(stops.filter((_, i) => i !== idx));
+  }
+
+  function updateStop(idx: number, field: keyof Stop, value: string) {
+    setStops(stops.map((s, i) => (i === idx ? { ...s, [field]: value } : s)));
+  }
+
+  function fillStopFromLocation(idx: number, locId: string) {
+    if (!locId) return;
+    const loc = loadingLocations.find((l) => l.id === locId)
+      || unloadingLocations.find((l) => l.id === locId);
+    if (!loc) return;
+    setStops(
+      stops.map((s, i) =>
+        i === idx
+          ? {
+              ...s,
+              country: loc.country || '',
+              city: loc.city || '',
+              company: loc.company_name || '',
+              address: loc.address || '',
+              postal_code: loc.postal_code || '',
+            }
+          : s
+      )
+    );
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -286,6 +352,9 @@ export default function SegmentForm({
       setError('Заполните «Откуда» или «Куда»');
       return;
     }
+
+    // Фильтруем пустые stops (или с типом без данных)
+    const cleanStops = stops.filter((s) => !stopIsEmpty(s));
 
     const formData = new FormData();
     formData.set('executor_type', executorType);
@@ -305,6 +374,7 @@ export default function SegmentForm({
     formData.set('to_company', to.company);
     formData.set('to_address', to.address);
     formData.set('to_postal_code', to.postal_code);
+    formData.set('stops', JSON.stringify(cleanStops));
 
     selectedCargo.forEach((cid) => formData.append('cargo_ids', cid));
 
@@ -592,6 +662,145 @@ export default function SegmentForm({
             </div>
           </div>
 
+          {/* ПРОМЕЖУТОЧНЫЕ ТОЧКИ */}
+          <div className="bg-amber-50 rounded-xl p-4 space-y-3 border border-amber-200">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="flex items-center gap-2">
+                <ArrowRight className="w-4 h-4 text-amber-700" strokeWidth={2.2} />
+                <h4 className="text-sm font-bold text-amber-800">Промежуточные точки</h4>
+                {stops.length > 0 && (
+                  <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-medium tabular-nums">
+                    {stops.length}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <p className="text-[11px] text-amber-700">
+              Заезды по пути (догруз, перегруз, промежуточная выгрузка). Если машина везёт без остановок — оставьте пустым.
+            </p>
+
+            {stops.map((stop, idx) => (
+              <div
+                key={idx}
+                className="bg-white rounded-lg border border-amber-200 p-3 space-y-2"
+              >
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded tabular-nums">
+                      #{idx + 1}
+                    </span>
+                    <select
+                      value={stop.type}
+                      onChange={(e) => updateStop(idx, 'type', e.target.value)}
+                      className={`text-[11px] font-semibold px-2 py-0.5 rounded border cursor-pointer ${STOP_TYPE_COLORS[stop.type]}`}
+                    >
+                      <option value="load">Загрузка</option>
+                      <option value="reload">Догруз / перегруз</option>
+                      <option value="unload">Выгрузка</option>
+                    </select>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeStop(idx)}
+                    className="text-red-600 hover:text-red-700 text-xs font-medium inline-flex items-center gap-1 px-2 py-1 rounded hover:bg-red-50"
+                  >
+                    <Trash2 className="w-3 h-3" strokeWidth={2.2} />
+                    Удалить
+                  </button>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-600 mb-1">Подставить из справочника</label>
+                  <select
+                    onChange={(e) => {
+                      fillStopFromLocation(idx, e.target.value);
+                      e.target.value = '';
+                    }}
+                    className="w-full rounded-lg border-2 border-dashed border-amber-300 bg-amber-50/50 px-2 py-1.5 text-sm text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    defaultValue=""
+                  >
+                    <option value="">— Выберите локацию —</option>
+                    {loadingLocations.map((loc) => (
+                      <option key={loc.id} value={loc.id}>
+                        {loc.name} {loc.city ? `· ${loc.city}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Компания</label>
+                    <input
+                      type="text"
+                      value={stop.company}
+                      onChange={(e) => updateStop(idx, 'company', e.target.value)}
+                      placeholder="KAMEX Sp. z o.o."
+                      className="input text-sm py-1.5"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Страна</label>
+                    <input
+                      type="text"
+                      value={stop.country}
+                      onChange={(e) => updateStop(idx, 'country', e.target.value)}
+                      className="input text-sm py-1.5"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Город</label>
+                    <input
+                      type="text"
+                      value={stop.city}
+                      onChange={(e) => updateStop(idx, 'city', e.target.value)}
+                      className="input text-sm py-1.5"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Почтовый код</label>
+                    <input
+                      type="text"
+                      value={stop.postal_code}
+                      onChange={(e) => updateStop(idx, 'postal_code', e.target.value)}
+                      className="input text-sm py-1.5"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Адрес</label>
+                    <input
+                      type="text"
+                      value={stop.address}
+                      onChange={(e) => updateStop(idx, 'address', e.target.value)}
+                      className="input text-sm py-1.5"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Дата</label>
+                    <input
+                      type="date"
+                      value={stop.date}
+                      onChange={(e) => updateStop(idx, 'date', e.target.value)}
+                      className="input text-sm py-1.5"
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            <button
+              type="button"
+              onClick={addStop}
+              className="w-full py-2.5 rounded-lg border-2 border-dashed border-amber-300 text-amber-800 font-medium text-sm
+                         hover:bg-amber-100 hover:border-amber-400 transition-all active:scale-[0.99]
+                         inline-flex items-center justify-center gap-2"
+            >
+              <Plus className="w-4 h-4" strokeWidth={2.5} />
+              Добавить промежуточную точку
+            </button>
+          </div>
+
           {/* КУДА */}
           <div className="bg-red-50 rounded-xl p-4 space-y-3 border border-red-200">
             <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -704,31 +913,6 @@ export default function SegmentForm({
             </div>
           )}
 
-          {/* ЕСЛИ НЕСКОЛЬКО ГРУЗОВ — ПОКАЗЫВАЕМ ИХ КОНЕЧНЫЕ ТОЧКИ */}
-          {selectedCargos.length > 1 && (
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2">
-              <div className="text-[11px] uppercase tracking-wide text-slate-500 font-semibold flex items-center gap-1.5">
-                <ArrowRight className="w-3 h-3" strokeWidth={2.5} />
-                Финальные адреса выбранных грузов
-              </div>
-              <div className="space-y-1">
-                {selectedCargos.map((c) => (
-                  <div key={c.id} className="flex items-start gap-2 text-xs">
-                    <span className="text-[10px] font-bold text-brand-700 bg-brand-100 px-1.5 py-0.5 rounded shrink-0 tabular-nums">
-                      {c.position}
-                    </span>
-                    <span className="text-slate-700 break-words">
-                      {fmtPlace(c.to_company, c.to_city, c.to_country)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <div className="text-[11px] text-slate-500">
-                Если участок доставляет не до конца — в поле «Куда» впишите промежуточную точку.
-              </div>
-            </div>
-          )}
-
           {/* ЗАМЕТКИ */}
           <div>
             <label className={labelClass}>Заметки</label>
@@ -737,7 +921,7 @@ export default function SegmentForm({
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
               className={inputClass}
-              placeholder="Догруз в Камексе · перегруз в Бресте · время прибытия ..."
+              placeholder="Время прибытия, особенности ..."
             />
           </div>
 
