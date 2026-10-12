@@ -15,7 +15,7 @@ import {
   StickyNote,
   Package,
   Calendar,
-  Wallet,
+  Coins,
 } from 'lucide-react';
 import SegmentForm from './SegmentForm';
 import { deleteSegment } from './segment-actions';
@@ -89,6 +89,8 @@ type Segment = {
   date_from: string | null;
   date_to: string | null;
   notes: string | null;
+  price: number | null;
+  currency: string | null;
   from_country: string | null;
   from_city: string | null;
   from_company: string | null;
@@ -148,6 +150,12 @@ const STOP_TYPE_BADGES: Record<StopDb['type'], string> = {
   unload: 'bg-red-50 text-red-700 border-red-200',
 };
 
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  EUR: '€',
+  PLN: 'zł',
+  BYN: 'Br',
+};
+
 export default function TripSegmentsBlock({
   tripId,
   segments,
@@ -157,7 +165,6 @@ export default function TripSegmentsBlock({
   loadingLocations,
   unloadingLocations,
   cargoList,
-  expensesBySegment,
 }: {
   tripId: string;
   segments: Segment[];
@@ -167,7 +174,6 @@ export default function TripSegmentsBlock({
   loadingLocations: Location[];
   unloadingLocations: Location[];
   cargoList: CargoOption[];
-  expensesBySegment?: Record<string, number>;
 }) {
   const router = useRouter();
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -191,7 +197,7 @@ export default function TripSegmentsBlock({
   }
 
   function handleDelete(id: string, position: number) {
-    if (!confirm(`Удалить участок №${position}?`)) return;
+    if (!confirm(`Удалить участок №${position}? Расход по нему тоже удалится.`)) return;
     setIsDeletingId(id);
     startTransition(async () => {
       try {
@@ -218,6 +224,8 @@ export default function TripSegmentsBlock({
         date_from: editingSegment.date_from,
         date_to: editingSegment.date_to,
         notes: editingSegment.notes,
+        price: editingSegment.price,
+        currency: editingSegment.currency,
         from_country: editingSegment.from_country,
         from_city: editingSegment.from_city,
         from_company: editingSegment.from_company,
@@ -255,13 +263,13 @@ export default function TripSegmentsBlock({
       </div>
 
       <p className="text-xs text-slate-500 mb-4">
-        Кто и куда едет. Участок = одна машина (наша или подрядчика), маршрут этой машины и список грузов, которые она везёт.
-        Промежуточные точки — заезды по пути (догруз, перегруз).
+        Кто и куда едет. Участок = одна машина (наша или подрядчика), маршрут этой машины и список грузов.
+        Для подрядчика укажи стоимость — расход создастся автоматически.
       </p>
 
       {segments.length === 0 ? (
         <div className="text-center py-8 text-slate-400 text-sm">
-          Участков пока нет. Добавьте, если рейс сборный или часть пути едет подрядчик.
+          Участков пока нет. Добавь, если рейс сборный или часть пути едет подрядчик.
         </div>
       ) : (
         <div className="space-y-3">
@@ -272,7 +280,7 @@ export default function TripSegmentsBlock({
               : `Подрядчик · ${s.contractor_name || '—'}`;
 
             const stops = s.stops || [];
-            const segmentExpenses = expensesBySegment?.[s.id] || 0;
+            const currencySymbol = CURRENCY_SYMBOLS[s.currency || 'EUR'] || s.currency || '€';
 
             return (
               <div
@@ -305,10 +313,10 @@ export default function TripSegmentsBlock({
                         </span>
                       )}
 
-                      {segmentExpenses > 0 && (
-                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full tabular-nums ml-auto">
-                          <Wallet className="w-3 h-3" strokeWidth={2.2} />
-                          {segmentExpenses.toFixed(0)} €
+                      {!isUs && s.price != null && s.price > 0 && (
+                        <span className="ml-auto inline-flex items-center gap-1 text-sm font-bold text-red-600 bg-red-50 border border-red-200 px-2.5 py-0.5 rounded-full tabular-nums">
+                          <Coins className="w-3.5 h-3.5" strokeWidth={2.2} />
+                          {s.price} {currencySymbol}
                         </span>
                       )}
                     </div>
