@@ -10,6 +10,7 @@ import {
   Check,
   Loader2,
   Package,
+  Wand2,
 } from 'lucide-react';
 import { createSegment, updateSegment } from './segment-actions';
 
@@ -27,7 +28,21 @@ type Location = {
 
 type Option = { id: string; label: string };
 
-type CargoOption = { id: string; position: number; label: string };
+type CargoOption = {
+  id: string;
+  position: number;
+  label: string;
+  from_country: string | null;
+  from_city: string | null;
+  from_company: string | null;
+  from_address: string | null;
+  from_postal_code: string | null;
+  to_country: string | null;
+  to_city: string | null;
+  to_company: string | null;
+  to_address: string | null;
+  to_postal_code: string | null;
+};
 
 type Addr = {
   country: string;
@@ -58,14 +73,6 @@ type SegmentData = {
   to_postal_code: string | null;
 };
 
-const emptyAddr: Addr = {
-  country: '',
-  city: '',
-  company: '',
-  address: '',
-  postal_code: '',
-};
-
 function toAddr(
   country: string | null,
   city: string | null,
@@ -80,6 +87,10 @@ function toAddr(
     address: address || '',
     postal_code: postal_code || '',
   };
+}
+
+function addrIsEmpty(a: Addr): boolean {
+  return !a.country && !a.city && !a.company && !a.address && !a.postal_code;
 }
 
 export default function SegmentForm({
@@ -153,6 +164,23 @@ export default function SegmentForm({
     'w-full rounded-lg border-2 border-dashed border-brand-300 bg-brand-50 px-3 py-2.5 text-base text-slate-900 font-medium ' +
     'focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-solid focus:border-brand-500 transition-all';
 
+  function applyCargoRoute(cargo: CargoOption) {
+    setFrom({
+      country: cargo.from_country || '',
+      city: cargo.from_city || '',
+      company: cargo.from_company || '',
+      address: cargo.from_address || '',
+      postal_code: cargo.from_postal_code || '',
+    });
+    setTo({
+      country: cargo.to_country || '',
+      city: cargo.to_city || '',
+      company: cargo.to_company || '',
+      address: cargo.to_address || '',
+      postal_code: cargo.to_postal_code || '',
+    });
+  }
+
   function fillFromLocation(locId: string) {
     if (!locId) return;
     const loc = loadingLocations.find((l) => l.id === locId);
@@ -182,8 +210,20 @@ export default function SegmentForm({
   function toggleCargo(id: string) {
     setSelectedCargo((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      const isCurrentlyChecked = next.has(id);
+
+      if (isCurrentlyChecked) {
+        next.delete(id);
+      } else {
+        next.add(id);
+
+        // Автозаполнение маршрута: если оба поля пустые — берём из этого груза
+        if (addrIsEmpty(from) && addrIsEmpty(to)) {
+          const cargo = cargoList.find((c) => c.id === id);
+          if (cargo) applyCargoRoute(cargo);
+        }
+      }
+
       return next;
     });
   }
@@ -237,6 +277,10 @@ export default function SegmentForm({
     });
   }
 
+  const hasCargoRoutes = cargoList.some(
+    (c) => c.from_city || c.from_country || c.to_city || c.to_country
+  );
+
   return (
     <div
       className="fixed inset-0 z-[100] flex items-start justify-center p-4 bg-black/50 overflow-y-auto animate-fade-in"
@@ -249,7 +293,7 @@ export default function SegmentForm({
         <div className="flex items-start justify-between gap-3">
           <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
             <Truck className="w-5 h-5 text-brand-600" strokeWidth={2.2} />
-            {isEdit ? 'Редактировать сегмент' : 'Добавить сегмент'}
+            {isEdit ? 'Редактировать участок' : 'Добавить участок'}
           </h3>
           <button
             type="button"
@@ -369,6 +413,42 @@ export default function SegmentForm({
               </div>
             </div>
           </div>
+
+          {/* БЫСТРАЯ ПОДСТАНОВКА МАРШРУТА */}
+          {hasCargoRoutes && (
+            <div className="bg-brand-50 border border-brand-200 rounded-xl p-3">
+              <label className="text-xs font-semibold text-brand-800 mb-2 flex items-center gap-1.5">
+                <Wand2 className="w-3.5 h-3.5" strokeWidth={2.2} />
+                Быстро подставить маршрут из груза
+              </label>
+              <select
+                onChange={(e) => {
+                  const id = e.target.value;
+                  if (!id) return;
+                  const cargo = cargoList.find((c) => c.id === id);
+                  if (cargo) applyCargoRoute(cargo);
+                  e.target.value = '';
+                }}
+                className="input bg-white"
+                defaultValue=""
+              >
+                <option value="">— Выберите груз —</option>
+                {cargoList.map((c) => {
+                  const hasRoute = c.from_city || c.from_country || c.to_city || c.to_country;
+                  return (
+                    <option key={c.id} value={c.id} disabled={!hasRoute}>
+                      #{c.position} · {c.label}
+                      {!hasRoute ? ' (нет адресов)' : ''}
+                    </option>
+                  );
+                })}
+              </select>
+              <p className="text-[11px] text-brand-700 mt-1.5">
+                Заполнит поля «Откуда» и «Куда» маршрутом выбранного груза.
+                Дальше можно поправить руками, если у участка другой маршрут.
+              </p>
+            </div>
+          )}
 
           {/* ОТКУДА */}
           <div className="bg-green-50 rounded-xl p-4 space-y-3 border border-green-200">
@@ -527,9 +607,14 @@ export default function SegmentForm({
                 <Package className="w-4 h-4 text-brand-700" strokeWidth={2.2} />
                 <h4 className="text-sm font-bold text-brand-800">Какие грузы везёт</h4>
               </div>
+              <p className="text-[11px] text-brand-700 mb-2">
+                Первый выбранный груз (если поля «Откуда/Куда» выше ещё пусты)
+                автоматически заполнит маршрут участка.
+              </p>
               <div className="space-y-1.5">
                 {cargoList.map((c) => {
                   const isChecked = selectedCargo.has(c.id);
+                  const hasRoute = c.from_city || c.from_country || c.to_city || c.to_country;
                   return (
                     <label
                       key={c.id}
@@ -545,9 +630,14 @@ export default function SegmentForm({
                       <span className="text-xs font-bold text-brand-700 bg-brand-100 px-1.5 py-0.5 rounded tabular-nums">
                         {c.position}
                       </span>
-                      <span className="text-sm text-slate-800 break-words">
+                      <span className="text-sm text-slate-800 break-words flex-1">
                         {c.label}
                       </span>
+                      {hasRoute && (
+                        <span className="text-[10px] text-slate-400 whitespace-nowrap hidden sm:inline">
+                          {c.from_city || c.from_country || '?'} → {c.to_city || c.to_country || '?'}
+                        </span>
+                      )}
                     </label>
                   );
                 })}
