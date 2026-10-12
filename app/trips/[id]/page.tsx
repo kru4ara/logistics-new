@@ -9,6 +9,8 @@ import CopyBlock from '../../components/CopyBlock';
 import SubmitButton from '../../components/SubmitButton';
 import SubcontractorsBlock from './SubcontractorsBlock';
 import SendTaskButton from './SendTaskButton';
+import TripCargoBlock from './TripCargoBlock';
+import TripSegmentsBlock from './TripSegmentsBlock';
 import { buildDriverTaskText } from '../../../lib/trip-task-text';
 import {
   ArrowLeft,
@@ -18,10 +20,8 @@ import {
   Route as RouteIcon,
   Truck,
   UserCircle,
-  Users,
   Phone,
   Calendar,
-  Fuel,
   Gauge,
   MapPin,
   Activity,
@@ -33,10 +33,6 @@ import {
   Settings2,
   CircleDot,
   AlertTriangle,
-  Package,
-  ArrowRight,
-  Flag,
-  StickyNote,
 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -57,89 +53,6 @@ function pickOne<T>(rel: unknown): T | null {
   if (Array.isArray(rel)) return (rel[0] as T) ?? null;
   return rel as T;
 }
-
-function fmtPlace(
-  company: string | null,
-  city: string | null,
-  country: string | null,
-  address?: string | null
-): string {
-  const base = [company, city, country].filter(Boolean).join(', ');
-  if (address) return base ? `${base} · ${address}` : address;
-  return base || '—';
-}
-
-type CargoLink = {
-  cargo_id: string;
-  position: number;
-  label: string;
-};
-
-type StopDb = {
-  type: 'load' | 'reload' | 'unload';
-  company: string | null;
-  country: string | null;
-  city: string | null;
-  address: string | null;
-  postal_code: string | null;
-  date: string | null;
-};
-
-type CargoRow = {
-  id: string;
-  position: number;
-  label: string | null;
-  cargo_type: string | null;
-  weight_kg: number | null;
-  client_name: string | null;
-  notes: string | null;
-  from_country: string | null;
-  from_city: string | null;
-  from_company: string | null;
-  from_address: string | null;
-  from_postal_code: string | null;
-  to_country: string | null;
-  to_city: string | null;
-  to_company: string | null;
-  to_address: string | null;
-  to_postal_code: string | null;
-};
-
-type SegmentRow = {
-  id: string;
-  position: number;
-  executor_type: string;
-  contractor_name: string | null;
-  truck_reg: string | null;
-  driver_name: string | null;
-  date_from: string | null;
-  date_to: string | null;
-  notes: string | null;
-  from_country: string | null;
-  from_city: string | null;
-  from_company: string | null;
-  from_address: string | null;
-  from_postal_code: string | null;
-  to_country: string | null;
-  to_city: string | null;
-  to_company: string | null;
-  to_address: string | null;
-  to_postal_code: string | null;
-  stops: StopDb[];
-  cargoLinks: CargoLink[];
-};
-
-const STOP_TYPE_LABELS: Record<StopDb['type'], string> = {
-  load: 'загрузка',
-  reload: 'догруз',
-  unload: 'выгрузка',
-};
-
-const STOP_TYPE_BADGES: Record<StopDb['type'], string> = {
-  load: 'bg-green-50 text-green-700 border-green-200',
-  reload: 'bg-amber-50 text-amber-700 border-amber-200',
-  unload: 'bg-red-50 text-red-700 border-red-200',
-};
 
 export default async function TripDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: tripId } = await params;
@@ -201,8 +114,25 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
     .in('type', ['unloading', 'both'])
     .order('name');
 
+  // Справочники для сегментов
+  const { data: clientsList } = await supabase
+    .from('clients')
+    .select('id, name')
+    .order('name');
+
+  const { data: tractorsList } = await supabase
+    .from('trucks')
+    .select('id, registration_number')
+    .eq('type', 'tractor')
+    .order('registration_number');
+
+  const { data: driversList } = await supabase
+    .from('drivers')
+    .select('id, first_name, last_name')
+    .order('last_name');
+
   // ============================================================
-  // 🆕 ГРУЗЫ И УЧАСТКИ (read-only)
+  // ГРУЗЫ
   // ============================================================
   const { data: cargoRaw } = await supabase
     .from('trip_cargo')
@@ -210,12 +140,13 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
     .eq('trip_id', tripId)
     .order('position', { ascending: true });
 
-  const cargoList: CargoRow[] = (cargoRaw || []).map((c: any) => ({
+  const cargoList = (cargoRaw || []).map((c: any) => ({
     id: c.id,
     position: c.position,
     label: c.label,
     cargo_type: c.cargo_type,
     weight_kg: c.weight_kg,
+    client_id: c.client_id,
     client_name: pickName(c.clients) || null,
     notes: c.notes,
     from_country: c.from_country,
@@ -230,6 +161,9 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
     to_postal_code: c.to_postal_code,
   }));
 
+  // ============================================================
+  // УЧАСТКИ
+  // ============================================================
   const { data: segmentsRaw } = await supabase
     .from('trip_segments')
     .select('*, contractors(name), trucks!truck_id(registration_number), drivers!driver_id(first_name, last_name)')
@@ -244,33 +178,33 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
         .in('segment_id', segmentIds)
     : { data: [] };
 
-  const cargoLinksBySegment: Record<string, CargoLink[]> = {};
+  const cargoLinksBySegment: Record<string, { cargo_id: string; position: number; label: string }[]> = {};
   (segmentCargoRes.data || []).forEach((sc: any) => {
     if (!sc.segment_id || !sc.cargo_id) return;
-    const cargoMeta = pickOne<{ position: number; label: string | null }>(sc.trip_cargo);
+    const meta = pickOne<{ position: number; label: string | null }>(sc.trip_cargo);
     if (!cargoLinksBySegment[sc.segment_id]) cargoLinksBySegment[sc.segment_id] = [];
     cargoLinksBySegment[sc.segment_id].push({
       cargo_id: sc.cargo_id,
-      position: cargoMeta?.position || 0,
-      label: cargoMeta?.label || '—',
+      position: meta?.position || 0,
+      label: meta?.label || '—',
     });
   });
 
-  const segments: SegmentRow[] = (segmentsRaw || []).map((s: any) => {
+  const segments = (segmentsRaw || []).map((s: any) => {
     const truck = pickOne<{ registration_number: string | null }>(s.trucks);
     const driver = pickOne<{ first_name: string | null; last_name: string | null }>(s.drivers);
     const driverName = driver
       ? `${driver.first_name || ''} ${driver.last_name || ''}`.trim() || null
       : null;
-
-    const rawStops: StopDb[] = Array.isArray(s.stops) ? s.stops : [];
-
     return {
       id: s.id,
       position: s.position,
       executor_type: s.executor_type,
+      contractor_id: s.contractor_id,
       contractor_name: pickName(s.contractors) || null,
+      truck_id: s.truck_id,
       truck_reg: truck?.registration_number || null,
+      driver_id: s.driver_id,
       driver_name: driverName,
       date_from: s.date_from,
       date_to: s.date_to,
@@ -285,7 +219,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
       to_company: s.to_company,
       to_address: s.to_address,
       to_postal_code: s.to_postal_code,
-      stops: rawStops,
+      stops: Array.isArray(s.stops) ? s.stops : [],
       cargoLinks: cargoLinksBySegment[s.id] || [],
     };
   });
@@ -351,9 +285,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
     { num: 5, country: trip.sender5_country, name: trip.sender5_name, postal_code: trip.sender5_postal_code, city: trip.sender5_city, address: trip.sender5_address, loading_number: trip.sender5_loading_number },
   ].filter((p) => p.city || p.name || p.country || p.address);
 
-  // ============================================================
-  // Задача водителю — общий сборщик
-  // ============================================================
+  // Задача водителю
   const taskText = buildDriverTaskText({
     trip: {
       ...trip,
@@ -642,210 +574,41 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
           </div>
         </div>
 
-        {/* ГРУЗЫ — read-only, если есть */}
-        {cargoList.length > 0 && (
-          <div className="card p-5 md:p-6">
-            <div className="flex items-center gap-2 mb-3">
-              <Package className="w-5 h-5 text-brand-600" strokeWidth={2.2} />
-              <h2 className="text-lg font-bold text-slate-900">Грузы на рейсе</h2>
-              <span className="text-xs bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full font-medium tabular-nums">
-                {cargoList.length}
-              </span>
-              <a
-                href={`/trips-test/${tripId}`}
-                className="ml-auto text-xs text-brand-600 hover:underline font-medium whitespace-nowrap"
-              >
-                Управление →
-              </a>
-            </div>
+        {/* ГРУЗЫ */}
+        <TripCargoBlock
+          tripId={tripId}
+          cargoList={cargoList}
+          clients={(clientsList || []).map((c) => ({ id: c.id, label: c.name }))}
+          loadingLocations={(loadingLocations || []) as any}
+          unloadingLocations={(unloadingLocations || []) as any}
+          defaultClientId={trip.client_id}
+        />
 
-            <div className="space-y-2">
-              {cargoList.map((c) => (
-                <div
-                  key={c.id}
-                  className="flex items-start gap-3 p-3 rounded-xl border border-slate-100 bg-slate-50/40"
-                >
-                  <div className="w-8 h-8 rounded-lg bg-brand-100 text-brand-700 flex items-center justify-center text-xs font-bold shrink-0 tabular-nums">
-                    {c.position}
-                  </div>
-
-                  <div className="min-w-0 flex-1">
-                    <div className="font-semibold text-slate-800 text-sm break-words">
-                      {c.label || '—'}
-                    </div>
-
-                    <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500 mt-1">
-                      {c.cargo_type && <span>{c.cargo_type}</span>}
-                      {c.weight_kg != null && <span className="tabular-nums">{c.weight_kg} кг</span>}
-                    </div>
-
-                    {(c.from_city || c.from_country || c.from_company || c.to_city || c.to_country || c.to_company) && (
-                      <div className="mt-2 pt-2 border-t border-slate-100 flex flex-col gap-1 text-xs">
-                        {(c.from_city || c.from_country || c.from_company) && (
-                          <div className="flex items-start gap-1.5">
-                            <MapPin className="w-3 h-3 text-green-600 mt-0.5 shrink-0" strokeWidth={2.2} />
-                            <span className="text-slate-700 break-words">
-                              <span className="text-[10px] uppercase tracking-wide text-green-700 font-semibold mr-1">Откуда: </span>
-                              {fmtPlace(c.from_company, c.from_city, c.from_country, c.from_address)}
-                            </span>
-                          </div>
-                        )}
-                        {(c.to_city || c.to_country || c.to_company) && (
-                          <div className="flex items-start gap-1.5">
-                            <Flag className="w-3 h-3 text-red-600 mt-0.5 shrink-0" strokeWidth={2.2} />
-                            <span className="text-slate-700 break-words">
-                              <span className="text-[10px] uppercase tracking-wide text-red-700 font-semibold mr-1">Куда: </span>
-                              {fmtPlace(c.to_company, c.to_city, c.to_country, c.to_address)}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {c.notes && (
-                      <div className="flex items-start gap-1.5 text-xs text-slate-500 bg-white rounded-lg p-2 mt-2 border border-slate-100 break-words">
-                        <StickyNote className="w-3 h-3 mt-0.5 shrink-0" strokeWidth={2} />
-                        <span>{c.notes}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* УЧАСТКИ — read-only, если есть */}
-        {segments.length > 0 && (
-          <div className="card p-5 md:p-6">
-            <div className="flex items-center gap-2 mb-3">
-              <ArrowRight className="w-5 h-5 text-brand-600" strokeWidth={2.2} />
-              <h2 className="text-lg font-bold text-slate-900">Участки рейса</h2>
-              <span className="text-xs bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full font-medium tabular-nums">
-                {segments.length}
-              </span>
-              <a
-                href={`/trips-test/${tripId}`}
-                className="ml-auto text-xs text-brand-600 hover:underline font-medium whitespace-nowrap"
-              >
-                Управление →
-              </a>
-            </div>
-
-            <div className="space-y-3">
-              {segments.map((s) => {
-                const isUs = s.executor_type === 'us';
-                const executorLabel = isUs
-                  ? `Мы · ${s.truck_reg || '—'}${s.driver_name ? ` · ${s.driver_name}` : ''}`
-                  : `Подрядчик · ${s.contractor_name || '—'}`;
-
-                return (
-                  <div
-                    key={s.id}
-                    className="border border-slate-200 rounded-xl p-4 bg-slate-50/40 space-y-3"
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 tabular-nums
-                        ${isUs ? 'bg-brand-100 text-brand-700' : 'bg-violet-100 text-violet-700'}`}>
-                        {s.position}
-                      </div>
-
-                      <div className="min-w-0 flex-1 space-y-3">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold
-                            ${isUs ? 'bg-brand-50 text-brand-700 border border-brand-200' : 'bg-violet-50 text-violet-700 border border-violet-200'}`}>
-                            {isUs ? (
-                              <Truck className="w-3 h-3" strokeWidth={2.2} />
-                            ) : (
-                              <Users className="w-3 h-3" strokeWidth={2.2} />
-                            )}
-                            {executorLabel}
-                          </span>
-
-                          {(s.date_from || s.date_to) && (
-                            <span className="text-xs text-slate-500 tabular-nums">
-                              {s.date_from && new Date(s.date_from).toLocaleDateString('ru-RU')}
-                              {s.date_from && s.date_to && ' → '}
-                              {s.date_to && new Date(s.date_to).toLocaleDateString('ru-RU')}
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="space-y-2">
-                          {(s.from_city || s.from_country || s.from_company) && (
-                            <div className="flex items-start gap-1.5">
-                              <MapPin className="w-3.5 h-3.5 text-green-600 mt-1 shrink-0" strokeWidth={2.2} />
-                              <div className="text-sm text-slate-700 break-words">
-                                {fmtPlace(s.from_company, s.from_city, s.from_country, s.from_address)}
-                              </div>
-                            </div>
-                          )}
-
-                          {s.stops.length > 0 && (
-                            <div className="pl-5 space-y-1.5">
-                              {s.stops.map((stop, idx) => (
-                                <div
-                                  key={idx}
-                                  className="flex items-start gap-2 text-xs bg-white rounded-lg border border-amber-200 p-2"
-                                >
-                                  <span className={`shrink-0 text-[10px] uppercase tracking-wide font-semibold px-1.5 py-0.5 rounded border ${STOP_TYPE_BADGES[stop.type] || STOP_TYPE_BADGES.reload}`}>
-                                    {STOP_TYPE_LABELS[stop.type] || stop.type}
-                                  </span>
-                                  <div className="min-w-0 flex-1">
-                                    <div className="text-slate-700 break-words font-medium">
-                                      {fmtPlace(stop.company, stop.city, stop.country, stop.address)}
-                                    </div>
-                                    {stop.date && (
-                                      <div className="text-[10px] text-slate-400 mt-0.5 inline-flex items-center gap-1 tabular-nums">
-                                        <Calendar className="w-2.5 h-2.5" strokeWidth={2} />
-                                        {new Date(stop.date).toLocaleDateString('ru-RU')}
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-
-                          {(s.to_city || s.to_country || s.to_company) && (
-                            <div className="flex items-start gap-1.5">
-                              <Flag className="w-3.5 h-3.5 text-red-600 mt-1 shrink-0" strokeWidth={2.2} />
-                              <div className="text-sm text-slate-700 break-words">
-                                {fmtPlace(s.to_company, s.to_city, s.to_country, s.to_address)}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-
-                        {s.cargoLinks.length > 0 && (
-                          <div className="flex items-center gap-1.5 flex-wrap pt-2 border-t border-slate-200/60">
-                            <Package className="w-3 h-3 text-slate-400 shrink-0" strokeWidth={2} />
-                            {s.cargoLinks.map((cl) => (
-                              <span
-                                key={cl.cargo_id}
-                                className="inline-flex items-center gap-1 text-[11px] bg-white border border-slate-200 rounded-full px-2 py-0.5"
-                              >
-                                <span className="font-bold text-brand-600 tabular-nums">#{cl.position}</span>
-                                <span className="text-slate-600 truncate max-w-[140px]">{cl.label}</span>
-                              </span>
-                            ))}
-                          </div>
-                        )}
-
-                        {s.notes && (
-                          <div className="flex items-start gap-1.5 text-xs text-slate-500 bg-white rounded-lg p-2 border border-slate-100 break-words">
-                            <StickyNote className="w-3 h-3 mt-0.5 shrink-0" strokeWidth={2} />
-                            <span>{s.notes}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
+        {/* УЧАСТКИ */}
+        <TripSegmentsBlock
+          tripId={tripId}
+          segments={segments as any}
+          contractors={(contractors || []).map((c) => ({ id: c.id, label: c.name }))}
+          trucks={(tractorsList || []).map((t) => ({ id: t.id, label: t.registration_number }))}
+          drivers={(driversList || []).map((d) => ({ id: d.id, label: `${d.first_name} ${d.last_name}` }))}
+          loadingLocations={(loadingLocations || []) as any}
+          unloadingLocations={(unloadingLocations || []) as any}
+          cargoList={cargoList.map((c) => ({
+            id: c.id,
+            position: c.position,
+            label: c.label || '—',
+            from_country: c.from_country,
+            from_city: c.from_city,
+            from_company: c.from_company,
+            from_address: c.from_address,
+            from_postal_code: c.from_postal_code,
+            to_country: c.to_country,
+            to_city: c.to_city,
+            to_company: c.to_company,
+            to_address: c.to_address,
+            to_postal_code: c.to_postal_code,
+          }))}
+        />
 
         {/* ЗАДАНИЕ ДЛЯ ВОДИТЕЛЯ */}
         <div className="space-y-3">
