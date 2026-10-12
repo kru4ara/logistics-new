@@ -31,7 +31,7 @@ export async function sendTaskToDriver(tripId: string): Promise<SendTaskResult> 
   // ============================================================
   const { data: trip, error: tripErr } = await supabase
     .from('trips')
-    .select('*, clients(name), drivers!driver_id(id, first_name, last_name, telegram_chat_id), trucks!truck_id(registration_number)')
+    .select('*, clients(name), drivers!driver_id(id, first_name, last_name, phone, telegram_chat_id), trucks!truck_id(registration_number)')
     .eq('id', tripId)
     .single();
 
@@ -43,6 +43,7 @@ export async function sendTaskToDriver(tripId: string): Promise<SendTaskResult> 
     id: string;
     first_name: string | null;
     last_name: string | null;
+    phone: string | null;
     telegram_chat_id: string | null;
   }>((trip as any).drivers);
 
