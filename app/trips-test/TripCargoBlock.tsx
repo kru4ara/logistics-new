@@ -10,9 +10,24 @@ import {
   Loader2,
   StickyNote,
   User as UserIcon,
+  MapPin,
+  Flag,
+  ArrowRight,
 } from 'lucide-react';
 import CargoForm from './CargoForm';
 import { deleteCargo } from './cargo-actions';
+
+type Location = {
+  id: string;
+  name: string;
+  type: string;
+  country: string | null;
+  company_name: string | null;
+  postal_code: string | null;
+  city: string | null;
+  address: string | null;
+  default_loading_number: string | null;
+};
 
 type ClientOption = { id: string; label: string };
 
@@ -25,17 +40,38 @@ type Cargo = {
   client_id: string | null;
   client_name: string | null;
   notes: string | null;
+  from_country: string | null;
+  from_city: string | null;
+  from_company: string | null;
+  from_address: string | null;
+  from_postal_code: string | null;
+  to_country: string | null;
+  to_city: string | null;
+  to_company: string | null;
+  to_address: string | null;
+  to_postal_code: string | null;
 };
+
+function fmtPlace(company: string | null, city: string | null, country: string | null): string {
+  const companyPart = company || '';
+  const place = [city, country].filter(Boolean).join(', ');
+  if (companyPart && place) return `${companyPart} · ${place}`;
+  return companyPart || place || '—';
+}
 
 export default function TripCargoBlock({
   tripId,
   cargoList,
   clients,
+  loadingLocations,
+  unloadingLocations,
   defaultClientId,
 }: {
   tripId: string;
   cargoList: Cargo[];
   clients: ClientOption[];
+  loadingLocations: Location[];
+  unloadingLocations: Location[];
   defaultClientId?: string | null;
 }) {
   const router = useRouter();
@@ -101,8 +137,8 @@ export default function TripCargoBlock({
       </div>
 
       <p className="text-xs text-slate-500 mb-4">
-        Каждый груз на рейсе — отдельная позиция со своим описанием. Удобно, когда рейс сборный:
-        несколько грузов от разных отправителей, которые мы забираем и везём вместе.
+        Каждый груз — отдельная позиция со своим маршрутом «откуда → куда».
+        Удобно, когда рейс сборный: несколько грузов от разных отправителей, которые мы везём вместе.
       </p>
 
       {cargoList.length === 0 ? (
@@ -139,6 +175,36 @@ export default function TripCargoBlock({
                     </span>
                   )}
                 </div>
+
+                {/* Маршрут груза: откуда → куда */}
+                {(c.from_city || c.from_country || c.from_company || c.to_city || c.to_country || c.to_company) && (
+                  <div className="mt-2 pt-2 border-t border-slate-100">
+                    <div className="flex flex-col gap-1.5 text-xs">
+                      {(c.from_city || c.from_country || c.from_company) && (
+                        <div className="flex items-start gap-1.5">
+                          <MapPin className="w-3 h-3 text-green-600 mt-0.5 shrink-0" strokeWidth={2.2} />
+                          <div className="min-w-0">
+                            <span className="text-[10px] uppercase tracking-wide text-green-700 font-semibold">Откуда: </span>
+                            <span className="text-slate-700 break-words">
+                              {fmtPlace(c.from_company, c.from_city, c.from_country)}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                      {(c.to_city || c.to_country || c.to_company) && (
+                        <div className="flex items-start gap-1.5">
+                          <Flag className="w-3 h-3 text-red-600 mt-0.5 shrink-0" strokeWidth={2.2} />
+                          <div className="min-w-0">
+                            <span className="text-[10px] uppercase tracking-wide text-red-700 font-semibold">Куда: </span>
+                            <span className="text-slate-700 break-words">
+                              {fmtPlace(c.to_company, c.to_city, c.to_country)}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {c.notes && (
                   <div className="flex items-start gap-1.5 text-xs text-slate-500 bg-white rounded-lg p-2 mt-2 border border-slate-100 break-words">
@@ -189,8 +255,20 @@ export default function TripCargoBlock({
             weight_kg: editingCargo.weight_kg,
             client_id: editingCargo.client_id,
             notes: editingCargo.notes || '',
+            from_country: editingCargo.from_country,
+            from_city: editingCargo.from_city,
+            from_company: editingCargo.from_company,
+            from_address: editingCargo.from_address,
+            from_postal_code: editingCargo.from_postal_code,
+            to_country: editingCargo.to_country,
+            to_city: editingCargo.to_city,
+            to_company: editingCargo.to_company,
+            to_address: editingCargo.to_address,
+            to_postal_code: editingCargo.to_postal_code,
           } : undefined}
           clients={clients}
+          loadingLocations={loadingLocations}
+          unloadingLocations={unloadingLocations}
           defaultClientId={defaultClientId}
           onClose={handleClose}
           onSaved={() => {
