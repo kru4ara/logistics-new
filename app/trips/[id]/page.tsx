@@ -231,16 +231,13 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
   // ============================================================
   // Расчёты
   // ============================================================
-  // Расходы от подрядчиков — те, что были созданы автоматически из сегментов
-  // (у них есть segment_id). Плюс legacy-расходы подрядчиков (subcontractor_id, без segment_id)
-  // — они остаются для рейсов без сегментов.
   const contractorExpenses = expenses
     ?.filter((e: any) => e.category === 'contractor')
-    .reduce((sum, e: any) => sum + (e.amount_eur || 0), 0) || 0;
+    .reduce((sum: number, e: any) => sum + (e.amount_eur || 0), 0) || 0;
 
   const otherExpenses = expenses
     ?.filter((e: any) => e.category !== 'contractor')
-    .reduce((sum, e: any) => sum + (e.amount_eur || 0), 0) || 0;
+    .reduce((sum: number, e: any) => sum + (e.amount_eur || 0), 0) || 0;
 
   const totalExpenses = contractorExpenses + otherExpenses;
   const profit = (trip.revenue_eur || 0) - totalExpenses;
@@ -955,7 +952,6 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
           </h2>
 
           <div className="space-y-3">
-            {/* Фрахт */}
             <div className="flex items-center justify-between gap-3 pb-3 border-b border-slate-100">
               <div className="text-sm font-medium text-slate-700">Фрахт</div>
               <div className="text-lg font-bold text-green-600 tabular-nums">
@@ -963,7 +959,6 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
               </div>
             </div>
 
-            {/* Подрядчики из сегментов */}
             {contractorExpenses > 0 && (
               <div className="flex items-center justify-between gap-3 pb-3 border-b border-slate-100">
                 <div className="text-sm font-medium text-slate-700 flex items-center gap-2">
@@ -976,7 +971,6 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
               </div>
             )}
 
-            {/* Прочие расходы */}
             {otherExpenses > 0 && (
               <div className="flex items-center justify-between gap-3 pb-3 border-b border-slate-100">
                 <div className="text-sm font-medium text-slate-700">Прочие расходы</div>
@@ -986,7 +980,6 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
               </div>
             )}
 
-            {/* Прибыль */}
             <div className="flex items-center justify-between gap-3 pt-2">
               <div className="text-base font-bold text-slate-900">Прибыль</div>
               <div className={`text-2xl font-bold tabular-nums ${profit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
