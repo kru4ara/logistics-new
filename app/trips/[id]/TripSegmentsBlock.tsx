@@ -15,6 +15,7 @@ import {
   StickyNote,
   Package,
   Calendar,
+  Wallet,
 } from 'lucide-react';
 import SegmentForm from './SegmentForm';
 import { deleteSegment } from './segment-actions';
@@ -55,7 +56,6 @@ type CargoLink = {
   label: string;
 };
 
-// Тип из БД — поля могут быть null
 type StopDb = {
   type: 'load' | 'reload' | 'unload';
   company: string | null;
@@ -66,7 +66,6 @@ type StopDb = {
   date: string | null;
 };
 
-// Тип для формы — строки
 type StopForm = {
   type: 'load' | 'reload' | 'unload';
   company: string;
@@ -125,7 +124,6 @@ function fmtPlace(
   return base || '—';
 }
 
-// Конвертация StopDb → StopForm для формы
 function stopDbToForm(s: StopDb): StopForm {
   return {
     type: s.type || 'reload',
@@ -159,6 +157,7 @@ export default function TripSegmentsBlock({
   loadingLocations,
   unloadingLocations,
   cargoList,
+  expensesBySegment,
 }: {
   tripId: string;
   segments: Segment[];
@@ -168,6 +167,7 @@ export default function TripSegmentsBlock({
   loadingLocations: Location[];
   unloadingLocations: Location[];
   cargoList: CargoOption[];
+  expensesBySegment?: Record<string, number>;
 }) {
   const router = useRouter();
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -209,7 +209,6 @@ export default function TripSegmentsBlock({
     ? segments.find((s) => s.id === editingId)
     : null;
 
-  // Готовим initialData для формы
   const editingInitialData = editingSegment
     ? {
         executor_type: editingSegment.executor_type,
@@ -273,6 +272,7 @@ export default function TripSegmentsBlock({
               : `Подрядчик · ${s.contractor_name || '—'}`;
 
             const stops = s.stops || [];
+            const segmentExpenses = expensesBySegment?.[s.id] || 0;
 
             return (
               <div
@@ -302,6 +302,13 @@ export default function TripSegmentsBlock({
                           {s.date_from && fmtDate(s.date_from)}
                           {s.date_from && s.date_to && ' → '}
                           {s.date_to && fmtDate(s.date_to)}
+                        </span>
+                      )}
+
+                      {segmentExpenses > 0 && (
+                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full tabular-nums ml-auto">
+                          <Wallet className="w-3 h-3" strokeWidth={2.2} />
+                          {segmentExpenses.toFixed(0)} €
                         </span>
                       )}
                     </div>
