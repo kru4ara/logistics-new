@@ -33,6 +33,7 @@ import {
   Settings2,
   CircleDot,
   AlertTriangle,
+  Coins,
 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -208,6 +209,8 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
       date_from: s.date_from,
       date_to: s.date_to,
       notes: s.notes,
+      price: s.price != null ? Number(s.price) : null,
+      currency: s.currency,
       from_country: s.from_country,
       from_city: s.from_city,
       from_company: s.from_company,
@@ -223,21 +226,26 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
     };
   });
 
+  const hasSegments = segments.length > 0;
+
   // ============================================================
   // Расчёты
   // ============================================================
-  const totalExpenses = expenses?.reduce((sum, e) => sum + (e.amount_eur || 0), 0) || 0;
+  // Расходы от подрядчиков — те, что были созданы автоматически из сегментов
+  // (у них есть segment_id). Плюс legacy-расходы подрядчиков (subcontractor_id, без segment_id)
+  // — они остаются для рейсов без сегментов.
+  const contractorExpenses = expenses
+    ?.filter((e: any) => e.category === 'contractor')
+    .reduce((sum, e: any) => sum + (e.amount_eur || 0), 0) || 0;
+
+  const otherExpenses = expenses
+    ?.filter((e: any) => e.category !== 'contractor')
+    .reduce((sum, e: any) => sum + (e.amount_eur || 0), 0) || 0;
+
+  const totalExpenses = contractorExpenses + otherExpenses;
   const profit = (trip.revenue_eur || 0) - totalExpenses;
 
-  // Расходы по участкам
-  const expensesBySegment: Record<string, number> = {};
-  const unassignedExpenses = expenses?.filter((e) => !e.segment_id).reduce((sum, e) => sum + (e.amount_eur || 0), 0) || 0;
-  expenses?.forEach((e: any) => {
-    if (!e.segment_id) return;
-    expensesBySegment[e.segment_id] = (expensesBySegment[e.segment_id] || 0) + (e.amount_eur || 0);
-  });
-
-  const refuelLiters = expenses?.filter((e) => e.category === 'fuel' && e.liters).reduce((sum, e) => sum + e.liters, 0) || 0;
+  const refuelLiters = expenses?.filter((e: any) => e.category === 'fuel' && e.liters).reduce((sum: number, e: any) => sum + e.liters, 0) || 0;
   const fuelLeft = (trip.start_fuel_level || 0) + refuelLiters - (trip.actual_liters || 0);
 
   const fuelLeftIsNegative = fuelLeft < 0;
@@ -301,7 +309,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
     driver,
     truck,
     trailerNumber,
-    segments,
+    segments: segments as any,
     subcontractors: (subcontractors || []) as any,
     markdown: false,
   });
@@ -336,7 +344,6 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
     { value: 'etoll', label: '🛣 e-TOLL' },
     { value: 'border', label: '🛂 Граница' },
     { value: 'salary', label: '💶 ЗП водителя' },
-    { value: 'contractor', label: '🚛 Подрядчик' },
     { value: 'permit', label: '📋 Дозвол' },
     { value: 'tlc', label: '🏭 ТЛЦ' },
     { value: 'waiting', label: '⏳ Зона ожидания' },
@@ -350,7 +357,8 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
   ];
 
   function categoryLabel(cat: string): string {
-    return expenseCategories.find((c) => c.value === cat)?.label || cat;
+    return expenseCategories.find((c) => c.value === cat)?.label
+      || (cat === 'contractor' ? '🚛 Подрядчик' : cat);
   }
 
   const tripFinalDestination = [
@@ -513,72 +521,74 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
           )}
         </div>
 
-        {/* ТОЧКИ МАРШРУТА */}
-        <div className="card p-5 md:p-6">
-          <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-            <MapPin className="w-5 h-5 text-brand-600" strokeWidth={2} />
-            Маршрутные точки
-          </h2>
+        {/* ТОЧКИ МАРШРУТА — legacy, только если нет сегментов */}
+        {!hasSegments && (
+          <div className="card p-5 md:p-6">
+            <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+              <MapPin className="w-5 h-5 text-brand-600" strokeWidth={2} />
+              Маршрутные точки
+            </h2>
 
-          <div className="mb-6">
-            <div className="text-sm font-semibold text-green-700 mb-3 flex items-center gap-2">
-              <CircleDot className="w-4 h-4" strokeWidth={2.5} />
-              Загрузка
-              {loadingPoints.length > 1 && (
-                <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
-                  {loadingPoints.length} точки
-                </span>
-              )}
-            </div>
-            {loadingPoints.length === 0 ? (
-              <div className="text-slate-400 text-sm pl-4">Не указана</div>
-            ) : (
-              <div className="space-y-3">
-                {loadingPoints.map((p) => (
-                  <div key={p.num} className="border-l-4 border-green-500 pl-4 py-1">
-                    <div className="flex items-baseline gap-2 flex-wrap">
-                      <span className="text-xs font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded tabular-nums">
-                        #{p.num}
-                      </span>
-                      <span className="font-semibold text-slate-800 text-sm break-words">{p.name || '—'}</span>
-                    </div>
-                    <div className="text-sm text-slate-600 mt-1 break-words">
-                      {[p.country, p.postal_code, p.city, p.address].filter(Boolean).join(', ') || '—'}
-                    </div>
-                    {p.loading_number && (
-                      <div className="text-xs text-slate-500 mt-1">
-                        № погрузки: <span className="font-medium">{p.loading_number}</span>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="pt-4 border-t border-slate-100">
-            <div className="text-sm font-semibold text-red-700 mb-3 flex items-center gap-2">
-              <MapPin className="w-4 h-4" strokeWidth={2.5} />
-              Выгрузка
-            </div>
-            {trip.receiver_city || trip.receiver_name ? (
-              <div className="border-l-4 border-red-500 pl-4 py-1">
-                <div className="font-semibold text-slate-800 text-sm break-words">{trip.receiver_name || '—'}</div>
-                <div className="text-sm text-slate-600 mt-1 break-words">
-                  {[trip.receiver_country, trip.receiver_postal_code, trip.receiver_city, trip.receiver_address]
-                    .filter(Boolean).join(', ') || '—'}
-                </div>
-                {trip.receiver_loading_number && (
-                  <div className="text-xs text-slate-500 mt-1">
-                    № погрузки: <span className="font-medium">{trip.receiver_loading_number}</span>
-                  </div>
+            <div className="mb-6">
+              <div className="text-sm font-semibold text-green-700 mb-3 flex items-center gap-2">
+                <CircleDot className="w-4 h-4" strokeWidth={2.5} />
+                Загрузка
+                {loadingPoints.length > 1 && (
+                  <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
+                    {loadingPoints.length} точки
+                  </span>
                 )}
               </div>
-            ) : (
-              <div className="text-slate-400 text-sm pl-4">Не указана</div>
-            )}
+              {loadingPoints.length === 0 ? (
+                <div className="text-slate-400 text-sm pl-4">Не указана</div>
+              ) : (
+                <div className="space-y-3">
+                  {loadingPoints.map((p) => (
+                    <div key={p.num} className="border-l-4 border-green-500 pl-4 py-1">
+                      <div className="flex items-baseline gap-2 flex-wrap">
+                        <span className="text-xs font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded tabular-nums">
+                          #{p.num}
+                        </span>
+                        <span className="font-semibold text-slate-800 text-sm break-words">{p.name || '—'}</span>
+                      </div>
+                      <div className="text-sm text-slate-600 mt-1 break-words">
+                        {[p.country, p.postal_code, p.city, p.address].filter(Boolean).join(', ') || '—'}
+                      </div>
+                      {p.loading_number && (
+                        <div className="text-xs text-slate-500 mt-1">
+                          № погрузки: <span className="font-medium">{p.loading_number}</span>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="pt-4 border-t border-slate-100">
+              <div className="text-sm font-semibold text-red-700 mb-3 flex items-center gap-2">
+                <MapPin className="w-4 h-4" strokeWidth={2.5} />
+                Выгрузка
+              </div>
+              {trip.receiver_city || trip.receiver_name ? (
+                <div className="border-l-4 border-red-500 pl-4 py-1">
+                  <div className="font-semibold text-slate-800 text-sm break-words">{trip.receiver_name || '—'}</div>
+                  <div className="text-sm text-slate-600 mt-1 break-words">
+                    {[trip.receiver_country, trip.receiver_postal_code, trip.receiver_city, trip.receiver_address]
+                      .filter(Boolean).join(', ') || '—'}
+                  </div>
+                  {trip.receiver_loading_number && (
+                    <div className="text-xs text-slate-500 mt-1">
+                      № погрузки: <span className="font-medium">{trip.receiver_loading_number}</span>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-slate-400 text-sm pl-4">Не указана</div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* ГРУЗЫ */}
         <TripCargoBlock
@@ -614,7 +624,6 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
             to_address: c.to_address,
             to_postal_code: c.to_postal_code,
           }))}
-          expensesBySegment={expensesBySegment}
         />
 
         {/* ЗАДАНИЕ ДЛЯ ВОДИТЕЛЯ */}
@@ -634,27 +643,29 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
           <TripStatusButtons tripId={tripId} currentStatus={trip.status} showAdminStatuses={true} />
         </div>
 
-        {/* ПОДРЯДЧИКИ НА РЕЙСЕ */}
-        <SubcontractorsBlock
-          tripId={tripId}
-          subcontractors={(subcontractors || []) as any}
-          contractors={(contractors || []) as any}
-          loadingLocations={(loadingLocations || []) as any}
-          unloadingLocations={(unloadingLocations || []) as any}
-          defaultLoad={{
-            country: trip.sender_country,
-            city: trip.sender_city,
-            address: trip.sender_address,
-            company: trip.sender_name,
-            postal_code: trip.sender_postal_code,
-            loading_number: trip.sender_loading_number,
-          }}
-          senderPoints={loadingPoints}
-          tripFinalDestination={tripFinalDestination}
-        />
+        {/* ПОДРЯДЧИКИ НА РЕЙСЕ — legacy, только если нет сегментов */}
+        {!hasSegments && (
+          <SubcontractorsBlock
+            tripId={tripId}
+            subcontractors={(subcontractors || []) as any}
+            contractors={(contractors || []) as any}
+            loadingLocations={(loadingLocations || []) as any}
+            unloadingLocations={(unloadingLocations || []) as any}
+            defaultLoad={{
+              country: trip.sender_country,
+              city: trip.sender_city,
+              address: trip.sender_address,
+              company: trip.sender_name,
+              postal_code: trip.sender_postal_code,
+              loading_number: trip.sender_loading_number,
+            }}
+            senderPoints={loadingPoints}
+            tripFinalDestination={tripFinalDestination}
+          />
+        )}
 
-        {/* НАШ УЧАСТОК (C → Б) */}
-        {consolidationPoint && (
+        {/* НАШ УЧАСТОК (C → Б) — legacy, только если нет сегментов */}
+        {!hasSegments && consolidationPoint && (
           <div className="bg-white rounded-2xl border-2 border-brand-200 shadow-soft p-5 md:p-6">
             <div className="flex flex-wrap items-baseline justify-between gap-2 mb-4">
               <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
@@ -831,11 +842,8 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
                       <div className="flex justify-between items-start gap-2 mb-2">
                         <div className="font-semibold text-slate-800 text-sm">
                           {categoryLabel(exp.category)}
-                          {exp.subcontractor_id && (
-                            <span className="ml-2 text-[10px] text-brand-600 bg-brand-50 px-1.5 py-0.5 rounded">авто</span>
-                          )}
                         </div>
-                        {!exp.subcontractor_id && (
+                        {!seg && (
                           <form action={async () => {
                             'use server';
                             await deleteExpense(exp.id, tripId);
@@ -848,7 +856,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
                       </div>
                       {seg && (
                         <div className="text-[10px] text-brand-600 mb-1">
-                          Участок #{seg.position} · {seg.executor_type === 'us' ? 'Мы' : seg.contractor_name || 'Подрядчик'}
+                          Участок #{seg.position} · {seg.executor_type === 'us' ? 'Мы' : seg.contractor_name || 'Подрядчик'} · создан автоматически
                         </div>
                       )}
                       <div className="grid grid-cols-2 gap-2 text-xs">
@@ -882,7 +890,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
                   <thead>
                     <tr className="border-b border-slate-100">
                       <th className="text-left py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Категория</th>
-                      <th className="text-left py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Участок</th>
+                      <th className="text-left py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Источник</th>
                       <th className="text-right py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Оплачено</th>
                       <th className="text-right py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">EUR</th>
                       <th className="text-left py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide pl-4">Описание</th>
@@ -897,9 +905,6 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
                         <tr key={exp.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
                           <td className="py-3 text-sm">
                             {categoryLabel(exp.category)}
-                            {exp.subcontractor_id && (
-                              <span className="ml-2 text-[10px] text-brand-600 bg-brand-50 px-1.5 py-0.5 rounded">авто</span>
-                            )}
                           </td>
                           <td className="py-3 text-xs text-slate-600">
                             {seg ? (
@@ -921,7 +926,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
                             {exp.expense_date ? new Date(exp.expense_date).toLocaleDateString('ru-RU') : '-'}
                           </td>
                           <td className="py-3 text-right">
-                            {!exp.subcontractor_id && (
+                            {!seg && (
                               <form action={async () => {
                                 'use server';
                                 await deleteExpense(exp.id, tripId);
@@ -949,65 +954,46 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
             Экономика рейса
           </h2>
 
-          <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-3">
-            <div className="rounded-xl p-4 bg-green-50 border border-green-100">
-              <div className="text-xs uppercase tracking-wide text-green-700 font-semibold mb-1">Фрахт</div>
-              <div className="text-xl md:text-2xl font-bold text-green-700 break-words tabular-nums">
+          <div className="space-y-3">
+            {/* Фрахт */}
+            <div className="flex items-center justify-between gap-3 pb-3 border-b border-slate-100">
+              <div className="text-sm font-medium text-slate-700">Фрахт</div>
+              <div className="text-lg font-bold text-green-600 tabular-nums">
                 {(trip.revenue_eur || 0).toFixed(2)} €
               </div>
             </div>
-            <div className="rounded-xl p-4 bg-red-50 border border-red-100">
-              <div className="text-xs uppercase tracking-wide text-red-700 font-semibold mb-1">Расходы</div>
-              <div className="text-xl md:text-2xl font-bold text-red-600 break-words tabular-nums">
-                {totalExpenses.toFixed(2)} €
+
+            {/* Подрядчики из сегментов */}
+            {contractorExpenses > 0 && (
+              <div className="flex items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                <div className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                  <Coins className="w-4 h-4 text-slate-400" strokeWidth={2} />
+                  Подрядчики
+                </div>
+                <div className="text-lg font-bold text-red-600 tabular-nums">
+                  −{contractorExpenses.toFixed(2)} €
+                </div>
               </div>
-            </div>
-            <div className={`rounded-xl p-4 border ${profit >= 0 ? 'bg-emerald-50 border-emerald-100' : 'bg-red-50 border-red-100'}`}>
-              <div className={`text-xs uppercase tracking-wide font-semibold mb-1 ${profit >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
-                Прибыль
+            )}
+
+            {/* Прочие расходы */}
+            {otherExpenses > 0 && (
+              <div className="flex items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                <div className="text-sm font-medium text-slate-700">Прочие расходы</div>
+                <div className="text-lg font-bold text-red-600 tabular-nums">
+                  −{otherExpenses.toFixed(2)} €
+                </div>
               </div>
-              <div className={`text-xl md:text-2xl font-bold break-words tabular-nums ${profit >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
+            )}
+
+            {/* Прибыль */}
+            <div className="flex items-center justify-between gap-3 pt-2">
+              <div className="text-base font-bold text-slate-900">Прибыль</div>
+              <div className={`text-2xl font-bold tabular-nums ${profit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                 {profit.toFixed(2)} €
               </div>
             </div>
           </div>
-
-          {/* Разбивка по участкам */}
-          {segments.length > 0 && (
-            <div className="mt-4 pt-4 border-t border-slate-100 space-y-2">
-              <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold">
-                По участкам
-              </div>
-              {segments.map((s) => {
-                const sum = expensesBySegment[s.id] || 0;
-                const isUs = s.executor_type === 'us';
-                return (
-                  <div key={s.id} className="flex items-center justify-between gap-2 text-sm">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className={`shrink-0 w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-bold tabular-nums
-                        ${isUs ? 'bg-brand-100 text-brand-700' : 'bg-violet-100 text-violet-700'}`}>
-                        {s.position}
-                      </span>
-                      <span className="text-slate-700 break-words">
-                        {isUs ? `Мы · ${s.truck_reg || '—'}` : `Подрядчик · ${s.contractor_name || '—'}`}
-                      </span>
-                    </div>
-                    <span className={`shrink-0 font-semibold tabular-nums ${sum > 0 ? 'text-red-600' : 'text-slate-400'}`}>
-                      {sum > 0 ? `${sum.toFixed(0)} €` : '—'}
-                    </span>
-                  </div>
-                );
-              })}
-              {unassignedExpenses > 0 && (
-                <div className="flex items-center justify-between gap-2 text-sm pt-2 border-t border-slate-100">
-                  <span className="text-slate-500">Прочие расходы</span>
-                  <span className="font-semibold text-red-600 tabular-nums">
-                    {unassignedExpenses.toFixed(0)} €
-                  </span>
-                </div>
-              )}
-            </div>
-          )}
         </div>
 
         {/* ДОБАВИТЬ РАСХОД */}
@@ -1016,6 +1002,10 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
             <PlusCircle className="w-5 h-5 text-brand-600" strokeWidth={2} />
             Добавить расход
           </h2>
+          <p className="text-xs text-slate-500 mb-4">
+            Расход подрядчику создаётся автоматически из участка. Здесь — только прочие расходы:
+            топливо, EPI, стоянки, дозволы и т.д.
+          </p>
           <form action={addExpense} className="space-y-4">
             <input type="hidden" name="trip_id" value={tripId} />
 
@@ -1047,28 +1037,6 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
                 <label className="block text-sm font-medium text-slate-700 mb-1">Литры (для топлива)</label>
                 <input type="number" name="liters" step="0.01" placeholder="150" className="input" />
               </div>
-
-              {segments.length > 0 && (
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
-                    Участок (опционально)
-                  </label>
-                  <select name="segment_id" className="input">
-                    <option value="">— Без привязки к участку —</option>
-                    {segments.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        #{s.position} · {s.executor_type === 'us'
-                          ? `Мы${s.truck_reg ? ` · ${s.truck_reg}` : ''}`
-                          : `Подрядчик · ${s.contractor_name || '—'}`}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-slate-400 mt-1">
-                    Если расход относится к конкретному плечу рейса — выбери участок.
-                    Так будет видно, сколько стоил каждый этап.
-                  </p>
-                </div>
-              )}
 
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-slate-700 mb-1">Описание</label>
