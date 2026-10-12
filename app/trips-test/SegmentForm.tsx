@@ -11,6 +11,8 @@ import {
   Loader2,
   Package,
   Wand2,
+  AlertTriangle,
+  ArrowRight,
 } from 'lucide-react';
 import { createSegment, updateSegment } from './segment-actions';
 
@@ -91,6 +93,11 @@ function toAddr(
 
 function addrIsEmpty(a: Addr): boolean {
   return !a.country && !a.city && !a.company && !a.address && !a.postal_code;
+}
+
+function fmtCargoPlace(company: string | null, city: string | null, country: string | null): string {
+  const parts = [company, city, country].filter(Boolean);
+  return parts.join(', ') || '—';
 }
 
 export default function SegmentForm({
@@ -217,7 +224,7 @@ export default function SegmentForm({
       } else {
         next.add(id);
 
-        // Автозаполнение маршрута: если оба поля пустые — берём из этого груза
+        // Автозаполнение маршрута: если поля пусты — берём из этого груза
         if (addrIsEmpty(from) && addrIsEmpty(to)) {
           const cargo = cargoList.find((c) => c.id === id);
           if (cargo) applyCargoRoute(cargo);
@@ -280,6 +287,22 @@ export default function SegmentForm({
   const hasCargoRoutes = cargoList.some(
     (c) => c.from_city || c.from_country || c.to_city || c.to_country
   );
+
+  // Выбранные грузы (в порядке списка)
+  const selectedCargos = cargoList.filter((c) => selectedCargo.has(c.id));
+
+  // Проверка: совпадают ли маршруты выбранных грузов
+  const cargoRoutesDiffer = (() => {
+    if (selectedCargos.length < 2) return false;
+    const first = selectedCargos[0];
+    return selectedCargos.some(
+      (c) =>
+        (c.from_city || '') !== (first.from_city || '') ||
+        (c.from_country || '') !== (first.from_country || '') ||
+        (c.to_city || '') !== (first.to_city || '') ||
+        (c.to_country || '') !== (first.to_country || '')
+    );
+  })();
 
   return (
     <div
@@ -414,6 +437,93 @@ export default function SegmentForm({
             </div>
           </div>
 
+          {/* ГРУЗЫ */}
+          {cargoList.length > 0 && (
+            <div className="bg-brand-50 rounded-xl p-4 space-y-3 border border-brand-200">
+              <div className="flex items-center gap-2">
+                <Package className="w-4 h-4 text-brand-700" strokeWidth={2.2} />
+                <h4 className="text-sm font-bold text-brand-800">Какие грузы везёт</h4>
+              </div>
+
+              <div className="space-y-1.5">
+                {cargoList.map((c) => {
+                  const isChecked = selectedCargo.has(c.id);
+                  const hasRoute = c.from_city || c.from_country || c.to_city || c.to_country;
+                  return (
+                    <label
+                      key={c.id}
+                      className={`flex items-center gap-2.5 p-2 rounded-lg border cursor-pointer transition-colors
+                        ${isChecked ? 'bg-white border-brand-400' : 'bg-white/60 border-brand-100 hover:border-brand-300'}`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => toggleCargo(c.id)}
+                        className="w-4 h-4 accent-brand-600 cursor-pointer"
+                      />
+                      <span className="text-xs font-bold text-brand-700 bg-brand-100 px-1.5 py-0.5 rounded tabular-nums">
+                        {c.position}
+                      </span>
+                      <span className="text-sm text-slate-800 break-words flex-1">
+                        {c.label}
+                      </span>
+                      {hasRoute && (
+                        <span className="text-[10px] text-slate-400 whitespace-nowrap hidden sm:inline tabular-nums">
+                          {c.from_city || c.from_country || '?'} → {c.to_city || c.to_country || '?'}
+                        </span>
+                      )}
+                    </label>
+                  );
+                })}
+              </div>
+
+              {/* МАРШРУТЫ ВЫБРАННЫХ ГРУЗОВ */}
+              {selectedCargos.length > 0 && (
+                <div className="pt-3 border-t border-brand-200 space-y-2">
+                  <div className="text-xs uppercase tracking-wide text-brand-700 font-semibold flex items-center gap-1.5">
+                    <ArrowRight className="w-3.5 h-3.5" strokeWidth={2.5} />
+                    Маршруты выбранных грузов
+                  </div>
+
+                  <div className="space-y-1.5">
+                    {selectedCargos.map((c) => (
+                      <div
+                        key={c.id}
+                        className="flex items-start gap-2 text-xs bg-white rounded-lg border border-brand-100 p-2"
+                      >
+                        <span className="text-[10px] font-bold text-brand-700 bg-brand-100 px-1.5 py-0.5 rounded shrink-0 tabular-nums">
+                          {c.position}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="font-medium text-slate-700 truncate">{c.label}</div>
+                          <div className="text-[11px] text-slate-500 mt-0.5 break-words">
+                            <span className="text-green-700">
+                              {fmtCargoPlace(c.from_company, c.from_city, c.from_country)}
+                            </span>
+                            <span className="mx-1.5 text-slate-400">→</span>
+                            <span className="text-red-700">
+                              {fmtCargoPlace(c.to_company, c.to_city, c.to_country)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {cargoRoutesDiffer && (
+                    <div className="flex items-start gap-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2.5">
+                      <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0 text-amber-600" strokeWidth={2.2} />
+                      <span>
+                        У выбранных грузов <b>разные маршруты</b>. Возможно, это нужно оформить
+                        отдельными участками. Или укажите общий маршрут участка ниже вручную.
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* БЫСТРАЯ ПОДСТАНОВКА МАРШРУТА */}
           {hasCargoRoutes && (
             <div className="bg-brand-50 border border-brand-200 rounded-xl p-3">
@@ -445,7 +555,6 @@ export default function SegmentForm({
               </select>
               <p className="text-[11px] text-brand-700 mt-1.5">
                 Заполнит поля «Откуда» и «Куда» маршрутом выбранного груза.
-                Дальше можно поправить руками, если у участка другой маршрут.
               </p>
             </div>
           )}
@@ -599,51 +708,6 @@ export default function SegmentForm({
               </div>
             </div>
           </div>
-
-          {/* ГРУЗЫ */}
-          {cargoList.length > 0 && (
-            <div className="bg-brand-50 rounded-xl p-4 space-y-2 border border-brand-200">
-              <div className="flex items-center gap-2 mb-1">
-                <Package className="w-4 h-4 text-brand-700" strokeWidth={2.2} />
-                <h4 className="text-sm font-bold text-brand-800">Какие грузы везёт</h4>
-              </div>
-              <p className="text-[11px] text-brand-700 mb-2">
-                Первый выбранный груз (если поля «Откуда/Куда» выше ещё пусты)
-                автоматически заполнит маршрут участка.
-              </p>
-              <div className="space-y-1.5">
-                {cargoList.map((c) => {
-                  const isChecked = selectedCargo.has(c.id);
-                  const hasRoute = c.from_city || c.from_country || c.to_city || c.to_country;
-                  return (
-                    <label
-                      key={c.id}
-                      className={`flex items-center gap-2.5 p-2 rounded-lg border cursor-pointer transition-colors
-                        ${isChecked ? 'bg-white border-brand-400' : 'bg-white/60 border-brand-100 hover:border-brand-300'}`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        onChange={() => toggleCargo(c.id)}
-                        className="w-4 h-4 accent-brand-600 cursor-pointer"
-                      />
-                      <span className="text-xs font-bold text-brand-700 bg-brand-100 px-1.5 py-0.5 rounded tabular-nums">
-                        {c.position}
-                      </span>
-                      <span className="text-sm text-slate-800 break-words flex-1">
-                        {c.label}
-                      </span>
-                      {hasRoute && (
-                        <span className="text-[10px] text-slate-400 whitespace-nowrap hidden sm:inline">
-                          {c.from_city || c.from_country || '?'} → {c.to_city || c.to_country || '?'}
-                        </span>
-                      )}
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-          )}
 
           {/* ЗАМЕТКИ */}
           <div>
