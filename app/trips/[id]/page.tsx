@@ -114,7 +114,6 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
     .in('type', ['unloading', 'both'])
     .order('name');
 
-  // Справочники для сегментов
   const { data: clientsList } = await supabase
     .from('clients')
     .select('id, name')
@@ -230,6 +229,14 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
   const totalExpenses = expenses?.reduce((sum, e) => sum + (e.amount_eur || 0), 0) || 0;
   const profit = (trip.revenue_eur || 0) - totalExpenses;
 
+  // Расходы по участкам
+  const expensesBySegment: Record<string, number> = {};
+  const unassignedExpenses = expenses?.filter((e) => !e.segment_id).reduce((sum, e) => sum + (e.amount_eur || 0), 0) || 0;
+  expenses?.forEach((e: any) => {
+    if (!e.segment_id) return;
+    expensesBySegment[e.segment_id] = (expensesBySegment[e.segment_id] || 0) + (e.amount_eur || 0);
+  });
+
   const refuelLiters = expenses?.filter((e) => e.category === 'fuel' && e.liters).reduce((sum, e) => sum + e.liters, 0) || 0;
   const fuelLeft = (trip.start_fuel_level || 0) + refuelLiters - (trip.actual_liters || 0);
 
@@ -285,7 +292,6 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
     { num: 5, country: trip.sender5_country, name: trip.sender5_name, postal_code: trip.sender5_postal_code, city: trip.sender5_city, address: trip.sender5_address, loading_number: trip.sender5_loading_number },
   ].filter((p) => p.city || p.name || p.country || p.address);
 
-  // Задача водителю
   const taskText = buildDriverTaskText({
     trip: {
       ...trip,
@@ -608,6 +614,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
             to_address: c.to_address,
             to_postal_code: c.to_postal_code,
           }))}
+          expensesBySegment={expensesBySegment}
         />
 
         {/* ЗАДАНИЕ ДЛЯ ВОДИТЕЛЯ */}
@@ -817,49 +824,57 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
           ) : (
             <>
               <div className="md:hidden space-y-2">
-                {expenses?.map((exp) => (
-                  <div key={exp.id} className="border border-slate-100 rounded-xl p-3 bg-slate-50/40">
-                    <div className="flex justify-between items-start gap-2 mb-2">
-                      <div className="font-semibold text-slate-800 text-sm">
-                        {categoryLabel(exp.category)}
-                        {exp.subcontractor_id && (
-                          <span className="ml-2 text-[10px] text-brand-600 bg-brand-50 px-1.5 py-0.5 rounded">авто</span>
+                {expenses?.map((exp: any) => {
+                  const seg = segments.find((s) => s.id === exp.segment_id);
+                  return (
+                    <div key={exp.id} className="border border-slate-100 rounded-xl p-3 bg-slate-50/40">
+                      <div className="flex justify-between items-start gap-2 mb-2">
+                        <div className="font-semibold text-slate-800 text-sm">
+                          {categoryLabel(exp.category)}
+                          {exp.subcontractor_id && (
+                            <span className="ml-2 text-[10px] text-brand-600 bg-brand-50 px-1.5 py-0.5 rounded">авто</span>
+                          )}
+                        </div>
+                        {!exp.subcontractor_id && (
+                          <form action={async () => {
+                            'use server';
+                            await deleteExpense(exp.id, tripId);
+                          }}>
+                            <button type="submit" className="text-red-500 hover:text-red-700 text-xs font-medium px-2 py-1 whitespace-nowrap">
+                              Удалить
+                            </button>
+                          </form>
                         )}
                       </div>
-                      {!exp.subcontractor_id && (
-                        <form action={async () => {
-                          'use server';
-                          await deleteExpense(exp.id, tripId);
-                        }}>
-                          <button type="submit" className="text-red-500 hover:text-red-700 text-xs font-medium px-2 py-1 whitespace-nowrap">
-                            Удалить
-                          </button>
-                        </form>
-                      )}
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div>
-                        <div className="text-slate-400">Сумма</div>
-                        <div className="font-medium text-slate-700 tabular-nums">
-                          {exp.original_amount} {exp.currency}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-slate-400">В EUR</div>
-                        <div className="font-bold text-red-500 tabular-nums">{exp.amount_eur} €</div>
-                      </div>
-                      {exp.description && (
-                        <div className="col-span-2">
-                          <div className="text-slate-400">Описание</div>
-                          <div className="text-slate-700">{exp.description}</div>
+                      {seg && (
+                        <div className="text-[10px] text-brand-600 mb-1">
+                          Участок #{seg.position} · {seg.executor_type === 'us' ? 'Мы' : seg.contractor_name || 'Подрядчик'}
                         </div>
                       )}
-                      <div className="col-span-2 text-right text-slate-400">
-                        {exp.expense_date ? new Date(exp.expense_date).toLocaleDateString('ru-RU') : '—'}
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <div className="text-slate-400">Сумма</div>
+                          <div className="font-medium text-slate-700 tabular-nums">
+                            {exp.original_amount} {exp.currency}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-slate-400">В EUR</div>
+                          <div className="font-bold text-red-500 tabular-nums">{exp.amount_eur} €</div>
+                        </div>
+                        {exp.description && (
+                          <div className="col-span-2">
+                            <div className="text-slate-400">Описание</div>
+                            <div className="text-slate-700">{exp.description}</div>
+                          </div>
+                        )}
+                        <div className="col-span-2 text-right text-slate-400">
+                          {exp.expense_date ? new Date(exp.expense_date).toLocaleDateString('ru-RU') : '—'}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               <div className="hidden md:block overflow-x-auto">
@@ -867,6 +882,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
                   <thead>
                     <tr className="border-b border-slate-100">
                       <th className="text-left py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Категория</th>
+                      <th className="text-left py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Участок</th>
                       <th className="text-right py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Оплачено</th>
                       <th className="text-right py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">EUR</th>
                       <th className="text-left py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide pl-4">Описание</th>
@@ -875,38 +891,50 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
                     </tr>
                   </thead>
                   <tbody>
-                    {expenses?.map((exp) => (
-                      <tr key={exp.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
-                        <td className="py-3 text-sm">
-                          {categoryLabel(exp.category)}
-                          {exp.subcontractor_id && (
-                            <span className="ml-2 text-[10px] text-brand-600 bg-brand-50 px-1.5 py-0.5 rounded">авто</span>
-                          )}
-                        </td>
-                        <td className="py-3 text-right text-sm font-medium tabular-nums">
-                          {exp.original_amount} {exp.currency}
-                        </td>
-                        <td className="py-3 text-right text-sm font-bold text-red-500 tabular-nums">
-                          {exp.amount_eur} €
-                        </td>
-                        <td className="py-3 pl-4 text-sm text-slate-600">{exp.description || '-'}</td>
-                        <td className="py-3 text-right text-xs text-slate-500 tabular-nums">
-                          {exp.expense_date ? new Date(exp.expense_date).toLocaleDateString('ru-RU') : '-'}
-                        </td>
-                        <td className="py-3 text-right">
-                          {!exp.subcontractor_id && (
-                            <form action={async () => {
-                              'use server';
-                              await deleteExpense(exp.id, tripId);
-                            }}>
-                              <button type="submit" className="text-red-500 hover:text-red-700 text-xs font-medium px-2 py-1">
-                                Удалить
-                              </button>
-                            </form>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
+                    {expenses?.map((exp: any) => {
+                      const seg = segments.find((s) => s.id === exp.segment_id);
+                      return (
+                        <tr key={exp.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                          <td className="py-3 text-sm">
+                            {categoryLabel(exp.category)}
+                            {exp.subcontractor_id && (
+                              <span className="ml-2 text-[10px] text-brand-600 bg-brand-50 px-1.5 py-0.5 rounded">авто</span>
+                            )}
+                          </td>
+                          <td className="py-3 text-xs text-slate-600">
+                            {seg ? (
+                              <span className="text-brand-700 bg-brand-50 px-2 py-0.5 rounded whitespace-nowrap">
+                                #{seg.position} {seg.executor_type === 'us' ? 'Мы' : seg.contractor_name || ''}
+                              </span>
+                            ) : (
+                              <span className="text-slate-300">—</span>
+                            )}
+                          </td>
+                          <td className="py-3 text-right text-sm font-medium tabular-nums">
+                            {exp.original_amount} {exp.currency}
+                          </td>
+                          <td className="py-3 text-right text-sm font-bold text-red-500 tabular-nums">
+                            {exp.amount_eur} €
+                          </td>
+                          <td className="py-3 pl-4 text-sm text-slate-600">{exp.description || '-'}</td>
+                          <td className="py-3 text-right text-xs text-slate-500 tabular-nums">
+                            {exp.expense_date ? new Date(exp.expense_date).toLocaleDateString('ru-RU') : '-'}
+                          </td>
+                          <td className="py-3 text-right">
+                            {!exp.subcontractor_id && (
+                              <form action={async () => {
+                                'use server';
+                                await deleteExpense(exp.id, tripId);
+                              }}>
+                                <button type="submit" className="text-red-500 hover:text-red-700 text-xs font-medium px-2 py-1">
+                                  Удалить
+                                </button>
+                              </form>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -920,6 +948,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
             <Wallet className="w-5 h-5 text-brand-600" strokeWidth={2} />
             Экономика рейса
           </h2>
+
           <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-3">
             <div className="rounded-xl p-4 bg-green-50 border border-green-100">
               <div className="text-xs uppercase tracking-wide text-green-700 font-semibold mb-1">Фрахт</div>
@@ -942,6 +971,43 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
               </div>
             </div>
           </div>
+
+          {/* Разбивка по участкам */}
+          {segments.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-slate-100 space-y-2">
+              <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold">
+                По участкам
+              </div>
+              {segments.map((s) => {
+                const sum = expensesBySegment[s.id] || 0;
+                const isUs = s.executor_type === 'us';
+                return (
+                  <div key={s.id} className="flex items-center justify-between gap-2 text-sm">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className={`shrink-0 w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-bold tabular-nums
+                        ${isUs ? 'bg-brand-100 text-brand-700' : 'bg-violet-100 text-violet-700'}`}>
+                        {s.position}
+                      </span>
+                      <span className="text-slate-700 break-words">
+                        {isUs ? `Мы · ${s.truck_reg || '—'}` : `Подрядчик · ${s.contractor_name || '—'}`}
+                      </span>
+                    </div>
+                    <span className={`shrink-0 font-semibold tabular-nums ${sum > 0 ? 'text-red-600' : 'text-slate-400'}`}>
+                      {sum > 0 ? `${sum.toFixed(0)} €` : '—'}
+                    </span>
+                  </div>
+                );
+              })}
+              {unassignedExpenses > 0 && (
+                <div className="flex items-center justify-between gap-2 text-sm pt-2 border-t border-slate-100">
+                  <span className="text-slate-500">Прочие расходы</span>
+                  <span className="font-semibold text-red-600 tabular-nums">
+                    {unassignedExpenses.toFixed(0)} €
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* ДОБАВИТЬ РАСХОД */}
@@ -981,6 +1047,28 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
                 <label className="block text-sm font-medium text-slate-700 mb-1">Литры (для топлива)</label>
                 <input type="number" name="liters" step="0.01" placeholder="150" className="input" />
               </div>
+
+              {segments.length > 0 && (
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Участок (опционально)
+                  </label>
+                  <select name="segment_id" className="input">
+                    <option value="">— Без привязки к участку —</option>
+                    {segments.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        #{s.position} · {s.executor_type === 'us'
+                          ? `Мы${s.truck_reg ? ` · ${s.truck_reg}` : ''}`
+                          : `Подрядчик · ${s.contractor_name || '—'}`}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Если расход относится к конкретному плечу рейса — выбери участок.
+                    Так будет видно, сколько стоил каждый этап.
+                  </p>
+                </div>
+              )}
 
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-slate-700 mb-1">Описание</label>
