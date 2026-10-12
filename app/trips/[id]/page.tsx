@@ -9,6 +9,7 @@ import CopyBlock from '../../components/CopyBlock';
 import SubmitButton from '../../components/SubmitButton';
 import SubcontractorsBlock from './SubcontractorsBlock';
 import SendTaskButton from './SendTaskButton';
+import { buildDriverTaskText } from '../../../lib/trip-task-text';
 import {
   ArrowLeft,
   Pencil,
@@ -63,7 +64,7 @@ function fmtPlace(
   country: string | null,
   address?: string | null
 ): string {
-  const parts = [company, city, country].filter(Boolean);
+  const parts = [company, city, country].filter(Boolean).join(', ');
   const base = parts.join(', ');
   if (address) return base ? `${base} · ${address}` : address;
   return base || '—';
@@ -202,7 +203,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
     .order('name');
 
   // ============================================================
-  // 🆕 ГРУЗЫ И УЧАСТКИ (read-only, если есть данные)
+  // 🆕 ГРУЗЫ И УЧАСТКИ (read-only)
   // ============================================================
   const { data: cargoRaw } = await supabase
     .from('trip_cargo')
@@ -291,7 +292,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
   });
 
   // ============================================================
-  // Остальные вычисления — без изменений
+  // Расчёты
   // ============================================================
   const totalExpenses = expenses?.reduce((sum, e) => sum + (e.amount_eur || 0), 0) || 0;
   const profit = (trip.revenue_eur || 0) - totalExpenses;
@@ -302,9 +303,10 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
   const fuelLeftIsNegative = fuelLeft < 0;
   const fuelLeftIsCritical = fuelLeft < NEGATIVE_FUEL_TOLERANCE;
 
-  const driver = trip.drivers;
-  const truck = trip.trucks;
+  const driver = pickOne<{ first_name: string | null; last_name: string | null; phone: string | null; telegram_chat_id: string | null }>(trip.drivers);
+  const truck = pickOne<{ registration_number: string | null }>(trip.trucks);
 
+  // Консолидационная точка — для блока «Наш участок»
   let consolidationPoint: {
     country: string | null;
     city: string | null;
@@ -351,47 +353,22 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
     { num: 5, country: trip.sender5_country, name: trip.sender5_name, postal_code: trip.sender5_postal_code, city: trip.sender5_city, address: trip.sender5_address, loading_number: trip.sender5_loading_number },
   ].filter((p) => p.city || p.name || p.country || p.address);
 
-  const taskLines: string[] = [];
-  taskLines.push(`Тягач: ${truck?.registration_number || '—'}`);
-  taskLines.push(`Прицеп: ${trailerNumber || '—'}`);
-  taskLines.push(`Водитель: ${driver ? `${driver.first_name} ${driver.last_name}` : '—'}`);
-  taskLines.push(`Телефон: ${driver?.phone || '—'}`);
-  taskLines.push('');
-
-  if (consolidationPoint) {
-    taskLines.push('🚚 НАШ УЧАСТОК (после подрядчиков):');
-    taskLines.push('');
-    taskLines.push('📍 ЗАБИРАЕШЬ ГРУЗ У ПОДРЯДЧИКА:');
-    taskLines.push(`   ${consolidationPoint.company || '—'}`);
-    const cAddr = [consolidationPoint.postal_code, consolidationPoint.city, consolidationPoint.country].filter(Boolean).join(', ');
-    taskLines.push(`   ${cAddr || '—'}`);
-    if (consolidationPoint.address) taskLines.push(`   ${consolidationPoint.address}`);
-    taskLines.push('');
-    taskLines.push('🏁 ВЕЗЁШЬ ПОЛУЧАТЕЛЮ:');
-    taskLines.push(`   ${trip.receiver_name || '—'}`);
-    const recvParts = [trip.receiver_country, trip.receiver_postal_code, trip.receiver_city, trip.receiver_address].filter(Boolean).join(', ');
-    taskLines.push(`   ${recvParts || '—'}`);
-    if (trip.receiver_loading_number) taskLines.push(`   № погрузки: ${trip.receiver_loading_number}`);
-  } else {
-    if (loadingPoints.length > 0) {
-      const p = loadingPoints[0];
-      taskLines.push('📍 ЗАГРУЗКА:');
-      const parts = [p.country, p.postal_code, p.city, p.address].filter(Boolean).join(', ');
-      taskLines.push(`${p.name || '—'}`);
-      taskLines.push(`   ${parts || '—'}`);
-      if (p.loading_number) taskLines.push(`   № погрузки: ${p.loading_number}`);
-    }
-    if (trip.receiver_city || trip.receiver_name) {
-      taskLines.push('');
-      taskLines.push('🏁 ВЫГРУЗКА:');
-      taskLines.push(`${trip.receiver_name || '—'}`);
-      const recvParts = [trip.receiver_country, trip.receiver_postal_code, trip.receiver_city, trip.receiver_address].filter(Boolean).join(', ');
-      taskLines.push(`   ${recvParts || '—'}`);
-      if (trip.receiver_loading_number) taskLines.push(`   № погрузки: ${trip.receiver_loading_number}`);
-    }
-  }
-
-  const taskText = taskLines.join('\n');
+  // ============================================================
+  // 🆕 Задача водителю — общий сборщик
+  // ============================================================
+  const taskText = buildDriverTaskText({
+    trip: {
+      ...trip,
+      clients: { name: pickName(trip.clients) || null },
+      id: tripId,
+    },
+    driver,
+    truck,
+    trailerNumber,
+    segments,
+    subcontractors: (subcontractors || []) as any,
+    markdown: false,
+  });
 
   const driverHasTelegram = Boolean(driver?.telegram_chat_id);
   const sendDisabled = !driver || !driverHasTelegram;
@@ -607,7 +584,6 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
             Маршрутные точки
           </h2>
 
-          {/* Загрузка */}
           <div className="mb-6">
             <div className="text-sm font-semibold text-green-700 mb-3 flex items-center gap-2">
               <CircleDot className="w-4 h-4" strokeWidth={2.5} />
@@ -644,7 +620,6 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
             )}
           </div>
 
-          {/* Выгрузка */}
           <div className="pt-4 border-t border-slate-100">
             <div className="text-sm font-semibold text-red-700 mb-3 flex items-center gap-2">
               <MapPin className="w-4 h-4" strokeWidth={2.5} />
