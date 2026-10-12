@@ -32,7 +32,21 @@ type Location = {
 
 type Option = { id: string; label: string };
 
-type CargoOption = { id: string; position: number; label: string };
+type CargoOption = {
+  id: string;
+  position: number;
+  label: string;
+  from_country: string | null;
+  from_city: string | null;
+  from_company: string | null;
+  from_address: string | null;
+  from_postal_code: string | null;
+  to_country: string | null;
+  to_city: string | null;
+  to_company: string | null;
+  to_address: string | null;
+  to_postal_code: string | null;
+};
 
 type CargoLink = {
   cargo_id: string;
@@ -123,7 +137,7 @@ export default function TripSegmentsBlock({
   }
 
   function handleDelete(id: string, position: number) {
-    if (!confirm(`Удалить сегмент №${position}?`)) return;
+    if (!confirm(`Удалить участок №${position}?`)) return;
     setIsDeletingId(id);
     startTransition(async () => {
       try {
@@ -212,7 +226,6 @@ export default function TripSegmentsBlock({
                       )}
                     </div>
 
-                    {/* Маршрут сегмента */}
                     <div className="flex flex-col gap-1.5">
                       {(s.from_city || s.from_country || s.from_company) && (
                         <div className="flex items-start gap-1.5 text-sm">
@@ -232,7 +245,6 @@ export default function TripSegmentsBlock({
                       )}
                     </div>
 
-                    {/* Грузы */}
                     {s.cargoLinks.length > 0 && (
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <Package className="w-3 h-3 text-slate-400 shrink-0" strokeWidth={2} />
