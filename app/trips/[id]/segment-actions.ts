@@ -46,6 +46,89 @@ function parseStops(formData: FormData): Stop[] {
   }
 }
 
+// Конвертация в EUR по курсу на дату
+async function toEur(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  amount: number,
+  currency: string,
+  date: string
+): Promise<number> {
+  if (currency === 'EUR' || !currency) return amount;
+  if (currency === 'PLN') {
+    const { data: rate } = await supabase
+      .from('rates')
+      .select('pln_to_eur')
+      .lte('rate_date', date)
+      .order('rate_date', { ascending: false })
+      .limit(1)
+      .single();
+    return amount * (rate?.pln_to_eur ?? 0.23);
+  }
+  if (currency === 'BYN') {
+    const { data: rate } = await supabase
+      .from('rates')
+      .select('byn_to_eur')
+      .lte('rate_date', date)
+      .order('rate_date', { ascending: false })
+      .limit(1)
+      .single();
+    return amount * (rate?.byn_to_eur ?? 0.30);
+  }
+  return amount;
+}
+
+// Удалить расход, привязанный к сегменту (при изменении/удалении)
+async function deleteSegmentExpense(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  segmentId: string
+) {
+  await supabase
+    .from('trip_expenses')
+    .delete()
+    .eq('segment_id', segmentId);
+}
+
+// Создать расход для сегмента-подрядчика
+async function createSegmentExpense(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  tripId: string,
+  segmentId: string,
+  contractorId: string,
+  price: number,
+  currency: string,
+  dateForRate: string,
+  expenseDate: string | null,
+  routeHint: string
+) {
+  const { data: contractor } = await supabase
+    .from('contractors')
+    .select('name')
+    .eq('id', contractorId)
+    .maybeSingle();
+
+  const contractorName = contractor?.name || 'Подрядчик';
+  const amountEur = await toEur(supabase, price, currency, dateForRate);
+
+  const { error } = await supabase
+    .from('trip_expenses')
+    .insert([{
+      trip_id: tripId,
+      segment_id: segmentId,
+      subcontractor_id: null,
+      category: 'contractor',
+      amount_eur: amountEur,
+      original_amount: price,
+      currency: currency,
+      liters: null,
+      description: `Подрядчик: ${contractorName}${routeHint ? ` · ${routeHint}` : ''}`,
+      expense_date: expenseDate || null,
+    }]);
+
+  if (error) {
+    console.error('[segment-actions] expense insert failed:', error.message);
+  }
+}
+
 export async function createSegment(tripId: string, formData: FormData) {
   const supabase = await createClient();
 
@@ -58,6 +141,10 @@ export async function createSegment(tripId: string, formData: FormData) {
   const notes = str(formData, 'notes');
   const cargoIds = parseCargoIds(formData);
   const stops = parseStops(formData);
+
+  const priceRaw = str(formData, 'price');
+  const price = priceRaw ? parseFloat(priceRaw) : null;
+  const currency = str(formData, 'currency') || 'EUR';
 
   if (executorType === 'contractor' && !contractorId) {
     throw new Error('Выберите подрядчика');
@@ -111,6 +198,8 @@ export async function createSegment(tripId: string, formData: FormData) {
       to_postal_code: toPostalCode,
       stops: stops as any,
       notes,
+      price: executorType === 'contractor' ? price : null,
+      currency: executorType === 'contractor' ? currency : null,
     }])
     .select('id')
     .single();
@@ -123,11 +212,28 @@ export async function createSegment(tripId: string, formData: FormData) {
     .insert(links);
   if (linkErr) throw new Error(`Ошибка привязки грузов: ${linkErr.message}`);
 
+  // Автоматически создаём расход, если это подрядчик с ценой
+  if (executorType === 'contractor' && contractorId && price && price > 0) {
+    const dateForRate = dateFrom || new Date().toISOString().split('T')[0];
+    const routeHint = [fromCity, toCity].filter(Boolean).join(' → ');
+    await createSegmentExpense(
+      supabase,
+      tripId,
+      created.id,
+      contractorId,
+      price,
+      currency,
+      dateForRate,
+      dateFrom,
+      routeHint
+    );
+  }
+
   await logAudit({
     entity_type: 'trip',
     entity_id: tripId,
     action: 'update',
-    summary: `Добавлен участок №${nextPosition} (${executorType === 'us' ? 'мы' : 'подрядчик'}, грузов: ${cargoIds.length}, остановок: ${stops.length})`,
+    summary: `Добавлен участок №${nextPosition} (${executorType === 'us' ? 'мы' : 'подрядчик'}, грузов: ${cargoIds.length}${price ? `, цена: ${price} ${currency}` : ''})`,
   });
 
   revalidatePath(`/trips/${tripId}`);
@@ -146,6 +252,10 @@ export async function updateSegment(segmentId: string, tripId: string, formData:
   const notes = str(formData, 'notes');
   const cargoIds = parseCargoIds(formData);
   const stops = parseStops(formData);
+
+  const priceRaw = str(formData, 'price');
+  const price = priceRaw ? parseFloat(priceRaw) : null;
+  const currency = str(formData, 'currency') || 'EUR';
 
   if (executorType === 'contractor' && !contractorId) {
     throw new Error('Выберите подрядчика');
@@ -187,11 +297,14 @@ export async function updateSegment(segmentId: string, tripId: string, formData:
       to_postal_code: toPostalCode,
       stops: stops as any,
       notes,
+      price: executorType === 'contractor' ? price : null,
+      currency: executorType === 'contractor' ? currency : null,
     })
     .eq('id', segmentId);
 
   if (error) throw new Error(`Ошибка обновления участка: ${error.message}`);
 
+  // Обновить привязку грузов
   await supabase
     .from('trip_segment_cargo')
     .delete()
@@ -202,6 +315,26 @@ export async function updateSegment(segmentId: string, tripId: string, formData:
     .from('trip_segment_cargo')
     .insert(links);
   if (linkErr) throw new Error(`Ошибка привязки грузов: ${linkErr.message}`);
+
+  // Синхронизация расхода: удаляем старый, если он был
+  await deleteSegmentExpense(supabase, segmentId);
+
+  // Создаём новый, если это подрядчик с ценой
+  if (executorType === 'contractor' && contractorId && price && price > 0) {
+    const dateForRate = dateFrom || new Date().toISOString().split('T')[0];
+    const routeHint = [fromCity, toCity].filter(Boolean).join(' → ');
+    await createSegmentExpense(
+      supabase,
+      tripId,
+      segmentId,
+      contractorId,
+      price,
+      currency,
+      dateForRate,
+      dateFrom,
+      routeHint
+    );
+  }
 
   revalidatePath(`/trips/${tripId}`);
   return { success: true };
@@ -216,6 +349,10 @@ export async function deleteSegment(segmentId: string, tripId: string) {
     .eq('id', segmentId)
     .maybeSingle();
 
+  // Удаляем связанный расход
+  await deleteSegmentExpense(supabase, segmentId);
+
+  // Удаляем сам сегмент
   const { error } = await supabase
     .from('trip_segments')
     .delete()
