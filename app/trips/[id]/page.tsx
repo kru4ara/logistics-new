@@ -64,8 +64,7 @@ function fmtPlace(
   country: string | null,
   address?: string | null
 ): string {
-  const parts = [company, city, country].filter(Boolean).join(', ');
-  const base = parts.join(', ');
+  const base = [company, city, country].filter(Boolean).join(', ');
   if (address) return base ? `${base} · ${address}` : address;
   return base || '—';
 }
@@ -306,7 +305,6 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
   const driver = pickOne<{ first_name: string | null; last_name: string | null; phone: string | null; telegram_chat_id: string | null }>(trip.drivers);
   const truck = pickOne<{ registration_number: string | null }>(trip.trucks);
 
-  // Консолидационная точка — для блока «Наш участок»
   let consolidationPoint: {
     country: string | null;
     city: string | null;
@@ -354,7 +352,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
   ].filter((p) => p.city || p.name || p.country || p.address);
 
   // ============================================================
-  // 🆕 Задача водителю — общий сборщик
+  // Задача водителю — общий сборщик
   // ============================================================
   const taskText = buildDriverTaskText({
     trip: {
@@ -644,7 +642,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
           </div>
         </div>
 
-        {/* 🆕 ГРУЗЫ — read-only, если есть */}
+        {/* ГРУЗЫ — read-only, если есть */}
         {cargoList.length > 0 && (
           <div className="card p-5 md:p-6">
             <div className="flex items-center gap-2 mb-3">
@@ -717,7 +715,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
           </div>
         )}
 
-        {/* 🆕 УЧАСТКИ — read-only, если есть */}
+        {/* УЧАСТКИ — read-only, если есть */}
         {segments.length > 0 && (
           <div className="card p-5 md:p-6">
             <div className="flex items-center gap-2 mb-3">
