@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../../lib/supabase-server';
 import TripCargoBlock from '../TripCargoBlock';
+import TripSegmentsBlock from '../TripSegmentsBlock';
 import {
   ArrowLeft,
   FileText,
@@ -77,7 +78,17 @@ export default async function TripsTestDetailPage({
     return <div className="p-8 text-red-500">Рейс не найден: {error?.message}</div>;
   }
 
-  const [cargoRes, clientsRes, loadingRes, unloadingRes] = await Promise.all([
+  const [
+    cargoRes,
+    clientsRes,
+    loadingRes,
+    unloadingRes,
+    contractorsRes,
+    trucksRes,
+    driversRes,
+    segmentsRes,
+    segmentCargoRes,
+  ] = await Promise.all([
     supabase
       .from('trip_cargo')
       .select('*, clients(name)')
@@ -94,6 +105,28 @@ export default async function TripsTestDetailPage({
       .select('*')
       .in('type', ['unloading', 'both'])
       .order('name'),
+    supabase
+      .from('contractors')
+      .select('id, name')
+      .order('name'),
+    supabase
+      .from('trucks')
+      .select('id, registration_number')
+      .eq('type', 'tractor')
+      .order('registration_number'),
+    supabase
+      .from('drivers')
+      .select('id, first_name, last_name')
+      .order('last_name'),
+    supabase
+      .from('trip_segments')
+      .select('*, contractors(name), trucks!truck_id(registration_number), drivers!driver_id(first_name, last_name)')
+      .eq('trip_id', tripId)
+      .order('position', { ascending: true }),
+    supabase
+      .from('trip_segment_cargo')
+      .select('segment_id, cargo_id, trip_cargo(position, label)')
+      .in('segment_id', (await supabase.from('trip_segments').select('id').eq('trip_id', tripId)).data?.map((s: any) => s.id) || []),
   ]);
 
   const cargoList = (cargoRes.data || []).map((c: any) => ({
@@ -117,9 +150,58 @@ export default async function TripsTestDetailPage({
     to_postal_code: c.to_postal_code,
   }));
 
+  // Собираем связи сегмент → грузы
+  const cargoLinksBySegment: Record<string, { cargo_id: string; position: number; label: string }[]> = {};
+  (segmentCargoRes.data || []).forEach((sc: any) => {
+    if (!sc.segment_id || !sc.cargo_id) return;
+    const cargoMeta = pickOne<{ position: number; label: string | null }>(sc.trip_cargo);
+    if (!cargoLinksBySegment[sc.segment_id]) cargoLinksBySegment[sc.segment_id] = [];
+    cargoLinksBySegment[sc.segment_id].push({
+      cargo_id: sc.cargo_id,
+      position: cargoMeta?.position || 0,
+      label: cargoMeta?.label || '—',
+    });
+  });
+
+  const segments = (segmentsRes.data || []).map((s: any) => {
+    const truck = pickOne<{ registration_number: string | null }>(s.trucks);
+    const driver = pickOne<{ first_name: string | null; last_name: string | null }>(s.drivers);
+    const driverName = driver
+      ? `${driver.first_name || ''} ${driver.last_name || ''}`.trim() || null
+      : null;
+    return {
+      id: s.id,
+      position: s.position,
+      executor_type: s.executor_type,
+      contractor_id: s.contractor_id,
+      contractor_name: pickName(s.contractors) || null,
+      truck_id: s.truck_id,
+      truck_reg: truck?.registration_number || null,
+      driver_id: s.driver_id,
+      driver_name: driverName,
+      date_from: s.date_from,
+      date_to: s.date_to,
+      notes: s.notes,
+      from_country: s.from_country,
+      from_city: s.from_city,
+      from_company: s.from_company,
+      from_address: s.from_address,
+      from_postal_code: s.from_postal_code,
+      to_country: s.to_country,
+      to_city: s.to_city,
+      to_company: s.to_company,
+      to_address: s.to_address,
+      to_postal_code: s.to_postal_code,
+      cargoLinks: cargoLinksBySegment[s.id] || [],
+    };
+  });
+
   const clientsList = clientsRes.data || [];
   const loadingLocations = loadingRes.data || [];
   const unloadingLocations = unloadingRes.data || [];
+  const contractorsList = contractorsRes.data || [];
+  const trucksList = trucksRes.data || [];
+  const driversList = driversRes.data || [];
 
   const driver = pickOne<{ first_name: string | null; last_name: string | null }>(trip.drivers);
   const truck = pickOne<{ registration_number: string | null }>(trip.trucks);
@@ -217,14 +299,29 @@ export default async function TripsTestDetailPage({
           defaultClientId={trip.client_id}
         />
 
+        {/* УЧАСТКИ */}
+        <TripSegmentsBlock
+          tripId={tripId}
+          segments={segments}
+          contractors={contractorsList.map((c) => ({ id: c.id, label: c.name }))}
+          trucks={trucksList.map((t) => ({ id: t.id, label: t.registration_number }))}
+          drivers={driversList.map((d) => ({ id: d.id, label: `${d.first_name} ${d.last_name}` }))}
+          loadingLocations={loadingLocations as any}
+          unloadingLocations={unloadingLocations as any}
+          cargoList={cargoList.map((c) => ({
+            id: c.id,
+            position: c.position,
+            label: c.label || '—',
+          }))}
+        />
+
         {/* Ссылка на полную карточку */}
         <div className="card p-5 md:p-6">
           <h3 className="text-sm font-bold text-slate-700 mb-3">
             Остальные данные рейса
           </h3>
           <p className="text-xs text-slate-500 mb-4">
-            Экономика, расходы, документы, подрядчики, телеметрия — пока в основной карточке.
-            Как только протестируем блоки «Грузы» и «Сегменты» — перенесём и остальное.
+            Экономика, расходы, документы, телеметрия — пока в основной карточке.
           </p>
           <a
             href={`/trips/${tripId}`}
