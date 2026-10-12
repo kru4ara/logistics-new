@@ -4,21 +4,35 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '../../lib/supabase-server';
 import { logAudit } from '../../lib/audit';
 
+function str(formData: FormData, key: string): string | null {
+  const v = (formData.get(key) as string)?.trim();
+  return v || null;
+}
+
 export async function createCargo(tripId: string, formData: FormData) {
   const supabase = await createClient();
 
-  const label = (formData.get('label') as string)?.trim() || null;
-  const cargoType = (formData.get('cargo_type') as string)?.trim() || null;
+  const label = str(formData, 'label');
+  const cargoType = str(formData, 'cargo_type');
   const weightRaw = formData.get('weight_kg') as string;
   const weight = weightRaw ? parseFloat(weightRaw) : null;
-  const clientId = (formData.get('client_id') as string) || null;
-  const notes = (formData.get('notes') as string)?.trim() || null;
+  const clientId = str(formData, 'client_id');
+  const notes = str(formData, 'notes');
 
-  if (!label) {
-    throw new Error('Укажите название груза');
-  }
+  const fromCountry = str(formData, 'from_country');
+  const fromCity = str(formData, 'from_city');
+  const fromCompany = str(formData, 'from_company');
+  const fromAddress = str(formData, 'from_address');
+  const fromPostalCode = str(formData, 'from_postal_code');
 
-  // Последняя позиция
+  const toCountry = str(formData, 'to_country');
+  const toCity = str(formData, 'to_city');
+  const toCompany = str(formData, 'to_company');
+  const toAddress = str(formData, 'to_address');
+  const toPostalCode = str(formData, 'to_postal_code');
+
+  if (!label) throw new Error('Укажите название груза');
+
   const { data: last } = await supabase
     .from('trip_cargo')
     .select('position')
@@ -39,6 +53,16 @@ export async function createCargo(tripId: string, formData: FormData) {
       weight_kg: weight,
       client_id: clientId,
       notes,
+      from_country: fromCountry,
+      from_city: fromCity,
+      from_company: fromCompany,
+      from_address: fromAddress,
+      from_postal_code: fromPostalCode,
+      to_country: toCountry,
+      to_city: toCity,
+      to_company: toCompany,
+      to_address: toAddress,
+      to_postal_code: toPostalCode,
     }])
     .select('id')
     .single();
@@ -60,16 +84,26 @@ export async function createCargo(tripId: string, formData: FormData) {
 export async function updateCargo(cargoId: string, tripId: string, formData: FormData) {
   const supabase = await createClient();
 
-  const label = (formData.get('label') as string)?.trim() || null;
-  const cargoType = (formData.get('cargo_type') as string)?.trim() || null;
+  const label = str(formData, 'label');
+  const cargoType = str(formData, 'cargo_type');
   const weightRaw = formData.get('weight_kg') as string;
   const weight = weightRaw ? parseFloat(weightRaw) : null;
-  const clientId = (formData.get('client_id') as string) || null;
-  const notes = (formData.get('notes') as string)?.trim() || null;
+  const clientId = str(formData, 'client_id');
+  const notes = str(formData, 'notes');
 
-  if (!label) {
-    throw new Error('Укажите название груза');
-  }
+  const fromCountry = str(formData, 'from_country');
+  const fromCity = str(formData, 'from_city');
+  const fromCompany = str(formData, 'from_company');
+  const fromAddress = str(formData, 'from_address');
+  const fromPostalCode = str(formData, 'from_postal_code');
+
+  const toCountry = str(formData, 'to_country');
+  const toCity = str(formData, 'to_city');
+  const toCompany = str(formData, 'to_company');
+  const toAddress = str(formData, 'to_address');
+  const toPostalCode = str(formData, 'to_postal_code');
+
+  if (!label) throw new Error('Укажите название груза');
 
   const { error } = await supabase
     .from('trip_cargo')
@@ -79,6 +113,16 @@ export async function updateCargo(cargoId: string, tripId: string, formData: For
       weight_kg: weight,
       client_id: clientId,
       notes,
+      from_country: fromCountry,
+      from_city: fromCity,
+      from_company: fromCompany,
+      from_address: fromAddress,
+      from_postal_code: fromPostalCode,
+      to_country: toCountry,
+      to_city: toCity,
+      to_company: toCompany,
+      to_address: toAddress,
+      to_postal_code: toPostalCode,
     })
     .eq('id', cargoId);
 
