@@ -153,6 +153,10 @@ export default async function TripsTestDetailPage({
     const driverName = driver
       ? `${driver.first_name || ''} ${driver.last_name || ''}`.trim() || null
       : null;
+
+    // stops приходят из JSONB — либо массив, либо null
+    const rawStops = Array.isArray(s.stops) ? s.stops : [];
+
     return {
       id: s.id,
       position: s.position,
@@ -176,6 +180,7 @@ export default async function TripsTestDetailPage({
       to_company: s.to_company,
       to_address: s.to_address,
       to_postal_code: s.to_postal_code,
+      stops: rawStops,
       cargoLinks: cargoLinksBySegment[s.id] || [],
     };
   });
