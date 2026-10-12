@@ -94,26 +94,11 @@ export default async function TripsTestDetailPage({
       .eq('trip_id', tripId)
       .order('position', { ascending: true }),
     supabase.from('clients').select('id, name').order('name'),
-    supabase
-      .from('locations')
-      .select('*')
-      .in('type', ['loading', 'both'])
-      .order('name'),
-    supabase
-      .from('locations')
-      .select('*')
-      .in('type', ['unloading', 'both'])
-      .order('name'),
+    supabase.from('locations').select('*').in('type', ['loading', 'both']).order('name'),
+    supabase.from('locations').select('*').in('type', ['unloading', 'both']).order('name'),
     supabase.from('contractors').select('id, name').order('name'),
-    supabase
-      .from('trucks')
-      .select('id, registration_number')
-      .eq('type', 'tractor')
-      .order('registration_number'),
-    supabase
-      .from('drivers')
-      .select('id, first_name, last_name')
-      .order('last_name'),
+    supabase.from('trucks').select('id, registration_number').eq('type', 'tractor').order('registration_number'),
+    supabase.from('drivers').select('id, first_name, last_name').order('last_name'),
     supabase
       .from('trip_segments')
       .select('*, contractors(name), trucks!truck_id(registration_number), drivers!driver_id(first_name, last_name)')
@@ -181,6 +166,16 @@ export default async function TripsTestDetailPage({
       date_from: s.date_from,
       date_to: s.date_to,
       notes: s.notes,
+      from_country: s.from_country,
+      from_city: s.from_city,
+      from_company: s.from_company,
+      from_address: s.from_address,
+      from_postal_code: s.from_postal_code,
+      to_country: s.to_country,
+      to_city: s.to_city,
+      to_company: s.to_company,
+      to_address: s.to_address,
+      to_postal_code: s.to_postal_code,
       cargoLinks: cargoLinksBySegment[s.id] || [],
     };
   });
@@ -278,7 +273,6 @@ export default async function TripsTestDetailPage({
           </div>
         </div>
 
-        {/* ГРУЗЫ */}
         <TripCargoBlock
           tripId={tripId}
           cargoList={cargoList}
@@ -288,13 +282,14 @@ export default async function TripsTestDetailPage({
           defaultClientId={trip.client_id}
         />
 
-        {/* УЧАСТКИ */}
         <TripSegmentsBlock
           tripId={tripId}
           segments={segments}
           contractors={contractorsList.map((c) => ({ id: c.id, label: c.name }))}
           trucks={trucksList.map((t) => ({ id: t.id, label: t.registration_number }))}
           drivers={driversList.map((d) => ({ id: d.id, label: `${d.first_name} ${d.last_name}` }))}
+          loadingLocations={loadingLocations as any}
+          unloadingLocations={unloadingLocations as any}
           cargoList={cargoList.map((c) => ({
             id: c.id,
             position: c.position,
