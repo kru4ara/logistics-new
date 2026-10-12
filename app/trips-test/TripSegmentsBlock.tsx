@@ -18,18 +18,6 @@ import {
 import SegmentForm from './SegmentForm';
 import { deleteSegment } from './segment-actions';
 
-type Location = {
-  id: string;
-  name: string;
-  type: string;
-  country: string | null;
-  company_name: string | null;
-  postal_code: string | null;
-  city: string | null;
-  address: string | null;
-  default_loading_number: string | null;
-};
-
 type Option = { id: string; label: string };
 
 type CargoOption = {
@@ -67,16 +55,6 @@ type Segment = {
   date_from: string | null;
   date_to: string | null;
   notes: string | null;
-  from_country: string | null;
-  from_city: string | null;
-  from_company: string | null;
-  from_address: string | null;
-  from_postal_code: string | null;
-  to_country: string | null;
-  to_city: string | null;
-  to_company: string | null;
-  to_address: string | null;
-  to_postal_code: string | null;
   cargoLinks: CargoLink[];
 };
 
@@ -96,14 +74,39 @@ function fmtPlace(company: string | null, city: string | null, country: string |
   return companyPart || place || '—';
 }
 
+// Уникальные точки забора из грузов сегмента
+function getUniqueFroms(cargoIds: string[], cargoList: CargoOption[]) {
+  const map = new Map<string, CargoOption>();
+  for (const id of cargoIds) {
+    const c = cargoList.find((x) => x.id === id);
+    if (!c) continue;
+    const k = `${c.from_company || ''}|${c.from_city || ''}|${c.from_country || ''}|${c.from_address || ''}`;
+    if (!map.has(k) && (c.from_city || c.from_country || c.from_company || c.from_address)) {
+      map.set(k, c);
+    }
+  }
+  return Array.from(map.values());
+}
+
+function getUniqueTos(cargoIds: string[], cargoList: CargoOption[]) {
+  const map = new Map<string, CargoOption>();
+  for (const id of cargoIds) {
+    const c = cargoList.find((x) => x.id === id);
+    if (!c) continue;
+    const k = `${c.to_company || ''}|${c.to_city || ''}|${c.to_country || ''}|${c.to_address || ''}`;
+    if (!map.has(k) && (c.to_city || c.to_country || c.to_company || c.to_address)) {
+      map.set(k, c);
+    }
+  }
+  return Array.from(map.values());
+}
+
 export default function TripSegmentsBlock({
   tripId,
   segments,
   contractors,
   trucks,
   drivers,
-  loadingLocations,
-  unloadingLocations,
   cargoList,
 }: {
   tripId: string;
@@ -111,8 +114,6 @@ export default function TripSegmentsBlock({
   contractors: Option[];
   trucks: Option[];
   drivers: Option[];
-  loadingLocations: Location[];
-  unloadingLocations: Location[];
   cargoList: CargoOption[];
 }) {
   const router = useRouter();
@@ -178,8 +179,8 @@ export default function TripSegmentsBlock({
       </div>
 
       <p className="text-xs text-slate-500 mb-4">
-        Кто и куда едет. Участки — это весь путь каждого груза: подрядчики от отправителей,
-        догрузы, довозка до получателя. Если у рейса всё просто (мы едем A → Б) — оставьте пустым.
+        Кто и куда едет. Участок = одна машина (наша или подрядчика) и список грузов, которые она везёт.
+        Маршрут строится автоматически из адресов грузов.
       </p>
 
       {segments.length === 0 ? (
@@ -194,6 +195,10 @@ export default function TripSegmentsBlock({
               ? `Мы · ${s.truck_reg || '—'}${s.driver_name ? ` · ${s.driver_name}` : ''}`
               : `Подрядчик · ${s.contractor_name || '—'}`;
 
+            const cargoIds = s.cargoLinks.map((cl) => cl.cargo_id);
+            const uniqueFroms = getUniqueFroms(cargoIds, cargoList);
+            const uniqueTos = getUniqueTos(cargoIds, cargoList);
+
             return (
               <div
                 key={s.id}
@@ -205,7 +210,7 @@ export default function TripSegmentsBlock({
                     {s.position}
                   </div>
 
-                  <div className="min-w-0 flex-1 space-y-2">
+                  <div className="min-w-0 flex-1 space-y-3">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold
                         ${isUs ? 'bg-brand-50 text-brand-700 border border-brand-200' : 'bg-violet-50 text-violet-700 border border-violet-200'}`}>
@@ -226,27 +231,84 @@ export default function TripSegmentsBlock({
                       )}
                     </div>
 
-                    <div className="flex flex-col gap-1.5">
-                      {(s.from_city || s.from_country || s.from_company) && (
-                        <div className="flex items-start gap-1.5 text-sm">
+                    {/* Маршруты из грузов */}
+                    <div className="flex flex-col gap-2 text-sm">
+                      {uniqueFroms.length > 0 && (
+                        <div className="flex items-start gap-2">
                           <MapPin className="w-3.5 h-3.5 text-green-600 mt-0.5 shrink-0" strokeWidth={2.2} />
-                          <span className="text-slate-700 break-words">
-                            {fmtPlace(s.from_company, s.from_city, s.from_country)}
-                          </span>
+                          <div className="min-w-0 flex-1">
+                            {uniqueFroms.length === 1 ? (
+                              <span className="text-slate-700 break-words">
+                                {fmtPlace(uniqueFroms[0].from_company, uniqueFroms[0].from_city, uniqueFroms[0].from_country)}
+                                {uniqueFroms[0].from_address ? ` · ${uniqueFroms[0].from_address}` : ''}
+                              </span>
+                            ) : (
+                              <>
+                                <div className="text-[10px] uppercase tracking-wide text-green-700 font-semibold mb-0.5">
+                                  Забирает из {uniqueFroms.length} точек
+                                </div>
+                                <div className="space-y-1">
+                                  {uniqueFroms.map((c, i) => (
+                                    <div key={i} className="flex items-start gap-1.5 text-xs">
+                                      <span className="text-[10px] font-bold text-green-700 bg-green-50 px-1.5 py-0.5 rounded shrink-0 tabular-nums">
+                                        {i + 1}
+                                      </span>
+                                      <span className="text-slate-700 break-words">
+                                        {fmtPlace(c.from_company, c.from_city, c.from_country)}
+                                        {c.from_address ? ` · ${c.from_address}` : ''}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </>
+                            )}
+                          </div>
                         </div>
                       )}
-                      {(s.to_city || s.to_country || s.to_company) && (
-                        <div className="flex items-start gap-1.5 text-sm">
+
+                      {uniqueTos.length > 0 && (
+                        <div className="flex items-start gap-2">
                           <Flag className="w-3.5 h-3.5 text-red-600 mt-0.5 shrink-0" strokeWidth={2.2} />
-                          <span className="text-slate-700 break-words">
-                            {fmtPlace(s.to_company, s.to_city, s.to_country)}
-                          </span>
+                          <div className="min-w-0 flex-1">
+                            {uniqueTos.length === 1 ? (
+                              <span className="text-slate-700 break-words">
+                                {fmtPlace(uniqueTos[0].to_company, uniqueTos[0].to_city, uniqueTos[0].to_country)}
+                                {uniqueTos[0].to_address ? ` · ${uniqueTos[0].to_address}` : ''}
+                              </span>
+                            ) : (
+                              <>
+                                <div className="text-[10px] uppercase tracking-wide text-red-700 font-semibold mb-0.5">
+                                  Везёт в {uniqueTos.length} точек
+                                </div>
+                                <div className="space-y-1">
+                                  {uniqueTos.map((c, i) => (
+                                    <div key={i} className="flex items-start gap-1.5 text-xs">
+                                      <span className="text-[10px] font-bold text-red-700 bg-red-50 px-1.5 py-0.5 rounded shrink-0 tabular-nums">
+                                        {i + 1}
+                                      </span>
+                                      <span className="text-slate-700 break-words">
+                                        {fmtPlace(c.to_company, c.to_city, c.to_country)}
+                                        {c.to_address ? ` · ${c.to_address}` : ''}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {(uniqueFroms.length === 0 && uniqueTos.length === 0) && (
+                        <div className="text-xs text-slate-400 italic">
+                          У привязанных грузов не заполнены адреса — маршрут не построен
                         </div>
                       )}
                     </div>
 
+                    {/* Список грузов */}
                     {s.cargoLinks.length > 0 && (
-                      <div className="flex items-center gap-1.5 flex-wrap">
+                      <div className="flex items-center gap-1.5 flex-wrap pt-2 border-t border-slate-200/60">
                         <Package className="w-3 h-3 text-slate-400 shrink-0" strokeWidth={2} />
                         {s.cargoLinks.map((cl) => (
                           <span
@@ -313,23 +375,11 @@ export default function TripSegmentsBlock({
             date_from: editingSegment.date_from,
             date_to: editingSegment.date_to,
             notes: editingSegment.notes,
-            from_country: editingSegment.from_country,
-            from_city: editingSegment.from_city,
-            from_company: editingSegment.from_company,
-            from_address: editingSegment.from_address,
-            from_postal_code: editingSegment.from_postal_code,
-            to_country: editingSegment.to_country,
-            to_city: editingSegment.to_city,
-            to_company: editingSegment.to_company,
-            to_address: editingSegment.to_address,
-            to_postal_code: editingSegment.to_postal_code,
           } : undefined}
           initialCargoIds={editingSegment?.cargoLinks.map((cl) => cl.cargo_id) || []}
           contractors={contractors}
           trucks={trucks}
           drivers={drivers}
-          loadingLocations={loadingLocations}
-          unloadingLocations={unloadingLocations}
           cargoList={cargoList}
           onClose={handleClose}
           onSaved={() => {
