@@ -113,32 +113,6 @@ function fmtPlace(
   return base || '—';
 }
 
-function getUniqueFroms(cargoIds: string[], cargoList: CargoOption[]): CargoOption[] {
-  const map = new Map<string, CargoOption>();
-  for (const id of cargoIds) {
-    const c = cargoList.find((x) => x.id === id);
-    if (!c) continue;
-    const hasFrom = c.from_city || c.from_country || c.from_company || c.from_address;
-    if (!hasFrom) continue;
-    const k = `${c.from_company || ''}|${c.from_city || ''}|${c.from_country || ''}|${c.from_address || ''}`;
-    if (!map.has(k)) map.set(k, c);
-  }
-  return Array.from(map.values());
-}
-
-function getUniqueFinalDests(cargoIds: string[], cargoList: CargoOption[]): CargoOption[] {
-  const map = new Map<string, CargoOption>();
-  for (const id of cargoIds) {
-    const c = cargoList.find((x) => x.id === id);
-    if (!c) continue;
-    const hasTo = c.to_city || c.to_country || c.to_company || c.to_address;
-    if (!hasTo) continue;
-    const k = `${c.to_company || ''}|${c.to_city || ''}|${c.to_country || ''}|${c.to_address || ''}`;
-    if (!map.has(k)) map.set(k, c);
-  }
-  return Array.from(map.values());
-}
-
 const STOP_TYPE_LABELS: Record<Stop['type'], string> = {
   load: 'загрузка',
   reload: 'догруз',
@@ -233,7 +207,7 @@ export default function TripSegmentsBlock({
       </div>
 
       <p className="text-xs text-slate-500 mb-4">
-        Кто и куда едет. Участок = одна машина (наша или подрядчика) и список грузов, которые она везёт.
+        Кто и куда едет. Участок = одна машина (наша или подрядчика), маршрут этой машины и список грузов, которые она везёт.
         Промежуточные точки — заезды по пути (догруз, перегруз).
       </p>
 
@@ -249,17 +223,7 @@ export default function TripSegmentsBlock({
               ? `Мы · ${s.truck_reg || '—'}${s.driver_name ? ` · ${s.driver_name}` : ''}`
               : `Подрядчик · ${s.contractor_name || '—'}`;
 
-            const cargoIds = s.cargoLinks.map((cl) => cl.cargo_id);
-            const uniqueFroms = getUniqueFroms(cargoIds, cargoList);
-            const uniqueFinalDests = getUniqueFinalDests(cargoIds, cargoList);
             const stops = s.stops || [];
-
-            const segToKey = `${s.to_company || ''}|${s.to_city || ''}|${s.to_country || ''}`;
-            const matchingCargoTo = uniqueFinalDests.find((c) => {
-              const cargoToKey = `${c.to_company || ''}|${c.to_city || ''}|${c.to_country || ''}`;
-              return cargoToKey === segToKey;
-            });
-            const toIsIntermediate = uniqueFinalDests.length > 0 && !matchingCargoTo;
 
             return (
               <div
@@ -295,39 +259,12 @@ export default function TripSegmentsBlock({
 
                     {/* ЦЕПОЧКА: from → stops → to */}
                     <div className="space-y-2">
-                      {/* ЗАГРУЗКА — все уникальные точки из грузов */}
-                      {uniqueFroms.length > 0 && (
+                      {/* ОТКУДА */}
+                      {(s.from_city || s.from_country || s.from_company) && (
                         <div className="flex items-start gap-1.5">
                           <MapPin className="w-3.5 h-3.5 text-green-600 mt-1 shrink-0" strokeWidth={2.2} />
-                          <div className="min-w-0 flex-1">
-                            {uniqueFroms.length === 1 ? (
-                              <div className="text-sm text-slate-700 break-words">
-                                {fmtPlace(
-                                  uniqueFroms[0].from_company,
-                                  uniqueFroms[0].from_city,
-                                  uniqueFroms[0].from_country,
-                                  uniqueFroms[0].from_address
-                                )}
-                              </div>
-                            ) : (
-                              <>
-                                <div className="text-[10px] uppercase tracking-wide text-green-700 font-semibold mb-1">
-                                  Забирает из {uniqueFroms.length} точек
-                                </div>
-                                <div className="space-y-1">
-                                  {uniqueFroms.map((c, i) => (
-                                    <div key={i} className="flex items-start gap-1.5 text-xs">
-                                      <span className="text-[10px] font-bold text-green-700 bg-green-50 px-1.5 py-0.5 rounded shrink-0 tabular-nums">
-                                        {i + 1}
-                                      </span>
-                                      <span className="text-slate-700 break-words">
-                                        {fmtPlace(c.from_company, c.from_city, c.from_country, c.from_address)}
-                                      </span>
-                                    </div>
-                                  ))}
-                                </div>
-                              </>
-                            )}
+                          <div className="text-sm text-slate-700 break-words">
+                            {fmtPlace(s.from_company, s.from_city, s.from_country, s.from_address)}
                           </div>
                         </div>
                       )}
@@ -359,7 +296,7 @@ export default function TripSegmentsBlock({
                         </div>
                       )}
 
-                      {/* ВЫГРУЗКА */}
+                      {/* КУДА */}
                       {(s.to_city || s.to_country || s.to_company) && (
                         <div className="flex items-start gap-1.5">
                           <Flag className="w-3.5 h-3.5 text-red-600 mt-1 shrink-0" strokeWidth={2.2} />
@@ -369,30 +306,6 @@ export default function TripSegmentsBlock({
                         </div>
                       )}
                     </div>
-
-                    {/* Промежуточная точка — если to сегмента не совпадает ни с одним финальным to грузов */}
-                    {toIsIntermediate && uniqueFinalDests.length > 0 && (
-                      <div className="flex items-start gap-1.5 text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2">
-                        <ArrowRight className="w-3 h-3 mt-0.5 shrink-0 text-amber-600" strokeWidth={2.5} />
-                        <span>
-                          Промежуточная точка. Дальше груз едет до:
-                          {uniqueFinalDests.length === 1 ? (
-                            <b className="break-words"> {fmtPlace(uniqueFinalDests[0].to_company, uniqueFinalDests[0].to_city, uniqueFinalDests[0].to_country)}</b>
-                          ) : (
-                            <>
-                              {' '}<b>{uniqueFinalDests.length} разных точек:</b>
-                              <span className="block mt-1 space-y-0.5">
-                                {uniqueFinalDests.map((c, i) => (
-                                  <span key={i} className="block break-words">
-                                    #{c.position} → {fmtPlace(c.to_company, c.to_city, c.to_country)}
-                                  </span>
-                                ))}
-                              </span>
-                            </>
-                          )}
-                        </span>
-                      </div>
-                    )}
 
                     {/* Грузы */}
                     {s.cargoLinks.length > 0 && (
