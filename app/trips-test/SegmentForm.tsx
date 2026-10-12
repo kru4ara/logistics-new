@@ -4,14 +4,29 @@ import { useState, useTransition } from 'react';
 import {
   Truck,
   Users,
+  MapPin,
+  Flag,
   X,
   Check,
   Loader2,
   Package,
   AlertTriangle,
+  RotateCcw,
   ArrowRight,
 } from 'lucide-react';
 import { createSegment, updateSegment } from './segment-actions';
+
+type Location = {
+  id: string;
+  name: string;
+  type: string;
+  country: string | null;
+  company_name: string | null;
+  postal_code: string | null;
+  city: string | null;
+  address: string | null;
+  default_loading_number: string | null;
+};
 
 type Option = { id: string; label: string };
 
@@ -31,6 +46,14 @@ type CargoOption = {
   to_postal_code: string | null;
 };
 
+type Addr = {
+  country: string;
+  city: string;
+  company: string;
+  address: string;
+  postal_code: string;
+};
+
 type SegmentData = {
   id?: string;
   executor_type: string;
@@ -40,18 +63,40 @@ type SegmentData = {
   date_from: string | null;
   date_to: string | null;
   notes: string | null;
+  from_country: string | null;
+  from_city: string | null;
+  from_company: string | null;
+  from_address: string | null;
+  from_postal_code: string | null;
+  to_country: string | null;
+  to_city: string | null;
+  to_company: string | null;
+  to_address: string | null;
+  to_postal_code: string | null;
 };
 
-function fmtPlace(company: string | null, city: string | null, country: string | null): string {
-  const parts = [company, city, country].filter(Boolean);
-  return parts.join(', ') || '—';
+function toAddr(
+  country: string | null,
+  city: string | null,
+  company: string | null,
+  address: string | null,
+  postal_code: string | null
+): Addr {
+  return {
+    country: country || '',
+    city: city || '',
+    company: company || '',
+    address: address || '',
+    postal_code: postal_code || '',
+  };
 }
 
-function keyFromTo(c: CargoOption): string {
-  return [
-    c.from_company || '', c.from_city || '', c.from_country || '',
-    c.to_company || '', c.to_city || '', c.to_country || '',
-  ].join('|');
+function addrIsEmpty(a: Addr): boolean {
+  return !a.country && !a.city && !a.company && !a.address && !a.postal_code;
+}
+
+function fmtPlace(company: string | null, city: string | null, country: string | null): string {
+  return [company, city, country].filter(Boolean).join(', ') || '—';
 }
 
 export default function SegmentForm({
@@ -62,6 +107,8 @@ export default function SegmentForm({
   contractors,
   trucks,
   drivers,
+  loadingLocations,
+  unloadingLocations,
   cargoList,
   onClose,
   onSaved,
@@ -73,6 +120,8 @@ export default function SegmentForm({
   contractors: Option[];
   trucks: Option[];
   drivers: Option[];
+  loadingLocations: Location[];
+  unloadingLocations: Location[];
   cargoList: CargoOption[];
   onClose: () => void;
   onSaved: () => void;
@@ -89,6 +138,25 @@ export default function SegmentForm({
   const [dateTo, setDateTo] = useState(initialData?.date_to || '');
   const [notes, setNotes] = useState(initialData?.notes || '');
 
+  const [from, setFrom] = useState<Addr>(
+    toAddr(
+      initialData?.from_country ?? null,
+      initialData?.from_city ?? null,
+      initialData?.from_company ?? null,
+      initialData?.from_address ?? null,
+      initialData?.from_postal_code ?? null
+    )
+  );
+  const [to, setTo] = useState<Addr>(
+    toAddr(
+      initialData?.to_country ?? null,
+      initialData?.to_city ?? null,
+      initialData?.to_company ?? null,
+      initialData?.to_address ?? null,
+      initialData?.to_postal_code ?? null
+    )
+  );
+
   const [selectedCargo, setSelectedCargo] = useState<Set<string>>(
     new Set(initialCargoIds || [])
   );
@@ -98,15 +166,109 @@ export default function SegmentForm({
 
   const inputClass = 'input';
   const labelClass = 'block text-sm font-medium text-slate-700 mb-1';
+  const presetClass =
+    'w-full rounded-lg border-2 border-dashed border-brand-300 bg-brand-50 px-3 py-2.5 text-base text-slate-900 font-medium ' +
+    'focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-solid focus:border-brand-500 transition-all';
+
+  // Маршрут груза-образца (для индикатора «как у груза» / «изменено»)
+  const selectedCargos = cargoList.filter((c) => selectedCargo.has(c.id));
+  const firstCargo = selectedCargos[0] || null;
+
+  function fillFromLocation(locId: string) {
+    if (!locId) return;
+    const loc = loadingLocations.find((l) => l.id === locId);
+    if (!loc) return;
+    setFrom({
+      country: loc.country || '',
+      city: loc.city || '',
+      company: loc.company_name || '',
+      address: loc.address || '',
+      postal_code: loc.postal_code || '',
+    });
+  }
+
+  function fillToLocation(locId: string) {
+    if (!locId) return;
+    const loc = unloadingLocations.find((l) => l.id === locId);
+    if (!loc) return;
+    setTo({
+      country: loc.country || '',
+      city: loc.city || '',
+      company: loc.company_name || '',
+      address: loc.address || '',
+      postal_code: loc.postal_code || '',
+    });
+  }
+
+  function resetFromToCargo() {
+    if (!firstCargo) return;
+    setFrom({
+      country: firstCargo.from_country || '',
+      city: firstCargo.from_city || '',
+      company: firstCargo.from_company || '',
+      address: firstCargo.from_address || '',
+      postal_code: firstCargo.from_postal_code || '',
+    });
+    setTo({
+      country: firstCargo.to_country || '',
+      city: firstCargo.to_city || '',
+      company: firstCargo.to_company || '',
+      address: firstCargo.to_address || '',
+      postal_code: firstCargo.to_postal_code || '',
+    });
+  }
 
   function toggleCargo(id: string) {
     setSelectedCargo((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      const isChecking = !next.has(id);
+
+      if (isChecking) next.add(id);
+      else next.delete(id);
+
+      // Автозаполнение только когда «Откуда/Куда» ещё пустые
+      if (isChecking && addrIsEmpty(from) && addrIsEmpty(to)) {
+        const c = cargoList.find((x) => x.id === id);
+        if (c) {
+          setFrom({
+            country: c.from_country || '',
+            city: c.from_city || '',
+            company: c.from_company || '',
+            address: c.from_address || '',
+            postal_code: c.from_postal_code || '',
+          });
+          setTo({
+            country: c.to_country || '',
+            city: c.to_city || '',
+            company: c.to_company || '',
+            address: c.to_address || '',
+            postal_code: c.to_postal_code || '',
+          });
+        }
+      }
+
       return next;
     });
   }
+
+  // Отличается ли текущее to сегмента от to первого груза?
+  const toDiffers =
+    firstCargo != null &&
+    (
+      (to.country || '') !== (firstCargo.to_country || '') ||
+      (to.city || '') !== (firstCargo.to_city || '') ||
+      (to.company || '') !== (firstCargo.to_company || '') ||
+      (to.address || '') !== (firstCargo.to_address || '')
+    );
+
+  const fromDiffers =
+    firstCargo != null &&
+    (
+      (from.country || '') !== (firstCargo.from_country || '') ||
+      (from.city || '') !== (firstCargo.from_city || '') ||
+      (from.company || '') !== (firstCargo.from_company || '') ||
+      (from.address || '') !== (firstCargo.from_address || '')
+    );
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -116,9 +278,12 @@ export default function SegmentForm({
       setError('Выберите подрядчика');
       return;
     }
-
     if (selectedCargo.size === 0) {
       setError('Выберите хотя бы один груз для этого участка');
+      return;
+    }
+    if (addrIsEmpty(from) && addrIsEmpty(to)) {
+      setError('Заполните «Откуда» или «Куда»');
       return;
     }
 
@@ -130,6 +295,16 @@ export default function SegmentForm({
     formData.set('date_from', dateFrom);
     formData.set('date_to', dateTo);
     formData.set('notes', notes.trim());
+    formData.set('from_country', from.country);
+    formData.set('from_city', from.city);
+    formData.set('from_company', from.company);
+    formData.set('from_address', from.address);
+    formData.set('from_postal_code', from.postal_code);
+    formData.set('to_country', to.country);
+    formData.set('to_city', to.city);
+    formData.set('to_company', to.company);
+    formData.set('to_address', to.address);
+    formData.set('to_postal_code', to.postal_code);
 
     selectedCargo.forEach((cid) => formData.append('cargo_ids', cid));
 
@@ -146,36 +321,6 @@ export default function SegmentForm({
       }
     });
   }
-
-  // Выбранные грузы
-  const selectedCargos = cargoList.filter((c) => selectedCargo.has(c.id));
-
-  // Уникальные точки забора (по ключу)
-  const uniqueFroms = (() => {
-    const map = new Map<string, CargoOption>();
-    for (const c of selectedCargos) {
-      const fromKey = `${c.from_company || ''}|${c.from_city || ''}|${c.from_country || ''}|${c.from_address || ''}|${c.from_postal_code || ''}`;
-      if (!map.has(fromKey) && (c.from_city || c.from_country || c.from_company || c.from_address)) {
-        map.set(fromKey, c);
-      }
-    }
-    return Array.from(map.values());
-  })();
-
-  // Уникальные точки доставки
-  const uniqueTos = (() => {
-    const map = new Map<string, CargoOption>();
-    for (const c of selectedCargos) {
-      const toKey = `${c.to_company || ''}|${c.to_city || ''}|${c.to_country || ''}|${c.to_address || ''}|${c.to_postal_code || ''}`;
-      if (!map.has(toKey) && (c.to_city || c.to_country || c.to_company || c.to_address)) {
-        map.set(toKey, c);
-      }
-    }
-    return Array.from(map.values());
-  })();
-
-  const multiFrom = uniqueFroms.length > 1;
-  const multiTo = uniqueTos.length > 1;
 
   return (
     <div
@@ -339,6 +484,9 @@ export default function SegmentForm({
                       <span className="text-sm text-slate-800 break-words flex-1">
                         {c.label}
                       </span>
+                      <span className="text-[10px] text-slate-400 whitespace-nowrap hidden sm:inline tabular-nums">
+                        {c.from_city || c.from_country || '?'} → {c.to_city || c.to_country || '?'}
+                      </span>
                     </label>
                   );
                 })}
@@ -346,82 +494,238 @@ export default function SegmentForm({
             </div>
           )}
 
-          {/* АВТОМАТИЧЕСКИЙ МАРШРУТ УЧАСТКА */}
-          {selectedCargos.length > 0 && (
-            <div className="bg-slate-50 rounded-xl p-4 space-y-3 border border-slate-200">
+          {/* ОТКУДА */}
+          <div className="bg-green-50 rounded-xl p-4 space-y-3 border border-green-200">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
               <div className="flex items-center gap-2">
-                <ArrowRight className="w-4 h-4 text-slate-700" strokeWidth={2.2} />
-                <h4 className="text-sm font-bold text-slate-700">Маршрут участка</h4>
-                <span className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">
-                  · авто из грузов
-                </span>
-              </div>
-
-              {/* ТОЧКИ ЗАБОРА */}
-              <div>
-                <div className="text-[11px] uppercase tracking-wide text-green-700 font-semibold mb-1.5">
-                  📍 Забирает из {uniqueFroms.length > 1 ? `(${uniqueFroms.length} точек)` : ''}
-                </div>
-                {uniqueFroms.length === 0 ? (
-                  <div className="text-xs text-slate-400 pl-1">
-                    У выбранных грузов не заполнены адреса загрузки
-                  </div>
-                ) : (
-                  <div className="space-y-1">
-                    {uniqueFroms.map((c, i) => (
-                      <div key={i} className="flex items-start gap-2 text-xs bg-white rounded-lg border border-green-100 p-2">
-                        <span className="text-[10px] font-bold text-green-700 bg-green-100 px-1.5 py-0.5 rounded shrink-0 tabular-nums">
-                          {i + 1}
-                        </span>
-                        <span className="text-slate-700 break-words">
-                          {fmtPlace(c.from_company, c.from_city, c.from_country)}
-                          {c.from_address ? ` · ${c.from_address}` : ''}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* ТОЧКИ ДОСТАВКИ */}
-              <div>
-                <div className="text-[11px] uppercase tracking-wide text-red-700 font-semibold mb-1.5">
-                  🏁 Везёт в {uniqueTos.length > 1 ? `(${uniqueTos.length} точек)` : ''}
-                </div>
-                {uniqueTos.length === 0 ? (
-                  <div className="text-xs text-slate-400 pl-1">
-                    У выбранных грузов не заполнены адреса выгрузки
-                  </div>
-                ) : (
-                  <div className="space-y-1">
-                    {uniqueTos.map((c, i) => (
-                      <div key={i} className="flex items-start gap-2 text-xs bg-white rounded-lg border border-red-100 p-2">
-                        <span className="text-[10px] font-bold text-red-700 bg-red-100 px-1.5 py-0.5 rounded shrink-0 tabular-nums">
-                          {i + 1}
-                        </span>
-                        <span className="text-slate-700 break-words">
-                          {fmtPlace(c.to_company, c.to_city, c.to_country)}
-                          {c.to_address ? ` · ${c.to_address}` : ''}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* ПОДСКАЗКИ */}
-              {(multiFrom || multiTo) && (
-                <div className="flex items-start gap-2 text-xs text-brand-800 bg-brand-50 border border-brand-200 rounded-lg p-2.5">
-                  <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0 text-brand-600" strokeWidth={2.2} />
-                  <span>
-                    {multiFrom && multiTo
-                      ? `Участок заезжает в несколько точек забора и несколько точек доставки — обычная ситуация для сборного рейса.`
-                      : multiFrom
-                        ? `Участок заезжает в ${uniqueFroms.length} разных точки — заберёт грузы в нескольких местах.`
-                        : `Участок доставляет в ${uniqueTos.length} разных точки — это нормально, если везёт разным получателям.`}
+                <MapPin className="w-4 h-4 text-green-700" strokeWidth={2.2} />
+                <h4 className="text-sm font-bold text-green-800">Откуда</h4>
+                {fromDiffers && (
+                  <span className="text-[10px] uppercase tracking-wide bg-amber-100 text-amber-700 border border-amber-300 px-1.5 py-0.5 rounded font-semibold">
+                    изменено
                   </span>
-                </div>
+                )}
+              </div>
+              {firstCargo && fromDiffers && (
+                <button
+                  type="button"
+                  onClick={() => setFrom({
+                    country: firstCargo.from_country || '',
+                    city: firstCargo.from_city || '',
+                    company: firstCargo.from_company || '',
+                    address: firstCargo.from_address || '',
+                    postal_code: firstCargo.from_postal_code || '',
+                  })}
+                  className="text-[11px] text-green-700 hover:text-green-900 font-medium inline-flex items-center gap-1"
+                >
+                  <RotateCcw className="w-3 h-3" strokeWidth={2.5} />
+                  Вернуть как у груза
+                </button>
               )}
+            </div>
+
+            <div>
+              <label className={labelClass}>Подставить из справочника</label>
+              <select
+                onChange={(e) => {
+                  fillFromLocation(e.target.value);
+                  e.target.value = '';
+                }}
+                className={presetClass}
+                defaultValue=""
+              >
+                <option value="">— Выберите локацию —</option>
+                {loadingLocations.map((loc) => (
+                  <option key={loc.id} value={loc.id}>
+                    {loc.name} {loc.city ? `· ${loc.city}` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-green-100">
+              <div>
+                <label className={labelClass}>Компания</label>
+                <input
+                  type="text"
+                  value={from.company}
+                  onChange={(e) => setFrom({ ...from, company: e.target.value })}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Страна</label>
+                <input
+                  type="text"
+                  value={from.country}
+                  onChange={(e) => setFrom({ ...from, country: e.target.value })}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Город</label>
+                <input
+                  type="text"
+                  value={from.city}
+                  onChange={(e) => setFrom({ ...from, city: e.target.value })}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Почтовый код</label>
+                <input
+                  type="text"
+                  value={from.postal_code}
+                  onChange={(e) => setFrom({ ...from, postal_code: e.target.value })}
+                  className={inputClass}
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className={labelClass}>Адрес</label>
+                <input
+                  type="text"
+                  value={from.address}
+                  onChange={(e) => setFrom({ ...from, address: e.target.value })}
+                  className={inputClass}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* КУДА */}
+          <div className="bg-red-50 rounded-xl p-4 space-y-3 border border-red-200">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="flex items-center gap-2">
+                <Flag className="w-4 h-4 text-red-700" strokeWidth={2.2} />
+                <h4 className="text-sm font-bold text-red-800">Куда</h4>
+                {toDiffers && (
+                  <span className="text-[10px] uppercase tracking-wide bg-amber-100 text-amber-700 border border-amber-300 px-1.5 py-0.5 rounded font-semibold">
+                    изменено
+                  </span>
+                )}
+              </div>
+              {firstCargo && toDiffers && (
+                <button
+                  type="button"
+                  onClick={() => setTo({
+                    country: firstCargo.to_country || '',
+                    city: firstCargo.to_city || '',
+                    company: firstCargo.to_company || '',
+                    address: firstCargo.to_address || '',
+                    postal_code: firstCargo.to_postal_code || '',
+                  })}
+                  className="text-[11px] text-red-700 hover:text-red-900 font-medium inline-flex items-center gap-1"
+                >
+                  <RotateCcw className="w-3 h-3" strokeWidth={2.5} />
+                  Вернуть как у груза
+                </button>
+              )}
+            </div>
+
+            <div>
+              <label className={labelClass}>Подставить из справочника</label>
+              <select
+                onChange={(e) => {
+                  fillToLocation(e.target.value);
+                  e.target.value = '';
+                }}
+                className={presetClass}
+                defaultValue=""
+              >
+                <option value="">— Выберите локацию —</option>
+                {unloadingLocations.map((loc) => (
+                  <option key={loc.id} value={loc.id}>
+                    {loc.name} {loc.city ? `· ${loc.city}` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-red-100">
+              <div>
+                <label className={labelClass}>Компания</label>
+                <input
+                  type="text"
+                  value={to.company}
+                  onChange={(e) => setTo({ ...to, company: e.target.value })}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Страна</label>
+                <input
+                  type="text"
+                  value={to.country}
+                  onChange={(e) => setTo({ ...to, country: e.target.value })}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Город</label>
+                <input
+                  type="text"
+                  value={to.city}
+                  onChange={(e) => setTo({ ...to, city: e.target.value })}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Почтовый код</label>
+                <input
+                  type="text"
+                  value={to.postal_code}
+                  onChange={(e) => setTo({ ...to, postal_code: e.target.value })}
+                  className={inputClass}
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className={labelClass}>Адрес</label>
+                <input
+                  type="text"
+                  value={to.address}
+                  onChange={(e) => setTo({ ...to, address: e.target.value })}
+                  className={inputClass}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* ПОДСКАЗКА ПРО ПРОМЕЖУТОЧНУЮ ТОЧКУ */}
+          {toDiffers && firstCargo && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start gap-2">
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-600 mt-0.5 shrink-0" strokeWidth={2.2} />
+              <div className="text-xs text-amber-800">
+                Куда участка ≠ куда груза. Участок довозит только до <b>промежуточной точки</b> —
+                дальше груз поедет другим участком.
+                <div className="mt-1 text-amber-700">
+                  Груз ждёт: {fmtPlace(firstCargo.to_company, firstCargo.to_city, firstCargo.to_country)}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ЕСЛИ НЕСКОЛЬКО ГРУЗОВ — ПОКАЗЫВАЕМ ИХ КОНЕЧНЫЕ ТОЧКИ */}
+          {selectedCargos.length > 1 && (
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2">
+              <div className="text-[11px] uppercase tracking-wide text-slate-500 font-semibold flex items-center gap-1.5">
+                <ArrowRight className="w-3 h-3" strokeWidth={2.5} />
+                Финальные адреса выбранных грузов
+              </div>
+              <div className="space-y-1">
+                {selectedCargos.map((c) => (
+                  <div key={c.id} className="flex items-start gap-2 text-xs">
+                    <span className="text-[10px] font-bold text-brand-700 bg-brand-100 px-1.5 py-0.5 rounded shrink-0 tabular-nums">
+                      {c.position}
+                    </span>
+                    <span className="text-slate-700 break-words">
+                      {fmtPlace(c.to_company, c.to_city, c.to_country)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="text-[11px] text-slate-500">
+                Если участок доставляет не до конца — в поле «Куда» впишите промежуточную точку.
+              </div>
             </div>
           )}
 
