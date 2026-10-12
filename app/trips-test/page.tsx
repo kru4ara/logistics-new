@@ -3,7 +3,6 @@ import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase-server';
 import {
   FlaskConical,
-  Package,
   FileText,
   Route as RouteIcon,
   Calendar,
@@ -69,12 +68,11 @@ export default async function TripsTestPage({
     return acc;
   }, {} as Record<string, number>) || {};
 
-  // Простая фильтрация (без search по тексту — потом добавим)
   const filteredTrips = (trips || []).filter((t: any) => {
     if (statusFilter && t.status !== statusFilter) return false;
 
     const date = t.end_date || t.start_date;
-    if (!date) return true; // черновики показываем
+    if (!date) return true;
 
     const d = new Date(date);
     if (d.getFullYear() !== year) return false;
@@ -280,7 +278,7 @@ export default async function TripsTestPage({
               return (
                 <a
                   key={trip.id}
-                  href={`/trips/${trip.id}`}
+                  href={`/trips-test/${trip.id}`}
                   className="group card card-hover overflow-hidden active:scale-[0.99]"
                 >
                   <div className={`h-1.5 ${statusStripColors[trip.status] || 'bg-slate-300'}`} />
