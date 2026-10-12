@@ -87,7 +87,6 @@ export default async function TripsTestDetailPage({
     trucksRes,
     driversRes,
     segmentsRes,
-    segmentCargoRes,
   ] = await Promise.all([
     supabase
       .from('trip_cargo')
@@ -105,10 +104,7 @@ export default async function TripsTestDetailPage({
       .select('*')
       .in('type', ['unloading', 'both'])
       .order('name'),
-    supabase
-      .from('contractors')
-      .select('id, name')
-      .order('name'),
+    supabase.from('contractors').select('id, name').order('name'),
     supabase
       .from('trucks')
       .select('id, registration_number')
@@ -123,11 +119,16 @@ export default async function TripsTestDetailPage({
       .select('*, contractors(name), trucks!truck_id(registration_number), drivers!driver_id(first_name, last_name)')
       .eq('trip_id', tripId)
       .order('position', { ascending: true }),
-    supabase
-      .from('trip_segment_cargo')
-      .select('segment_id, cargo_id, trip_cargo(position, label)')
-      .in('segment_id', (await supabase.from('trip_segments').select('id').eq('trip_id', tripId)).data?.map((s: any) => s.id) || []),
   ]);
+
+  // Связи segment → cargo (только для сегментов этого рейса)
+  const segmentIds = (segmentsRes.data || []).map((s: any) => s.id);
+  const segmentCargoRes = segmentIds.length > 0
+    ? await supabase
+        .from('trip_segment_cargo')
+        .select('segment_id, cargo_id, trip_cargo(position, label)')
+        .in('segment_id', segmentIds)
+    : { data: [] };
 
   const cargoList = (cargoRes.data || []).map((c: any) => ({
     id: c.id,
@@ -312,10 +313,19 @@ export default async function TripsTestDetailPage({
             id: c.id,
             position: c.position,
             label: c.label || '—',
+            from_country: c.from_country,
+            from_city: c.from_city,
+            from_company: c.from_company,
+            from_address: c.from_address,
+            from_postal_code: c.from_postal_code,
+            to_country: c.to_country,
+            to_city: c.to_city,
+            to_company: c.to_company,
+            to_address: c.to_address,
+            to_postal_code: c.to_postal_code,
           }))}
         />
 
-        {/* Ссылка на полную карточку */}
         <div className="card p-5 md:p-6">
           <h3 className="text-sm font-bold text-slate-700 mb-3">
             Остальные данные рейса
