@@ -14,26 +14,10 @@ function parseCargoIds(formData: FormData): string[] {
   return ids.filter(Boolean);
 }
 
-/**
- * Берёт первый груз из списка и копирует его from/to в сегмент.
- * Нужно для обратной совместимости — старые запросы читают s.from_city и т.п.
- * Но реальный UI рендерит маршрут из привязанных грузов.
- */
-async function deriveRouteFromFirstCargo(
+async function loadCargoRoute(
   supabase: Awaited<ReturnType<typeof createClient>>,
   cargoIds: string[]
-): Promise<{
-  from_country: string | null;
-  from_city: string | null;
-  from_company: string | null;
-  from_address: string | null;
-  from_postal_code: string | null;
-  to_country: string | null;
-  to_city: string | null;
-  to_company: string | null;
-  to_address: string | null;
-  to_postal_code: string | null;
-}> {
+) {
   if (cargoIds.length === 0) {
     return {
       from_country: null, from_city: null, from_company: null, from_address: null, from_postal_code: null,
@@ -76,12 +60,24 @@ export async function createSegment(tripId: string, formData: FormData) {
   if (executorType === 'contractor' && !contractorId) {
     throw new Error('Выберите подрядчика');
   }
-
   if (cargoIds.length === 0) {
-    throw new Error('Выберите хотя бы один груз для этого участка');
+    throw new Error('Выберите хотя бы один груз');
   }
 
-  const route = await deriveRouteFromFirstCargo(supabase, cargoIds);
+  // Берём из формы (пользователь мог переопределить), fallback — из груза
+  const fallback = await loadCargoRoute(supabase, cargoIds);
+
+  const fromCountry = str(formData, 'from_country') ?? fallback.from_country;
+  const fromCity = str(formData, 'from_city') ?? fallback.from_city;
+  const fromCompany = str(formData, 'from_company') ?? fallback.from_company;
+  const fromAddress = str(formData, 'from_address') ?? fallback.from_address;
+  const fromPostalCode = str(formData, 'from_postal_code') ?? fallback.from_postal_code;
+
+  const toCountry = str(formData, 'to_country') ?? fallback.to_country;
+  const toCity = str(formData, 'to_city') ?? fallback.to_city;
+  const toCompany = str(formData, 'to_company') ?? fallback.to_company;
+  const toAddress = str(formData, 'to_address') ?? fallback.to_address;
+  const toPostalCode = str(formData, 'to_postal_code') ?? fallback.to_postal_code;
 
   const { data: last } = await supabase
     .from('trip_segments')
@@ -104,16 +100,16 @@ export async function createSegment(tripId: string, formData: FormData) {
       driver_id: executorType === 'us' ? driverId : null,
       date_from: dateFrom,
       date_to: dateTo,
-      from_country: route.from_country,
-      from_city: route.from_city,
-      from_company: route.from_company,
-      from_address: route.from_address,
-      from_postal_code: route.from_postal_code,
-      to_country: route.to_country,
-      to_city: route.to_city,
-      to_company: route.to_company,
-      to_address: route.to_address,
-      to_postal_code: route.to_postal_code,
+      from_country: fromCountry,
+      from_city: fromCity,
+      from_company: fromCompany,
+      from_address: fromAddress,
+      from_postal_code: fromPostalCode,
+      to_country: toCountry,
+      to_city: toCity,
+      to_company: toCompany,
+      to_address: toAddress,
+      to_postal_code: toPostalCode,
       notes,
     }])
     .select('id')
@@ -153,12 +149,23 @@ export async function updateSegment(segmentId: string, tripId: string, formData:
   if (executorType === 'contractor' && !contractorId) {
     throw new Error('Выберите подрядчика');
   }
-
   if (cargoIds.length === 0) {
-    throw new Error('Выберите хотя бы один груз для этого участка');
+    throw new Error('Выберите хотя бы один груз');
   }
 
-  const route = await deriveRouteFromFirstCargo(supabase, cargoIds);
+  const fallback = await loadCargoRoute(supabase, cargoIds);
+
+  const fromCountry = str(formData, 'from_country') ?? fallback.from_country;
+  const fromCity = str(formData, 'from_city') ?? fallback.from_city;
+  const fromCompany = str(formData, 'from_company') ?? fallback.from_company;
+  const fromAddress = str(formData, 'from_address') ?? fallback.from_address;
+  const fromPostalCode = str(formData, 'from_postal_code') ?? fallback.from_postal_code;
+
+  const toCountry = str(formData, 'to_country') ?? fallback.to_country;
+  const toCity = str(formData, 'to_city') ?? fallback.to_city;
+  const toCompany = str(formData, 'to_company') ?? fallback.to_company;
+  const toAddress = str(formData, 'to_address') ?? fallback.to_address;
+  const toPostalCode = str(formData, 'to_postal_code') ?? fallback.to_postal_code;
 
   const { error } = await supabase
     .from('trip_segments')
@@ -169,16 +176,16 @@ export async function updateSegment(segmentId: string, tripId: string, formData:
       driver_id: executorType === 'us' ? driverId : null,
       date_from: dateFrom,
       date_to: dateTo,
-      from_country: route.from_country,
-      from_city: route.from_city,
-      from_company: route.from_company,
-      from_address: route.from_address,
-      from_postal_code: route.from_postal_code,
-      to_country: route.to_country,
-      to_city: route.to_city,
-      to_company: route.to_company,
-      to_address: route.to_address,
-      to_postal_code: route.to_postal_code,
+      from_country: fromCountry,
+      from_city: fromCity,
+      from_company: fromCompany,
+      from_address: fromAddress,
+      from_postal_code: fromPostalCode,
+      to_country: toCountry,
+      to_city: toCity,
+      to_company: toCompany,
+      to_address: toAddress,
+      to_postal_code: toPostalCode,
       notes,
     })
     .eq('id', segmentId);
