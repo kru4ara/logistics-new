@@ -55,7 +55,8 @@ type CargoLink = {
   label: string;
 };
 
-type Stop = {
+// Тип из БД — поля могут быть null
+type StopDb = {
   type: 'load' | 'reload' | 'unload';
   company: string | null;
   country: string | null;
@@ -63,6 +64,17 @@ type Stop = {
   address: string | null;
   postal_code: string | null;
   date: string | null;
+};
+
+// Тип для формы — строки
+type StopForm = {
+  type: 'load' | 'reload' | 'unload';
+  company: string;
+  country: string;
+  city: string;
+  address: string;
+  postal_code: string;
+  date: string;
 };
 
 type Segment = {
@@ -88,7 +100,7 @@ type Segment = {
   to_company: string | null;
   to_address: string | null;
   to_postal_code: string | null;
-  stops: Stop[] | null;
+  stops: StopDb[] | null;
   cargoLinks: CargoLink[];
 };
 
@@ -113,13 +125,26 @@ function fmtPlace(
   return base || '—';
 }
 
-const STOP_TYPE_LABELS: Record<Stop['type'], string> = {
+// Конвертация StopDb → StopForm для формы
+function stopDbToForm(s: StopDb): StopForm {
+  return {
+    type: s.type || 'reload',
+    company: s.company || '',
+    country: s.country || '',
+    city: s.city || '',
+    address: s.address || '',
+    postal_code: s.postal_code || '',
+    date: s.date || '',
+  };
+}
+
+const STOP_TYPE_LABELS: Record<StopDb['type'], string> = {
   load: 'загрузка',
   reload: 'догруз',
   unload: 'выгрузка',
 };
 
-const STOP_TYPE_BADGES: Record<Stop['type'], string> = {
+const STOP_TYPE_BADGES: Record<StopDb['type'], string> = {
   load: 'bg-green-50 text-green-700 border-green-200',
   reload: 'bg-amber-50 text-amber-700 border-amber-200',
   unload: 'bg-red-50 text-red-700 border-red-200',
@@ -183,6 +208,30 @@ export default function TripSegmentsBlock({
   const editingSegment = editingId
     ? segments.find((s) => s.id === editingId)
     : null;
+
+  // Готовим initialData для формы
+  const editingInitialData = editingSegment
+    ? {
+        executor_type: editingSegment.executor_type,
+        contractor_id: editingSegment.contractor_id,
+        truck_id: editingSegment.truck_id,
+        driver_id: editingSegment.driver_id,
+        date_from: editingSegment.date_from,
+        date_to: editingSegment.date_to,
+        notes: editingSegment.notes,
+        from_country: editingSegment.from_country,
+        from_city: editingSegment.from_city,
+        from_company: editingSegment.from_company,
+        from_address: editingSegment.from_address,
+        from_postal_code: editingSegment.from_postal_code,
+        to_country: editingSegment.to_country,
+        to_city: editingSegment.to_city,
+        to_company: editingSegment.to_company,
+        to_address: editingSegment.to_address,
+        to_postal_code: editingSegment.to_postal_code,
+        stops: (editingSegment.stops || []).map(stopDbToForm),
+      }
+    : undefined;
 
   return (
     <div className="card p-5 md:p-6 animate-fade-in">
@@ -257,9 +306,7 @@ export default function TripSegmentsBlock({
                       )}
                     </div>
 
-                    {/* ЦЕПОЧКА: from → stops → to */}
                     <div className="space-y-2">
-                      {/* ОТКУДА */}
                       {(s.from_city || s.from_country || s.from_company) && (
                         <div className="flex items-start gap-1.5">
                           <MapPin className="w-3.5 h-3.5 text-green-600 mt-1 shrink-0" strokeWidth={2.2} />
@@ -269,7 +316,6 @@ export default function TripSegmentsBlock({
                         </div>
                       )}
 
-                      {/* ПРОМЕЖУТОЧНЫЕ ТОЧКИ */}
                       {stops.length > 0 && (
                         <div className="pl-5 space-y-1.5">
                           {stops.map((stop, idx) => (
@@ -296,7 +342,6 @@ export default function TripSegmentsBlock({
                         </div>
                       )}
 
-                      {/* КУДА */}
                       {(s.to_city || s.to_country || s.to_company) && (
                         <div className="flex items-start gap-1.5">
                           <Flag className="w-3.5 h-3.5 text-red-600 mt-1 shrink-0" strokeWidth={2.2} />
@@ -307,7 +352,6 @@ export default function TripSegmentsBlock({
                       )}
                     </div>
 
-                    {/* Грузы */}
                     {s.cargoLinks.length > 0 && (
                       <div className="flex items-center gap-1.5 flex-wrap pt-2 border-t border-slate-200/60">
                         <Package className="w-3 h-3 text-slate-400 shrink-0" strokeWidth={2} />
@@ -368,26 +412,7 @@ export default function TripSegmentsBlock({
         <SegmentForm
           tripId={tripId}
           segmentId={editingId || undefined}
-          initialData={editingSegment ? {
-            executor_type: editingSegment.executor_type,
-            contractor_id: editingSegment.contractor_id,
-            truck_id: editingSegment.truck_id,
-            driver_id: editingSegment.driver_id,
-            date_from: editingSegment.date_from,
-            date_to: editingSegment.date_to,
-            notes: editingSegment.notes,
-            from_country: editingSegment.from_country,
-            from_city: editingSegment.from_city,
-            from_company: editingSegment.from_company,
-            from_address: editingSegment.from_address,
-            from_postal_code: editingSegment.from_postal_code,
-            to_country: editingSegment.to_country,
-            to_city: editingSegment.to_city,
-            to_company: editingSegment.to_company,
-            to_address: editingSegment.to_address,
-            to_postal_code: editingSegment.to_postal_code,
-            stops: editingSegment.stops,
-          } : undefined}
+          initialData={editingInitialData}
           initialCargoIds={editingSegment?.cargoLinks.map((cl) => cl.cargo_id) || []}
           contractors={contractors}
           trucks={trucks}
