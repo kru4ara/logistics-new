@@ -4,7 +4,6 @@ import { createClient } from '../../../lib/supabase-server';
 import TripCargoBlock from '../TripCargoBlock';
 import {
   ArrowLeft,
-  Package,
   FileText,
   Route as RouteIcon,
   Calendar,
@@ -78,18 +77,26 @@ export default async function TripsTestDetailPage({
     return <div className="p-8 text-red-500">Рейс не найден: {error?.message}</div>;
   }
 
-  const { data: cargoRaw } = await supabase
-    .from('trip_cargo')
-    .select('*, clients(name)')
-    .eq('trip_id', tripId)
-    .order('position', { ascending: true });
+  const [cargoRes, clientsRes, loadingRes, unloadingRes] = await Promise.all([
+    supabase
+      .from('trip_cargo')
+      .select('*, clients(name)')
+      .eq('trip_id', tripId)
+      .order('position', { ascending: true }),
+    supabase.from('clients').select('id, name').order('name'),
+    supabase
+      .from('locations')
+      .select('*')
+      .in('type', ['loading', 'both'])
+      .order('name'),
+    supabase
+      .from('locations')
+      .select('*')
+      .in('type', ['unloading', 'both'])
+      .order('name'),
+  ]);
 
-  const { data: clientsList } = await supabase
-    .from('clients')
-    .select('id, name')
-    .order('name');
-
-  const cargoList = (cargoRaw || []).map((c: any) => ({
+  const cargoList = (cargoRes.data || []).map((c: any) => ({
     id: c.id,
     position: c.position,
     label: c.label,
@@ -98,7 +105,21 @@ export default async function TripsTestDetailPage({
     client_id: c.client_id,
     client_name: pickName(c.clients) || null,
     notes: c.notes,
+    from_country: c.from_country,
+    from_city: c.from_city,
+    from_company: c.from_company,
+    from_address: c.from_address,
+    from_postal_code: c.from_postal_code,
+    to_country: c.to_country,
+    to_city: c.to_city,
+    to_company: c.to_company,
+    to_address: c.to_address,
+    to_postal_code: c.to_postal_code,
   }));
+
+  const clientsList = clientsRes.data || [];
+  const loadingLocations = loadingRes.data || [];
+  const unloadingLocations = unloadingRes.data || [];
 
   const driver = pickOne<{ first_name: string | null; last_name: string | null }>(trip.drivers);
   const truck = pickOne<{ registration_number: string | null }>(trip.trucks);
@@ -119,7 +140,6 @@ export default async function TripsTestDetailPage({
           Все рейсы (тест)
         </a>
 
-        {/* Шапка рейса */}
         <div className="card p-5 md:p-6">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-4">
             <div className="min-w-0">
@@ -187,15 +207,17 @@ export default async function TripsTestDetailPage({
           </div>
         </div>
 
-        {/* 🧪 ГРУЗЫ — новый блок */}
+        {/* ГРУЗЫ */}
         <TripCargoBlock
           tripId={tripId}
           cargoList={cargoList}
-          clients={(clientsList || []).map((c) => ({ id: c.id, label: c.name }))}
+          clients={clientsList.map((c) => ({ id: c.id, label: c.name }))}
+          loadingLocations={loadingLocations as any}
+          unloadingLocations={unloadingLocations as any}
           defaultClientId={trip.client_id}
         />
 
-        {/* Ссылка на полную карточку рейса */}
+        {/* Ссылка на полную карточку */}
         <div className="card p-5 md:p-6">
           <h3 className="text-sm font-bold text-slate-700 mb-3">
             Остальные данные рейса
