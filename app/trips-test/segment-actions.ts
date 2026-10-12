@@ -14,6 +14,38 @@ function parseCargoIds(formData: FormData): string[] {
   return ids.filter(Boolean);
 }
 
+type Stop = {
+  type: 'load' | 'reload' | 'unload';
+  company: string | null;
+  country: string | null;
+  city: string | null;
+  address: string | null;
+  postal_code: string | null;
+  date: string | null;
+};
+
+function parseStops(formData: FormData): Stop[] {
+  const raw = formData.get('stops') as string;
+  if (!raw) return [];
+  try {
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) return [];
+    return arr
+      .filter((s: any) => s && (s.company || s.city || s.country || s.address))
+      .map((s: any) => ({
+        type: s.type === 'load' || s.type === 'unload' ? s.type : 'reload',
+        company: String(s.company || '').trim() || null,
+        country: String(s.country || '').trim() || null,
+        city: String(s.city || '').trim() || null,
+        address: String(s.address || '').trim() || null,
+        postal_code: String(s.postal_code || '').trim() || null,
+        date: s.date || null,
+      }));
+  } catch {
+    return [];
+  }
+}
+
 async function loadCargoRoute(
   supabase: Awaited<ReturnType<typeof createClient>>,
   cargoIds: string[]
@@ -56,6 +88,7 @@ export async function createSegment(tripId: string, formData: FormData) {
   const dateTo = str(formData, 'date_to');
   const notes = str(formData, 'notes');
   const cargoIds = parseCargoIds(formData);
+  const stops = parseStops(formData);
 
   if (executorType === 'contractor' && !contractorId) {
     throw new Error('Выберите подрядчика');
@@ -64,7 +97,6 @@ export async function createSegment(tripId: string, formData: FormData) {
     throw new Error('Выберите хотя бы один груз');
   }
 
-  // Берём из формы (пользователь мог переопределить), fallback — из груза
   const fallback = await loadCargoRoute(supabase, cargoIds);
 
   const fromCountry = str(formData, 'from_country') ?? fallback.from_country;
@@ -110,6 +142,7 @@ export async function createSegment(tripId: string, formData: FormData) {
       to_company: toCompany,
       to_address: toAddress,
       to_postal_code: toPostalCode,
+      stops: stops as any,
       notes,
     }])
     .select('id')
@@ -127,7 +160,7 @@ export async function createSegment(tripId: string, formData: FormData) {
     entity_type: 'trip',
     entity_id: tripId,
     action: 'update',
-    summary: `Добавлен участок №${nextPosition} (${executorType === 'us' ? 'мы' : 'подрядчик'}, грузов: ${cargoIds.length})`,
+    summary: `Добавлен участок №${nextPosition} (${executorType === 'us' ? 'мы' : 'подрядчик'}, грузов: ${cargoIds.length}, остановок: ${stops.length})`,
   });
 
   revalidatePath(`/trips-test/${tripId}`);
@@ -145,6 +178,7 @@ export async function updateSegment(segmentId: string, tripId: string, formData:
   const dateTo = str(formData, 'date_to');
   const notes = str(formData, 'notes');
   const cargoIds = parseCargoIds(formData);
+  const stops = parseStops(formData);
 
   if (executorType === 'contractor' && !contractorId) {
     throw new Error('Выберите подрядчика');
@@ -186,6 +220,7 @@ export async function updateSegment(segmentId: string, tripId: string, formData:
       to_company: toCompany,
       to_address: toAddress,
       to_postal_code: toPostalCode,
+      stops: stops as any,
       notes,
     })
     .eq('id', segmentId);
