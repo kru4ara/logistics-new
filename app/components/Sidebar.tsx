@@ -24,7 +24,6 @@ import {
   X,
   Home,
   Calendar,
-  FlaskConical,
   type LucideIcon,
 } from 'lucide-react';
 import { logout } from '../login/actions';
@@ -45,7 +44,6 @@ const adminSections: NavSection[] = [
     title: 'Работа',
     items: [
       { href: '/trips', label: 'Рейсы', icon: Package },
-      { href: '/trips-test', label: 'Рейсы (тест)', icon: FlaskConical },
       { href: '/forwarding', label: 'Экспедирование', icon: Boxes },
       { href: '/routes', label: 'Маршруты', icon: Route },
       { href: '/map', label: 'Карта', icon: Map },
@@ -132,13 +130,6 @@ export default function Sidebar({
 
   function isActive(href: string): boolean {
     if (href === '/' || href === '/driver' || href === '/today') return pathname === href;
-    if (href === '/trips') {
-      // /trips активен только если это ТОЧНО /trips или /trips/[id], но НЕ /trips-test
-      return pathname === '/trips' || (pathname.startsWith('/trips/') && !pathname.startsWith('/trips-test'));
-    }
-    if (href === '/trips-test') {
-      return pathname === '/trips-test' || pathname.startsWith('/trips-test/');
-    }
     return pathname === href || pathname.startsWith(href);
   }
 
