@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import SegmentForm from './SegmentForm';
 import SegmentDocxButton from './SegmentDocxButton';
+import SendSegmentTaskButton from './SendSegmentTaskButton';
 import { deleteSegment } from './segment-actions';
 
 type Location = {
@@ -398,6 +399,14 @@ export default function TripSegmentsBlock({
                           segmentId={s.id}
                           contractorName={s.contractor_name || 'contractor'}
                           segmentPosition={s.position}
+                        />
+                      )}
+                      {isUs && (
+                        <SendSegmentTaskButton
+                          tripId={tripId}
+                          segmentId={s.id}
+                          disabled={!s.driver_id}
+                          disabledHint="Сначала назначьте водителя на этот участок"
                         />
                       )}
                       <button
