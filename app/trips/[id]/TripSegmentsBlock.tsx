@@ -18,6 +18,7 @@ import {
   Coins,
 } from 'lucide-react';
 import SegmentForm from './SegmentForm';
+import SegmentDocxButton from './SegmentDocxButton';
 import { deleteSegment } from './segment-actions';
 
 type Location = {
@@ -388,33 +389,44 @@ export default function TripSegmentsBlock({
                         <span>{s.notes}</span>
                       </div>
                     )}
-                  </div>
 
-                  <div className="flex items-center gap-1 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => handleEdit(s.id)}
-                      disabled={isPending}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 text-slate-600
-                                 hover:bg-white text-xs font-medium transition-all active:scale-[0.97] disabled:opacity-50"
-                      title="Изменить"
-                    >
-                      <Pencil className="w-3 h-3" strokeWidth={2.2} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(s.id, s.position)}
-                      disabled={isDeletingId === s.id || isPending}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-50 text-red-600 border border-red-200
-                                 hover:bg-red-100 text-xs font-medium transition-all active:scale-[0.97] disabled:opacity-50"
-                      title="Удалить"
-                    >
-                      {isDeletingId === s.id ? (
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                      ) : (
-                        <Trash2 className="w-3 h-3" strokeWidth={2.2} />
+                    {/* Кнопки */}
+                    <div className="flex items-center gap-1.5 flex-wrap pt-2 border-t border-slate-200/60">
+                      {!isUs && s.contractor_id && (
+                        <SegmentDocxButton
+                          tripId={tripId}
+                          segmentId={s.id}
+                          contractorName={s.contractor_name || 'contractor'}
+                          segmentPosition={s.position}
+                        />
                       )}
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => handleEdit(s.id)}
+                        disabled={isPending}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 text-slate-600
+                                   hover:bg-white text-xs font-medium transition-all active:scale-[0.97] disabled:opacity-50 ml-auto"
+                        title="Изменить"
+                      >
+                        <Pencil className="w-3 h-3" strokeWidth={2.2} />
+                        Изменить
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(s.id, s.position)}
+                        disabled={isDeletingId === s.id || isPending}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-50 text-red-600 border border-red-200
+                                   hover:bg-red-100 text-xs font-medium transition-all active:scale-[0.97] disabled:opacity-50"
+                        title="Удалить"
+                      >
+                        {isDeletingId === s.id ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-3 h-3" strokeWidth={2.2} />
+                        )}
+                        Удалить
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
