@@ -34,6 +34,7 @@ function fmtDate(d: string | null): string {
 
 type TextOpts = {
   bold?: boolean;
+  italics?: boolean;
   size?: number;
   before?: number;
   after?: number;
@@ -49,6 +50,7 @@ function txt(text: string, opts?: TextOpts): Paragraph {
       new TextRun({
         text,
         bold: opts?.bold,
+        italics: opts?.italics,
         size: opts?.size ?? 22,
         font: FONT,
         color: opts?.color,
@@ -290,7 +292,6 @@ export async function GET(
 
   children.push(divider());
 
-  // ВОДИТЕЛЬ / ТРАНСПОРТ
   const infoRows: TableRow[] = [
     new TableRow({
       children: [cellLabel('Водитель'), cellValue(driverName, { bold: true, size: 24 })],
@@ -331,7 +332,6 @@ export async function GET(
 
   children.push(txt('', { after: 200 }));
 
-  // МАРШРУТ
   children.push(txt('МАРШРУТ', { bold: true, size: 24, after: 100, color: BLUE }));
 
   const routeRows: TableRow[] = [];
@@ -461,7 +461,6 @@ export async function GET(
 
   children.push(txt('', { after: 200 }));
 
-  // ГРУЗЫ
   if (cargoItems.length > 0) {
     children.push(txt('ГРУЗЫ', { bold: true, size: 24, after: 100, color: BLUE }));
 
@@ -581,13 +580,11 @@ export async function GET(
     children.push(txt('', { after: 200 }));
   }
 
-  // ЗАМЕТКИ
   if (segment.notes) {
     children.push(txt('ЗАМЕТКИ', { bold: true, size: 22, after: 100, color: BLUE }));
     children.push(txt(segment.notes, { size: 20, after: 200, color: '334155' }));
   }
 
-  // ПОДПИСЬ
   children.push(divider());
   children.push(txt('', { after: 200 }));
   children.push(
