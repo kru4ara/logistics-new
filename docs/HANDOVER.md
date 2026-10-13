@@ -110,3 +110,13 @@ cargo_id UUID REFERENCES trip_cargo(id) ON DELETE CASCADE,
 PRIMARY KEY (segment_id, cargo_id)
 
 -- trip_expenses.segment_id — FK на trip_segments (ON DELETE SET NULL)
+
+
+---
+
+## Обновления
+
+### 13.10.2026 — Фаза 3.1 закрыта
+- `/trips-test` удалён (коммит 44a25d3)
+- Из `Sidebar.tsx` убран пункт «Рейсы (тест)» + почищен `isActive`
+- Wand2 («Подставить из груза») перенесён из `trips-test/SegmentForm.tsx` в prod `app/trips/[id]/SegmentForm.tsx`
