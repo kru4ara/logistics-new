@@ -14,6 +14,7 @@ import {
   Trash2,
   ArrowRight,
   Coins,
+  Wand2,
 } from 'lucide-react';
 import { createSegment, updateSegment } from './segment-actions';
 
@@ -234,6 +235,32 @@ export default function SegmentForm({
       company: loc.company_name || '',
       address: loc.address || '',
       postal_code: loc.postal_code || '',
+    });
+  }
+
+  function fillFromCargo(cargoId: string) {
+    if (!cargoId) return;
+    const c = cargoList.find((x) => x.id === cargoId);
+    if (!c) return;
+    setFrom({
+      country: c.from_country || '',
+      city: c.from_city || '',
+      company: c.from_company || '',
+      address: c.from_address || '',
+      postal_code: c.from_postal_code || '',
+    });
+  }
+
+  function fillToCargo(cargoId: string) {
+    if (!cargoId) return;
+    const c = cargoList.find((x) => x.id === cargoId);
+    if (!c) return;
+    setTo({
+      country: c.to_country || '',
+      city: c.to_city || '',
+      company: c.to_company || '',
+      address: c.to_address || '',
+      postal_code: c.to_postal_code || '',
     });
   }
 
@@ -549,6 +576,9 @@ export default function SegmentForm({
                       <span className="text-sm text-slate-800 break-words flex-1">
                         {c.label}
                       </span>
+                      <span className="text-[10px] text-slate-400 whitespace-nowrap hidden sm:inline tabular-nums">
+                        {c.from_city || c.from_country || '?'} → {c.to_city || c.to_country || '?'}
+                      </span>
                     </label>
                   );
                 })}
@@ -562,6 +592,30 @@ export default function SegmentForm({
               <MapPin className="w-4 h-4 text-green-700" strokeWidth={2.2} />
               <h4 className="text-sm font-bold text-green-800">Откуда</h4>
             </div>
+
+            {cargoList.length > 0 && (
+              <div>
+                <label className="text-xs font-semibold text-green-800 mb-1 flex items-center gap-1.5">
+                  <Wand2 className="w-3.5 h-3.5" strokeWidth={2.2} />
+                  Подставить из груза
+                </label>
+                <select
+                  onChange={(e) => {
+                    fillFromCargo(e.target.value);
+                    e.target.value = '';
+                  }}
+                  className="input bg-white mb-2"
+                  defaultValue=""
+                >
+                  <option value="">— Выберите груз —</option>
+                  {cargoList.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      #{c.position} · {c.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div>
               <label className={labelClass}>Подставить из справочника</label>
@@ -776,6 +830,30 @@ export default function SegmentForm({
               <Flag className="w-4 h-4 text-red-700" strokeWidth={2.2} />
               <h4 className="text-sm font-bold text-red-800">Куда</h4>
             </div>
+
+            {cargoList.length > 0 && (
+              <div>
+                <label className="text-xs font-semibold text-red-800 mb-1 flex items-center gap-1.5">
+                  <Wand2 className="w-3.5 h-3.5" strokeWidth={2.2} />
+                  Подставить из груза
+                </label>
+                <select
+                  onChange={(e) => {
+                    fillToCargo(e.target.value);
+                    e.target.value = '';
+                  }}
+                  className="input bg-white mb-2"
+                  defaultValue=""
+                >
+                  <option value="">— Выберите груз —</option>
+                  {cargoList.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      #{c.position} · {c.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div>
               <label className={labelClass}>Подставить из справочника</label>
