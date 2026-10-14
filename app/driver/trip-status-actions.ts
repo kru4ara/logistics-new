@@ -3,6 +3,7 @@
 import { createClient } from '../../lib/supabase-server';
 import { revalidatePath } from 'next/cache';
 import { logAudit } from '../../lib/audit';
+import { buildRouteMap, type SegmentRouteRow } from '../../lib/trip-route'; // ⬅️ ИЗМЕНЕНО
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
@@ -182,7 +183,15 @@ export async function changeTripStatus(
       : 'Не указан';
     const truckNumber = truck?.registration_number || '—';
     const tripNumber = trip.trip_number || '—';
-    const route = trip.route || '—';
+
+    // ⬅️ ИЗМЕНЕНО: route тянем из trip_segments (fallback на trip.route временный)
+    const { data: segRows } = await supabase
+      .from('trip_segments')
+      .select('trip_id, position, from_city, from_country, to_city, to_country')
+      .eq('trip_id', tripId);
+
+    const routeMap = buildRouteMap((segRows || []) as SegmentRouteRow[]);
+    const route = routeMap.get(tripId)?.route ?? trip.route ?? '—';
 
     const statusEmoji: Record<string, string> = {
       active: '🚛',
