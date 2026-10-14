@@ -11,6 +11,7 @@ import SendTaskButton from './SendTaskButton';
 import TripCargoBlock from './TripCargoBlock';
 import TripSegmentsBlock from './TripSegmentsBlock';
 import { buildRouteMap, type SegmentRouteRow } from '../../../lib/trip-route';
+import { buildDriverTaskText } from '../../../lib/trip-task-text';
 import {
   ArrowLeft,
   Pencil,
