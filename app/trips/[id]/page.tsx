@@ -189,6 +189,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
       : null;
     return {
       id: s.id,
+      trip_id: s.trip_id,     // ← добавить эту строку
       position: s.position,
       executor_type: s.executor_type,
       contractor_id: s.contractor_id,
@@ -217,8 +218,8 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
     };
   });
 
-   // Route из сегментов через buildRouteMap (fallback на trip.route удалён в Фазе 3.6)
-  const routeMap = buildRouteMap(segments as SegmentRouteRow[]);
+  // Route из сегментов через buildRouteMap (fallback на trip.route удалён в Фазе 3.6)
+  const routeMap = buildRouteMap((segmentsRaw || []) as SegmentRouteRow[]);
   const computedRoute = routeMap.get(tripId)?.route ?? '—';
 
   // ============================================================
