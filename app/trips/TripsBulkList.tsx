@@ -17,7 +17,7 @@ import {
   X,
 } from 'lucide-react';
 import { bulkSetStatus, bulkDelete } from './bulk-actions';
-
+ 
 export type TripCardData = {
   id: string;
   trip_number: number | null;
