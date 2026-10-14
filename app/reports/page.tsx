@@ -266,7 +266,7 @@ export default async function ReportsPage() {
                           {statusLabels[trip.status] || trip.status}
                         </span>
                       </div>
-
+ 
                       {trip.route && trip.route !== '—' && (
                         <div className="flex items-start gap-1 text-xs text-slate-500 mb-2 break-words">
                           <RouteIcon className="w-3 h-3 mt-0.5 shrink-0 text-slate-400" strokeWidth={2} />
