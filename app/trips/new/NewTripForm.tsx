@@ -76,8 +76,9 @@ export default function NewTripForm({
   unloadingLocations,
   lastEndDates,
 }: Props) {
-  const [sender, setSender] = useState<AddrState>({ ...emptyAddr });
-  const [receiver, setReceiver] = useState<AddrState>({ ...emptyAddr });
+  // ⬅️ ИЗМЕНЕНО: sender→from, receiver→to
+  const [from, setFrom] = useState<AddrState>({ ...emptyAddr });
+  const [to, setTo] = useState<AddrState>({ ...emptyAddr });
 
   const [truckId, setTruckId] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -106,11 +107,12 @@ export default function NewTripForm({
     );
   }
 
-  function fillSender(locId: string) {
+  // ⬅️ ИЗМЕНЕНО: fillSender → fillFrom
+  function fillFrom(locId: string) {
     if (!locId) return;
     const loc = loadingLocations.find((l) => l.id === locId);
     if (!loc) return;
-    setSender({
+    setFrom({
       country: loc.country || '',
       name: loc.company_name || '',
       postal_code: loc.postal_code || '',
@@ -120,11 +122,12 @@ export default function NewTripForm({
     });
   }
 
-  function fillReceiver(locId: string) {
+  // ⬅️ ИЗМЕНЕНО: fillReceiver → fillTo
+  function fillTo(locId: string) {
     if (!locId) return;
     const loc = unloadingLocations.find((l) => l.id === locId);
     if (!loc) return;
-    setReceiver({
+    setTo({
       country: loc.country || '',
       name: loc.company_name || '',
       postal_code: loc.postal_code || '',
@@ -258,7 +261,8 @@ export default function NewTripForm({
             Выбрать из сохранённых локаций
             <span className="text-xs text-slate-400 font-normal ml-2 hidden sm:inline">(заполнит поля ниже)</span>
           </label>
-          <select onChange={(e) => fillSender(e.target.value)} className={presetClass} defaultValue="">
+          {/* ⬅️ ИЗМЕНЕНО: fillSender → fillFrom */}
+          <select onChange={(e) => fillFrom(e.target.value)} className={presetClass} defaultValue="">
             <option value="">— Выберите локацию —</option>
             {loadingLocations.map((loc) => (
               <option key={loc.id} value={loc.id}>
@@ -268,41 +272,42 @@ export default function NewTripForm({
           </select>
         </div>
 
+        {/* ⬅️ ИЗМЕНЕНО: sender_* → from_*, sender→from */}
         <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2 pt-2 border-t border-slate-100">
           <div>
             <label className={labelClass}>Страна</label>
-            <input type="text" name="sender_country" value={sender.country}
-              onChange={(e) => setSender({ ...sender, country: e.target.value })}
+            <input type="text" name="from_country" value={from.country}
+              onChange={(e) => setFrom({ ...from, country: e.target.value })}
               placeholder="Польша" className={inputClass} />
           </div>
           <div>
             <label className={labelClass}>Название отправителя</label>
-            <input type="text" name="sender_name" value={sender.name}
-              onChange={(e) => setSender({ ...sender, name: e.target.value })}
+            <input type="text" name="from_name" value={from.name}
+              onChange={(e) => setFrom({ ...from, name: e.target.value })}
               placeholder="ООО Пример" className={inputClass} />
           </div>
           <div>
             <label className={labelClass}>Почтовый код</label>
-            <input type="text" name="sender_postal_code" value={sender.postal_code}
-              onChange={(e) => setSender({ ...sender, postal_code: e.target.value })}
+            <input type="text" name="from_postal_code" value={from.postal_code}
+              onChange={(e) => setFrom({ ...from, postal_code: e.target.value })}
               placeholder="00-001" className={inputClass} />
           </div>
           <div>
             <label className={labelClass}>Город</label>
-            <input type="text" name="sender_city" value={sender.city}
-              onChange={(e) => setSender({ ...sender, city: e.target.value })}
+            <input type="text" name="from_city" value={from.city}
+              onChange={(e) => setFrom({ ...from, city: e.target.value })}
               placeholder="Варшава" className={inputClass} />
           </div>
           <div>
             <label className={labelClass}>Адрес</label>
-            <input type="text" name="sender_address" value={sender.address}
-              onChange={(e) => setSender({ ...sender, address: e.target.value })}
+            <input type="text" name="from_address" value={from.address}
+              onChange={(e) => setFrom({ ...from, address: e.target.value })}
               placeholder="ул. Примерная, 1" className={inputClass} />
           </div>
           <div>
             <label className={labelClass}>Погрузочный номер</label>
-            <input type="text" name="sender_loading_number" value={sender.loading_number}
-              onChange={(e) => setSender({ ...sender, loading_number: e.target.value })}
+            <input type="text" name="from_loading_number" value={from.loading_number}
+              onChange={(e) => setFrom({ ...from, loading_number: e.target.value })}
               placeholder="Ramp 4" className={inputClass} />
           </div>
         </div>
@@ -324,7 +329,8 @@ export default function NewTripForm({
             Выбрать из сохранённых локаций
             <span className="text-xs text-slate-400 font-normal ml-2 hidden sm:inline">(заполнит поля ниже)</span>
           </label>
-          <select onChange={(e) => fillReceiver(e.target.value)} className={presetClass} defaultValue="">
+          {/* ⬅️ ИЗМЕНЕНО: fillReceiver → fillTo */}
+          <select onChange={(e) => fillTo(e.target.value)} className={presetClass} defaultValue="">
             <option value="">— Выберите локацию —</option>
             {unloadingLocations.map((loc) => (
               <option key={loc.id} value={loc.id}>
@@ -334,41 +340,42 @@ export default function NewTripForm({
           </select>
         </div>
 
+        {/* ⬅️ ИЗМЕНЕНО: receiver_* → to_*, receiver→to */}
         <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2 pt-2 border-t border-slate-100">
           <div>
             <label className={labelClass}>Страна</label>
-            <input type="text" name="receiver_country" value={receiver.country}
-              onChange={(e) => setReceiver({ ...receiver, country: e.target.value })}
+            <input type="text" name="to_country" value={to.country}
+              onChange={(e) => setTo({ ...to, country: e.target.value })}
               placeholder="Беларусь" className={inputClass} />
           </div>
           <div>
             <label className={labelClass}>Название получателя</label>
-            <input type="text" name="receiver_name" value={receiver.name}
-              onChange={(e) => setReceiver({ ...receiver, name: e.target.value })}
+            <input type="text" name="to_name" value={to.name}
+              onChange={(e) => setTo({ ...to, name: e.target.value })}
               placeholder="ООО Пример" className={inputClass} />
           </div>
           <div>
             <label className={labelClass}>Почтовый код</label>
-            <input type="text" name="receiver_postal_code" value={receiver.postal_code}
-              onChange={(e) => setReceiver({ ...receiver, postal_code: e.target.value })}
+            <input type="text" name="to_postal_code" value={to.postal_code}
+              onChange={(e) => setTo({ ...to, postal_code: e.target.value })}
               placeholder="220000" className={inputClass} />
           </div>
           <div>
             <label className={labelClass}>Город</label>
-            <input type="text" name="receiver_city" value={receiver.city}
-              onChange={(e) => setReceiver({ ...receiver, city: e.target.value })}
+            <input type="text" name="to_city" value={to.city}
+              onChange={(e) => setTo({ ...to, city: e.target.value })}
               placeholder="Брест" className={inputClass} />
           </div>
           <div>
             <label className={labelClass}>Адрес</label>
-            <input type="text" name="receiver_address" value={receiver.address}
-              onChange={(e) => setReceiver({ ...receiver, address: e.target.value })}
+            <input type="text" name="to_address" value={to.address}
+              onChange={(e) => setTo({ ...to, address: e.target.value })}
               placeholder="ул. Советская, 1" className={inputClass} />
           </div>
           <div>
             <label className={labelClass}>Погрузочный номер</label>
-            <input type="text" name="receiver_loading_number" value={receiver.loading_number}
-              onChange={(e) => setReceiver({ ...receiver, loading_number: e.target.value })}
+            <input type="text" name="to_loading_number" value={to.loading_number}
+              onChange={(e) => setTo({ ...to, loading_number: e.target.value })}
               placeholder="Ramp 1" className={inputClass} />
           </div>
         </div>
