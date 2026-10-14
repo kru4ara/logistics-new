@@ -329,8 +329,8 @@ export default async function TripsPage({
               )}
             </p>
           </div>
-          <div className="flex flex-wrap gap-2 md:gap-3">
-            <DownloadButton data={filteredTrips} />
+                    <div className="flex flex-wrap gap-2 md:gap-3">
+            <DownloadButton data={filteredTrips.map(prepareTrip)} />
             <a
               href="/trips/new"
               className="btn btn-primary text-sm md:text-base flex-1 sm:flex-none"
