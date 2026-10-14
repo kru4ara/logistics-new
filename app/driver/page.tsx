@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase-server';
+import { buildRouteMap, type SegmentRouteRow, type TripRouteInfo } from '../../lib/trip-route'; // ⬅️ ИЗМЕНЕНО
 import TripsList from './TripsList';
 import OnboardingCard from './OnboardingCard';
 import {
@@ -57,19 +58,21 @@ export default async function DriverPage() {
   const tripIds = trips?.map((t) => t.id) || [];
 
   const consolidationByTrip: Record<string, ConsolidationPoint> = {};
+  const segmentsByTrip: Record<string, TripRouteInfo> = {}; // ⬅️ ИЗМЕНЕНО
 
   if (tripIds.length > 0) {
-    const { data: subs } = await supabase
+    // ⬅️ ИЗМЕНЕНО: тянем ВСЕ сегменты (не только contractor) — один запрос
+    // на всё: консолидацию + route/from/to для карточек водителя.
+    const { data: segsAll } = await supabase
       .from('trip_segments')
-      .select('trip_id, position, to_country, to_city, to_company, to_postal_code, to_address, date_to')
-      .eq('executor_type', 'contractor')
+      .select('trip_id, position, executor_type, from_city, from_country, to_city, to_country, to_company, to_postal_code, to_address, date_to')
       .in('trip_id', tripIds)
       .order('position', { ascending: true });
 
-    // Берём последний по позиции contractor-сегмент для каждого рейса —
-    // это точка C, откуда водитель забирает груз.
+    // Консолидация: последний contractor-сегмент = точка C
     const best: Record<string, any> = {};
-    (subs || []).forEach((s: any) => {
+    (segsAll || []).forEach((s: any) => {
+      if (s.executor_type !== 'contractor') return;
       const cur = best[s.trip_id];
       if (!cur) {
         best[s.trip_id] = s;
@@ -93,6 +96,21 @@ export default async function DriverPage() {
         postal_code: s.to_postal_code,
         address: s.to_address,
       };
+    });
+
+    // ⬅️ ИЗМЕНЕНО: route/from/to из сегментов
+    const routeMap = buildRouteMap(
+      (segsAll || []).map((s: any) => ({
+        trip_id: s.trip_id,
+        position: s.position,
+        from_city: s.from_city,
+        from_country: s.from_country,
+        to_city: s.to_city,
+        to_country: s.to_country,
+      })) as SegmentRouteRow[]
+    );
+    routeMap.forEach((info, tripId) => {
+      segmentsByTrip[tripId] = info;
     });
   }
 
@@ -175,6 +193,7 @@ export default async function DriverPage() {
             <TripsList
               trips={activeTrips}
               consolidationByTrip={consolidationByTrip}
+              segmentsByTrip={segmentsByTrip}
               initialVisible={20}
             />
           </div>
@@ -265,6 +284,7 @@ export default async function DriverPage() {
             <TripsList
               trips={otherTrips}
               consolidationByTrip={consolidationByTrip}
+              segmentsByTrip={segmentsByTrip}
               initialVisible={5}
             />
           )}
