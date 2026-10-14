@@ -60,11 +60,14 @@ export default async function DriverPage() {
 
   if (tripIds.length > 0) {
     const { data: subs } = await supabase
-      .from('trip_subcontractors')
-      .select('trip_id, position, unload_country, unload_city, unload_company, unload_postal_code, unload_address, unload_date')
+      .from('trip_segments')
+      .select('trip_id, position, to_country, to_city, to_company, to_postal_code, to_address, date_to')
+      .eq('executor_type', 'contractor')
       .in('trip_id', tripIds)
       .order('position', { ascending: true });
 
+    // Берём последний по позиции contractor-сегмент для каждого рейса —
+    // это точка C, откуда водитель забирает груз.
     const best: Record<string, any> = {};
     (subs || []).forEach((s: any) => {
       const cur = best[s.trip_id];
@@ -76,19 +79,19 @@ export default async function DriverPage() {
       if (posDiff > 0) {
         best[s.trip_id] = s;
       } else if (posDiff === 0) {
-        const sDate = s.unload_date ? new Date(s.unload_date).getTime() : 0;
-        const cDate = cur.unload_date ? new Date(cur.unload_date).getTime() : 0;
+        const sDate = s.date_to ? new Date(s.date_to).getTime() : 0;
+        const cDate = cur.date_to ? new Date(cur.date_to).getTime() : 0;
         if (sDate > cDate) best[s.trip_id] = s;
       }
     });
 
     Object.entries(best).forEach(([tId, s]) => {
       consolidationByTrip[tId] = {
-        country: s.unload_country,
-        city: s.unload_city,
-        company: s.unload_company,
-        postal_code: s.unload_postal_code,
-        address: s.unload_address,
+        country: s.to_country,
+        city: s.to_city,
+        company: s.to_company,
+        postal_code: s.to_postal_code,
+        address: s.to_address,
       };
     });
   }
