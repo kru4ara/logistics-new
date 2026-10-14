@@ -286,7 +286,17 @@ PRIMARY KEY (segment_id, cargo_id)
 - **`buildRouteMap` принимает `SegmentRouteRow[]` — поле `trip_id` обязательно.** Подавать `(segmentsRaw || [])`, а не смапленный `segments`.
 - **При добавлении импорта не удалять существующие** (было: пропал `buildDriverTaskText`).
 
-## ⚠️ Рабочий процесс с кодом
+## ⚠️ Рабочий процесс (после 14.10.2026)
+
+**Правки — через GitHub Web UI (карандаш → выделить всё → вставить → Commit).**
+Локальный клон в `~/projects/logistics-new` часто отстаёт — **перед grep делать `git pull`**.
+
+**grep через GitHub Search:**
+`https://github.com/kru4ara/logistics-new/search?q=ТЕРМИН&type=code`
+
+**Связанные файлы — один коммит** (иначе Vercel падает на type-check между пушами).
+
+**buildRouteMap:** принимает `SegmentRouteRow[]` с обязательным `trip_id`. Подавать сырые `*Raw` из supabase, а не UI-модель.
 
 Проект ведётся в GitHub (правки через веб/инструмент с автокоммитом). Локальный клон в `~/projects/logistics-new` **отстаёт** от origin.
 
