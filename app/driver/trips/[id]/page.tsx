@@ -352,7 +352,7 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
                   {/* Промежуточные точки */}
                   {seg.stops.length > 0 && (
                     <div className="space-y-2">
-                      {seg.stops.map((stop, idx) => (
+                      {seg.stops.map((stop: StopDb, idx: number) => (
                         <div key={idx} className="border-l-4 border-amber-500 pl-3 py-1 ml-2">
                           <div className="text-xs uppercase tracking-wide text-amber-700 font-semibold mb-1">
                             {stopTypeLabel[stop.type] || 'Остановка'}
