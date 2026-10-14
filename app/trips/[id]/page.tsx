@@ -7,7 +7,6 @@ import SyncLogisatButton from './SyncLogisatButton';
 import { saveTelemetry } from '../../telemetry-actions';
 import CopyBlock from '../../components/CopyBlock';
 import SubmitButton from '../../components/SubmitButton';
-import SubcontractorsBlock from './SubcontractorsBlock';
 import SendTaskButton from './SendTaskButton';
 import TripCargoBlock from './TripCargoBlock';
 import TripSegmentsBlock from './TripSegmentsBlock';
@@ -23,7 +22,6 @@ import {
   Phone,
   Calendar,
   Gauge,
-  MapPin,
   Activity,
   Paperclip,
   FolderOpen,
@@ -31,7 +29,6 @@ import {
   Wallet,
   PlusCircle,
   Settings2,
-  CircleDot,
   AlertTriangle,
   Coins,
 } from 'lucide-react';
@@ -91,12 +88,6 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
     .select('*')
     .eq('trip_id', tripId)
     .order('uploaded_at', { ascending: false });
-
-  const { data: subcontractors } = await supabase
-    .from('trip_subcontractors')
-    .select('*, contractors(name, country)')
-    .eq('trip_id', tripId)
-    .order('position', { ascending: true });
 
   const { data: contractors } = await supabase
     .from('contractors')
@@ -226,8 +217,6 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
     };
   });
 
-  const hasSegments = segments.length > 0;
-
   // ============================================================
   // Расчёты
   // ============================================================
@@ -251,52 +240,6 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
   const driver = pickOne<{ first_name: string | null; last_name: string | null; phone: string | null; telegram_chat_id: string | null }>(trip.drivers);
   const truck = pickOne<{ registration_number: string | null }>(trip.trucks);
 
-  let consolidationPoint: {
-    country: string | null;
-    city: string | null;
-    address: string | null;
-    company: string | null;
-    postal_code: string | null;
-    unload_date: string | null;
-  } | null = null;
-
-  if (subcontractors && subcontractors.length > 0) {
-    const sorted = [...subcontractors].sort((a: any, b: any) => {
-      const posDiff = (b.position || 0) - (a.position || 0);
-      if (posDiff !== 0) return posDiff;
-      const aDate = a.unload_date ? new Date(a.unload_date).getTime() : 0;
-      const bDate = b.unload_date ? new Date(b.unload_date).getTime() : 0;
-      return bDate - aDate;
-    });
-    const last = sorted[0] as any;
-    consolidationPoint = {
-      country: last.unload_country,
-      city: last.unload_city,
-      address: last.unload_address,
-      company: last.unload_company,
-      postal_code: last.unload_postal_code,
-      unload_date: last.unload_date,
-    };
-  }
-
-  type LoadingPoint = {
-    num: number;
-    country: string | null;
-    name: string | null;
-    postal_code: string | null;
-    city: string | null;
-    address: string | null;
-    loading_number: string | null;
-  };
-
-  const loadingPoints: LoadingPoint[] = [
-    { num: 1, country: trip.sender_country, name: trip.sender_name, postal_code: trip.sender_postal_code, city: trip.sender_city, address: trip.sender_address, loading_number: trip.sender_loading_number },
-    { num: 2, country: trip.sender2_country, name: trip.sender2_name, postal_code: trip.sender2_postal_code, city: trip.sender2_city, address: trip.sender2_address, loading_number: trip.sender2_loading_number },
-    { num: 3, country: trip.sender3_country, name: trip.sender3_name, postal_code: trip.sender3_postal_code, city: trip.sender3_city, address: trip.sender3_address, loading_number: trip.sender3_loading_number },
-    { num: 4, country: trip.sender4_country, name: trip.sender4_name, postal_code: trip.sender4_postal_code, city: trip.sender4_city, address: trip.sender4_address, loading_number: trip.sender4_loading_number },
-    { num: 5, country: trip.sender5_country, name: trip.sender5_name, postal_code: trip.sender5_postal_code, city: trip.sender5_city, address: trip.sender5_address, loading_number: trip.sender5_loading_number },
-  ].filter((p) => p.city || p.name || p.country || p.address);
-
   const taskText = buildDriverTaskText({
     trip: {
       ...trip,
@@ -307,7 +250,6 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
     truck,
     trailerNumber,
     segments: segments as any,
-    subcontractors: (subcontractors || []) as any,
     markdown: false,
   });
 
@@ -357,13 +299,6 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
     return expenseCategories.find((c) => c.value === cat)?.label
       || (cat === 'contractor' ? '🚛 Подрядчик' : cat);
   }
-
-  const tripFinalDestination = [
-    trip.receiver_country,
-    trip.receiver_postal_code,
-    trip.receiver_city,
-    trip.receiver_address,
-  ].filter(Boolean).join(', ');
 
   return (
     <main className="min-h-screen bg-slate-50">
@@ -518,75 +453,6 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
           )}
         </div>
 
-        {/* ТОЧКИ МАРШРУТА — legacy, только если нет сегментов */}
-        {!hasSegments && (
-          <div className="card p-5 md:p-6">
-            <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-              <MapPin className="w-5 h-5 text-brand-600" strokeWidth={2} />
-              Маршрутные точки
-            </h2>
-
-            <div className="mb-6">
-              <div className="text-sm font-semibold text-green-700 mb-3 flex items-center gap-2">
-                <CircleDot className="w-4 h-4" strokeWidth={2.5} />
-                Загрузка
-                {loadingPoints.length > 1 && (
-                  <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
-                    {loadingPoints.length} точки
-                  </span>
-                )}
-              </div>
-              {loadingPoints.length === 0 ? (
-                <div className="text-slate-400 text-sm pl-4">Не указана</div>
-              ) : (
-                <div className="space-y-3">
-                  {loadingPoints.map((p) => (
-                    <div key={p.num} className="border-l-4 border-green-500 pl-4 py-1">
-                      <div className="flex items-baseline gap-2 flex-wrap">
-                        <span className="text-xs font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded tabular-nums">
-                          #{p.num}
-                        </span>
-                        <span className="font-semibold text-slate-800 text-sm break-words">{p.name || '—'}</span>
-                      </div>
-                      <div className="text-sm text-slate-600 mt-1 break-words">
-                        {[p.country, p.postal_code, p.city, p.address].filter(Boolean).join(', ') || '—'}
-                      </div>
-                      {p.loading_number && (
-                        <div className="text-xs text-slate-500 mt-1">
-                          № погрузки: <span className="font-medium">{p.loading_number}</span>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="pt-4 border-t border-slate-100">
-              <div className="text-sm font-semibold text-red-700 mb-3 flex items-center gap-2">
-                <MapPin className="w-4 h-4" strokeWidth={2.5} />
-                Выгрузка
-              </div>
-              {trip.receiver_city || trip.receiver_name ? (
-                <div className="border-l-4 border-red-500 pl-4 py-1">
-                  <div className="font-semibold text-slate-800 text-sm break-words">{trip.receiver_name || '—'}</div>
-                  <div className="text-sm text-slate-600 mt-1 break-words">
-                    {[trip.receiver_country, trip.receiver_postal_code, trip.receiver_city, trip.receiver_address]
-                      .filter(Boolean).join(', ') || '—'}
-                  </div>
-                  {trip.receiver_loading_number && (
-                    <div className="text-xs text-slate-500 mt-1">
-                      № погрузки: <span className="font-medium">{trip.receiver_loading_number}</span>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="text-slate-400 text-sm pl-4">Не указана</div>
-              )}
-            </div>
-          </div>
-        )}
-
         {/* ГРУЗЫ */}
         <TripCargoBlock
           tripId={tripId}
@@ -639,101 +505,6 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
           </h2>
           <TripStatusButtons tripId={tripId} currentStatus={trip.status} showAdminStatuses={true} />
         </div>
-
-        {/* ПОДРЯДЧИКИ НА РЕЙСЕ — legacy, только если нет сегментов */}
-        {!hasSegments && (
-          <SubcontractorsBlock
-            tripId={tripId}
-            subcontractors={(subcontractors || []) as any}
-            contractors={(contractors || []) as any}
-            loadingLocations={(loadingLocations || []) as any}
-            unloadingLocations={(unloadingLocations || []) as any}
-            defaultLoad={{
-              country: trip.sender_country,
-              city: trip.sender_city,
-              address: trip.sender_address,
-              company: trip.sender_name,
-              postal_code: trip.sender_postal_code,
-              loading_number: trip.sender_loading_number,
-            }}
-            senderPoints={loadingPoints}
-            tripFinalDestination={tripFinalDestination}
-          />
-        )}
-
-        {/* НАШ УЧАСТОК (C → Б) — legacy, только если нет сегментов */}
-        {!hasSegments && consolidationPoint && (
-          <div className="bg-white rounded-2xl border-2 border-brand-200 shadow-soft p-5 md:p-6">
-            <div className="flex flex-wrap items-baseline justify-between gap-2 mb-4">
-              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <RouteIcon className="w-5 h-5 text-brand-600" strokeWidth={2} />
-                Наш участок
-              </h2>
-              <span className="text-[10px] text-brand-700 bg-brand-50 px-2 py-0.5 rounded-full font-medium">
-                C → Б
-              </span>
-            </div>
-
-            <p className="text-xs text-slate-500 mb-4">
-              Подрядчики довозят груз до точки C, дальше наша машина везёт его получателю.
-              Точка C взята из последней выгрузки подрядчика — менять её вручную не нужно.
-            </p>
-
-            <div className="bg-gradient-to-br from-brand-50 to-white rounded-xl border border-brand-100 p-4">
-              <div className="flex items-start gap-3">
-                <div className="flex flex-col items-center shrink-0 pt-1">
-                  <span className="w-3 h-3 rounded-full bg-brand-500 ring-4 ring-brand-100" />
-                  <span className="w-0.5 flex-1 bg-brand-200 my-1" style={{ minHeight: 24 }} />
-                  <span className="w-3 h-3 rounded-full bg-red-500 ring-4 ring-red-100" />
-                </div>
-
-                <div className="min-w-0 flex-1 space-y-4">
-                  <div>
-                    <div className="text-xs font-semibold text-brand-700 uppercase tracking-wide">
-                      Точка C · Забираем груз
-                    </div>
-                    <div className="text-sm font-bold text-slate-900 mt-1 break-words">
-                      {consolidationPoint.company || '—'}
-                    </div>
-                    <div className="text-sm text-slate-600 mt-0.5 break-words">
-                      {[consolidationPoint.postal_code, consolidationPoint.city, consolidationPoint.country]
-                        .filter(Boolean).join(', ') || '—'}
-                    </div>
-                    {consolidationPoint.address && (
-                      <div className="text-xs text-slate-500 mt-0.5 break-words">
-                        {consolidationPoint.address}
-                      </div>
-                    )}
-                    {consolidationPoint.unload_date && (
-                      <div className="flex items-center gap-1 text-xs text-slate-400 mt-1">
-                        <Calendar className="w-3.5 h-3.5" strokeWidth={2} />
-                        {new Date(consolidationPoint.unload_date).toLocaleDateString('ru-RU')}
-                      </div>
-                    )}
-                  </div>
-
-                  <div>
-                    <div className="text-xs font-semibold text-red-700 uppercase tracking-wide">
-                      Точка Б · Везём получателю
-                    </div>
-                    <div className="text-sm font-bold text-slate-900 mt-1 break-words">
-                      {trip.receiver_name || '—'}
-                    </div>
-                    <div className="text-sm text-slate-600 mt-0.5 break-words">
-                      {[trip.receiver_postal_code, trip.receiver_city, trip.receiver_country]
-                        .filter(Boolean).join(', ') || '—'}
-                    </div>
-                    {trip.receiver_address && (
-                      <div className="text-xs text-slate-500 mt-0.5 break-words">
-                        {trip.receiver_address}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* ТЕЛЕМЕТРИЯ */}
         <div className="card p-5 md:p-6">
