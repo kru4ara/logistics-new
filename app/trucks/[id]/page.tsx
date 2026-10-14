@@ -1,4 +1,5 @@
 import { createClient } from '../../../lib/supabase-server';
+import { buildRouteMap, type SegmentRouteRow } from '../../../lib/trip-route';
 import {
   ArrowLeft,
   Pencil,
@@ -71,12 +72,27 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ id
 
   if (truckError) return <div className="p-8 text-red-500">Ошибка загрузки: {truckError.message}</div>;
 
-  // Рейсы машины — и как тягач, и как прицеп
+  // Рейсы машины — и как тягач, и как прицеп. Без legacy route — маршрут из сегментов ниже ⬅️ ИЗМЕНЕНО
   const { data: trips } = await supabase
     .from('trips')
-    .select('id, trip_number, route, status, revenue_eur, actual_km, actual_liters, start_date, end_date, truck_id, trailer_id, clients(name), drivers!driver_id(first_name, last_name)')
+    .select('id, trip_number, status, revenue_eur, actual_km, actual_liters, start_date, end_date, truck_id, trailer_id, clients(name), drivers!driver_id(first_name, last_name)')
     .or(`truck_id.eq.${truckId},trailer_id.eq.${truckId}`)
     .order('trip_number', { ascending: false });
+
+  // Маршруты рейсов — из trip_segments ⬅️ ИЗМЕНЕНО
+  const tripIds = (trips || []).map((t) => t.id);
+  const routeByTrip = new Map<string, string>();
+  if (tripIds.length > 0) {
+    const { data: segRows } = await supabase
+      .from('trip_segments')
+      .select('trip_id, position, from_city, from_country, to_city, to_country')
+      .in('trip_id', tripIds);
+
+    const routeMap = buildRouteMap((segRows || []) as SegmentRouteRow[]);
+    routeMap.forEach((info, tripId) => {
+      if (info.route) routeByTrip.set(tripId, info.route);
+    });
+  }
 
   const totalTrips = trips?.length || 0;
   const totalRevenue = (trips || []).reduce((s, t) => s + (t.revenue_eur || 0), 0);
@@ -231,6 +247,7 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ id
                 const isOurTruck = t.truck_id === truckId;
                 const RoleIcon = isOurTruck ? TruckIcon : Container;
                 const roleLabel = isOurTruck ? 'тягач' : 'прицеп';
+                const routeDisplay = routeByTrip.get(t.id) || '—'; // ⬅️ ИЗМЕНЕНО
 
                 return (
                   <a
@@ -264,7 +281,7 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ id
                         </div>
                         <div className="flex items-start gap-1.5 text-xs text-slate-500 mt-0.5">
                           <RouteIcon className="w-3.5 h-3.5 shrink-0 mt-0.5" strokeWidth={2} />
-                          <span className="break-words">{t.route || '—'}</span>
+                          <span className="break-words">{routeDisplay}</span>
                         </div>
                         {driverName && (
                           <div className="flex items-center gap-1.5 text-xs text-slate-400 mt-0.5">
