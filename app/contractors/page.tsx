@@ -48,10 +48,12 @@ export default async function ContractorsPage() {
       (ordersCountByContractor[fc.contractor_id] || 0) + 1;
   });
 
-  // Считаем сколько комбинированных рейсов у каждого подрядчика
+  // Считаем сколько комбинированных рейсов у каждого подрядчика (участки рейсов)
   const { data: allTs } = await supabase
-    .from('trip_subcontractors')
-    .select('contractor_id');
+    .from('trip_segments')
+    .select('contractor_id')
+    .eq('executor_type', 'contractor')
+    .not('contractor_id', 'is', null);
 
   const tripsCountByContractor: Record<string, number> = {};
   allTs?.forEach((ts) => {
