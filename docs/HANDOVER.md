@@ -242,9 +242,9 @@ PRIMARY KEY (segment_id, cargo_id)
 
 **Из старого списка Пакета C:** `app/driver/page.tsx` и `app/driver/stats/page.tsx` оказались чисты. Вместо них обнаружены и закрыты `trip-status-actions.ts` и `TripsList.tsx`.
 
-### Фаза 3.6 — DROP COLUMN + чистка legacy (разбита на под-пакеты)
+### Фаза 3.6 — DROP COLUMN + чистка legacy (7 под-пакетов)
 
-**Полный grep 14.10.2026** — карта вхождений готова.
+**Полный grep через GitHub Code Search, 14.10.2026.**
 
 **3.6.1** — мелкие «читатели» `t.route` (5 файлов):
 - `app/api/trips/check-overlap/route.ts:85`
@@ -252,34 +252,41 @@ PRIMARY KEY (segment_id, cargo_id)
 - `app/contractors/[id]/page.tsx:156`
 - `app/drivers/[id]/page.tsx:247`
 - `app/trucks/[id]/page.tsx:267`
-→ заменить на `buildRouteMap` (запрос сегментов + Map).
 
-**3.6.2** — крупные «читатели» `sender_*`/`receiver_*` (4 файла):
-- `app/api/backfill-coordinates/route.ts` (29, 46–47, 59–60, 65) — читает sender/receiver
-- `app/map/MapView.tsx` (96–99, 187, 190, 236, 239)
-- `app/map/page.tsx` (157, 161, 164) — уже получает поля из MapView
-- `app/today/page.tsx` (227–229, 246–248, 528)
+**3.6.2** — крупные «читатели» (4 файла):
+- `app/api/backfill-coordinates/route.ts`
+- `app/map/MapView.tsx`
+- `app/map/page.tsx` (переименовать алиасы sender_→from_)
+- `app/today/page.tsx` (то же)
 
-**3.6.3** — fallback в наших файлах (3 файла):
-- `app/trips/page.tsx:134,145–150` — `getRoute` fallback + поиск по sender_*
-- `app/trips/TripsBulkList.tsx:215`
-- `app/trips/[id]/page.tsx:236`
-→ убрать `?? trip.route ?? '—'` после того как 3.6.1–3.6.2 закрыты.
+**3.6.3** — убрать fallback `?? trip.route ??` (5 файлов):
+- `app/trips/page.tsx`, `app/trips/TripsBulkList.tsx`, `app/trips/[id]/page.tsx`
+- `app/driver/trips/[id]/page.tsx`, `app/driver/trip-status-actions.ts`
 
-**3.6.4** — `lib/trip-task-text.ts` (112, 185, 190–215) — убрать fallback-блок.
+**3.6.4** — `lib/trip-task-text.ts` — убрать fallback-блок.
 
-**3.6.5** — формы + экшены (4 файла) — перестать писать `sender_*`/`receiver_*`:
-- `app/geocode-actions.ts` (85–97, 188–200)
-- `app/trip-actions.tsx` (164–176, 190, 220–227, 254–266, 292, 363)
-- `app/trips/new/NewTripForm.tsx` (274–370)
-- `app/trips/[id]/edit/EditTripForm.tsx` (48–59, 107, 110, 276–360)
+**3.6.5** — формы + экшены (4 файла):
+- `app/geocode-actions.ts`, `app/trip-actions.tsx`
+- `app/trips/new/NewTripForm.tsx`, `app/trips/[id]/edit/EditTripForm.tsx`
 
-**3.6.6** — SQL `DROP COLUMN` (после всего выше) — необратимо.
+**3.6.6** — 🆕 найденные через GitHub Search (3 файла):
+- `app/trips/DownloadButton.tsx:17`
+- `app/reports/DownloadButton.tsx:34`
+- `app/reports/page.tsx:270,273,351`
 
-**3.6.7** — финальный grep: должно быть пусто (кроме ложных `.route` локальных переменных).
+**3.6.7** — SQL `DROP COLUMN` (необратимо) + финальный grep.
 
-**Ложные срабатывания grep (НЕ трогать):**
-`app/api/export/route.ts`, `app/reports/page.tsx`, `app/routes/*`, `app/reports/DownloadButton.tsx`, `app/map/page.tsx:61–65`, `app/today/page.tsx:114–118`, `app/search/actions.ts:121`, `app/routes/*` — все используют `.route` как поле объекта из `buildRouteMap`, не из `trips`.
+**Ложные срабатывания (НЕ трогать):** `.route` из `buildRouteMap` в `routes/*`, `map/page.tsx:61-65`, `today/page.tsx:114-118`, `search/actions.ts:121`.
+
+## ⚠️ Рабочий процесс с кодом
+
+Проект ведётся в GitHub (правки через веб/инструмент с автокоммитом). Локальный клон в `~/projects/logistics-new` **отстаёт** от origin.
+
+**grep/поиск:**
+- **GitHub Code Search** (в браузере): `https://github.com/kru4ara/logistics-new/search?q=ТЕРМИН&type=code`
+- **Или** локально, но сначала `git pull`.
+
+**Заливка связанных файлов:** одним коммитом, если меняется интерфейс между ними (иначе билд Vercel упадёт на type-check — как было с `page.tsx` + `TripsList.tsx`).
 
 **Перед запуском:**
 1. `grep -rn "sender_\|receiver_\|\.route" app lib --include="*.ts" --include="*.tsx"`
