@@ -230,17 +230,17 @@ PRIMARY KEY (segment_id, cargo_id)
 
 ## ⏭️ ОЧЕРЕДЬ ЗАДАЧ
 
-### Пакет C — точечные проверки (grep 14.10.2026)
+### Пакет C — точечные проверки (grep 14.10.2026) — ✅ ЗАКРЫТ
 
 **Grep по `app/driver app/search` дал 4 файла:**
-- ✅ `app/search/actions.ts` — закрыт (buildRouteMap + trip_segments)
-- ✅ `app/driver/trips/[id]/page.tsx` — закрыт (route из сегментов, один запрос)
-- ✅ `app/driver/trip-status-actions.ts` — закрыт (route из сегментов для Telegram)
-- ⏳ `app/driver/TripsList.tsx` — в очереди
+- ✅ `app/search/actions.ts` — route из сегментов
+- ✅ `app/driver/trips/[id]/page.tsx` — route из сегментов (один запрос вместо двух)
+- ✅ `app/driver/trip-status-actions.ts` — route из сегментов для Telegram
+- ✅ `app/driver/TripsList.tsx` — route/from/to из пропа `segmentsByTrip`
+- ✅ `app/driver/page.tsx` — добавлен проп `segmentsByTrip` (buildRouteMap)
+- ℹ️ `app/driver/stats/page.tsx` — чистый (grep не нашёл)
 
-**Чисты (grep не нашёл):** `app/driver/page.tsx`, `app/driver/stats/page.tsx`
-
-**Перед правкой следующего файла — прогнать (на всякий случай):**
+**Из старого списка Пакета C:** `app/driver/page.tsx` и `app/driver/stats/page.tsx` оказались чисты. Вместо них обнаружены и закрыты `trip-status-actions.ts` и `TripsList.tsx`.
 
 ### Фаза 3.6 — DROP COLUMN (необратимо) — НЕ НАЧАТА
 
@@ -421,13 +421,11 @@ Static page generation (60s timeout). Лечится: Redeploy без кэша �
 - `trips`: 71, `trip_segments`: 94, `trip_cargo`: 74, `trip_segment_cargo`: 79, `trip_expenses`: ~416
 - `trip_subcontractors`: DROP
 
-**Закрыто:** Фазы 3.1–3.5.7 + **Пакет A** (routes, 3 файла) + **Пакет B** (reports, 2 файла из 7 — остальные 5 чисты) + **Пакет C** (3 из 4 файлов: search/actions.ts, driver/trips/[id]/page.tsx, driver/trip-status-actions.ts)
+**Закрыто:** Фазы 3.1–3.5.7 + Пакет A (routes, 3 файла) + Пакет B (reports, 2 файла) + Пакет C (все 4 файла: search/actions.ts, driver/trips/[id]/page.tsx, driver/trip-status-actions.ts, driver/TripsList.tsx + driver/page.tsx как зависимость)
 
-**В очереди:** Пакет C — последний файл `app/driver/TripsList.tsx`; затем Фаза 3.6 (DROP COLUMN)
+**В очереди:** Фаза 3.6 (DROP COLUMN) — финальная зачистка legacy
 
-**Уточнения к HANDOVER от 14.10:**
-- Из старого списка Пакета C: `app/driver/page.tsx`, `app/driver/stats/page.tsx` — чисты, grep не нашёл.
-- В Пакет C добавились 2 новых грязных файла: `app/driver/trip-status-actions.ts` (закрыт), `app/driver/TripsList.tsx` (в очереди).
+**Перед Фазой 3.6 — прогнать полный grep:**
 
 ---
 
