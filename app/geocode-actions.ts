@@ -213,6 +213,80 @@ export async function addTripWithAddress(formData: FormData) {
 
   if (error || !created) throw new Error(`Ошибка создания рейса: ${error?.message || 'unknown'}`);
 
+  // ============================================================
+  // Автосоздание us-сегмента + «Основного груза» для нового рейса
+  // ============================================================
+  try {
+    const { data: segment, error: segErr } = await supabase
+      .from('trip_segments')
+      .insert([{
+        trip_id: created.id,
+        position: 1,
+        executor_type: 'us',
+        truck_id: truckId || null,
+        driver_id: driverId || null,
+        date_from: startDate || null,
+        date_to: null,
+        from_country: senderCountry || null,
+        from_city: senderCity || null,
+        from_company: senderName || null,
+        from_address: senderAddress || null,
+        from_postal_code: senderPostalCode || null,
+        to_country: receiverCountry || null,
+        to_city: receiverCity || null,
+        to_company: receiverName || null,
+        to_address: receiverAddress || null,
+        to_postal_code: receiverPostalCode || null,
+        stops: [],
+        notes: null,
+        price: null,
+        currency: null,
+      }])
+      .select('id')
+      .single();
+
+    if (segErr || !segment) {
+      console.error('[addTrip] segment insert failed:', segErr?.message);
+    } else {
+      const { data: cargo, error: cargoErr } = await supabase
+        .from('trip_cargo')
+        .insert([{
+          trip_id: created.id,
+          position: 1,
+          label: 'Основной груз',
+          cargo_type: null,
+          weight_kg: null,
+          client_id: clientId || null,
+          notes: 'Автосоздано при создании рейса',
+          from_country: senderCountry || null,
+          from_city: senderCity || null,
+          from_company: senderName || null,
+          from_address: senderAddress || null,
+          from_postal_code: senderPostalCode || null,
+          to_country: receiverCountry || null,
+          to_city: receiverCity || null,
+          to_company: receiverName || null,
+          to_address: receiverAddress || null,
+          to_postal_code: receiverPostalCode || null,
+        }])
+        .select('id')
+        .single();
+
+      if (cargoErr || !cargo) {
+        console.error('[addTrip] cargo insert failed:', cargoErr?.message);
+      } else {
+        const { error: linkErr } = await supabase
+          .from('trip_segment_cargo')
+          .insert([{ segment_id: segment.id, cargo_id: cargo.id }]);
+        if (linkErr) {
+          console.error('[addTrip] segment_cargo link failed:', linkErr.message);
+        }
+      }
+    }
+  } catch (e) {
+    console.error('[addTrip] auto-segment exception:', e);
+  }
+
   // Перенумерация всех рейсов по start_date ASC
   await renumberAllTrips(supabase);
 
