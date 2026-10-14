@@ -10,6 +10,7 @@ import {
   ChevronDown,
   ChevronUp,
 } from 'lucide-react';
+import type { TripRouteInfo } from '../../lib/trip-route'; // ⬅️ ИЗМЕНЕНО
 
 type ConsolidationPoint = {
   country: string | null;
@@ -55,10 +56,12 @@ const statusStripColors: Record<string, string> = {
 export default function TripsList({
   trips,
   consolidationByTrip,
+  segmentsByTrip, // ⬅️ ИЗМЕНЕНО
   initialVisible = 5,
 }: {
   trips: any[];
   consolidationByTrip: Record<string, ConsolidationPoint>;
+  segmentsByTrip: Record<string, TripRouteInfo>; // ⬅️ ИЗМЕНЕНО
   initialVisible?: number;
 }) {
   const [showAll, setShowAll] = useState(false);
@@ -75,10 +78,19 @@ export default function TripsList({
       {visibleTrips.map((trip) => {
         const clientName = pickName(trip.clients) || 'Клиент не указан';
         const consolidation = consolidationByTrip[trip.id];
+        const routeInfo = segmentsByTrip[trip.id]; // ⬅️ ИЗМЕНЕНО
 
-        const loadCity = consolidation?.city || trip.sender_city;
-        const loadCountry = consolidation?.country || trip.sender_country;
+        // ⬅️ ИЗМЕНЕНО: load — приоритет консолидация, иначе сегменты
+        const loadCity = consolidation?.city || routeInfo?.from_city || null;
+        const loadCountry = consolidation?.country || routeInfo?.from_country || null;
         const loadLabel = consolidation ? 'Загрузка (после подрядчика)' : 'Загрузка';
+
+        // ⬅️ ИЗМЕНЕНО: unload — из сегментов
+        const unloadCity = routeInfo?.to_city || null;
+        const unloadCountry = routeInfo?.to_country || null;
+
+        // ⬅️ ИЗМЕНЕНО: route — из buildRouteMap
+        const routeDisplay = routeInfo?.route || '—';
 
         return (
           <a
@@ -108,7 +120,7 @@ export default function TripsList({
                 <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Маршрут</div>
                 <div className="flex items-start gap-2 text-slate-800 font-semibold text-sm">
                   <RouteIcon className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" strokeWidth={2} />
-                  <span className="break-words">{trip.route || '—'}</span>
+                  <span className="break-words">{routeDisplay}</span>
                 </div>
               </div>
 
@@ -124,13 +136,13 @@ export default function TripsList({
                     </div>
                   </div>
                 )}
-                {trip.receiver_city && (
+                {unloadCity && (
                   <div className="flex items-start gap-2">
                     <Flag className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" strokeWidth={2} />
                     <div className="min-w-0">
                       <div className="text-xs text-slate-400 font-medium">Выгрузка</div>
                       <div className="text-slate-700 break-words">
-                        {trip.receiver_city}, {trip.receiver_country}
+                        {[unloadCity, unloadCountry].filter(Boolean).join(', ')}
                       </div>
                     </div>
                   </div>
