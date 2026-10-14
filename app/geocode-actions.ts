@@ -6,6 +6,7 @@ import { redirect } from 'next/navigation';
 import { logAudit } from '../lib/audit';
 import { renumberAllTrips } from '../lib/trip-renumber';
 
+// ⬅️ ИЗМЕНЕНО: параметры переименованы sender→from, receiver→to
 async function notifyDriverAboutNewTrip(
   supabase: Awaited<ReturnType<typeof createClient>>,
   driverId: string,
@@ -13,8 +14,8 @@ async function notifyDriverAboutNewTrip(
   clientName: string,
   route: string,
   startDate: string,
-  sender: { name: string | null; city: string | null; country: string | null },
-  receiver: { name: string | null; city: string | null; country: string | null }
+  from: { name: string | null; city: string | null; country: string | null },
+  to: { name: string | null; city: string | null; country: string | null }
 ) {
   try {
     const { data: driver } = await supabase
@@ -28,8 +29,8 @@ async function notifyDriverAboutNewTrip(
     const token = process.env.TELEGRAM_BOT_TOKEN;
     if (!token) return;
 
-    const senderLine = [sender.country, sender.city].filter(Boolean).join(', ') || '—';
-    const receiverLine = [receiver.country, receiver.city].filter(Boolean).join(', ') || '—';
+    const fromLine = [from.country, from.city].filter(Boolean).join(', ') || '—';
+    const toLine = [to.country, to.city].filter(Boolean).join(', ') || '—';
 
     const lines = [
       `🚛 *Новый рейс №${tripNumber}*`,
@@ -38,11 +39,11 @@ async function notifyDriverAboutNewTrip(
       `*Маршрут:* ${route || '—'}`,
       `*Дата старта:* ${startDate || 'уточняется'}`,
       '',
-      `📍 *Загрузка:* ${sender.name || '—'}`,
-      `   ${senderLine}`,
+      `📍 *Загрузка:* ${from.name || '—'}`,
+      `   ${fromLine}`,
       '',
-      `🏁 *Выгрузка:* ${receiver.name || '—'}`,
-      `   ${receiverLine}`,
+      `🏁 *Выгрузка:* ${to.name || '—'}`,
+      `   ${toLine}`,
       '',
       `Подробности: https://logistics-new-ebon.vercel.app/driver`,
     ];
@@ -82,21 +83,23 @@ export async function addTripWithAddress(formData: FormData) {
   const clientRequestNumber = formData.get('client_request_number') as string;
   const clientRequestDate = formData.get('client_request_date') as string;
 
-  const senderCountry = formData.get('sender_country') as string;
-  const senderName = formData.get('sender_name') as string;
-  const senderPostalCode = formData.get('sender_postal_code') as string;
-  const senderCity = formData.get('sender_city') as string;
-  const senderAddress = formData.get('sender_address') as string;
-  const senderLoadingNumber = formData.get('sender_loading_number') as string;
+  // ⬅️ ИЗМЕНЕНО: новые имена полей (from_* / to_*), старые sender_*/receiver_* больше не читаем
+  const fromCountry = formData.get('from_country') as string;
+  const fromName = formData.get('from_name') as string;
+  const fromPostalCode = formData.get('from_postal_code') as string;
+  const fromCity = formData.get('from_city') as string;
+  const fromAddress = formData.get('from_address') as string;
+  const fromLoadingNumber = formData.get('from_loading_number') as string;
 
-  const receiverCountry = formData.get('receiver_country') as string;
-  const receiverName = formData.get('receiver_name') as string;
-  const receiverPostalCode = formData.get('receiver_postal_code') as string;
-  const receiverCity = formData.get('receiver_city') as string;
-  const receiverAddress = formData.get('receiver_address') as string;
-  const receiverLoadingNumber = formData.get('receiver_loading_number') as string;
+  const toCountry = formData.get('to_country') as string;
+  const toName = formData.get('to_name') as string;
+  const toPostalCode = formData.get('to_postal_code') as string;
+  const toCity = formData.get('to_city') as string;
+  const toAddress = formData.get('to_address') as string;
+  const toLoadingNumber = formData.get('to_loading_number') as string;
 
-  const route = `${senderCity || ''}, ${senderCountry || ''} → ${receiverCity || ''}, ${receiverCountry || ''}`;
+  // route собираем локально (в БД больше не пишем)
+  const route = `${fromCity || ''}, ${fromCountry || ''} → ${toCity || ''}, ${toCountry || ''}`;
 
   let startFuelLevel = manualFuel;
 
@@ -152,13 +155,14 @@ export async function addTripWithAddress(formData: FormData) {
     return null;
   }
 
-  const senderCoords = await geocode(senderCity, senderCountry);
-  const receiverCoords = await geocode(receiverCity, receiverCountry);
+  // ⬅️ ИЗМЕНЕНО: геокодинг по from_*/to_*
+  const fromCoords = await geocode(fromCity, fromCountry);
+  const toCoords = await geocode(toCity, toCountry);
 
-  const startLat = senderCoords?.lat ?? 0;
-  const startLng = senderCoords?.lng ?? 0;
-  const endLat = receiverCoords?.lat ?? 0;
-  const endLng = receiverCoords?.lng ?? 0;
+  const startLat = fromCoords?.lat ?? 0;
+  const startLng = fromCoords?.lng ?? 0;
+  const endLat = toCoords?.lat ?? 0;
+  const endLng = toCoords?.lng ?? 0;
 
   let clientName = '';
   if (clientId) {
@@ -170,7 +174,8 @@ export async function addTripWithAddress(formData: FormData) {
     clientName = cl?.name || '';
   }
 
-  // Временный номер 0 — после insert перенумеруем всё
+  // Временный номер 0 — после insert перенумеруем всё.
+  // ⬅️ ИЗМЕНЕНО: НЕ пишем sender_*/receiver_*/route — эти колонки дропнутся в 3.6.7
   const { data: created, error } = await supabase
     .from('trips')
     .insert([
@@ -184,22 +189,6 @@ export async function addTripWithAddress(formData: FormData) {
         start_fuel_level: startFuelLevel,
         client_request_number: clientRequestNumber || null,
         client_request_date: clientRequestDate || null,
-
-        sender_country: senderCountry || null,
-        sender_name: senderName || null,
-        sender_postal_code: senderPostalCode || null,
-        sender_city: senderCity || null,
-        sender_address: senderAddress || null,
-        sender_loading_number: senderLoadingNumber || null,
-
-        receiver_country: receiverCountry || null,
-        receiver_name: receiverName || null,
-        receiver_postal_code: receiverPostalCode || null,
-        receiver_city: receiverCity || null,
-        receiver_address: receiverAddress || null,
-        receiver_loading_number: receiverLoadingNumber || null,
-
-        route: route || null,
         start_lat: startLat,
         start_lng: startLng,
         end_lat: endLat,
@@ -215,6 +204,7 @@ export async function addTripWithAddress(formData: FormData) {
 
   // ============================================================
   // Автосоздание us-сегмента + «Основного груза» для нового рейса
+  // ⬅️ ИЗМЕНЕНО: данные берём из from_*/to_* (смысл тот же)
   // ============================================================
   try {
     const { data: segment, error: segErr } = await supabase
@@ -227,16 +217,16 @@ export async function addTripWithAddress(formData: FormData) {
         driver_id: driverId || null,
         date_from: startDate || null,
         date_to: null,
-        from_country: senderCountry || null,
-        from_city: senderCity || null,
-        from_company: senderName || null,
-        from_address: senderAddress || null,
-        from_postal_code: senderPostalCode || null,
-        to_country: receiverCountry || null,
-        to_city: receiverCity || null,
-        to_company: receiverName || null,
-        to_address: receiverAddress || null,
-        to_postal_code: receiverPostalCode || null,
+        from_country: fromCountry || null,
+        from_city: fromCity || null,
+        from_company: fromName || null,
+        from_address: fromAddress || null,
+        from_postal_code: fromPostalCode || null,
+        to_country: toCountry || null,
+        to_city: toCity || null,
+        to_company: toName || null,
+        to_address: toAddress || null,
+        to_postal_code: toPostalCode || null,
         stops: [],
         notes: null,
         price: null,
@@ -258,16 +248,16 @@ export async function addTripWithAddress(formData: FormData) {
           weight_kg: null,
           client_id: clientId || null,
           notes: 'Автосоздано при создании рейса',
-          from_country: senderCountry || null,
-          from_city: senderCity || null,
-          from_company: senderName || null,
-          from_address: senderAddress || null,
-          from_postal_code: senderPostalCode || null,
-          to_country: receiverCountry || null,
-          to_city: receiverCity || null,
-          to_company: receiverName || null,
-          to_address: receiverAddress || null,
-          to_postal_code: receiverPostalCode || null,
+          from_country: fromCountry || null,
+          from_city: fromCity || null,
+          from_company: fromName || null,
+          from_address: fromAddress || null,
+          from_postal_code: fromPostalCode || null,
+          to_country: toCountry || null,
+          to_city: toCity || null,
+          to_company: toName || null,
+          to_address: toAddress || null,
+          to_postal_code: toPostalCode || null,
         }])
         .select('id')
         .single();
@@ -307,6 +297,7 @@ export async function addTripWithAddress(formData: FormData) {
   });
 
   if (driverId) {
+    // ⬅️ ИЗМЕНЕНО: параметры notify переименованы from/to
     await notifyDriverAboutNewTrip(
       supabase,
       driverId,
@@ -314,8 +305,8 @@ export async function addTripWithAddress(formData: FormData) {
       clientName,
       route,
       startDate || '',
-      { name: senderName, city: senderCity, country: senderCountry },
-      { name: receiverName, city: receiverCity, country: receiverCountry }
+      { name: fromName, city: fromCity, country: fromCountry },
+      { name: toName, city: toCity, country: toCountry }
     );
   }
 
