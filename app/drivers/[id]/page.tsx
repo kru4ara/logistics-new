@@ -1,4 +1,5 @@
 import { createClient } from '../../../lib/supabase-server';
+import { buildRouteMap, type SegmentRouteRow } from '../../../lib/trip-route';
 import DocumentUpload from '../../components/DocumentUpload';
 import TelegramLinkCard from './TelegramLinkCard';
 import {
@@ -73,12 +74,27 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
     .eq('entity_id', driverId)
     .order('uploaded_at', { ascending: false });
 
-  // Рейсы водителя — для сводки и списка последних
+  // Рейсы водителя — без legacy route (маршрут берём из trip_segments) ⬅️ ИЗМЕНЕНО
   const { data: trips } = await supabase
     .from('trips')
-    .select('id, trip_number, route, status, revenue_eur, actual_km, actual_liters, start_date, end_date, clients(name)')
+    .select('id, trip_number, status, revenue_eur, actual_km, actual_liters, start_date, end_date, clients(name)')
     .eq('driver_id', driverId)
     .order('trip_number', { ascending: false });
+
+  // Маршруты рейсов — из trip_segments ⬅️ ИЗМЕНЕНО
+  const tripIds = (trips || []).map((t) => t.id);
+  const routeByTrip = new Map<string, string>();
+  if (tripIds.length > 0) {
+    const { data: segRows } = await supabase
+      .from('trip_segments')
+      .select('trip_id, position, from_city, from_country, to_city, to_country')
+      .in('trip_id', tripIds);
+
+    const routeMap = buildRouteMap((segRows || []) as SegmentRouteRow[]);
+    routeMap.forEach((info, tripId) => {
+      if (info.route) routeByTrip.set(tripId, info.route);
+    });
+  }
 
   const totalTrips = trips?.length || 0;
   const totalRevenue = (trips || []).reduce((s, t) => s + (t.revenue_eur || 0), 0);
@@ -216,6 +232,7 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
               {lastTrips.map((t) => {
                 const clientName = pickName(t.clients) || '—';
                 const dateStr = t.end_date || t.start_date;
+                const routeDisplay = routeByTrip.get(t.id) || '—'; // ⬅️ ИЗМЕНЕНО
                 return (
                   <a
                     key={t.id}
@@ -244,7 +261,7 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
                         </div>
                         <div className="flex items-start gap-1.5 text-xs text-slate-500 mt-0.5">
                           <RouteIcon className="w-3.5 h-3.5 shrink-0 mt-0.5" strokeWidth={2} />
-                          <span className="break-words">{t.route || '—'}</span>
+                          <span className="break-words">{routeDisplay}</span>
                         </div>
                       </div>
                       <div className="shrink-0 text-right">
