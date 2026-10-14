@@ -150,11 +150,11 @@ export default async function ContractorCardPage({
     const trip: any = Array.isArray(s.trips) ? s.trips[0] : s.trips;
     if (!trip) continue;
 
-    const numberBase = trip.client_request_number || (trip.trip_number ? `№${trip.trip_number}` : '—');
-    const routeFrom = [s.load_country, s.load_city].filter(Boolean).join(', ') || '—';
-    const routeTo = [s.unload_country, s.unload_city].filter(Boolean).join(', ') || '—';
+      const routeFrom = [s.from_country, s.from_city].filter(Boolean).join(', ') || '—';
+    const routeTo = [s.to_country, s.to_city].filter(Boolean).join(', ') || '—';
     const route = trip.route || `${routeFrom} → ${routeTo}`;
-    const date = s.unload_date || s.load_date;
+    const date = s.date_to || s.date_from;
+    const price = Number(s.price) || 0;
 
     works.push({
       kind: 'trip',
@@ -162,10 +162,10 @@ export default async function ContractorCardPage({
       number: numberBase,
       date,
       route,
-      price_eur: s.price_eur || 0,
-      original_price: s.original_price || 0,
+      price_eur: price,
+      original_price: price,
       currency: s.currency || 'EUR',
-      payment_days: s.payment_days || null,
+      payment_days: null,
       href: `/trips/${s.trip_id}`,
     });
   }
