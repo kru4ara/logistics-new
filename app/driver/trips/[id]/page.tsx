@@ -21,6 +21,7 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import { createClient } from '../../../../lib/supabase-server';
+import { buildRouteMap, type SegmentRouteRow } from '../../../../lib/trip-route'; // ⬅️ ИЗМЕНЕНО
 import { addExpense, deleteExpense } from '../../../trip-actions';
 import FileUpload from '../../FileUpload';
 import DocumentList from '../../DocumentList';
@@ -90,15 +91,29 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
     .eq('trip_id', tripId)
     .order('uploaded_at', { ascending: false });
 
-  // US-сегменты рейса (маршрут водителя)
+  // ⬅️ ИЗМЕНЕНО: тянем ВСЕ сегменты рейса (не только us) — route строится по всем
   const { data: segmentsRaw } = await supabase
     .from('trip_segments')
     .select('*')
     .eq('trip_id', tripId)
-    .eq('executor_type', 'us')
     .order('position', { ascending: true });
 
-  const segmentIds = (segmentsRaw || []).map((s: any) => s.id);
+  // ⬅️ ИЗМЕНЕНО: route из сегментов (fallback на trip.route временный, до Фазы 3.6)
+  const routeMap = buildRouteMap(
+    (segmentsRaw || []).map((s: any) => ({
+      trip_id: s.trip_id,
+      position: s.position,
+      from_city: s.from_city,
+      from_country: s.from_country,
+      to_city: s.to_city,
+      to_country: s.to_country,
+    })) as SegmentRouteRow[]
+  );
+  const routeDisplay = routeMap.get(tripId)?.route ?? trip.route ?? '—';
+
+  // ⬅️ ИЗМЕНЕНО: "Задание" — только us-сегменты (фильтр в JS, т.к. выше взяли все)
+  const usSegmentsRaw = (segmentsRaw || []).filter((s: any) => s.executor_type === 'us');
+  const segmentIds = usSegmentsRaw.map((s: any) => s.id);
   const segmentCargoRes = segmentIds.length > 0
     ? await supabase
         .from('trip_segment_cargo')
@@ -118,7 +133,7 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
     });
   });
 
-  const usSegments = (segmentsRaw || []).map((s: any) => ({
+  const usSegments = usSegmentsRaw.map((s: any) => ({
     id: s.id,
     position: s.position,
     date_from: s.date_from,
@@ -230,7 +245,7 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
 
           <div className="flex items-start gap-2 text-sm text-slate-600 mb-3">
             <RouteIcon className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" strokeWidth={2} />
-            <span className="break-words">{trip.route || '—'}</span>
+            <span className="break-words">{routeDisplay}</span>
           </div>
 
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
