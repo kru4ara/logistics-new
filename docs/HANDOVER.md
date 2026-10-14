@@ -230,21 +230,17 @@ PRIMARY KEY (segment_id, cargo_id)
 
 ## ⏭️ ОЧЕРЕДЬ ЗАДАЧ
 
-### Пакет C — точечные проверки (4 файла)
-- `app/driver/stats/page.tsx`
-- `app/search/actions.ts`
-- `app/driver/trips/[id]/page.tsx` — проверка после 3.3
-- `app/driver/page.tsx` — проверка после 3.3
+### Пакет C — точечные проверки (grep 14.10.2026)
 
-**Перед правкой Пакета C — прогнать:**
-```
-grep -rn "sender_\|receiver_\|\.route\|trip_subcontractors" app/driver app/search --include="*.ts" --include="*.tsx"
-```
-(или через GitHub Search: `sender_ repo:kru4ara/logistics-new path:app/driver`)
+**Grep по `app/driver app/search` дал 4 файла:**
+- ✅ `app/search/actions.ts` — закрыт (buildRouteMap + trip_segments)
+- ✅ `app/driver/trips/[id]/page.tsx` — закрыт (route из сегментов, один запрос)
+- ⏳ `app/driver/trip-status-actions.ts` — в очереди
+- ⏳ `app/driver/TripsList.tsx` — в очереди
 
-Возможно, часть из них уже чиста — как было с Пакетом B.
+**Чисты (grep не нашёл):** `app/driver/page.tsx`, `app/driver/stats/page.tsx`
 
-### Фаза 3.6 — DROP COLUMN (необратимо)
+### Фаза 3.6 — DROP COLUMN (необратимо) — НЕ НАЧАТА
 
 **Перед запуском:**
 1. `grep -rn "sender_\|receiver_\|\.route" app lib --include="*.ts" --include="*.tsx"`
