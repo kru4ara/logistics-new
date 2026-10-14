@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import dynamicImport from 'next/dynamic';
 import { createClient } from '../../lib/supabase-server';
+import { buildRouteMap } from '../../lib/trip-route';
 import {
   Map as MapIcon,
   MapPin,
@@ -31,9 +32,9 @@ export default async function MapPage() {
 
   const supabase = await createClient();
 
-  const { data: trips, error } = await supabase
+  const { data: tripsRaw, error } = await supabase
     .from('trips')
-    .select('id, trip_number, route, status, start_lat, start_lng, end_lat, end_lng, start_date, sender_city, sender_country, receiver_city, receiver_country')
+    .select('id, trip_number, status, start_lat, start_lng, end_lat, end_lng, start_date')
     .not('start_lat', 'is', null)
     .not('start_lng', 'is', null)
     .order('trip_number', { ascending: false });
@@ -42,7 +43,30 @@ export default async function MapPage() {
     return <div className="p-8 text-red-500">Ошибка загрузки рейсов: {error.message}</div>;
   }
 
-  const withBoth = (trips || []).filter(
+  // Маршрут и точки — из сегментов
+  const tripIds = (tripsRaw || []).map((t: any) => t.id);
+  const { data: segs } = tripIds.length > 0
+    ? await supabase
+        .from('trip_segments')
+        .select('trip_id, position, from_city, from_country, to_city, to_country')
+        .in('trip_id', tripIds)
+    : { data: [] };
+
+  const routeMap = buildRouteMap(segs || []);
+
+  const trips = (tripsRaw || []).map((t: any) => {
+    const r = routeMap.get(t.id);
+    return {
+      ...t,
+      route: r?.route || null,
+      sender_city: r?.from_city || null,
+      sender_country: r?.from_country || null,
+      receiver_city: r?.to_city || null,
+      receiver_country: r?.to_country || null,
+    };
+  });
+
+  const withBoth = trips.filter(
     (t) => t.start_lat && t.start_lng && t.end_lat && t.end_lng
   );
 
