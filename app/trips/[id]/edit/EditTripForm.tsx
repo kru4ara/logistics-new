@@ -34,6 +34,7 @@ type AddrState = {
   loading_number: string;
 };
 
+// ⬅️ ИЗМЕНЕНО: sender_*/receiver_* → from_*/to_*
 type Trip = {
   client_id: string | null;
   truck_id: string | null;
@@ -45,18 +46,18 @@ type Trip = {
   start_fuel_level: number | null;
   client_request_number: string | null;
   client_request_date: string | null;
-  sender_country: string | null;
-  sender_name: string | null;
-  sender_postal_code: string | null;
-  sender_city: string | null;
-  sender_address: string | null;
-  sender_loading_number: string | null;
-  receiver_country: string | null;
-  receiver_name: string | null;
-  receiver_postal_code: string | null;
-  receiver_city: string | null;
-  receiver_address: string | null;
-  receiver_loading_number: string | null;
+  from_country: string | null;
+  from_name: string | null;
+  from_postal_code: string | null;
+  from_city: string | null;
+  from_address: string | null;
+  from_loading_number: string | null;
+  to_country: string | null;
+  to_name: string | null;
+  to_postal_code: string | null;
+  to_city: string | null;
+  to_address: string | null;
+  to_loading_number: string | null;
 };
 
 type Props = {
@@ -103,11 +104,12 @@ export default function EditTripForm({
   loadingLocations,
   unloadingLocations,
 }: Props) {
-  const [sender, setSender] = useState<AddrState>(
-    toAddr(trip.sender_country, trip.sender_name, trip.sender_postal_code, trip.sender_city, trip.sender_address, trip.sender_loading_number)
+  // ⬅️ ИЗМЕНЕНО: sender→from, receiver→to + trip.from_*/trip.to_*
+  const [from, setFrom] = useState<AddrState>(
+    toAddr(trip.from_country, trip.from_name, trip.from_postal_code, trip.from_city, trip.from_address, trip.from_loading_number)
   );
-  const [receiver, setReceiver] = useState<AddrState>(
-    toAddr(trip.receiver_country, trip.receiver_name, trip.receiver_postal_code, trip.receiver_city, trip.receiver_address, trip.receiver_loading_number)
+  const [to, setTo] = useState<AddrState>(
+    toAddr(trip.to_country, trip.to_name, trip.to_postal_code, trip.to_city, trip.to_address, trip.to_loading_number)
   );
 
   // Controlled — для OverlapWarning
@@ -115,11 +117,12 @@ export default function EditTripForm({
   const [startDate, setStartDate] = useState(toIsoDate(trip.start_date));
   const [endDate, setEndDate] = useState(toIsoDate(trip.end_date));
 
-  function fillSender(locId: string) {
+  // ⬅️ ИЗМЕНЕНО: fillSender → fillFrom
+  function fillFrom(locId: string) {
     if (!locId) return;
     const loc = loadingLocations.find((l) => l.id === locId);
     if (!loc) return;
-    setSender({
+    setFrom({
       country: loc.country || '',
       name: loc.company_name || '',
       postal_code: loc.postal_code || '',
@@ -129,11 +132,12 @@ export default function EditTripForm({
     });
   }
 
-  function fillReceiver(locId: string) {
+  // ⬅️ ИЗМЕНЕНО: fillReceiver → fillTo
+  function fillTo(locId: string) {
     if (!locId) return;
     const loc = unloadingLocations.find((l) => l.id === locId);
     if (!loc) return;
-    setReceiver({
+    setTo({
       country: loc.country || '',
       name: loc.company_name || '',
       postal_code: loc.postal_code || '',
@@ -260,7 +264,8 @@ export default function EditTripForm({
             Выбрать из сохранённых локаций
             <span className="text-xs text-slate-400 font-normal ml-2 hidden sm:inline">(заполнит поля ниже)</span>
           </label>
-          <select onChange={(e) => fillSender(e.target.value)} className={presetClass} defaultValue="">
+          {/* ⬅️ ИЗМЕНЕНО: fillSender → fillFrom */}
+          <select onChange={(e) => fillFrom(e.target.value)} className={presetClass} defaultValue="">
             <option value="">— Выберите локацию —</option>
             {loadingLocations.map((loc) => (
               <option key={loc.id} value={loc.id}>
@@ -270,36 +275,37 @@ export default function EditTripForm({
           </select>
         </div>
 
+        {/* ⬅️ ИЗМЕНЕНО: sender_* → from_*, sender→from */}
         <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2 pt-2 border-t border-slate-100">
           <div>
             <label className={labelClass}>Страна</label>
-            <input type="text" name="sender_country" value={sender.country}
-              onChange={(e) => setSender({ ...sender, country: e.target.value })} className={inputClass} />
+            <input type="text" name="from_country" value={from.country}
+              onChange={(e) => setFrom({ ...from, country: e.target.value })} className={inputClass} />
           </div>
           <div>
             <label className={labelClass}>Название отправителя</label>
-            <input type="text" name="sender_name" value={sender.name}
-              onChange={(e) => setSender({ ...sender, name: e.target.value })} className={inputClass} />
+            <input type="text" name="from_name" value={from.name}
+              onChange={(e) => setFrom({ ...from, name: e.target.value })} className={inputClass} />
           </div>
           <div>
             <label className={labelClass}>Почтовый код</label>
-            <input type="text" name="sender_postal_code" value={sender.postal_code}
-              onChange={(e) => setSender({ ...sender, postal_code: e.target.value })} className={inputClass} />
+            <input type="text" name="from_postal_code" value={from.postal_code}
+              onChange={(e) => setFrom({ ...from, postal_code: e.target.value })} className={inputClass} />
           </div>
           <div>
             <label className={labelClass}>Город</label>
-            <input type="text" name="sender_city" value={sender.city}
-              onChange={(e) => setSender({ ...sender, city: e.target.value })} className={inputClass} />
+            <input type="text" name="from_city" value={from.city}
+              onChange={(e) => setFrom({ ...from, city: e.target.value })} className={inputClass} />
           </div>
           <div>
             <label className={labelClass}>Адрес</label>
-            <input type="text" name="sender_address" value={sender.address}
-              onChange={(e) => setSender({ ...sender, address: e.target.value })} className={inputClass} />
+            <input type="text" name="from_address" value={from.address}
+              onChange={(e) => setFrom({ ...from, address: e.target.value })} className={inputClass} />
           </div>
           <div>
             <label className={labelClass}>Погрузочный номер</label>
-            <input type="text" name="sender_loading_number" value={sender.loading_number}
-              onChange={(e) => setSender({ ...sender, loading_number: e.target.value })} className={inputClass} />
+            <input type="text" name="from_loading_number" value={from.loading_number}
+              onChange={(e) => setFrom({ ...from, loading_number: e.target.value })} className={inputClass} />
           </div>
         </div>
 
@@ -319,7 +325,8 @@ export default function EditTripForm({
             Выбрать из сохранённых локаций
             <span className="text-xs text-slate-400 font-normal ml-2 hidden sm:inline">(заполнит поля ниже)</span>
           </label>
-          <select onChange={(e) => fillReceiver(e.target.value)} className={presetClass} defaultValue="">
+          {/* ⬅️ ИЗМЕНЕНО: fillReceiver → fillTo */}
+          <select onChange={(e) => fillTo(e.target.value)} className={presetClass} defaultValue="">
             <option value="">— Выберите локацию —</option>
             {unloadingLocations.map((loc) => (
               <option key={loc.id} value={loc.id}>
@@ -329,36 +336,37 @@ export default function EditTripForm({
           </select>
         </div>
 
+        {/* ⬅️ ИЗМЕНЕНО: receiver_* → to_*, receiver→to */}
         <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2 pt-2 border-t border-slate-100">
           <div>
             <label className={labelClass}>Страна</label>
-            <input type="text" name="receiver_country" value={receiver.country}
-              onChange={(e) => setReceiver({ ...receiver, country: e.target.value })} className={inputClass} />
+            <input type="text" name="to_country" value={to.country}
+              onChange={(e) => setTo({ ...to, country: e.target.value })} className={inputClass} />
           </div>
           <div>
             <label className={labelClass}>Название получателя</label>
-            <input type="text" name="receiver_name" value={receiver.name}
-              onChange={(e) => setReceiver({ ...receiver, name: e.target.value })} className={inputClass} />
+            <input type="text" name="to_name" value={to.name}
+              onChange={(e) => setTo({ ...to, name: e.target.value })} className={inputClass} />
           </div>
           <div>
             <label className={labelClass}>Почтовый код</label>
-            <input type="text" name="receiver_postal_code" value={receiver.postal_code}
-              onChange={(e) => setReceiver({ ...receiver, postal_code: e.target.value })} className={inputClass} />
+            <input type="text" name="to_postal_code" value={to.postal_code}
+              onChange={(e) => setTo({ ...to, postal_code: e.target.value })} className={inputClass} />
           </div>
           <div>
             <label className={labelClass}>Город</label>
-            <input type="text" name="receiver_city" value={receiver.city}
-              onChange={(e) => setReceiver({ ...receiver, city: e.target.value })} className={inputClass} />
+            <input type="text" name="to_city" value={to.city}
+              onChange={(e) => setTo({ ...to, city: e.target.value })} className={inputClass} />
           </div>
           <div>
             <label className={labelClass}>Адрес</label>
-            <input type="text" name="receiver_address" value={receiver.address}
-              onChange={(e) => setReceiver({ ...receiver, address: e.target.value })} className={inputClass} />
+            <input type="text" name="to_address" value={to.address}
+              onChange={(e) => setTo({ ...to, address: e.target.value })} className={inputClass} />
           </div>
           <div>
             <label className={labelClass}>Погрузочный номер</label>
-            <input type="text" name="receiver_loading_number" value={receiver.loading_number}
-              onChange={(e) => setReceiver({ ...receiver, loading_number: e.target.value })} className={inputClass} />
+            <input type="text" name="to_loading_number" value={to.loading_number}
+              onChange={(e) => setTo({ ...to, loading_number: e.target.value })} className={inputClass} />
           </div>
         </div>
       </div>
