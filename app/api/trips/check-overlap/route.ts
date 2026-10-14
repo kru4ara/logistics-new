@@ -1,6 +1,7 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { cookies } from 'next/headers';
 import { createClient } from '../../../../lib/supabase-server';
+import { buildRouteMap, type SegmentRouteRow } from '../../../../lib/trip-route';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,10 +43,10 @@ export async function GET(request: NextRequest) {
 
   const supabase = await createClient();
 
-  // Все рейсы этой машины
+  // Все рейсы этой машины (без legacy route — тянем сегменты отдельно)
   const { data: trips, error } = await supabase
     .from('trips')
-    .select('id, trip_number, start_date, end_date, status, route, clients(name)')
+    .select('id, trip_number, start_date, end_date, status, clients(name)')
     .eq('truck_id', truckId);
 
   if (error) {
@@ -62,27 +63,43 @@ export async function GET(request: NextRequest) {
 
   // Пересечение: существующий.s <= newEnd AND существующий.e >= newStart
   // Если у существующего end_date = null — считаем его как «в процессе»
-  const conflicts = (trips || [])
-    .filter((t: any) => {
-      // Исключаем сам редактируемый рейс
-      if (excludeTripId && t.id === excludeTripId) return false;
-      // Исключаем рейсы без start_date (черновики) — они ничего не блокируют
-      if (!t.start_date) return false;
-      // Исключаем удалённые/отменённые статусы, если такие есть
-      if (t.status === 'cancelled') return false;
+  const conflictingTrips = (trips || []).filter((t: any) => {
+    // Исключаем сам редактируемый рейс
+    if (excludeTripId && t.id === excludeTripId) return false;
+    // Исключаем рейсы без start_date (черновики) — они ничего не блокируют
+    if (!t.start_date) return false;
+    // Исключаем удалённые/отменённые статусы, если такие есть
+    if (t.status === 'cancelled') return false;
 
-      const existingStart = t.start_date;
-      const existingEnd = t.end_date || '9999-12-31';
+    const existingStart = t.start_date;
+    const existingEnd = t.end_date || '9999-12-31';
 
-      return existingStart <= newEnd && existingEnd >= newStart;
-    })
+    return existingStart <= newEnd && existingEnd >= newStart;
+  });
+
+  // Маршруты конфликтующих рейсов — из trip_segments
+  const conflictIds = conflictingTrips.map((t: any) => t.id);
+  const routeMap =
+    conflictIds.length > 0
+      ? (() => {
+          return supabase
+            .from('trip_segments')
+            .select('trip_id, position, from_city, from_country, to_city, to_country')
+            .in('trip_id', conflictIds)
+            .then(({ data }) => buildRouteMap((data || []) as SegmentRouteRow[]));
+        })()
+      : Promise.resolve(buildRouteMap([]));
+
+  const routeByTrip = await routeMap;
+
+  const conflicts = conflictingTrips
     .map((t: any) => ({
       id: t.id,
       trip_number: t.trip_number,
       start_date: t.start_date,
       end_date: t.end_date,
       status: t.status,
-      route: t.route,
+      route: routeByTrip.get(t.id)?.route ?? null,
       client_name: pickName(t.clients),
     }))
     .sort((a, b) => (a.start_date || '').localeCompare(b.start_date || ''));
