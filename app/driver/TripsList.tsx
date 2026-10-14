@@ -10,7 +10,7 @@ import {
   ChevronDown,
   ChevronUp,
 } from 'lucide-react';
-import type { TripRouteInfo } from '../../lib/trip-route'; // ⬅️ ИЗМЕНЕНО
+import type { TripRouteInfo } from '../../lib/trip-route';
 
 type ConsolidationPoint = {
   country: string | null;
@@ -56,12 +56,12 @@ const statusStripColors: Record<string, string> = {
 export default function TripsList({
   trips,
   consolidationByTrip,
-  segmentsByTrip, // ⬅️ ИЗМЕНЕНО
+  segmentsByTrip,
   initialVisible = 5,
 }: {
   trips: any[];
   consolidationByTrip: Record<string, ConsolidationPoint>;
-  segmentsByTrip: Record<string, TripRouteInfo>; // ⬅️ ИЗМЕНЕНО
+  segmentsByTrip: Record<string, TripRouteInfo>;
   initialVisible?: number;
 }) {
   const [showAll, setShowAll] = useState(false);
@@ -78,18 +78,18 @@ export default function TripsList({
       {visibleTrips.map((trip) => {
         const clientName = pickName(trip.clients) || 'Клиент не указан';
         const consolidation = consolidationByTrip[trip.id];
-        const routeInfo = segmentsByTrip[trip.id]; // ⬅️ ИЗМЕНЕНО
+        const routeInfo = segmentsByTrip[trip.id];
 
-        // ⬅️ ИЗМЕНЕНО: load — приоритет консолидация, иначе сегменты
+        // Загрузка: приоритет — консолидация (точка C), иначе сегменты
         const loadCity = consolidation?.city || routeInfo?.from_city || null;
         const loadCountry = consolidation?.country || routeInfo?.from_country || null;
         const loadLabel = consolidation ? 'Загрузка (после подрядчика)' : 'Загрузка';
 
-        // ⬅️ ИЗМЕНЕНО: unload — из сегментов
+        // Выгрузка: из сегментов
         const unloadCity = routeInfo?.to_city || null;
         const unloadCountry = routeInfo?.to_country || null;
 
-        // ⬅️ ИЗМЕНЕНО: route — из buildRouteMap
+        // Маршрут: из buildRouteMap
         const routeDisplay = routeInfo?.route || '—';
 
         return (
