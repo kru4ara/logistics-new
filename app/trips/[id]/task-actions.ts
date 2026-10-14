@@ -120,15 +120,6 @@ export async function sendTaskToDriver(tripId: string): Promise<SendTaskResult> 
   }));
 
   // ============================================================
-  // Подрядчики — для fallback, если сегментов нет
-  // ============================================================
-  const { data: subcontractors } = await supabase
-    .from('trip_subcontractors')
-    .select('position, unload_country, unload_city, unload_company, unload_postal_code, unload_address, unload_date')
-    .eq('trip_id', tripId)
-    .order('position', { ascending: true });
-
-  // ============================================================
   // Собираем текст
   // ============================================================
   const text = buildDriverTaskText({
@@ -140,7 +131,6 @@ export async function sendTaskToDriver(tripId: string): Promise<SendTaskResult> 
     truck,
     trailerNumber,
     segments,
-    subcontractors: (subcontractors || []) as any,
     markdown: true,
   });
 
@@ -322,7 +312,6 @@ export async function sendSegmentTaskToDriver(
     truck,
     trailerNumber,
     segments: [segmentForBuild],
-    subcontractors: [],
     markdown: true,
   });
 
