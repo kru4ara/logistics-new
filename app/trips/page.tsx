@@ -29,6 +29,22 @@ function pickOne<T>(rel: unknown): T | null {
 
 type DriverRel = { first_name: string | null; last_name: string | null };
 
+function buildRouteFromSegments(segments: any[]): string | null {
+  if (!segments || segments.length === 0) return null;
+  const sorted = [...segments].sort((a, b) => (a.position || 0) - (b.position || 0));
+  const first = sorted[0];
+  const last = sorted[sorted.length - 1];
+
+  const fromParts = [first.from_city, first.from_country].filter(Boolean);
+  const toParts = [last.to_city, last.to_country].filter(Boolean);
+
+  if (fromParts.length === 0 && toParts.length === 0) return null;
+
+  const from = fromParts.join(', ') || '—';
+  const to = toParts.join(', ') || '—';
+  return `${from} → ${to}`;
+}
+
 export default async function TripsPage({
   searchParams,
 }: {
@@ -59,7 +75,7 @@ export default async function TripsPage({
   const hasExtraFilter =
     Boolean(q) || Boolean(statusFilter) || Boolean(driverFilter) || Boolean(truckFilter);
 
-  const [tripsResult, expensesResult, driversResult, tractorsResult] = await Promise.all([
+  const [tripsResult, expensesResult, driversResult, tractorsResult, segmentsResult] = await Promise.all([
     supabase
       .from('trips')
       .select('*, clients(name), drivers!driver_id(first_name, last_name)')
@@ -76,6 +92,9 @@ export default async function TripsPage({
       .select('id, registration_number')
       .eq('type', 'tractor')
       .order('registration_number'),
+    supabase
+      .from('trip_segments')
+      .select('trip_id, position, from_city, from_country, to_city, to_country'),
   ]);
 
   const trips = tripsResult.data;
@@ -88,6 +107,21 @@ export default async function TripsPage({
   const expenses = expensesResult.data;
   const driversList = driversResult.data || [];
   const tractorsList = tractorsResult.data || [];
+  const segments = segmentsResult.data || [];
+
+  // Группируем сегменты по рейсу и вычисляем route
+  const segmentsByTrip = new Map<string, any[]>();
+  for (const s of segments) {
+    if (!s.trip_id) continue;
+    if (!segmentsByTrip.has(s.trip_id)) segmentsByTrip.set(s.trip_id, []);
+    segmentsByTrip.get(s.trip_id)!.push(s);
+  }
+
+  const routeByTrip = new Map<string, string>();
+  segmentsByTrip.forEach((segs, tripId) => {
+    const r = buildRouteFromSegments(segs);
+    if (r) routeByTrip.set(tripId, r);
+  });
 
   const expensesByTrip = expenses?.reduce((acc, e) => {
     if (!e.trip_id) return acc;
@@ -96,13 +130,18 @@ export default async function TripsPage({
     return acc;
   }, {} as Record<string, number>) || {};
 
+  function getRoute(t: any): string {
+    return routeByTrip.get(t.id) || t.route || '—';
+  }
+
   function matchesSearch(t: any): boolean {
     if (!qLower) return true;
     const clientName = pickName(t.clients) || '';
+    const computedRoute = getRoute(t);
     const haystack = [
       t.trip_number?.toString() || '',
       t.client_request_number || '',
-      t.route || '',
+      computedRoute,
       t.sender_name || '',
       t.sender_city || '',
       t.sender_country || '',
@@ -241,7 +280,7 @@ export default async function TripsPage({
       id: t.id,
       trip_number: t.trip_number ?? null,
       status: t.status,
-      route: t.route ?? null,
+      route: getRoute(t),
       start_date: t.start_date ?? null,
       end_date: t.end_date ?? null,
       client_request_number: t.client_request_number ?? null,
