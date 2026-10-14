@@ -4,6 +4,16 @@ import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
+export type ReportRow = {
+  id: string;
+  trip_number: number | null;
+  clientName: string;
+  route: string;
+  status: string;
+  revenue_eur: number;
+  expenses: number;
+};
+
 const STATUS_LABELS: Record<string, string> = {
   planned: 'Планируется',
   active: 'В пути',
@@ -16,11 +26,11 @@ function r2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
-export default function DownloadButton({ data }: { data: any[] }) {
+export default function DownloadButton({ data }: { data: ReportRow[] }) {
   function handleDownload() {
     const rows = data.map((trip) => ({
       '№ рейса': trip.trip_number || '',
-      'Клиент': trip.clients?.name || 'Не указан',
+      'Клиент': trip.clientName || 'Не указан',
       'Маршрут': trip.route || '',
       'Статус': STATUS_LABELS[trip.status] || trip.status,
       'Фрахт (€)': r2(trip.revenue_eur || 0),
@@ -28,8 +38,8 @@ export default function DownloadButton({ data }: { data: any[] }) {
       'Прибыль (€)': r2((trip.revenue_eur || 0) - (trip.expenses || 0)),
     }));
 
-    const totalRevenue = data?.reduce((sum, t) => sum + (t.revenue_eur || 0), 0) || 0;
-    const totalExpenses = data?.reduce((sum, t) => sum + (t.expenses || 0), 0) || 0;
+    const totalRevenue = data.reduce((sum, t) => sum + (t.revenue_eur || 0), 0);
+    const totalExpenses = data.reduce((sum, t) => sum + (t.expenses || 0), 0);
     const profit = totalRevenue - totalExpenses;
 
     rows.push({
