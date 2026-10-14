@@ -242,7 +242,44 @@ PRIMARY KEY (segment_id, cargo_id)
 
 **Из старого списка Пакета C:** `app/driver/page.tsx` и `app/driver/stats/page.tsx` оказались чисты. Вместо них обнаружены и закрыты `trip-status-actions.ts` и `TripsList.tsx`.
 
-### Фаза 3.6 — DROP COLUMN (необратимо) — НЕ НАЧАТА
+### Фаза 3.6 — DROP COLUMN + чистка legacy (разбита на под-пакеты)
+
+**Полный grep 14.10.2026** — карта вхождений готова.
+
+**3.6.1** — мелкие «читатели» `t.route` (5 файлов):
+- `app/api/trips/check-overlap/route.ts:85`
+- `app/clients/[id]/page.tsx:187`
+- `app/contractors/[id]/page.tsx:156`
+- `app/drivers/[id]/page.tsx:247`
+- `app/trucks/[id]/page.tsx:267`
+→ заменить на `buildRouteMap` (запрос сегментов + Map).
+
+**3.6.2** — крупные «читатели» `sender_*`/`receiver_*` (4 файла):
+- `app/api/backfill-coordinates/route.ts` (29, 46–47, 59–60, 65) — читает sender/receiver
+- `app/map/MapView.tsx` (96–99, 187, 190, 236, 239)
+- `app/map/page.tsx` (157, 161, 164) — уже получает поля из MapView
+- `app/today/page.tsx` (227–229, 246–248, 528)
+
+**3.6.3** — fallback в наших файлах (3 файла):
+- `app/trips/page.tsx:134,145–150` — `getRoute` fallback + поиск по sender_*
+- `app/trips/TripsBulkList.tsx:215`
+- `app/trips/[id]/page.tsx:236`
+→ убрать `?? trip.route ?? '—'` после того как 3.6.1–3.6.2 закрыты.
+
+**3.6.4** — `lib/trip-task-text.ts` (112, 185, 190–215) — убрать fallback-блок.
+
+**3.6.5** — формы + экшены (4 файла) — перестать писать `sender_*`/`receiver_*`:
+- `app/geocode-actions.ts` (85–97, 188–200)
+- `app/trip-actions.tsx` (164–176, 190, 220–227, 254–266, 292, 363)
+- `app/trips/new/NewTripForm.tsx` (274–370)
+- `app/trips/[id]/edit/EditTripForm.tsx` (48–59, 107, 110, 276–360)
+
+**3.6.6** — SQL `DROP COLUMN` (после всего выше) — необратимо.
+
+**3.6.7** — финальный grep: должно быть пусто (кроме ложных `.route` локальных переменных).
+
+**Ложные срабатывания grep (НЕ трогать):**
+`app/api/export/route.ts`, `app/reports/page.tsx`, `app/routes/*`, `app/reports/DownloadButton.tsx`, `app/map/page.tsx:61–65`, `app/today/page.tsx:114–118`, `app/search/actions.ts:121`, `app/routes/*` — все используют `.route` как поле объекта из `buildRouteMap`, не из `trips`.
 
 **Перед запуском:**
 1. `grep -rn "sender_\|receiver_\|\.route" app lib --include="*.ts" --include="*.tsx"`
@@ -421,11 +458,11 @@ Static page generation (60s timeout). Лечится: Redeploy без кэша �
 - `trips`: 71, `trip_segments`: 94, `trip_cargo`: 74, `trip_segment_cargo`: 79, `trip_expenses`: ~416
 - `trip_subcontractors`: DROP
 
-**Закрыто:** Фазы 3.1–3.5.7 + Пакет A (routes, 3 файла) + Пакет B (reports, 2 файла) + Пакет C (все 4 файла: search/actions.ts, driver/trips/[id]/page.tsx, driver/trip-status-actions.ts, driver/TripsList.tsx + driver/page.tsx как зависимость)
+**Закрыто:** Фазы 3.1–3.5.7 + Пакет A + Пакет B + Пакет C (все 4 файла + driver/page.tsx как зависимость)
 
-**В очереди:** Фаза 3.6 (DROP COLUMN) — финальная зачистка legacy
+**В очереди:** Фаза 3.6 (DROP COLUMN + чистка) — разбита на 7 под-пакетов (3.6.1–3.6.7), см. выше.
 
-**Перед Фазой 3.6 — прогнать полный grep:**
+**Текущий шаг:** Фаза 3.6.1 (5 мелких «читателей» `t.route`).
 
 ---
 
