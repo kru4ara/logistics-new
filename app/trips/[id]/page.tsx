@@ -10,7 +10,7 @@ import SubmitButton from '../../components/SubmitButton';
 import SendTaskButton from './SendTaskButton';
 import TripCargoBlock from './TripCargoBlock';
 import TripSegmentsBlock from './TripSegmentsBlock';
-import { buildDriverTaskText } from '../../../lib/trip-task-text';
+import { buildRouteMap, type SegmentRouteRow } from '../../../lib/trip-route';
 import {
   ArrowLeft,
   Pencil,
@@ -50,22 +50,6 @@ function pickOne<T>(rel: unknown): T | null {
   if (!rel) return null;
   if (Array.isArray(rel)) return (rel[0] as T) ?? null;
   return rel as T;
-}
-
-function buildRouteFromSegments(segments: any[]): string | null {
-  if (!segments || segments.length === 0) return null;
-  const sorted = [...segments].sort((a, b) => (a.position || 0) - (b.position || 0));
-  const first = sorted[0];
-  const last = sorted[sorted.length - 1];
-
-  const fromParts = [first.from_city, first.from_country].filter(Boolean);
-  const toParts = [last.to_city, last.to_country].filter(Boolean);
-
-  if (fromParts.length === 0 && toParts.length === 0) return null;
-
-  const from = fromParts.join(', ') || '—';
-  const to = toParts.join(', ') || '—';
-  return `${from} → ${to}`;
 }
 
 export default async function TripDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -233,7 +217,9 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
     };
   });
 
-  const computedRoute = buildRouteFromSegments(segments) || trip.route || '—';
+   // Route из сегментов через buildRouteMap (fallback на trip.route удалён в Фазе 3.6)
+  const routeMap = buildRouteMap(segments as SegmentRouteRow[]);
+  const computedRoute = routeMap.get(tripId)?.route ?? '—';
 
   // ============================================================
   // Расчёты
