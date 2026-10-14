@@ -19,9 +19,51 @@
 
 **Vercel Secret-переменные не редактируются** — только удалить + создать заново + Redeploy.
 
-## Правила работы
+---
+
+## ⚠️ ПРАВИЛА РАБОТЫ С AI-АССИСТЕНТОМ (читать первым!)
+
+### Контекст чата — не бесконечный
+У ассистента ограниченное окно контекста (~200k токенов). Загрузка крупных файлов, бэкапов, полных HANDOVER'ов и логов **быстро съедает запас**. Когда контекст переполняется — ассистент теряет **начало** чата (HANDOVER, договорённости, ранние решения), а не конец. Это опасно: он начинает противоречить сам себе.
+
+### Что НЕ надо загружать в чат
+- **Бэкапы БД** (`backup_*.json`) — 200–300 KB мёртвого груза. Данные уже зафиксированы в HANDOVER.
+- **Старые версии HANDOVER** — влиты в актуальный.
+- **Файлы, которые уже заменены** — держим только актуальные версии.
+- **Логи билдов целиком** — достаточно «билд зелёный» / «ошибка такая-то».
+- **Огромные JSON/дампы** — если нужна конкретная выборка, лучше 2–3 строки, чем весь файл.
+
+### Что стоит загружать в чат
+- Только те файлы, которые **сейчас правим** (по одному, не пачкой).
+- Актуальный HANDOVER — **один раз в начале нового чата**.
+- Результат grep (список файлов, не содержимое).
+- Скриншот ошибки (короткий).
+
+### Сигналы ассистента о состоянии контекста
+Ассистент обязан вставлять в ответы индикатор:
+
+- 🟢 **Зелёный** — контекста много, работаем. Обычно не пишется.
+- 🟡 **Жёлтый** — осталось ~30–40%. В конце ответа: «Пора подумать о точке сохранения».
+- 🔴 **Красный** — осталось мало. **В начале** ответа: «Сейчас обновляем HANDOVER и начинаем новый чат».
+
+### Когда сохраняться
+**Не когда «уже поздно», а когда закрыт логический блок.**
+- Пакет закрыт → обновили HANDOVER → **точка сохранения.**
+- Закрыта фаза → обновили HANDOVER → **точка сохранения.**
+- Не сохраняемся на середине файла.
+
+### Как начинать новый чат
+1. Первое сообщение — **полный HANDOVER** (один файл).
+2. Второе сообщение — **что делаем прямо сейчас** (например: «Пакет C, файл `app/search/actions.ts`»).
+3. Третье сообщение — **сам файл** целиком.
+4. Дальше по одному файлу.
+
+### Рабочий процесс
 - **Полные файлы на замену, не куски**
 - 1 шаг за раз, с проверкой
+- **НЕ пишем код вслепую** — всегда запрашиваем актуальную версию файла перед заменой
+- **Полные коды одним блоком** — без разбивки на секции (для удобства копирования)
+- **Не переспрашивать «покажи файл X»** — если ассистент его уже видел в этом чате, используем то, что есть; если нужна свежая версия — просим.
 - Мобильная адаптация: `px-4 md:px-6`, `p-5 md:p-6`, `text-base` в инпутах
 - Server components → `createClient()` из `lib/supabase-server`
 - **Внимательно с путями импортов:**
@@ -30,8 +72,6 @@
   - `app/X/[id]/edit/page.tsx` → `../../../../lib/`, `../../../components/`
   - `app/X/Y/page.tsx` (вложенная папка) → `../../../lib/`
   - **Компоненты в `app/components/`, `lib/` в корне проекта**
-- **НЕ пишу код вслепую** — всегда запрашивать актуальную версию файла перед заменой
-- **Полные коды одним блоком** — без разбивки на секции (для удобства копирования)
 
 ---
 
@@ -101,8 +141,8 @@ driver_id UUID REFERENCES drivers(id) ON DELETE SET NULL,
 date_from DATE, date_to DATE,
 from_country/from_city/from_company/from_address/from_postal_code TEXT,
 to_country/to_city/to_company/to_address/to_postal_code TEXT,
-stops JSONB DEFAULT '[]'::jsonb,          -- [{type:'load'|'reload'|'unload', company, country, city, address, postal_code, date}]
-price NUMERIC,                            -- стоимость подрядчику
+stops JSONB DEFAULT '[]'::jsonb,
+price NUMERIC,
 currency TEXT DEFAULT 'EUR',
 notes TEXT,
 created_at TIMESTAMPTZ DEFAULT NOW()
@@ -123,12 +163,12 @@ PRIMARY KEY (segment_id, cargo_id)
   - `TripRouteInfo = { route, from_city, from_country, to_city, to_country }`
   - `SegmentRouteRow = { trip_id, position, from_city, from_country, to_city, to_country }`
   - Используется во всех местах, где раньше был `trips.route`
-- **`lib/trip-renumber.ts`** — `renumberAllTrips()` (после 3.5.7 — убран `.select('created_at')`, tiebreaker `id ASC`)
+- **`lib/trip-renumber.ts`** — `renumberAllTrips()`
 - **`lib/trip-task-text.ts`** — текст задания водителю (на сегментах; fallback на legacy-поля временный, до 3.6)
 
 ---
 
-## 🔒 ЗАКРЫТЫЕ ФАЗЫ (история 3.1 → 3.5.7)
+## 🔒 ЗАКРЫТЫЕ ФАЗЫ (история 3.1 → 3.5.7 + Пакеты A и B)
 
 ### Фаза 3.1 — удалён `/trips-test` (13.10.2026)
 - Все тестовые файлы удалены
@@ -145,68 +185,64 @@ PRIMARY KEY (segment_id, cargo_id)
 - Мигрировали 68 рейсов без сегментов → один 'us'-сегмент + виртуальный груз «Основной груз»
 - Мигрировали 19 записей `trip_subcontractors` → `trip_segments` типа `contractor` + привязали расходы
 - Нормализовали `position` — 1, 2, 3... без дыр (ROW_NUMBER по `start_date ASC NULLS LAST, id ASC`)
-- Исправили `from_*` у 19 us-сегментов: было «страна загрузки → Брест», стало «Siedlce / KAMEX → Брест» (взято из `to_*` предыдущего contractor-сегмента)
+- Исправили `from_*` у 19 us-сегментов
 - **DROP TABLE `trip_subcontractors`**
 - Переписаны: `page.tsx` (карточка), `driver/page.tsx`, `today/page.tsx`, `contractors/page.tsx`, `contractors/[id]/page.tsx`, `driver/trips/[id]/page.tsx`, `reports/contractors/page.tsx`, `task-actions.ts`, `trip-task-text.ts`, `cron/backup`
 - Удалены: `SubcontractorsBlock.tsx`, `SubcontractorForm.tsx`, `lib/trip-subcontractors.ts`, `app/api/trips/[id]/subcontractor/...`
 
 ### Фаза 3.5 — переход UI/логики на сегменты (14.10.2026)
+
 **3.5.1 — убраны `sender2..5_*` из форм:**
-- `app/trips/new/NewTripForm.tsx` — убран блок доп. точек погрузки
-- `app/trips/[id]/edit/EditTripForm.tsx` — убраны доп. точки + поля `sender2..5_*` из типа `Trip`
+- `app/trips/new/NewTripForm.tsx`, `app/trips/[id]/edit/EditTripForm.tsx`
 
 **3.5.2 — убраны `sender2..5_*` из экшенов:**
-- `app/geocode-actions.ts` — `addTripWithAddress` без legacy-полей
-- `app/trip-actions.tsx` — `updateTrip` без legacy-полей
+- `app/geocode-actions.ts`, `app/trip-actions.tsx`
 
 **3.5.3 — автосоздание сегмента при создании рейса:**
-- `addTripWithAddress` теперь создаёт us-сегмент (`position=1`) + «Основной груз» + связь
-- Ошибки при создании сегмента не роняют создание рейса
+- `addTripWithAddress` создаёт us-сегмент (`position=1`) + «Основной груз»
 
 **3.5.4 — route из сегментов в списке:**
-- `app/trips/page.tsx` — параллельный запрос `trip_segments`, route через `buildRouteFromSegments` (inline → потом вынесено в `lib/trip-route.ts`)
-- `app/trips/DownloadButton.tsx` — принимает `TripCardData[]`, фикс бага `expenses = 0`
+- `app/trips/page.tsx`, `app/trips/DownloadButton.tsx`
 
 **3.5.5 — route из сегментов в карточке:**
-- `app/trips/[id]/page.tsx` — `buildRouteFromSegments` + `computedRoute`
-- `app/trips/DownloadButton.tsx` — читает готовые `TripCardData`
+- `app/trips/[id]/page.tsx`
 
 **3.5.6 — route/from/to из сегментов в export/map/today:**
-- 🆕 `lib/trip-route.ts` — хелпер `buildRouteMap`
-- `app/api/export/route.ts` — route в Excel из сегментов
-- `app/map/page.tsx` — route/from/to из сегментов для попапов
-- `app/today/page.tsx` — route/from/to из сегментов для блоков загрузок/выгрузок
-- `app/map/MapView.tsx` — НЕ трогали (props interface тот же)
+- 🆕 `lib/trip-route.ts` — `buildRouteMap`
+- `app/api/export/route.ts`, `app/map/page.tsx`, `app/today/page.tsx`
 
 **3.5.7 — фикс `renumberAllTrips`:**
-- `lib/trip-renumber.ts` — убран `.select('created_at')` (колонки нет в `trips`), tiebreaker переключён на `id ASC`
-- Разовая SQL-перенумерация всех рейсов через `ROW_NUMBER()`
+- Убран `.select('created_at')`, tiebreaker `id ASC`
 
 **Пакет A — маршруты (закрыт 14.10):**
-- `app/routes/page.tsx` — `buildRouteMap` из сегментов, `DownloadButton` принимает `RouteCardData[]`
-- `app/routes/DownloadButton.tsx` — `RouteCardData[]`, фикс `profit`, тот же вид, что `/trips`
-- `app/routes/export/page.tsx` — рефактор в card-стиль + `buildRouteMap`, `Link`/`lucide` вместо inline-styles
+- `app/routes/page.tsx` — `buildRouteMap`, `DownloadButton` принимает `RouteCardData[]`
+- `app/routes/DownloadButton.tsx` — `RouteCardData[]`, фикс `profit`
+- `app/routes/export/page.tsx` — рефактор в card-стиль + `buildRouteMap`
+
+**Пакет B — отчёты (закрыт 14.10):**
+Из 7 файлов в HANDOVER-списке реально правились **2** (остальные 5 — чисты):
+- `app/reports/page.tsx` — `buildRouteMap`, `ReportRow[]`
+- `app/reports/DownloadButton.tsx` — `ReportRow[]` (типизация вместо `any[]`)
+- 🆕 добавлен в Пакет B: `app/reports/DownloadButton.tsx` (его не было в исходном списке)
+- **Чисты, не трогали:** `reports/contractors/page.tsx`, `reports/profitability/page.tsx`, `reports/excel/page.tsx`, `reports/excel/ExportForm.tsx`, `reports/logisat/page.tsx`, `reports/logisat/LogisatProblemsList.tsx`
 
 ---
 
 ## ⏭️ ОЧЕРЕДЬ ЗАДАЧ
 
-### Остаток Фазы 3.5
-
-**Пакет B — отчёты (7 файлов):**
-- `app/reports/page.tsx`
-- `app/reports/contractors/page.tsx` — уже почищен в 3.3
-- `app/reports/profitability/page.tsx`
-- `app/reports/excel/page.tsx`
-- `app/reports/excel/ExportForm.tsx`
-- `app/reports/logisat/page.tsx`
-- `app/reports/logisat/LogisatProblemsList.tsx`
-
-**Пакет C — точечные проверки:**
+### Пакет C — точечные проверки (4 файла)
 - `app/driver/stats/page.tsx`
 - `app/search/actions.ts`
 - `app/driver/trips/[id]/page.tsx` — проверка после 3.3
 - `app/driver/page.tsx` — проверка после 3.3
+
+**Перед правкой Пакета C — прогнать:**
+```
+grep -rn "sender_\|receiver_\|\.route\|trip_subcontractors" app/driver app/search --include="*.ts" --include="*.tsx"
+```
+(или через GitHub Search: `sender_ repo:kru4ara/logistics-new path:app/driver`)
+
+Возможно, часть из них уже чиста — как было с Пакетом B.
 
 ### Фаза 3.6 — DROP COLUMN (необратимо)
 
@@ -240,8 +276,8 @@ ALTER TABLE trips DROP COLUMN sender_country, sender_city, sender_name, sender_a
 - Заодно можно убрать геокодирование через Nominatim
 
 ### Идеи (не срочно)
-- Нормализация `trip_number` — сделать через БД-триггер при INSERT (MAX+1), чтобы не полагаться на `renumberAllTrips`
-- Добавить `created_at` в `trips` — полезно для аудита и «последние созданные»
+- Нормализация `trip_number` через БД-триггер при INSERT (MAX+1)
+- Добавить `created_at` в `trips` — для аудита и «последние созданные»
 - Печатные формы (отчёт по рейсам)
 - Онбординг админа
 - Дубликаты клиентов/подрядчиков
@@ -266,109 +302,61 @@ ALTER TABLE trips DROP COLUMN sender_country, sender_city, sender_name, sender_a
 
 ## 📁 СТРУКТУРА ПРОЕКТА (карта)
 
-### Гибкая модель рейсов — АКТИВНА
-См. секцию выше «СТРУКТУРА ПРОЕКТА → Гибкая модель рейсов».
-
 ### Дашборд «Сегодня» (`/today`)
-- **`app/today/page.tsx`** — оперативный экран:
-  - KPI: Загрузок / Выгрузок / В пути / Требует внимания
-  - Секции: «Загрузки сегодня» (зелёные), «Выгрузки сегодня» (красные), «В пути сейчас», «Требует внимания»
-  - События из: рейсов (`start_date`/`end_date` = сегодня), сегментов (`stops` = сегодня), экспедирования (`forwarding_points.date` = сегодня)
-  - Ссылка на каждое событие → карточка рейса / заявки
-- **Sidebar** — пункт «Сегодня» под «Главная» (только admin)
+- **`app/today/page.tsx`** — оперативный экран: KPI (Загрузок / Выгрузок / В пути / Требует внимания), события из рейсов, сегментов, экспедирования
+- **Sidebar** — пункт «Сегодня» (только admin)
 
 ### Отчёт «Ошибки Logisat» (`/reports/logisat`)
-- **`app/reports/logisat/page.tsx`** — 4 категории проблем:
-  - 🔴 «Активные — синк не выполнялся» (`status='active'`, `logisat_synced_at IS NULL`)
-  - 🟡 «Синк устарел» (active + синк >7 дней)
-  - 🟠 «Одометр не передаёт данные»
-  - 🔴 «Топливо не передаёт данные»
-  - ⚪ «Архив — синк не выполнялся» (completed/invoiced/paid) — **свёрнут по умолчанию**
-  - Плюс «Тягачи без Logisat» (не настроен `deviceId` / выключен)
-- **`app/reports/logisat/LogisatProblemsList.tsx`** — клиентский:
-  - Аккордеон (свернуть/развернуть)
-  - «Показать все (N)» — первые 9 карточек, дальше по клику
-  - **Кнопка «Синкать все (N)»** на активных секциях → bulk-синк
-  - Inline-статус: «Готово: X из Y» / «X успешно, Y с ошибкой»
-- **`app/api/logisat/sync-bulk/route.ts`** — POST `{ tripIds }`, батчи по 3 параллельно
-- **`app/reports/page.tsx`** — 4-я карточка «Ошибки Logisat» (оранжевый градиент)
+- 4 категории проблем (активные/устаревшие/одометр/топливо) + архив
+- `LogisatProblemsList.tsx` — аккордеон + bulk-синк
+- `app/api/logisat/sync-bulk/route.ts`
 
 ### Онбординг водителя
-- SQL: `ALTER TABLE drivers ADD COLUMN IF NOT EXISTS onboarded_at TIMESTAMPTZ DEFAULT NULL;`
-- **`app/driver/onboarding-actions.ts`** — `markDriverOnboarded()`
-- **`app/driver/OnboardingCard.tsx`** — приветственная карточка с 4 шагами:
-  1. «Начни рейс» → кнопка `Начать рейс`
-  2. «Заверши рейс» → указать дату финиша
-  3. «Загрузи CMR» → фото документа
-  4. «Следи за сроками» → раздел Напоминания
-  - Кнопка «Всё понял, поехали» → ставит `onboarded_at`, скрывает карточку
-- **`app/driver/page.tsx`** — рендерит `<OnboardingCard>` между приветствием и активными рейсами, если `onboarded_at IS NULL`
+- `drivers.onboarded_at`
+- `app/driver/onboarding-actions.ts`, `app/driver/OnboardingCard.tsx`
+- Рендерится в `app/driver/page.tsx` если `onboarded_at IS NULL`
 
 ### Bulk-операции в рейсах
-- **`app/trips/bulk-actions.ts`** — `bulkSetStatus`, `bulkDelete`
-  - Массовая смена статуса (запрещён `completed` — требует `end_date`)
-  - Массовое удаление
-  - Audit-лог для каждого рейса отдельно
-- **`app/trips/TripsBulkList.tsx`** — клиентский:
-  - Чекбоксы на карточках
-  - Клик по остальной площади → открытие рейса
-  - Sticky-toolbar сверху при выборе: «Выбрано: N», «Выбрать все», «Статус ▾», «Удалить»
-- **`app/trips/page.tsx`** — рендерит `<TripsBulkList>`
+- `app/trips/bulk-actions.ts` — `bulkSetStatus`, `bulkDelete`
+- `app/trips/TripsBulkList.tsx` — чекбоксы, sticky-toolbar
 
 ### CSV-экспорт
-- **`app/api/export/route.ts`** — параметр `?format=csv`:
-  - `XLSX.utils.sheet_to_csv(sheet, { FS: ';' })` — разделитель `;` для русской локали Excel
-  - `\uFEFF` BOM в начале — корректная кириллица
-  - Файл `.csv` вместо `.xlsx`
-- **`app/reports/excel/ExportForm.tsx`** — переключатель «Excel (.xlsx) / CSV (.csv)»
+- `app/api/export/route.ts` — `?format=csv`, `\uFEFF` BOM, `;` разделитель
+- `app/reports/excel/ExportForm.tsx` — переключатель xlsx/csv
 
 ### Проверка пересечений рейсов
-- **`app/trips/[id]/edit/OverlapWarning.tsx`** — клиентский:
-  - При выборе тягача и дат — проверка через `/api/trips/check-overlap` (GET `truckId`, `startDate`, `endDate`, `excludeTripId`)
-  - Предупреждение (не блокирующее) с указанием конфликтующего рейса, клиента, маршрута, дат
-  - Ссылка «Открыть конфликтующий рейс →»
-- **`app/api/trips/check-overlap/route.ts`** — GET, возвращает конфликты
-- **`app/trips/[id]/edit/page.tsx`** — подключён `<OverlapWarning>` рядом с полем «Тягач»
-- ⚠️ Если фичу надо отключить — удалить `<OverlapWarning>` из edit-page
+- `app/trips/[id]/edit/OverlapWarning.tsx`
+- `app/api/trips/check-overlap/route.ts`
 
 ---
 
 ## ✨ ЧТО СДЕЛАНО РАНЕЕ (до 09.10)
 
 ### Редизайн (закрыт полностью)
-- Главная (`app/page.tsx`) — компактная: приветствие, KPI месяц, «Требует внимания», «За всё время» (5 карточек), график 12 мес, донат расходов. **Убрано:** Топ-5 клиентов/маршрутов, Последние рейсы/экспедиции
-- Пачки 2-5: кнопки, медиа, крупные компоненты, misc — brand-палитра + lucide
-- Большие страницы: `forwarding/[id]`, `clients/[id]`, `reports/profitability`, `map/MapView`, `driver/reminders`
-- Логин (`app/login/page.tsx`) — брендинг RAIBUILDING, `brand-800` в градиенте
-- Empty states: `/reports/profitability`, `/map/MapView`
-- Loading-скелетоны: `app/loading.tsx`, `app/trips/loading.tsx`, `app/forwarding/loading.tsx`, `app/drivers/loading.tsx`, `app/trucks/loading.tsx`, `app/clients/loading.tsx`, `app/contractors/loading.tsx`, `app/locations/loading.tsx`, `app/reminders/loading.tsx`, `app/reports/loading.tsx`, `app/trips/[id]/loading.tsx`, `app/forwarding/[id]/loading.tsx`, `app/clients/[id]/loading.tsx`
-- Водительский раздел: `app/driver/page.tsx`, `app/driver/TripsList.tsx`, `app/driver/trips/[id]/page.tsx`, `app/driver/stats/page.tsx`
+- Главная, пачки 2-5, большие страницы, логин, empty states, loading-скелетоны, водительский раздел
 
 ### Фиксы и улучшения
-- **Sidebar** — устранены дубли у водителя, добавлены «Сегодня» и `isAdmin`-гейт для «Главная»
-- **`app/trucks/page.tsx`** — единый empty state (одна большая карточка, если пусто; иначе секции тягачи/прицепы)
-- **`app/reports/page.tsx`** — 4 карточки-ссылки (Прибыльность, Ошибки Logisat, Экспорт, Подрядчики)
-- **`app/statistics/page.tsx`** — emoji → lucide, `blue-*` → `brand-*`
-- **`app/forwarding/page.tsx`** — годы фильтра из данных
-- **`app/forwarding/actions.ts`** — фикс `renumberAllOrders`: обновляем всех, двухфазная схема, проверки
-- **`app/statistics/page.tsx`**, `app/driver/reminders/page.tsx` — исправлены поля документов прицепа (`customs_certificate_expiry`)
-- **`app/driver/stats/page.tsx`** — фикс склейки файла
+- Sidebar (дубли, «Сегодня», `isAdmin`-гейт)
+- `trucks/page.tsx` — единый empty state
+- `reports/page.tsx` — 4 карточки-ссылки
+- `statistics/page.tsx` — emoji → lucide, `blue-*` → `brand-*`
+- `forwarding/page.tsx` — годы из данных
+- `forwarding/actions.ts` — фикс `renumberAllOrders`
+- `statistics/page.tsx`, `driver/reminders/page.tsx` — поля документов прицепа
+- `driver/stats/page.tsx` — фикс склейки
 
-### Telegram-уведомления (`app/driver/trip-status-actions.ts`)
-- **Водителю лично** — только при **создании** нового рейса (`notifyDriverAboutNewTrip` в `geocode-actions.ts`)
-- **В офисный чат** — при `active` («🚛 Рейс №N · Начат») и `completed` («✅ Рейс №N · Завершён»)
-- **Не отправляется** при `invoiced` / `paid` / `planned`
-- Хелперы `pickOne` / `pickName` для relations
+### Telegram-уведомления
+- Водителю лично — только при создании рейса
+- В офисный чат — при `active` / `completed`
+- Не отправляется при `invoiced` / `paid` / `planned`
 
 ### Заявки экспедирования — перенумерация
-- Номера всегда `1..N` по `load_date ASC`, `created_at ASC`
-- Вызывается при create / update / delete
-- Существующие данные выровнены SQL
+- Номера `1..N` по `load_date ASC`, `created_at ASC`
 
 ### Cron
-- `/api/update-rates` — `0 6 * * *` — курсы PLN/BYN
-- `/api/cron/reminders` — `0 9 * * *` — рассылка напоминаний
-- `/api/cron/backup` — `0 7 * * *` — дамп 18 таблиц (10:00 Минск)
+- `/api/update-rates` — `0 6 * * *`
+- `/api/cron/reminders` — `0 9 * * *`
+- `/api/cron/backup` — `0 7 * * *`
 
 ---
 
@@ -376,8 +364,7 @@ ALTER TABLE trips DROP COLUMN sender_country, sender_city, sender_name, sender_a
 
 ### Авторизация
 - Login через server action + `bcrypt.compare` + httpOnly cookie
-- Logout через server action
-- Sidebar серверный → `AppShell.tsx` → `Sidebar.tsx` (клиентский)
+- Sidebar серверный → `AppShell.tsx` → `Sidebar.tsx`
 - RLS включён, публичные политики удалены
 
 ### Домены
@@ -385,25 +372,24 @@ ALTER TABLE trips DROP COLUMN sender_country, sender_city, sender_name, sender_a
 - **Экспедирование** (`forwarding_orders` + `forwarding_contractors` + `forwarding_points` + `forwarding_expenses`)
 - Клиенты, водители, тягачи, локации, подрядчики
 - Напоминания + cron рассылки в Telegram
-- Logisat: синхронизация рейса, просмотр расхода `/driver/logisat`, bulk-синк
-- Курсы валют
-- Документы
+- Logisat: синхронизация, bulk-синк
+- Курсы валют, документы
 - **Бэкапы**: 17 таблиц (без `trip_subcontractors`)
 
 ### Комбинированные перевозки
-- Схема: клиент платит за весь рейс; подрядчик везёт A→C; мы едем C→Б
-- **`trip_segments`** — `executor_type='us'` (наши) или `executor_type='contractor'` (подрядчик)
-- У сегмента: `stops` JSONB (load/reload/unload), `price` (подрядчику), `currency`
-- **DOCX подрядчику** — ZLECENIE TRANSPORTOWE с N точками A + C (для contractor-сегмента)
-- **DOCX водителю** — «Задание водителю» (для us-сегмента)
-- **Telegram водителю** — `SendSegmentTaskButton` на us-сегменте
+- Клиент платит за весь рейс; подрядчик везёт A→C; мы едем C→Б
+- **`trip_segments`** — `executor_type='us'` / `'contractor'`
+- У сегмента: `stops` JSONB, `price` (подрядчику), `currency`
+- **DOCX подрядчику** — ZLECENIE TRANSPORTOWE
+- **DOCX водителю** — «Задание водителю»
+- **Telegram водителю** — `SendSegmentTaskButton`
 
 ---
 
 ## Подводные камни
 
 ### PostgREST и FK
-У `trips` два FK на `trucks`: `truck_id` и `trailer_id`. Алиасы обязательны:
+У `trips` два FK на `trucks`: `truck_id`, `trailer_id`. Алиасы обязательны:
 ```ts
 .select('*, trucks!truck_id(registration_number), trucks!trailer_id(registration_number)')
 ```
@@ -412,41 +398,66 @@ ALTER TABLE trips DROP COLUMN sender_country, sender_city, sender_name, sender_a
 - В БД пока **есть** (DROP в Фазе 3.6)
 - Код читает их **только** через fallback в `lib/trip-task-text.ts` (временный)
 - `geocode-actions.ts` / `trip-actions.tsx` продолжают **писать**, но не читают
-- Все страницы (`/trips`, `/routes`, `/map`, `/today`, `/api/export`) читают из `trip_segments` через `buildRouteMap`
+- Все страницы (`/trips`, `/routes`, `/map`, `/today`, `/api/export`, `/reports`) читают из `trip_segments`
 
 ### Supabase SQL: ошибка 42P10
-`UPDATE ... FROM LATERAL (... us.trip_id ...)` — нельзя ссылаться на таблицу-цель в LATERAL. Решение — обернуть в CTE. Пример в миграции 3.3.3a.
+`UPDATE ... FROM LATERAL` — нельзя ссылаться на таблицу-цель в LATERAL. Решение — CTE.
 
 ### renumberAllTrips (3.5.7)
-- Раньше падал всегда: `.select('id, trip_number, start_date, created_at')` — колонки `created_at` в `trips` нет. Supabase возвращал error, функция логировала и выходила без изменений. Триггерилось при создании новых рейсов (`trip_number = 0`). Фикс: убрать `created_at`, tiebreaker на `id ASC`.
+- Раньше падал: `.select('...created_at')` — колонки нет. Фикс: убрать, tiebreaker `id ASC`.
 - Вызовы — 2: `addTripWithAddress`, `updateTrip`.
 
 ### Ошибки типов при переписывании
-- `SubcontractorForm.tsx` ломал сборку, пока был жив — удалён
-- `StopDb` не экспортился из `driver-docx/route.ts` — правили локально
-- `TextOpts.italics` не был в типе `txt()` — добавили
-- `numberBase` потерялся при патче `contractors/[id]/page.tsx` — восстановили
-- `stop: StopDb` без аннотации в `driver/trips/[id]/page.tsx` — добавили
-- `computedRoute` не был объявлен в `trips/[id]/page.tsx` — добавили функцию + переменную
+- `SubcontractorForm.tsx`, `StopDb`, `TextOpts.italics`, `numberBase`, `stop: StopDb`, `computedRoute` — все пофикшены
 
 ### Таймауты Vercel-билдов
-Периодически падает Static page generation (60s timeout). Лечится:
-1. Redeploy без кэша — Vercel → Deployments → последний красный → ⋯ → Redeploy → снять галку «Use existing build cache»
-2. Ретрай — иногда достаточно просто пересобрать
+Static page generation (60s timeout). Лечится: Redeploy без кэша или ретрай.
 
 ### Автокоммит
-Каждое изменение файла = отдельный коммит + отдельный билд. Если делаешь 5 правок, получишь 5 билдов. Иногда полезно, иногда жрёт квоту Vercel.
+Каждое изменение файла = коммит + билд. 5 правок = 5 билдов. Жрёт квоту Vercel.
 
 ---
 
-## 📋 Шпаргалка по текущему состоянию (на момент 14.10.2026, вечер)
+## 📋 Шпаргалка по текущему состоянию (14.10.2026, вечер)
 
-- `trips`: 71
-- `trip_segments`: 94 (71 us + 23 contractor)
-- `trip_cargo`: 74
-- `trip_segment_cargo`: 79
-- `trip_expenses`: ~416
+- `trips`: 71, `trip_segments`: 94, `trip_cargo`: 74, `trip_segment_cargo`: 79, `trip_expenses`: ~416
 - `trip_subcontractors`: DROP
 
-**Закрыто:** Фазы 3.1–3.5.7 + Пакет A (routes)
-**В очереди:** Пакет B (отчёты), Пакет C (точечные), Фаза 3.6 (DROP COLUMN)
+**Закрыто:** Фазы 3.1–3.5.7 + **Пакет A** (routes, 3 файла) + **Пакет B** (reports, 2 файла из 7 — остальные 5 чисты)
+
+**В очереди:** Пакет C (4 файла, возможно 2–3 реально грязных), Фаза 3.6 (DROP COLUMN)
+
+**Рекомендация:** перед Пакетом C прогнать grep по `app/driver` и `app/search` — как в Пакете B, реально грязных файлов может быть меньше.
+
+---
+
+## 🆕 Условие работы с AI-ассистентом (с 14.10.2026)
+
+**При старте нового чата:**
+1. Первое сообщение — **полный HANDOVER** (этот файл), один раз.
+2. Второе — **что делаем сейчас** («Пакет C, файл `app/search/actions.ts`»).
+3. Третье — **сам файл**, целиком.
+4. Дальше — по одному файлу.
+
+**Ассистент обязан предупреждать о контексте:**
+- 🟡 — «осталось ~30–40%, пора подумать о сохранении» (в конце ответа)
+- 🔴 — «осталось мало, **сейчас** обновляем HANDOVER и новый чат» (в начале ответа)
+
+**Сохраняемся на границах блоков**, не на середине файла:
+- Пакет закрыт → обновили HANDOVER → новый чат.
+- Фаза закрыта → обновили HANDOVER → новый чат.
+
+**Не загружаем в чат:**
+- Бэкапы БД
+- Старые HANDOVER
+- Уже заменённые файлы
+- Логи билдов целиком
+- Огромные JSON/дампы
+
+**Загружаем:**
+- Актуальный HANDOVER (один раз в начале)
+- Только те файлы, что правим прямо сейчас
+- Результат grep (список, не содержимое)
+- Скриншоты ошибок (короткие)
+
+**Цель:** сохранить непрерывность работы через серию коротких чатов, каждый из которых стартует с полного HANDOVER. Это надёжнее, чем один длинный чат, который в какой-то момент теряет начало.
