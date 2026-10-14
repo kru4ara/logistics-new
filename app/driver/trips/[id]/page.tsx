@@ -98,7 +98,7 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
     .eq('trip_id', tripId)
     .order('position', { ascending: true });
 
-  // ⬅️ ИЗМЕНЕНО: route из сегментов (fallback на trip.route временный, до Фазы 3.6)
+   // Route из сегментов (fallback удалён в Фазе 3.6)
   const routeMap = buildRouteMap(
     (segmentsRaw || []).map((s: any) => ({
       trip_id: s.trip_id,
@@ -109,7 +109,7 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
       to_country: s.to_country,
     })) as SegmentRouteRow[]
   );
-  const routeDisplay = routeMap.get(tripId)?.route ?? trip.route ?? '—';
+  const routeDisplay = routeMap.get(tripId)?.route ?? '—';
 
   // ⬅️ ИЗМЕНЕНО: "Задание" — только us-сегменты (фильтр в JS, т.к. выше взяли все)
   const usSegmentsRaw = (segmentsRaw || []).filter((s: any) => s.executor_type === 'us');
