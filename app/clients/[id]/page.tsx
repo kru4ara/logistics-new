@@ -9,6 +9,7 @@ import {
   Handshake,
 } from 'lucide-react';
 import { createClient } from '../../../lib/supabase-server';
+import { buildRouteMap, type SegmentRouteRow } from '../../../lib/trip-route';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,6 +27,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
 
   if (error) return <div className="p-8 text-red-500">Ошибка: {error.message}</div>;
 
+  // Без legacy route — маршруты берём из trip_segments ниже
   const { data: trips, error: tripsError } = await supabase
     .from('trips')
     .select('*, drivers!driver_id(first_name, last_name, phone), trucks!truck_id(registration_number)')
@@ -45,6 +47,21 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
       .in('id', trailerIds);
     trailerData?.forEach((t) => {
       trailersMap[t.id] = t.registration_number;
+    });
+  }
+
+  // Маршруты рейсов — из trip_segments
+  const tripIds = trips?.map((t) => t.id) || [];
+  const routeByTrip = new Map<string, string>();
+  if (tripIds.length > 0) {
+    const { data: segRows } = await supabase
+      .from('trip_segments')
+      .select('trip_id, position, from_city, from_country, to_city, to_country')
+      .in('trip_id', tripIds);
+
+    const routeMap = buildRouteMap((segRows || []) as SegmentRouteRow[]);
+    routeMap.forEach((info, tripId) => {
+      if (info.route) routeByTrip.set(tripId, info.route);
     });
   }
 
@@ -169,6 +186,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
                 const driver = trip.drivers;
                 const truck = trip.trucks;
                 const trailerNumber = trip.trailer_id ? trailersMap[trip.trailer_id] : null;
+                const routeDisplay = routeByTrip.get(trip.id) || '—';
 
                 return (
                   <a
@@ -184,7 +202,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
                         </div>
                         <div className="min-w-0">
                           <div className="font-semibold text-slate-800 truncate">
-                            № {trip.trip_number || '—'} · {trip.route || '—'}
+                            № {trip.trip_number || '—'} · {routeDisplay}
                           </div>
                           <div className="text-xs text-slate-400">
                             {trip.end_date
