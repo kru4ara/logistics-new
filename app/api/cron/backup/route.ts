@@ -23,8 +23,10 @@ const TABLES = [
   'trucks',
   'locations',
   'trips',
+  'trip_cargo',
+  'trip_segments',
+  'trip_segment_cargo',
   'trip_expenses',
-  'trip_subcontractors',
   'trip_documents',
   'forwarding_orders',
   'forwarding_contractors',
@@ -35,7 +37,7 @@ const TABLES = [
   'documents',
   'fixed_costs',
 ];
-
+ 
 async function sendTelegramDocument(
   filename: string,
   fileContent: string,
