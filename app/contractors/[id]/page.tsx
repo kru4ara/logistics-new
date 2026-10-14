@@ -111,24 +111,23 @@ export default async function ContractorCardPage({
   const c = contractor as Contractor;
 
   // 2. Работы: комбинированные перевозки (trip_subcontractors)
-  const { data: tripSubs } = await supabase
-    .from('trip_subcontractors')
+   const { data: tripSubs } = await supabase
+    .from('trip_segments')
     .select(`
       id,
       trip_id,
-      price_eur,
-      original_price,
+      price,
       currency,
-      payment_days,
-      load_date,
-      unload_date,
-      load_country,
-      load_city,
-      unload_country,
-      unload_city,
+      date_from,
+      date_to,
+      from_country,
+      from_city,
+      to_country,
+      to_city,
       trips(trip_number, client_request_number, route)
     `)
-    .eq('contractor_id', id);
+    .eq('contractor_id', id)
+    .eq('executor_type', 'contractor');
 
   // 3. Работы: экспедирование (forwarding_contractors)
   const { data: fwdSubs } = await supabase
