@@ -5,7 +5,7 @@
  *
  * Логика:
  * - Если у рейса есть сегменты с executor_type='us' → показываем только их.
- * - Иначе — fallback на старую схему (подрядчики / sender→receiver).
+ * - Иначе — fallback на старую схему (sender → receiver).
  */
 
 type DriverInfo = {
@@ -53,23 +53,12 @@ type SegmentInfo = {
   cargoLinks: CargoLink[];
 };
 
-type SubcontractorInfo = {
-  position: number;
-  unload_country: string | null;
-  unload_city: string | null;
-  unload_company: string | null;
-  unload_postal_code: string | null;
-  unload_address: string | null;
-  unload_date: string | null;
-};
-
 type BuildTaskParams = {
   trip: any;
   driver: DriverInfo;
   truck: TruckInfo;
   trailerNumber: string | null;
   segments: SegmentInfo[];
-  subcontractors: SubcontractorInfo[];
   markdown?: boolean;
 };
 
@@ -106,7 +95,6 @@ export function buildDriverTaskText({
   truck,
   trailerNumber,
   segments,
-  subcontractors,
   markdown = false,
 }: BuildTaskParams): string {
   const b = (t: string) => (markdown ? `*${t}*` : t);
@@ -136,7 +124,7 @@ export function buildDriverTaskText({
   lines.push('');
 
   // ============================================================
-  // Основной блок: сегменты (если есть "наши") или fallback
+  // Основной блок: сегменты (если есть "наши") или fallback на sender/receiver
   // ============================================================
   const usSegments = segments
     .filter((s) => s.executor_type === 'us')
@@ -194,38 +182,10 @@ export function buildDriverTaskText({
         lines.push('');
       }
     });
-  } else if (subcontractors && subcontractors.length > 0) {
+  } else if (trip.sender_city || trip.sender_name || trip.sender_country || trip.receiver_city || trip.receiver_name) {
     // ----------------------------------------------------------
-    // СТАРАЯ ЛОГИКА: консолидация по подрядчикам (C → Б)
-    // ----------------------------------------------------------
-    const sorted = [...subcontractors].sort((a, b) => {
-      const posDiff = (b.position || 0) - (a.position || 0);
-      if (posDiff !== 0) return posDiff;
-      const aDate = a.unload_date ? new Date(a.unload_date).getTime() : 0;
-      const bDate = b.unload_date ? new Date(b.unload_date).getTime() : 0;
-      return bDate - aDate;
-    });
-    const cp = sorted[0];
-
-    lines.push(`📍 ${b('ЗАБИРАЕШЬ ГРУЗ У ПОДРЯДЧИКА:')}`);
-    lines.push(cp.unload_company || '—');
-    const cAddr = [cp.unload_postal_code, cp.unload_city, cp.unload_country].filter(Boolean).join(', ');
-    lines.push(cAddr || '—');
-    if (cp.unload_address) lines.push(cp.unload_address);
-    if (cp.unload_date) lines.push(`📅 ${fmtDate(cp.unload_date)}`);
-    lines.push('');
-    lines.push(`🏁 ${b('ВЕЗЁШЬ ПОЛУЧАТЕЛЮ:')}`);
-    lines.push(trip.receiver_name || '—');
-    const recvParts = [trip.receiver_country, trip.receiver_postal_code, trip.receiver_city, trip.receiver_address]
-      .filter(Boolean)
-      .join(', ');
-    lines.push(recvParts || '—');
-    if (trip.receiver_loading_number) {
-      lines.push(`№ погрузки: ${trip.receiver_loading_number}`);
-    }
-  } else {
-    // ----------------------------------------------------------
-    // СТАРАЯ ЛОГИКА: полный маршрут A → Б
+    // FALLBACK: старая схема A → Б (для рейсов без us-сегментов)
+    // Временный блок — будет удалён вместе с колонками sender_*/receiver_*.
     // ----------------------------------------------------------
     if (trip.sender_city || trip.sender_name || trip.sender_country) {
       lines.push(`📍 ${b('ЗАГРУЗКА:')}`);
@@ -258,7 +218,7 @@ export function buildDriverTaskText({
   }
 
   // ============================================================
-  // Футер (для Telegram — без ссылки, добавим отдельно)
+  // Футер (для Telegram)
   // ============================================================
   if (markdown) {
     lines.push('');
