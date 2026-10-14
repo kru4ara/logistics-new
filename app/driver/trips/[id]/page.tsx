@@ -18,7 +18,7 @@ import {
   Calendar,
   Globe,
   DoorOpen,
-  type LucideIcon,
+  ArrowRight,
 } from 'lucide-react';
 import { createClient } from '../../../../lib/supabase-server';
 import { addExpense, deleteExpense } from '../../../trip-actions';
@@ -38,6 +38,28 @@ function pickName(rel: unknown): string | undefined {
   }
   return undefined;
 }
+
+function pickOne<T>(rel: unknown): T | null {
+  if (!rel) return null;
+  if (Array.isArray(rel)) return (rel[0] as T) ?? null;
+  return rel as T;
+}
+
+type CargoLink = {
+  cargo_id: string;
+  position: number;
+  label: string;
+};
+
+type StopDb = {
+  type: 'load' | 'reload' | 'unload';
+  company: string | null;
+  country: string | null;
+  city: string | null;
+  address: string | null;
+  postal_code: string | null;
+  date: string | null;
+};
 
 export default async function DriverTripDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: tripId } = await params;
@@ -68,11 +90,52 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
     .eq('trip_id', tripId)
     .order('uploaded_at', { ascending: false });
 
-  const { data: subcontractors } = await supabase
-    .from('trip_subcontractors')
-    .select('id, position, unload_country, unload_city, unload_address, unload_company, unload_postal_code, unload_date')
+  // US-сегменты рейса (маршрут водителя)
+  const { data: segmentsRaw } = await supabase
+    .from('trip_segments')
+    .select('*')
     .eq('trip_id', tripId)
+    .eq('executor_type', 'us')
     .order('position', { ascending: true });
+
+  const segmentIds = (segmentsRaw || []).map((s: any) => s.id);
+  const segmentCargoRes = segmentIds.length > 0
+    ? await supabase
+        .from('trip_segment_cargo')
+        .select('segment_id, cargo_id, trip_cargo(position, label)')
+        .in('segment_id', segmentIds)
+    : { data: [] };
+
+  const cargoLinksBySegment: Record<string, CargoLink[]> = {};
+  (segmentCargoRes.data || []).forEach((sc: any) => {
+    if (!sc.segment_id || !sc.cargo_id) return;
+    const meta = pickOne<{ position: number; label: string | null }>(sc.trip_cargo);
+    if (!cargoLinksBySegment[sc.segment_id]) cargoLinksBySegment[sc.segment_id] = [];
+    cargoLinksBySegment[sc.segment_id].push({
+      cargo_id: sc.cargo_id,
+      position: meta?.position || 0,
+      label: meta?.label || '—',
+    });
+  });
+
+  const usSegments = (segmentsRaw || []).map((s: any) => ({
+    id: s.id,
+    position: s.position,
+    date_from: s.date_from,
+    date_to: s.date_to,
+    from_country: s.from_country,
+    from_city: s.from_city,
+    from_company: s.from_company,
+    from_address: s.from_address,
+    from_postal_code: s.from_postal_code,
+    to_country: s.to_country,
+    to_city: s.to_city,
+    to_company: s.to_company,
+    to_address: s.to_address,
+    to_postal_code: s.to_postal_code,
+    stops: Array.isArray(s.stops) ? s.stops : [],
+    cargoLinks: cargoLinksBySegment[s.id] || [],
+  }));
 
   const refuelLiters = expenses?.filter(e => e.category === 'fuel' && e.liters).reduce((sum, e) => sum + e.liters, 0) || 0;
   const fuelLeft = (trip.start_fuel_level || 0) + refuelLiters - (trip.actual_liters || 0);
@@ -81,53 +144,6 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
   const fuelLeftIsCritical = fuelLeft < NEGATIVE_FUEL_TOLERANCE;
 
   const clientName = pickName(trip.clients) || 'Клиент не указан';
-
-  let consolidationPoint: {
-    country: string | null;
-    city: string | null;
-    address: string | null;
-    company: string | null;
-    postal_code: string | null;
-    unload_date: string | null;
-  } | null = null;
-
-  if (subcontractors && subcontractors.length > 0) {
-    const sorted = [...subcontractors].sort((a: any, b: any) => {
-      const posDiff = (b.position || 0) - (a.position || 0);
-      if (posDiff !== 0) return posDiff;
-      const aDate = a.unload_date ? new Date(a.unload_date).getTime() : 0;
-      const bDate = b.unload_date ? new Date(b.unload_date).getTime() : 0;
-      return bDate - aDate;
-    });
-    const last = sorted[0] as any;
-    consolidationPoint = {
-      country: last.unload_country,
-      city: last.unload_city,
-      address: last.unload_address,
-      company: last.unload_company,
-      postal_code: last.unload_postal_code,
-      unload_date: last.unload_date,
-    };
-  }
-
-  type LoadingPoint = {
-    num: number;
-    country: string | null;
-    name: string | null;
-    postal_code: string | null;
-    city: string | null;
-    address: string | null;
-    loading_number: string | null;
-  };
-
-  const senderPoints: LoadingPoint[] = [
-    { num: 1, country: trip.sender_country, name: trip.sender_name, postal_code: trip.sender_postal_code, city: trip.sender_city, address: trip.sender_address, loading_number: trip.sender_loading_number },
-    { num: 2, country: trip.sender2_country, name: trip.sender2_name, postal_code: trip.sender2_postal_code, city: trip.sender2_city, address: trip.sender2_address, loading_number: trip.sender2_loading_number },
-    { num: 3, country: trip.sender3_country, name: trip.sender3_name, postal_code: trip.sender3_postal_code, city: trip.sender3_city, address: trip.sender3_address, loading_number: trip.sender3_loading_number },
-  ].filter((p) => p.city || p.name || p.country || p.address);
-
-  const hasReceiver = Boolean(trip.receiver_city || trip.receiver_name);
-  const useConsolidation = Boolean(consolidationPoint);
 
   const statusLabels: Record<string, string> = {
     planned: 'Планируется',
@@ -145,7 +161,6 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
     paid: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   };
 
-  // Emoji в категориях оставлены — они идут в <option> (нативный select)
   const expenseCategories: { value: string; label: string; emoji: string }[] = [
     { value: 'fuel', label: 'Топливо', emoji: '⛽' },
     { value: 'epi', label: 'EPI', emoji: '📄' },
@@ -177,6 +192,12 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
     : fuelLeftIsNegative
       ? 'bg-gradient-to-br from-amber-500 to-amber-700'
       : 'bg-gradient-to-br from-brand-600 to-brand-800';
+
+  const stopTypeLabel: Record<StopDb['type'], string> = {
+    load: 'Загрузка',
+    reload: 'Догруз / перегруз',
+    unload: 'Выгрузка',
+  };
 
   return (
     <main className="min-h-screen bg-slate-50">
@@ -279,105 +300,130 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
             Задание
           </h2>
 
-          {useConsolidation && consolidationPoint ? (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs uppercase tracking-wide text-slate-400 font-semibold inline-flex items-center gap-1.5">
-                  <MapPin className="w-3.5 h-3.5" strokeWidth={2} />
-                  Загрузка
-                </span>
-                <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">
-                  после подрядчика
-                </span>
-              </div>
-
-              <div className="border-l-4 border-amber-500 pl-3 py-1">
-                <div className="font-bold text-slate-900 text-sm break-words">
-                  {consolidationPoint.company || 'Перегрузка'}
-                </div>
-                <div className="text-sm text-slate-600 mt-1 break-words">
-                  {[consolidationPoint.postal_code, consolidationPoint.city, consolidationPoint.country]
-                    .filter(Boolean).join(', ') || '—'}
-                </div>
-                {consolidationPoint.address && (
-                  <div className="text-sm text-slate-600 mt-1 break-words">
-                    {consolidationPoint.address}
-                  </div>
-                )}
-              </div>
+          {usSegments.length === 0 ? (
+            <div className="text-slate-400 text-sm text-center py-6">
+              Маршрут ещё не назначен
             </div>
           ) : (
-            senderPoints.length > 0 && (
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-xs uppercase tracking-wide text-slate-400 font-semibold inline-flex items-center gap-1.5">
-                    <MapPin className="w-3.5 h-3.5" strokeWidth={2} />
-                    Загрузка
-                  </span>
-                  {senderPoints.length > 1 && (
-                    <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
-                      {senderPoints.length} точки
-                    </span>
+            <div className="space-y-5">
+              {usSegments.map((seg, segIdx) => (
+                <div key={seg.id} className="space-y-3">
+                  {usSegments.length > 1 && (
+                    <div className="text-xs font-bold text-slate-500 uppercase tracking-wide">
+                      Участок {segIdx + 1}
+                    </div>
                   )}
-                </div>
 
-                {senderPoints.map((p) => (
-                  <div key={p.num} className="border-l-4 border-green-500 pl-3 py-1">
-                    <div className="flex items-baseline gap-2 flex-wrap">
-                      <span className="text-xs font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded tabular-nums">
-                        #{p.num}
-                      </span>
-                      <div className="font-bold text-slate-900 text-sm break-words">
-                        {p.name || 'Отправитель не указан'}
-                      </div>
+                  {/* Даты */}
+                  {(seg.date_from || seg.date_to) && (
+                    <div className="text-xs text-slate-500 inline-flex items-center gap-1.5 tabular-nums">
+                      <Calendar className="w-3.5 h-3.5" strokeWidth={2} />
+                      {seg.date_from && new Date(seg.date_from).toLocaleDateString('ru-RU')}
+                      {seg.date_from && seg.date_to && ' → '}
+                      {seg.date_to && new Date(seg.date_to).toLocaleDateString('ru-RU')}
+                    </div>
+                  )}
+
+                  {/* Откуда */}
+                  <div className="border-l-4 border-green-500 pl-3 py-1">
+                    <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-1 inline-flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5" strokeWidth={2} />
+                      Загрузка
+                    </div>
+                    <div className="font-bold text-slate-900 text-sm break-words">
+                      {seg.from_company || 'Отправитель не указан'}
                     </div>
                     <div className="text-sm text-slate-600 mt-1 break-words">
-                      {[p.postal_code, p.city, p.address].filter(Boolean).join(', ') || '—'}
+                      {[seg.from_postal_code, seg.from_city].filter(Boolean).join(', ') || '—'}
                     </div>
-                    {p.country && (
-                      <div className="text-sm text-slate-500 mt-1 inline-flex items-center gap-1.5">
-                        <Globe className="w-3.5 h-3.5" strokeWidth={2} />
-                        {p.country}
+                    {seg.from_address && (
+                      <div className="text-sm text-slate-600 mt-1 break-words">
+                        {seg.from_address}
                       </div>
                     )}
-                    {p.loading_number && (
-                      <div className="text-sm text-brand-600 font-semibold mt-1 inline-flex items-center gap-1.5">
-                        <DoorOpen className="w-3.5 h-3.5" strokeWidth={2.2} />
-                        Погрузочный номер: {p.loading_number}
+                    {seg.from_country && (
+                      <div className="text-sm text-slate-500 mt-1 inline-flex items-center gap-1.5">
+                        <Globe className="w-3.5 h-3.5" strokeWidth={2} />
+                        {seg.from_country}
                       </div>
                     )}
                   </div>
-                ))}
-              </div>
-            )
-          )}
 
-          {hasReceiver && (
-            <div className="border-l-4 border-brand-500 pl-3 py-1">
-              <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-1 inline-flex items-center gap-1.5">
-                <Flag className="w-3.5 h-3.5" strokeWidth={2} />
-                Выгрузка
-              </div>
-              <div className="font-bold text-slate-900 text-sm break-words">{trip.receiver_name || 'Получатель не указан'}</div>
-              <div className="text-sm text-slate-600 mt-1 break-words">
-                {trip.receiver_postal_code} {trip.receiver_city}, {trip.receiver_address}
-              </div>
-              <div className="text-sm text-slate-500 mt-1 inline-flex items-center gap-1.5">
-                <Globe className="w-3.5 h-3.5" strokeWidth={2} />
-                {trip.receiver_country}
-              </div>
-              {trip.receiver_loading_number && (
-                <div className="text-sm text-brand-600 font-semibold mt-1 inline-flex items-center gap-1.5">
-                  <DoorOpen className="w-3.5 h-3.5" strokeWidth={2.2} />
-                  Погрузочный номер: {trip.receiver_loading_number}
+                  {/* Промежуточные точки */}
+                  {seg.stops.length > 0 && (
+                    <div className="space-y-2">
+                      {seg.stops.map((stop, idx) => (
+                        <div key={idx} className="border-l-4 border-amber-500 pl-3 py-1 ml-2">
+                          <div className="text-xs uppercase tracking-wide text-amber-700 font-semibold mb-1">
+                            {stopTypeLabel[stop.type] || 'Остановка'}
+                            {stop.date && ` · ${new Date(stop.date).toLocaleDateString('ru-RU')}`}
+                          </div>
+                          <div className="text-sm font-medium text-slate-800 break-words">
+                            {stop.company || '—'}
+                          </div>
+                          <div className="text-sm text-slate-600 mt-0.5 break-words">
+                            {[stop.postal_code, stop.city, stop.country].filter(Boolean).join(', ') || '—'}
+                          </div>
+                          {stop.address && (
+                            <div className="text-sm text-slate-600 mt-0.5 break-words">
+                              {stop.address}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Куда */}
+                  {(seg.to_city || seg.to_company || seg.to_country) && (
+                    <div className="border-l-4 border-brand-500 pl-3 py-1">
+                      <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-1 inline-flex items-center gap-1.5">
+                        <Flag className="w-3.5 h-3.5" strokeWidth={2} />
+                        Выгрузка
+                      </div>
+                      <div className="font-bold text-slate-900 text-sm break-words">
+                        {seg.to_company || 'Получатель не указан'}
+                      </div>
+                      <div className="text-sm text-slate-600 mt-1 break-words">
+                        {[seg.to_postal_code, seg.to_city].filter(Boolean).join(', ') || '—'}
+                      </div>
+                      {seg.to_address && (
+                        <div className="text-sm text-slate-600 mt-1 break-words">
+                          {seg.to_address}
+                        </div>
+                      )}
+                      {seg.to_country && (
+                        <div className="text-sm text-slate-500 mt-1 inline-flex items-center gap-1.5">
+                          <Globe className="w-3.5 h-3.5" strokeWidth={2} />
+                          {seg.to_country}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Грузы */}
+                  {seg.cargoLinks.length > 0 && (
+                    <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                      <Package className="w-3.5 h-3.5 text-slate-400 shrink-0" strokeWidth={2} />
+                      {seg.cargoLinks.map((cl) => (
+                        <span
+                          key={cl.cargo_id}
+                          className="inline-flex items-center gap-1 text-xs bg-slate-100 border border-slate-200 rounded-full px-2 py-0.5"
+                        >
+                          <span className="font-bold text-brand-600 tabular-nums">#{cl.position}</span>
+                          <span className="text-slate-700">{cl.label}</span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {segIdx < usSegments.length - 1 && (
+                    <div className="flex justify-center">
+                      <ArrowRight className="w-4 h-4 text-slate-300 rotate-90" strokeWidth={2} />
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          )}
-
-          {!useConsolidation && senderPoints.length === 0 && !hasReceiver && (
-            <div className="text-slate-400 text-sm text-center py-6">
-              Адреса загрузки и выгрузки не заполнены
+              ))}
             </div>
           )}
         </div>
