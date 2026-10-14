@@ -2,6 +2,7 @@
 
 import { createClient } from '../../lib/supabase-server';
 import { cookies } from 'next/headers';
+import { buildRouteMap, type SegmentRouteRow } from '../../lib/trip-route';
 
 export type SearchHit = {
   domain: 'trip' | 'client' | 'driver' | 'contractor' | 'forwarding';
@@ -59,59 +60,71 @@ export async function globalSearch(rawQuery: string): Promise<SearchResult> {
   const isNumeric = /^\d+$/.test(q);
 
   // ============================================================
-  // РЕЙСЫ: trip_number (если число) + route + sender_city + receiver_city
+  // РЕЙСЫ: trip_number (если число) + маршрут из trip_segments
+  // (from_city / from_country / to_city / to_country)
   // ============================================================
-  const tripsById: SearchHit[] = [];
+  const tripsMap = new Map<string, SearchHit>();
+  const tripIdsFromSegments = new Set<string>();
+
+  // 1) Если число — прямой поиск по trip_number
   if (isNumeric) {
     const { data } = await supabase
       .from('trips')
-      .select('id, trip_number, route, start_date, clients(name)')
+      .select('id, trip_number, start_date, clients(name)')
       .eq('trip_number', parseInt(q, 10))
       .limit(LIMIT_PER_DOMAIN);
 
     for (const t of data || []) {
+      tripIdsFromSegments.add(t.id);
+    }
+  }
+
+  // 2) Поиск trip_id через сегменты (города/страны)
+  const { data: segHits } = await supabase
+    .from('trip_segments')
+    .select('trip_id, position, from_city, from_country, to_city, to_country')
+    .or(
+      `from_city.ilike.${like},from_country.ilike.${like},to_city.ilike.${like},to_country.ilike.${like}`
+    )
+    .limit(200); // с запасом, потом срежем до LIMIT_PER_DOMAIN
+
+  for (const s of segHits || []) {
+    if (s.trip_id) tripIdsFromSegments.add(s.trip_id);
+  }
+
+  // 3) Тянем рейсы по всем найденным id + их сегменты для subtitle
+  if (tripIdsFromSegments.size > 0) {
+    const ids = Array.from(tripIdsFromSegments);
+
+    const [{ data: tripsData }, { data: allSegments }] = await Promise.all([
+      supabase
+        .from('trips')
+        .select('id, trip_number, start_date, clients(name)')
+        .in('id', ids)
+        .order('trip_number', { ascending: false })
+        .limit(LIMIT_PER_DOMAIN),
+      supabase
+        .from('trip_segments')
+        .select('trip_id, position, from_city, from_country, to_city, to_country')
+        .in('trip_id', ids),
+    ]);
+
+    const routeMap = buildRouteMap((allSegments || []) as SegmentRouteRow[]);
+
+    for (const t of tripsData || []) {
       const clientName = pickName(t.clients);
-      tripsById.push({
+      const info = routeMap.get(t.id);
+      tripsMap.set(t.id, {
         domain: 'trip',
         id: t.id,
         title: `Рейс №${t.trip_number ?? '—'}${clientName ? ' · ' + clientName : ''}`,
-        subtitle: t.route || null,
+        subtitle: info?.route ?? null,
         icon: '📋',
         href: `/trips/${t.id}`,
       });
     }
   }
 
-  const [{ data: tripsByRoute }, { data: tripsByCity }] = await Promise.all([
-    supabase
-      .from('trips')
-      .select('id, trip_number, route, start_date, clients(name)')
-      .ilike('route', like)
-      .order('trip_number', { ascending: false })
-      .limit(LIMIT_PER_DOMAIN),
-    supabase
-      .from('trips')
-      .select('id, trip_number, route, sender_city, receiver_city, clients(name)')
-      .or(`sender_city.ilike.${like},receiver_city.ilike.${like}`)
-      .order('trip_number', { ascending: false })
-      .limit(LIMIT_PER_DOMAIN),
-  ]);
-
-  const tripsMap = new Map<string, SearchHit>();
-  for (const h of tripsById) tripsMap.set(h.id, h);
-
-  for (const t of [...(tripsByRoute || []), ...(tripsByCity || [])]) {
-    if (tripsMap.has(t.id)) continue;
-    const clientName = pickName(t.clients);
-    tripsMap.set(t.id, {
-      domain: 'trip',
-      id: t.id,
-      title: `Рейс №${t.trip_number ?? '—'}${clientName ? ' · ' + clientName : ''}`,
-      subtitle: t.route || null,
-      icon: '📋',
-      href: `/trips/${t.id}`,
-    });
-  }
   const trips = Array.from(tripsMap.values()).slice(0, LIMIT_PER_DOMAIN);
 
   // ============================================================
