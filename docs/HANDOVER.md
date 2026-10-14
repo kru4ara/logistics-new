@@ -264,7 +264,8 @@ PRIMARY KEY (segment_id, cargo_id)
 - `app/driver/trips/[id]/page.tsx` — fallback убран
 - `app/driver/trip-status-actions.ts` — fallback убран
 
-**3.6.4 — `lib/trip-task-text.ts`** (112, 185, 190–215) — убрать fallback-блок. **← СЛЕДУЮЩИЙ**
+**3.6.4 — ✅ ЗАКРЫТ:**
+- `lib/trip-task-text.ts` — локальная `buildRouteFromSegments` для шапки; **fallback-блок `sender_*`/`receiver_*` удалён целиком**.
 
 **3.6.5 — формы + экшены (4 файла):**
 - `app/geocode-actions.ts` (85–97, 188–200)
@@ -480,19 +481,9 @@ Static page generation (60s timeout). Лечится: Redeploy без кэша �
 
 ## 📋 Шпаргалка по текущему состоянию (14.10.2026, поздний вечер)
 
-- `trips`: 71, `trip_segments`: 94, `trip_cargo`: 74, `trip_segment_cargo`: 79, `trip_expenses`: ~416
-- `trip_subcontractors`: DROP
-- `trips.sender_*`, `trips.receiver_*`, `trips.route`: **ЕЩЁ ЕСТЬ** (DROP в 3.6.7)
-
-**Закрыто:** Фазы 3.1–3.5.7 + Пакеты A, B, C + Фазы 3.6.1, 3.6.2, 3.6.3
-
-**В очереди:**
-- 3.6.4 — `lib/trip-task-text.ts`
-- 3.6.5 — формы + экшены (4 файла)
-- 3.6.6 — 3 мелких файла
-- 3.6.7 — SQL DROP + финальный grep
-
-**Следующий шаг:** 3.6.4, файл `lib/trip-task-text.ts`.
+**Закрыто:** Фазы 3.1–3.5.7 + Пакеты A, B, C + Фазы 3.6.1, 3.6.2, 3.6.3, 3.6.4
+**В очереди:** 3.6.5 (4 файла), 3.6.6 (3 файла), 3.6.7 (SQL DROP)
+**Следующий шаг:** 3.6.5, файл `app/geocode-actions.ts` (начать с мелкого экшена).
 
 ---
 
