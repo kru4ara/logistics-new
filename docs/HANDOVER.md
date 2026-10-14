@@ -251,11 +251,13 @@ PRIMARY KEY (segment_id, cargo_id)
 - `app/drivers/[id]/page.tsx`
 - `app/trucks/[id]/page.tsx`
 
-**3.6.2 — крупные «читатели» (3 файла):**
+**3.6.2 — ✅ ЗАКРЫТ (0 файлов реально правились):**
 - 🗑 `app/api/backfill-coordinates/route.ts` — **УДАЛЁН** (0 рейсов без координат)
-- ⏳ `app/map/page.tsx` (переименовать алиасы sender_→from_)
-- ⏳ `app/map/MapView.tsx` (то же + типы)
-- ⏳ `app/today/page.tsx` (то же)
+- ✅ `app/map/page.tsx` — уже читает через `buildRouteMap` (с Фазы 3.5.6), псевдонимы `sender_*` — локальные, не legacy
+- ✅ `app/map/MapView.tsx` — работает с props, БД не читает
+- ✅ `app/today/page.tsx` — уже читает через `buildRouteMap` (с Фазы 3.5.6), псевдонимы `sender_*` — локальные, не legacy
+
+**Урок:** grep находит `sender_*` / `t.route`, но это **ложные срабатывания**, когда поле — **локальный псевдоним** из `buildRouteMap`. При разборе файла — смотреть контекст, а не только grep.
 
 **3.6.3 — убрать fallback `?? trip.route ??` (5 файлов):**
 - `app/trips/page.tsx`, `app/trips/TripsBulkList.tsx`, `app/trips/[id]/page.tsx`
