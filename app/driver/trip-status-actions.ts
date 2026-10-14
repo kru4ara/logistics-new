@@ -184,14 +184,14 @@ export async function changeTripStatus(
     const truckNumber = truck?.registration_number || '—';
     const tripNumber = trip.trip_number || '—';
 
-    // ⬅️ ИЗМЕНЕНО: route тянем из trip_segments (fallback на trip.route временный)
+     // route из trip_segments (fallback на trip.route удалён в Фазе 3.6)
     const { data: segRows } = await supabase
       .from('trip_segments')
       .select('trip_id, position, from_city, from_country, to_city, to_country')
       .eq('trip_id', tripId);
 
     const routeMap = buildRouteMap((segRows || []) as SegmentRouteRow[]);
-    const route = routeMap.get(tripId)?.route ?? trip.route ?? '—';
+    const route = routeMap.get(tripId)?.route ?? '—';
 
     const statusEmoji: Record<string, string> = {
       active: '🚛',
