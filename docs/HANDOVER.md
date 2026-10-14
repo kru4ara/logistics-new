@@ -235,10 +235,12 @@ PRIMARY KEY (segment_id, cargo_id)
 **Grep по `app/driver app/search` дал 4 файла:**
 - ✅ `app/search/actions.ts` — закрыт (buildRouteMap + trip_segments)
 - ✅ `app/driver/trips/[id]/page.tsx` — закрыт (route из сегментов, один запрос)
-- ⏳ `app/driver/trip-status-actions.ts` — в очереди
+- ✅ `app/driver/trip-status-actions.ts` — закрыт (route из сегментов для Telegram)
 - ⏳ `app/driver/TripsList.tsx` — в очереди
 
 **Чисты (grep не нашёл):** `app/driver/page.tsx`, `app/driver/stats/page.tsx`
+
+**Перед правкой следующего файла — прогнать (на всякий случай):**
 
 ### Фаза 3.6 — DROP COLUMN (необратимо) — НЕ НАЧАТА
 
