@@ -110,8 +110,9 @@ export default async function ContractorCardPage({
 
   const c = contractor as Contractor;
 
-  // 2. Работы: комбинированные перевозки (trip_subcontractors)
-   const { data: tripSubs } = await supabase
+  // 2. Работы: комбинированные перевозки (trip_segments, executor_type='contractor') ⬅️ ИЗМЕНЕНО (коммент)
+  //    Здесь route НЕ тянем из trips — маршрут участка берём из самого сегмента (from_*/to_*).
+  const { data: tripSubs } = await supabase
     .from('trip_segments')
     .select(`
       id,
@@ -124,7 +125,7 @@ export default async function ContractorCardPage({
       from_city,
       to_country,
       to_city,
-      trips(trip_number, client_request_number, route)
+      trips(trip_number, client_request_number)
     `)
     .eq('contractor_id', id)
     .eq('executor_type', 'contractor');
@@ -153,7 +154,7 @@ export default async function ContractorCardPage({
     const numberBase = trip.client_request_number || (trip.trip_number ? `№${trip.trip_number}` : '—');
     const routeFrom = [s.from_country, s.from_city].filter(Boolean).join(', ') || '—';
     const routeTo = [s.to_country, s.to_city].filter(Boolean).join(', ') || '—';
-    const route = trip.route || `${routeFrom} → ${routeTo}`;
+    const route = `${routeFrom} → ${routeTo}`; // ⬅️ ИЗМЕНЕНО: только из сегмента, без fallback
     const date = s.date_to || s.date_from;
     const price = Number(s.price) || 0;
 
