@@ -2,7 +2,7 @@ import type { createClient } from './supabase-server';
 
 /**
  * Перенумеровывает все рейсы по start_date ASC.
- * Черновики (без start_date) попадают в конец, отсортированы по created_at ASC.
+ * Черновики (без start_date) попадают в конец, отсортированы по id ASC.
  * Дырок не остаётся: номера всегда идут 1..N.
  *
  * Двухфазная схема — сначала отрицательные, потом положительные.
@@ -15,9 +15,9 @@ export async function renumberAllTrips(
 ): Promise<void> {
   const { data: trips, error } = await supabase
     .from('trips')
-    .select('id, trip_number, start_date, created_at')
+    .select('id, trip_number, start_date')
     .order('start_date', { ascending: true, nullsFirst: false })
-    .order('created_at', { ascending: true });
+    .order('id', { ascending: true });
 
   if (error) {
     console.error('[renumber-trips] failed to load trips:', error.message);
