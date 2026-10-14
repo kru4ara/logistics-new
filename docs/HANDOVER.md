@@ -257,11 +257,14 @@ PRIMARY KEY (segment_id, cargo_id)
 - ✅ `app/map/MapView.tsx` — работает с props, БД не читает
 - ✅ `app/today/page.tsx` — уже читает через `buildRouteMap` (с Фазы 3.5.6), псевдонимы `sender_*` — локальные, не legacy
 
-**Урок:** grep находит `sender_*` / `t.route`, но это **ложные срабатывания**, когда поле — **локальный псевдоним** из `buildRouteMap`. При разборе файла — смотреть контекст, а не только grep.
+**3.6.3 — ✅ ЗАКРЫТ (5 файлов):**
+- ✅ `app/trips/page.tsx` — buildRouteMap, поиск по сегментам
+- ✅ `app/trips/TripsBulkList.tsx` — уже был чист (props TripCardData)
+- ✅ `app/trips/[id]/page.tsx` — buildRouteMap, fallback убран
+- ✅ `app/driver/trips/[id]/page.tsx` — fallback убран
+- ✅ `app/driver/trip-status-actions.ts` — fallback убран
 
-**3.6.3 — убрать fallback `?? trip.route ??` (5 файлов):**
-- `app/trips/page.tsx`, `app/trips/TripsBulkList.tsx`, `app/trips/[id]/page.tsx`
-- `app/driver/trips/[id]/page.tsx`, `app/driver/trip-status-actions.ts`
+**Итог:** из 5 файлов 2 правились по 1 строке, 1 уже был чист.
 
 **3.6.4** — `lib/trip-task-text.ts` — убрать fallback-блок.
 
@@ -467,9 +470,8 @@ Static page generation (60s timeout). Лечится: Redeploy без кэша �
 - `trips`: 71, `trip_segments`: 94, `trip_cargo`: 74, `trip_segment_cargo`: 79, `trip_expenses`: ~416
 - `trip_subcontractors`: DROP
 
-**Закрыто:** Фазы 3.1–3.5.7 + Пакет A + Пакет B + Пакет C (все 4 файла + driver/page.tsx как зависимость)
-
-**В очереди:** Фаза 3.6 (DROP COLUMN + чистка) — разбита на 7 под-пакетов (3.6.1–3.6.7), см. выше.
+**Закрыто:** Фазы 3.1–3.5.7 + Пакеты A, B, C + Фаза 3.6.1, 3.6.2 + 3.6.3 (1 из 5)
+**В очереди:** 3.6.3 (4 файла), 3.6.4, 3.6.5, 3.6.6, 3.6.7 (SQL)
 
 **Текущий шаг:** Фаза 3.6.1 (5 мелких «читателей» `t.route`).
 
