@@ -244,22 +244,20 @@ PRIMARY KEY (segment_id, cargo_id)
 
 ### Фаза 3.6 — DROP COLUMN + чистка legacy (7 под-пакетов)
 
-**Полный grep через GitHub Code Search, 14.10.2026.**
+**3.6.1 — ✅ ЗАКРЫТ (5 файлов):**
+- `app/api/trips/check-overlap/route.ts`
+- `app/clients/[id]/page.tsx`
+- `app/contractors/[id]/page.tsx`
+- `app/drivers/[id]/page.tsx`
+- `app/trucks/[id]/page.tsx`
 
-**3.6.1** — мелкие «читатели» `t.route` (5 файлов):
-- `app/api/trips/check-overlap/route.ts:85`
-- `app/clients/[id]/page.tsx:187`
-- `app/contractors/[id]/page.tsx:156`
-- `app/drivers/[id]/page.tsx:247`
-- `app/trucks/[id]/page.tsx:267`
-
-**3.6.2** — крупные «читатели» (4 файла):
+**3.6.2 — крупные «читатели» (4 файла):**
 - `app/api/backfill-coordinates/route.ts`
 - `app/map/MapView.tsx`
 - `app/map/page.tsx` (переименовать алиасы sender_→from_)
 - `app/today/page.tsx` (то же)
 
-**3.6.3** — убрать fallback `?? trip.route ??` (5 файлов):
+**3.6.3 — убрать fallback `?? trip.route ??` (5 файлов):**
 - `app/trips/page.tsx`, `app/trips/TripsBulkList.tsx`, `app/trips/[id]/page.tsx`
 - `app/driver/trips/[id]/page.tsx`, `app/driver/trip-status-actions.ts`
 
@@ -269,12 +267,14 @@ PRIMARY KEY (segment_id, cargo_id)
 - `app/geocode-actions.ts`, `app/trip-actions.tsx`
 - `app/trips/new/NewTripForm.tsx`, `app/trips/[id]/edit/EditTripForm.tsx`
 
-**3.6.6** — 🆕 найденные через GitHub Search (3 файла):
+**3.6.6** — из GitHub Search (3 файла):
 - `app/trips/DownloadButton.tsx:17`
 - `app/reports/DownloadButton.tsx:34`
 - `app/reports/page.tsx:270,273,351`
 
 **3.6.7** — SQL `DROP COLUMN` (необратимо) + финальный grep.
+
+**Следующий шаг:** 3.6.2 — начать с `app/api/backfill-coordinates/route.ts` (маленький).
 
 **Ложные срабатывания (НЕ трогать):** `.route` из `buildRouteMap` в `routes/*`, `map/page.tsx:61-65`, `today/page.tsx:114-118`, `search/actions.ts:121`.
 
