@@ -5,7 +5,9 @@
  *
  * Логика:
  * - Если у рейса есть сегменты с executor_type='us' → показываем только их.
- * - Иначе — fallback на старую схему (sender → receiver).
+ * - Маршрут (шапка) — из крайних сегментов (from первого → to последнего).
+ *
+ * Legacy-поля trips (sender_*, receiver_*, route) НЕ используются.
  */
 
 type DriverInfo = {
@@ -83,6 +85,21 @@ function fmtPlace(
   return parts;
 }
 
+// ⬅️ ИЗМЕНЕНО: маршрут из сегментов (from первого → to последнего)
+function buildRouteFromSegments(segments: SegmentInfo[]): string {
+  if (!segments || segments.length === 0) return '—';
+  const sorted = [...segments].sort((a, b) => (a.position || 0) - (b.position || 0));
+  const first = sorted[0];
+  const last = sorted[sorted.length - 1];
+
+  const fromParts = [first.from_city, first.from_country].filter(Boolean);
+  const toParts = [last.to_city, last.to_country].filter(Boolean);
+
+  const from = fromParts.join(', ') || '—';
+  const to = toParts.join(', ') || '—';
+  return `${from} → ${to}`;
+}
+
 const STOP_LABEL: Record<StopItem['type'], string> = {
   load: 'Загрузка',
   reload: 'Догруз / перегруз',
@@ -109,7 +126,8 @@ export function buildDriverTaskText({
   if (trip.clients?.name) {
     lines.push(`${b('Клиент:')} ${trip.clients.name}`);
   }
-  lines.push(`${b('Маршрут:')} ${trip.route || '—'}`);
+  // ⬅️ ИЗМЕНЕНО: маршрут — из сегментов (fallback на trip.route удалён)
+  lines.push(`${b('Маршрут:')} ${buildRouteFromSegments(segments)}`);
   if (trip.start_date) {
     lines.push(`${b('Старт:')} ${fmtDate(trip.start_date)}`);
   }
@@ -124,16 +142,13 @@ export function buildDriverTaskText({
   lines.push('');
 
   // ============================================================
-  // Основной блок: сегменты (если есть "наши") или fallback на sender/receiver
+  // Основной блок: сегменты с executor_type='us'
   // ============================================================
   const usSegments = segments
     .filter((s) => s.executor_type === 'us')
     .sort((a, b) => a.position - b.position);
 
   if (usSegments.length > 0) {
-    // ----------------------------------------------------------
-    // НОВАЯ ЛОГИКА: сегменты с executor_type='us'
-    // ----------------------------------------------------------
     lines.push(`📍 ${b('ТВОЙ МАРШРУТ:')}`);
     lines.push('');
 
@@ -182,40 +197,8 @@ export function buildDriverTaskText({
         lines.push('');
       }
     });
-  } else if (trip.sender_city || trip.sender_name || trip.sender_country || trip.receiver_city || trip.receiver_name) {
-    // ----------------------------------------------------------
-    // FALLBACK: старая схема A → Б (для рейсов без us-сегментов)
-    // Временный блок — будет удалён вместе с колонками sender_*/receiver_*.
-    // ----------------------------------------------------------
-    if (trip.sender_city || trip.sender_name || trip.sender_country) {
-      lines.push(`📍 ${b('ЗАГРУЗКА:')}`);
-      lines.push(trip.sender_name || '—');
-      const addr = [trip.sender_country, trip.sender_postal_code, trip.sender_city, trip.sender_address]
-        .filter(Boolean)
-        .join(', ');
-      lines.push(`   ${addr || '—'}`);
-      if (trip.sender_loading_number) {
-        lines.push(`   № погрузки: ${trip.sender_loading_number}`);
-      }
-      lines.push('');
-    }
-    if (trip.receiver_city || trip.receiver_name) {
-      lines.push(`🏁 ${b('ВЫГРУЗКА:')}`);
-      lines.push(trip.receiver_name || '—');
-      const recvParts = [
-        trip.receiver_country,
-        trip.receiver_postal_code,
-        trip.receiver_city,
-        trip.receiver_address,
-      ]
-        .filter(Boolean)
-        .join(', ');
-      lines.push(`   ${recvParts || '—'}`);
-      if (trip.receiver_loading_number) {
-        lines.push(`   № погрузки: ${trip.receiver_loading_number}`);
-      }
-    }
   }
+  // ⬅️ ИЗМЕНЕНО: fallback-блок sender_*/receiver_* удалён (Фаза 3.6.4)
 
   // ============================================================
   // Футер (для Telegram)
