@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase-server';
+import { buildRouteMap, type SegmentRouteRow, type TripRouteInfo } from '../../lib/trip-route';
 import DownloadButton from './DownloadButton';
 import SearchInput from './SearchInput';
 import TripsBulkList, { type TripCardData, type MonthGroup } from './TripsBulkList';
@@ -29,21 +30,7 @@ function pickOne<T>(rel: unknown): T | null {
 
 type DriverRel = { first_name: string | null; last_name: string | null };
 
-function buildRouteFromSegments(segments: any[]): string | null {
-  if (!segments || segments.length === 0) return null;
-  const sorted = [...segments].sort((a, b) => (a.position || 0) - (b.position || 0));
-  const first = sorted[0];
-  const last = sorted[sorted.length - 1];
-
-  const fromParts = [first.from_city, first.from_country].filter(Boolean);
-  const toParts = [last.to_city, last.to_country].filter(Boolean);
-
-  if (fromParts.length === 0 && toParts.length === 0) return null;
-
-  const from = fromParts.join(', ') || '—';
-  const to = toParts.join(', ') || '—';
-  return `${from} → ${to}`;
-}
+// buildRouteFromSegments удалена — используем buildRouteMap из lib/trip-route ⬅️ ИЗМЕНЕНО
 
 export default async function TripsPage({
   searchParams,
@@ -109,19 +96,10 @@ export default async function TripsPage({
   const tractorsList = tractorsResult.data || [];
   const segments = segmentsResult.data || [];
 
-  // Группируем сегменты по рейсу и вычисляем route
-  const segmentsByTrip = new Map<string, any[]>();
-  for (const s of segments) {
-    if (!s.trip_id) continue;
-    if (!segmentsByTrip.has(s.trip_id)) segmentsByTrip.set(s.trip_id, []);
-    segmentsByTrip.get(s.trip_id)!.push(s);
-  }
-
-  const routeByTrip = new Map<string, string>();
-  segmentsByTrip.forEach((segs, tripId) => {
-    const r = buildRouteFromSegments(segs);
-    if (r) routeByTrip.set(tripId, r);
-  });
+  // ⬅️ ИЗМЕНЕНО: buildRouteMap из lib вместо локальной buildRouteFromSegments
+  const routeMap: Map<string, TripRouteInfo> = buildRouteMap(
+    segments as SegmentRouteRow[]
+  );
 
   const expensesByTrip = expenses?.reduce((acc, e) => {
     if (!e.trip_id) return acc;
@@ -130,24 +108,25 @@ export default async function TripsPage({
     return acc;
   }, {} as Record<string, number>) || {};
 
+  // ⬅️ ИЗМЕНЕНО: убран fallback t.route
   function getRoute(t: any): string {
-    return routeByTrip.get(t.id) || t.route || '—';
+    return routeMap.get(t.id)?.route || '—';
   }
 
+  // ⬅️ ИЗМЕНЕНО: поиск по сегментам (from_*/to_*) вместо legacy sender_*/receiver_*
   function matchesSearch(t: any): boolean {
     if (!qLower) return true;
     const clientName = pickName(t.clients) || '';
     const computedRoute = getRoute(t);
+    const info = routeMap.get(t.id);
     const haystack = [
       t.trip_number?.toString() || '',
       t.client_request_number || '',
       computedRoute,
-      t.sender_name || '',
-      t.sender_city || '',
-      t.sender_country || '',
-      t.receiver_name || '',
-      t.receiver_city || '',
-      t.receiver_country || '',
+      info?.from_city || '',
+      info?.from_country || '',
+      info?.to_city || '',
+      info?.to_country || '',
       clientName,
     ]
       .join(' ')
