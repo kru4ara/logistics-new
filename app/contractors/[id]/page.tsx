@@ -150,7 +150,8 @@ export default async function ContractorCardPage({
     const trip: any = Array.isArray(s.trips) ? s.trips[0] : s.trips;
     if (!trip) continue;
 
-      const routeFrom = [s.from_country, s.from_city].filter(Boolean).join(', ') || '—';
+    const numberBase = trip.client_request_number || (trip.trip_number ? `№${trip.trip_number}` : '—');
+    const routeFrom = [s.from_country, s.from_city].filter(Boolean).join(', ') || '—';
     const routeTo = [s.to_country, s.to_city].filter(Boolean).join(', ') || '—';
     const route = trip.route || `${routeFrom} → ${routeTo}`;
     const date = s.date_to || s.date_from;
