@@ -242,48 +242,17 @@ PRIMARY KEY (segment_id, cargo_id)
 
 **Из старого списка Пакета C:** `app/driver/page.tsx` и `app/driver/stats/page.tsx` оказались чисты. Вместо них обнаружены и закрыты `trip-status-actions.ts` и `TripsList.tsx`.
 
-### Фаза 3.6 — DROP COLUMN + чистка legacy (7 под-пакетов)
+### Фаза 3.6 — DROP COLUMN + чистка legacy — ✅ ЗАКРЫТА (14.10.2026)
 
-**3.6.1 — ✅ ЗАКРЫТ (5 файлов):**
-- `app/api/trips/check-overlap/route.ts`
-- `app/clients/[id]/page.tsx`
-- `app/contractors/[id]/page.tsx`
-- `app/drivers/[id]/page.tsx`
-- `app/trucks/[id]/page.tsx`
+**3.6.1** — ✅ 5 файлов: `check-overlap`, `clients/[id]`, `contractors/[id]`, `drivers/[id]`, `trucks/[id]`.
+**3.6.2** — ✅ 1 удаление (`backfill-coordinates`), остальные 3 (map/*, today) уже были чисты.
+**3.6.3** — ✅ 5 файлов: `trips/page`, `TripsBulkList` (чист), `trips/[id]/page`, `driver/trips/[id]/page`, `driver/trip-status-actions`.
+**3.6.4** — ✅ `lib/trip-task-text.ts` — fallback-блок удалён.
+**3.6.5** — ✅ 4 файла: `geocode-actions` + `NewTripForm` (part 1, `from_*`/`to_*`), `trip-actions` + `EditTripForm` (part 2).
+**3.6.6** — ✅ 3 файла (`DownloadButton ×2`, `reports/page`) уже были чисты.
+**3.6.7** — ✅ **SQL `DROP COLUMN`**: удалены 37 колонок (`sender_*`, `sender2..5_*`, `receiver_*`, `route`).
 
-**3.6.2 — ✅ ЗАКРЫТ (0 реально правились):**
-- 🗑 `app/api/backfill-coordinates/route.ts` — **УДАЛЁН** (0 рейсов без координат)
-- ✅ `app/map/page.tsx` — уже читает через buildRouteMap (Фаза 3.5.6)
-- ✅ `app/map/MapView.tsx` — props, не БД
-- ✅ `app/today/page.tsx` — уже через buildRouteMap
-
-**3.6.3 — ✅ ЗАКРЫТ (5 файлов):**
-- `app/trips/page.tsx` — buildRouteMap, поиск по сегментам
-- `app/trips/TripsBulkList.tsx` — уже был чист (props)
-- `app/trips/[id]/page.tsx` — buildRouteMap, fallback убран
-- `app/driver/trips/[id]/page.tsx` — fallback убран
-- `app/driver/trip-status-actions.ts` — fallback убран
-
-**3.6.4 — ✅ ЗАКРЫТ:**
-- `lib/trip-task-text.ts` — локальная `buildRouteFromSegments` для шапки; **fallback-блок `sender_*`/`receiver_*` удалён целиком**.
-
-**3.6.5 — ✅ ЗАКРЫТ (4 файла, 2 коммита):**
-- `app/geocode-actions.ts` + `app/trips/new/NewTripForm.tsx` — part 1: `sender_*`/`receiver_*` → `from_*`/`to_*`
-- `app/trip-actions.tsx` + `app/trips/[id]/edit/EditTripForm.tsx` — part 2: то же + геокодинг всегда (без before.sender_* сравнения), `route` убран из update/diff/select
-
-**3.6.6 — 3 файла из GitHub Search:**
-- `app/trips/DownloadButton.tsx:17`
-- `app/reports/DownloadButton.tsx:34`
-- `app/reports/page.tsx:270,273,351`
-
-**3.6.7 — SQL `DROP COLUMN` (необратимо) + финальный grep.**
-
-**Ложные срабатывания (НЕ трогать):** локальные псевдонимы `sender_*` / `receiver_*` из `buildRouteMap` в `map/page.tsx`, `today/page.tsx`. `map/MapView.tsx` — только типы/рендер, БД не читает.
-
-**Инциденты этого чата (уроки):**
-- Заливка связанных файлов **одним коммитом** (иначе билд падает на type-check — было с `page.tsx` + `TripsList.tsx`).
-- **`buildRouteMap` принимает `SegmentRouteRow[]` — поле `trip_id` обязательно.** Подавать `(segmentsRaw || [])`, а не смапленный `segments`.
-- **При добавлении импорта не удалять существующие** (было: пропал `buildDriverTaskText`).
+**🎉 Legacy-модель sender→receiver мертва. Всё через `trip_segments`.**
 
 ## ⚠️ Рабочий процесс (после 14.10.2026)
 
@@ -454,7 +423,6 @@ ALTER TABLE trips DROP COLUMN sender_country, sender_city, sender_name, sender_a
 ```
 
 ### `trips.route`, `sender_*`, `receiver_*` — legacy
-- В БД пока **есть** (DROP в Фазе 3.6)
 - Код читает их **только** через fallback в `lib/trip-task-text.ts` (временный)
 - `geocode-actions.ts` / `trip-actions.tsx` продолжают **писать**, но не читают
 - Все страницы (`/trips`, `/routes`, `/map`, `/today`, `/api/export`, `/reports`) читают из `trip_segments`
@@ -477,13 +445,26 @@ Static page generation (60s timeout). Лечится: Redeploy без кэша �
 
 ---
 
-## 📋 Шпаргалка по текущему состоянию (14.10.2026, поздний вечер)
+## 📋 Шпаргалка по текущему состоянию (14.10.2026, ночь)
 
-**Закрыто:** … + 3.6.5
-**В очереди:** 3.6.6 (3 файла), 3.6.7 (SQL DROP)
-**Следующий шаг:** 3.6.6, файлы `app/trips/DownloadButton.tsx`, `app/reports/DownloadButton.tsx`, `app/reports/page.tsx`
+- `trips`: 71 (**без legacy-колонок**)
+- `trip_segments`: 94 (71 us + 23 contractor)
+- `trip_cargo`: 74, `trip_segment_cargo`: 79, `trip_expenses`: ~416
+- `trip_subcontractors`: DROP (Фаза 3.3)
+
+**Закрыто:** Фазы 3.1–3.6 **полностью**. Проект на сегментной модели.
+
+**В очереди:** см. «Идеи (не срочно)» ниже.
 
 ---
+
+### Идеи (не срочно)
+- Нормализация `trip_number` через БД-триггер при INSERT (MAX+1)
+- Добавить `created_at` в `trips` — для аудита и «последние созданные»
+- Печатные формы (отчёт по рейсам)
+- Онбординг админа
+- Дубликаты клиентов/подрядчиков
+- Опционально: переименовать локальные псевдонимы `sender_city`/`receiver_city` в `map/page.tsx` и `today/page.tsx` (сейчас это `from_city`/`to_city`, но обёрнутые в старое имя — косметика)
 
 ## 🆕 Условие работы с AI-ассистентом (с 14.10.2026)
 
