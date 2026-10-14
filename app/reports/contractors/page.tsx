@@ -10,10 +10,16 @@ type ContractorRow = {
   country: string | null;
 };
 
-type StatsRow = {
+type FwdStatsRow = {
   contractor_id: string | null;
   price_eur: number;
   payment_days: number | null;
+};
+
+type TripStatsRow = {
+  contractor_id: string | null;
+  price: number | null;
+  currency: string | null;
 };
 
 type ContractorStat = {
@@ -55,10 +61,12 @@ export default async function ContractorsStatsPage() {
     .from('forwarding_contractors')
     .select('contractor_id, price_eur, payment_days');
 
-  // 3. Данные комбинированных перевозок (подрядчики на рейсах)
+  // 3. Данные комбинированных перевозок — участки-подрядчики в рейсах
   const { data: tripRows } = await supabase
-    .from('trip_subcontractors')
-    .select('contractor_id, price_eur, payment_days');
+    .from('trip_segments')
+    .select('contractor_id, price, currency')
+    .eq('executor_type', 'contractor')
+    .not('contractor_id', 'is', null);
 
   // 4. Собираем статистику
   const statsMap = new Map<string, ContractorStat>();
@@ -78,7 +86,7 @@ export default async function ContractorsStatsPage() {
     });
   }
 
-  for (const r of (fwdRows || []) as StatsRow[]) {
+  for (const r of (fwdRows || []) as FwdStatsRow[]) {
     if (!r.contractor_id) continue;
     const s = statsMap.get(r.contractor_id);
     if (!s) continue;
@@ -86,25 +94,25 @@ export default async function ContractorsStatsPage() {
     s.fwdSum += r.price_eur || 0;
   }
 
-  for (const r of (tripRows || []) as StatsRow[]) {
+  for (const r of (tripRows || []) as TripStatsRow[]) {
     if (!r.contractor_id) continue;
     const s = statsMap.get(r.contractor_id);
     if (!s) continue;
     s.tripCount += 1;
-    s.tripSum += r.price_eur || 0;
+    s.tripSum += Number(r.price) || 0;
   }
 
-  // Считаем итоги и средний срок оплаты
+  // Итоги и средний срок оплаты
   for (const s of statsMap.values()) {
     s.totalSum = s.fwdSum + s.tripSum;
     s.totalCount = s.fwdCount + s.tripCount;
-    const allPays = [
-      ...((fwdRows || []) as StatsRow[]).filter((r) => r.contractor_id === s.id && r.payment_days),
-      ...((tripRows || []) as StatsRow[]).filter((r) => r.contractor_id === s.id && r.payment_days),
-    ];
-    if (allPays.length > 0) {
+    // Средний срок оплаты считаем по экспедированию (там есть payment_days)
+    const fwdPays = ((fwdRows || []) as FwdStatsRow[]).filter(
+      (r) => r.contractor_id === s.id && r.payment_days
+    );
+    if (fwdPays.length > 0) {
       s.paymentDays = Math.round(
-        allPays.reduce((sum, r) => sum + (r.payment_days || 0), 0) / allPays.length
+        fwdPays.reduce((sum, r) => sum + (r.payment_days || 0), 0) / fwdPays.length
       );
     }
   }
@@ -407,12 +415,13 @@ export default async function ContractorsStatsPage() {
               <p>
                 <b>Источники данных:</b> блок «Экспедирование» — из заявок
                 (<code className="text-xs bg-blue-100 px-1 rounded">forwarding_contractors</code>),
-                блок «Комбинированные» — из рейсов, где подрядчик везёт часть маршрута
-                (<code className="text-xs bg-blue-100 px-1 rounded">trip_subcontractors</code>).
+                блок «Комбинированные» — из участков рейсов
+                (<code className="text-xs bg-blue-100 px-1 rounded">trip_segments</code>,
+                где <code>executor_type = 'contractor'</code>).
               </p>
               <p className="text-xs text-blue-700">
-                Суммы приведены в EUR (поле <code>price_eur</code>). Итоговая валюта исходных
-                платежей может отличаться — смотрите карточку подрядчика.
+                Суммы приведены в EUR (поле <code>price_eur</code> для экспедирования, <code>price</code> для участков рейсов).
+                Итоговая валюта исходных платежей может отличаться — смотрите карточку подрядчика.
               </p>
             </div>
           </div>
