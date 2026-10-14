@@ -421,11 +421,13 @@ Static page generation (60s timeout). Лечится: Redeploy без кэша �
 - `trips`: 71, `trip_segments`: 94, `trip_cargo`: 74, `trip_segment_cargo`: 79, `trip_expenses`: ~416
 - `trip_subcontractors`: DROP
 
-**Закрыто:** Фазы 3.1–3.5.7 + **Пакет A** (routes, 3 файла) + **Пакет B** (reports, 2 файла из 7 — остальные 5 чисты)
+**Закрыто:** Фазы 3.1–3.5.7 + **Пакет A** (routes, 3 файла) + **Пакет B** (reports, 2 файла из 7 — остальные 5 чисты) + **Пакет C** (3 из 4 файлов: search/actions.ts, driver/trips/[id]/page.tsx, driver/trip-status-actions.ts)
 
-**В очереди:** Пакет C (4 файла, возможно 2–3 реально грязных), Фаза 3.6 (DROP COLUMN)
+**В очереди:** Пакет C — последний файл `app/driver/TripsList.tsx`; затем Фаза 3.6 (DROP COLUMN)
 
-**Рекомендация:** перед Пакетом C прогнать grep по `app/driver` и `app/search` — как в Пакете B, реально грязных файлов может быть меньше.
+**Уточнения к HANDOVER от 14.10:**
+- Из старого списка Пакета C: `app/driver/page.tsx`, `app/driver/stats/page.tsx` — чисты, grep не нашёл.
+- В Пакет C добавились 2 новых грязных файла: `app/driver/trip-status-actions.ts` (закрыт), `app/driver/TripsList.tsx` (в очереди).
 
 ---
 
