@@ -2,12 +2,10 @@ import { NextResponse } from 'next/server';
 import * as XLSX from 'xlsx';
 import { cookies } from 'next/headers';
 import { createClient } from '../../../lib/supabase-server';
+import { buildRouteMap } from '../../../lib/trip-route';
 
 export const dynamic = 'force-dynamic';
 
-// ============================================================
-// Словари
-// ============================================================
 const STATUS_LABELS: Record<string, string> = {
   planned: 'Планируется',
   active: 'В пути',
@@ -45,9 +43,6 @@ function categoryLabel(c: string | null | undefined): string {
   return CATEGORY_LABELS[c] || c;
 }
 
-// ============================================================
-// Утилиты
-// ============================================================
 function isoDate(d: string | null): string {
   if (!d) return '';
   try {
@@ -75,9 +70,6 @@ function r2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
-// ============================================================
-// РЕЙСЫ
-// ============================================================
 async function buildTripsSheet(
   supabase: Awaited<ReturnType<typeof createClient>>,
   from: string | null,
@@ -86,7 +78,7 @@ async function buildTripsSheet(
   let query = supabase
     .from('trips')
     .select(`
-      id, trip_number, start_date, end_date, route, status, revenue_eur, actual_km,
+      id, trip_number, start_date, end_date, status, revenue_eur, actual_km,
       clients(name),
       drivers!driver_id(first_name, last_name),
       trucks!truck_id(registration_number)
@@ -100,6 +92,15 @@ async function buildTripsSheet(
   if (error) console.error('[export/trips] trips error:', error);
 
   const tripIds = (trips || []).map((t: any) => t.id).filter(Boolean) as string[];
+
+  // Сегменты — для вычисления маршрута
+  const { data: segs } = tripIds.length > 0
+    ? await supabase
+        .from('trip_segments')
+        .select('trip_id, position, from_city, from_country, to_city, to_country')
+        .in('trip_id', tripIds)
+    : { data: [] };
+  const routeByTrip = buildRouteMap(segs || []);
 
   const expensesByTrip: Record<string, number> = {};
   if (tripIds.length > 0) {
@@ -120,6 +121,7 @@ async function buildTripsSheet(
     const driver = t.drivers
       ? `${t.drivers.first_name || ''} ${t.drivers.last_name || ''}`.trim()
       : '';
+    const routeInfo = routeByTrip.get(t.id);
     return {
       '№ рейса': t.trip_number || '',
       'Старт': isoDate(t.start_date),
@@ -127,7 +129,7 @@ async function buildTripsSheet(
       'Клиент': pickName(t.clients),
       'Тягач': t.trucks?.registration_number || '',
       'Водитель': driver,
-      'Маршрут': t.route || '',
+      'Маршрут': routeInfo?.route || '',
       'Фрахт (EUR)': r2(revenue),
       'Расходы (EUR)': r2(exp),
       'Прибыль (EUR)': r2(revenue - exp),
@@ -136,7 +138,6 @@ async function buildTripsSheet(
     };
   });
 
-  // Итоговая строка
   const totalRevenue = rows.reduce((s, r) => s + (r['Фрахт (EUR)'] as number || 0), 0);
   const totalExpenses = rows.reduce((s, r) => s + (r['Расходы (EUR)'] as number || 0), 0);
   const totalKm = rows.reduce((s, r) => s + (r['Пробег (км)'] as number || 0), 0);
@@ -167,9 +168,6 @@ async function buildTripsSheet(
   return ws;
 }
 
-// ============================================================
-// РАСХОДЫ ПО РЕЙСАМ
-// ============================================================
 async function buildExpensesSheet(
   supabase: Awaited<ReturnType<typeof createClient>>,
   from: string | null,
@@ -224,9 +222,6 @@ async function buildExpensesSheet(
   return ws;
 }
 
-// ============================================================
-// ЭКСПЕДИРОВАНИЕ
-// ============================================================
 async function buildForwardingSheet(
   supabase: Awaited<ReturnType<typeof createClient>>,
   from: string | null,
@@ -318,9 +313,6 @@ async function buildForwardingSheet(
   return ws;
 }
 
-// ============================================================
-// ПРИБЫЛЬНОСТЬ КЛИЕНТОВ (сводная)
-// ============================================================
 async function buildClientsSheet(
   supabase: Awaited<ReturnType<typeof createClient>>
 ): Promise<XLSX.WorkSheet> {
@@ -379,9 +371,6 @@ async function buildClientsSheet(
   return ws;
 }
 
-// ============================================================
-// GET
-// ============================================================
 export async function GET(request: Request) {
   const role = cookies().get('role')?.value;
   if (role !== 'admin') {
@@ -421,7 +410,6 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unknown export type' }, { status: 400 });
     }
 
-    // CSV
     if (format === 'csv') {
       const csvBody = XLSX.utils.sheet_to_csv(sheet, { FS: ';' });
       const csvWithBom = '\uFEFF' + csvBody;
@@ -435,7 +423,6 @@ export async function GET(request: Request) {
       });
     }
 
-    // XLSX (по умолчанию)
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, sheet, sheetName);
     const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
