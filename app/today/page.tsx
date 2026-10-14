@@ -14,6 +14,7 @@ import {
   Route as RouteIcon,
 } from 'lucide-react';
 import { createClient } from '../../lib/supabase-server';
+import { buildRouteMap } from '../../lib/trip-route';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,8 +40,6 @@ function pickName(rel: unknown): string | undefined {
   return undefined;
 }
 
-// Supabase relation может прийти как объект или как массив из 1 элемента.
-// Возвращаем первый элемент, если массив.
 function pickOne<T>(rel: unknown): T | null {
   if (!rel) return null;
   if (Array.isArray(rel)) return (rel[0] as T) ?? null;
@@ -86,19 +85,39 @@ export default async function TodayPage() {
   const today = todayIso();
 
   // 1. РЕЙСЫ
-  const { data: trips } = await supabase
+  const { data: tripsRaw } = await supabase
     .from('trips')
     .select(`
-      id, trip_number, status, route, start_date, end_date,
-      sender_city, sender_country,
-      receiver_city, receiver_country,
+      id, trip_number, status, start_date, end_date,
       driver_id, truck_id,
       clients(name),
       drivers!driver_id(first_name, last_name, phone),
       trucks!truck_id(registration_number)
     `);
 
-  const allTrips = trips || [];
+  const tripIds = (tripsRaw || []).map((t: any) => t.id);
+
+  // Сегменты — вычисляем route и from/to
+  const { data: routeSegs } = tripIds.length > 0
+    ? await supabase
+        .from('trip_segments')
+        .select('trip_id, position, from_city, from_country, to_city, to_country')
+        .in('trip_id', tripIds)
+    : { data: [] };
+
+  const routeMap = buildRouteMap(routeSegs || []);
+
+  const allTrips = (tripsRaw || []).map((t: any) => {
+    const r = routeMap.get(t.id);
+    return {
+      ...t,
+      route: r?.route || null,
+      sender_city: r?.from_city || null,
+      sender_country: r?.from_country || null,
+      receiver_city: r?.to_city || null,
+      receiver_country: r?.to_country || null,
+    };
+  });
 
   const tripById: Record<string, any> = {};
   allTrips.forEach((t) => {
@@ -109,7 +128,7 @@ export default async function TodayPage() {
   const todayTripUnloadings = allTrips.filter((t) => t.end_date === today);
   const activeTrips = allTrips.filter((t) => t.status === 'active');
 
-    // 2. ПОДРЯДЧИКИ — участки-подрядчики в рейсах
+  // 2. ПОДРЯДЧИКИ — участки-подрядчики в рейсах
   const { data: subs } = await supabase
     .from('trip_segments')
     .select(`
@@ -127,7 +146,6 @@ export default async function TodayPage() {
     const tripNumber = trip?.trip_number ? `№${trip.trip_number}` : '—';
     const clientName = pickName(trip?.clients) || null;
 
-    // Загрузка подрядчика
     if (s.date_from === today) {
       subEventsToday.push({
         kind: 'sub',
@@ -142,7 +160,6 @@ export default async function TodayPage() {
       });
     }
 
-    // Промежуточные точки
     const stops = Array.isArray(s.stops) ? s.stops : [];
     stops.forEach((stop: any, idx: number) => {
       if (stop.date !== today) return;
@@ -159,7 +176,6 @@ export default async function TodayPage() {
       });
     });
 
-    // Выгрузка подрядчика (точка C — консолидация)
     if (s.date_to === today) {
       subEventsToday.push({
         kind: 'sub',
@@ -203,7 +219,6 @@ export default async function TodayPage() {
     };
   });
 
-  // Сборка списков
   const todayLoadings: EventItem[] = [
     ...todayTripLoadings.map<EventItem>((t) => ({
       kind: 'trip',
@@ -368,7 +383,6 @@ export default async function TodayPage() {
     <main className="min-h-screen bg-slate-50">
       <div className="max-w-[1400px] mx-auto px-4 md:px-6 py-6 md:py-8 space-y-6 md:space-y-8">
 
-        {/* ЗАГОЛОВОК */}
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2.5 tracking-tight">
             <Calendar className="w-6 h-6 md:w-7 md:h-7 text-brand-600" strokeWidth={2.2} />
@@ -379,7 +393,6 @@ export default async function TodayPage() {
           </p>
         </div>
 
-        {/* KPI */}
         <div className="grid gap-3 md:gap-4 grid-cols-2 md:grid-cols-4">
           <div className="card card-hover p-4 md:p-5">
             <div className="flex items-center justify-between mb-2 md:mb-3">
@@ -433,7 +446,6 @@ export default async function TodayPage() {
           </div>
         </div>
 
-        {/* ЗАГРУЗКИ */}
         <div>
           <h2 className="text-base md:text-lg font-bold text-slate-900 mb-3 flex items-center gap-2">
             <MapPin className="w-5 h-5 text-green-600" strokeWidth={2.2} />
@@ -456,7 +468,6 @@ export default async function TodayPage() {
           )}
         </div>
 
-        {/* ВЫГРУЗКИ */}
         <div>
           <h2 className="text-base md:text-lg font-bold text-slate-900 mb-3 flex items-center gap-2">
             <Flag className="w-5 h-5 text-red-500" strokeWidth={2.2} />
@@ -479,7 +490,6 @@ export default async function TodayPage() {
           )}
         </div>
 
-        {/* В ПУТИ */}
         <div>
           <h2 className="text-base md:text-lg font-bold text-slate-900 mb-3 flex items-center gap-2">
             <RouteIcon className="w-5 h-5 text-brand-600" strokeWidth={2.2} />
@@ -544,7 +554,6 @@ export default async function TodayPage() {
           )}
         </div>
 
-        {/* ТРЕБУЕТ ВНИМАНИЯ */}
         {attentionCount > 0 && (
           <div className="card border-l-4 border-l-amber-500 p-5 md:p-6">
             <h2 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2 mb-4">
