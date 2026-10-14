@@ -168,34 +168,6 @@ export async function updateTrip(tripId: string, formData: FormData) {
   const senderAddress = formData.get('sender_address') as string;
   const senderLoadingNumber = formData.get('sender_loading_number') as string;
 
-  const sender2Country = formData.get('sender2_country') as string;
-  const sender2Name = formData.get('sender2_name') as string;
-  const sender2PostalCode = formData.get('sender2_postal_code') as string;
-  const sender2City = formData.get('sender2_city') as string;
-  const sender2Address = formData.get('sender2_address') as string;
-  const sender2LoadingNumber = formData.get('sender2_loading_number') as string;
-
-  const sender3Country = formData.get('sender3_country') as string;
-  const sender3Name = formData.get('sender3_name') as string;
-  const sender3PostalCode = formData.get('sender3_postal_code') as string;
-  const sender3City = formData.get('sender3_city') as string;
-  const sender3Address = formData.get('sender3_address') as string;
-  const sender3LoadingNumber = formData.get('sender3_loading_number') as string;
-
-  const sender4Country = formData.get('sender4_country') as string;
-  const sender4Name = formData.get('sender4_name') as string;
-  const sender4PostalCode = formData.get('sender4_postal_code') as string;
-  const sender4City = formData.get('sender4_city') as string;
-  const sender4Address = formData.get('sender4_address') as string;
-  const sender4LoadingNumber = formData.get('sender4_loading_number') as string;
-
-  const sender5Country = formData.get('sender5_country') as string;
-  const sender5Name = formData.get('sender5_name') as string;
-  const sender5PostalCode = formData.get('sender5_postal_code') as string;
-  const sender5City = formData.get('sender5_city') as string;
-  const sender5Address = formData.get('sender5_address') as string;
-  const sender5LoadingNumber = formData.get('sender5_loading_number') as string;
-
   const receiverCountry = formData.get('receiver_country') as string;
   const receiverName = formData.get('receiver_name') as string;
   const receiverPostalCode = formData.get('receiver_postal_code') as string;
@@ -285,34 +257,6 @@ export async function updateTrip(tripId: string, formData: FormData) {
       sender_city: senderCity || null,
       sender_address: senderAddress || null,
       sender_loading_number: senderLoadingNumber || null,
-
-      sender2_country: sender2Country || null,
-      sender2_name: sender2Name || null,
-      sender2_postal_code: sender2PostalCode || null,
-      sender2_city: sender2City || null,
-      sender2_address: sender2Address || null,
-      sender2_loading_number: sender2LoadingNumber || null,
-
-      sender3_country: sender3Country || null,
-      sender3_name: sender3Name || null,
-      sender3_postal_code: sender3PostalCode || null,
-      sender3_city: sender3City || null,
-      sender3_address: sender3Address || null,
-      sender3_loading_number: sender3LoadingNumber || null,
-
-      sender4_country: sender4Country || null,
-      sender4_name: sender4Name || null,
-      sender4_postal_code: sender4PostalCode || null,
-      sender4_city: sender4City || null,
-      sender4_address: sender4Address || null,
-      sender4_loading_number: sender4LoadingNumber || null,
-
-      sender5_country: sender5Country || null,
-      sender5_name: sender5Name || null,
-      sender5_postal_code: sender5PostalCode || null,
-      sender5_city: sender5City || null,
-      sender5_address: sender5Address || null,
-      sender5_loading_number: sender5LoadingNumber || null,
 
       receiver_country: receiverCountry || null,
       receiver_name: receiverName || null,
