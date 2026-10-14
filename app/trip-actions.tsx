@@ -161,21 +161,20 @@ export async function updateTrip(tripId: string, formData: FormData) {
   const clientRequestNumber = formData.get('client_request_number') as string;
   const clientRequestDate = formData.get('client_request_date') as string;
 
-  const senderCountry = formData.get('sender_country') as string;
-  const senderName = formData.get('sender_name') as string;
-  const senderPostalCode = formData.get('sender_postal_code') as string;
-  const senderCity = formData.get('sender_city') as string;
-  const senderAddress = formData.get('sender_address') as string;
-  const senderLoadingNumber = formData.get('sender_loading_number') as string;
+  // ⬅️ ИЗМЕНЕНО: from_* / to_* вместо sender_* / receiver_*
+  const fromCountry = formData.get('from_country') as string;
+  const fromName = formData.get('from_name') as string;
+  const fromPostalCode = formData.get('from_postal_code') as string;
+  const fromCity = formData.get('from_city') as string;
+  const fromAddress = formData.get('from_address') as string;
+  const fromLoadingNumber = formData.get('from_loading_number') as string;
 
-  const receiverCountry = formData.get('receiver_country') as string;
-  const receiverName = formData.get('receiver_name') as string;
-  const receiverPostalCode = formData.get('receiver_postal_code') as string;
-  const receiverCity = formData.get('receiver_city') as string;
-  const receiverAddress = formData.get('receiver_address') as string;
-  const receiverLoadingNumber = formData.get('receiver_loading_number') as string;
-
-  const route = `${senderCity || ''}, ${senderCountry || ''} → ${receiverCity || ''}, ${receiverCountry || ''}`;
+  const toCountry = formData.get('to_country') as string;
+  const toName = formData.get('to_name') as string;
+  const toPostalCode = formData.get('to_postal_code') as string;
+  const toCity = formData.get('to_city') as string;
+  const toAddress = formData.get('to_address') as string;
+  const toLoadingNumber = formData.get('to_loading_number') as string;
 
   if (endDate && startDate) {
     const s = new Date(startDate).getTime();
@@ -185,9 +184,10 @@ export async function updateTrip(tripId: string, formData: FormData) {
     }
   }
 
+  // ⬅️ ИЗМЕНЕНО: не читаем route и sender_*/receiver_* для аудита
   const { data: before } = await supabase
     .from('trips')
-    .select('trip_number, revenue_eur, driver_id, truck_id, client_id, start_date, end_date, route, client_request_number, start_fuel_level, start_lat, start_lng, end_lat, end_lng, sender_city, sender_country, receiver_city, receiver_country')
+    .select('trip_number, revenue_eur, driver_id, truck_id, client_id, start_date, end_date, client_request_number, start_fuel_level, start_lat, start_lng, end_lat, end_lng')
     .eq('id', tripId)
     .single();
 
@@ -210,33 +210,22 @@ export async function updateTrip(tripId: string, formData: FormData) {
     return null;
   }
 
+  // ⬅️ ИЗМЕНЕНО: всегда геокодим, если есть from/to (без сравнения before.sender_*)
   let startLat = before?.start_lat ?? 0;
   let startLng = before?.start_lng ?? 0;
   let endLat = before?.end_lat ?? 0;
   let endLng = before?.end_lng ?? 0;
 
-  const senderChanged =
-    !before ||
-    before.sender_city !== senderCity ||
-    before.sender_country !== senderCountry ||
-    !before.start_lat;
-
-  const receiverChanged =
-    !before ||
-    before.receiver_city !== receiverCity ||
-    before.receiver_country !== receiverCountry ||
-    !before.end_lat;
-
-  if (senderChanged) {
-    const c = await geocode(senderCity, senderCountry);
+  if (fromCity && fromCountry) {
+    const c = await geocode(fromCity, fromCountry);
     if (c) { startLat = c.lat; startLng = c.lng; }
   }
-
-  if (receiverChanged) {
-    const c = await geocode(receiverCity, receiverCountry);
+  if (toCity && toCountry) {
+    const c = await geocode(toCity, toCountry);
     if (c) { endLat = c.lat; endLng = c.lng; }
   }
 
+  // ⬅️ ИЗМЕНЕНО: НЕ пишем sender_*/receiver_*/route в trips — только основные поля + координаты
   const { error } = await supabase
     .from('trips')
     .update({
@@ -250,22 +239,6 @@ export async function updateTrip(tripId: string, formData: FormData) {
       start_fuel_level: startFuelLevel,
       client_request_number: clientRequestNumber || null,
       client_request_date: clientRequestDate || null,
-
-      sender_country: senderCountry || null,
-      sender_name: senderName || null,
-      sender_postal_code: senderPostalCode || null,
-      sender_city: senderCity || null,
-      sender_address: senderAddress || null,
-      sender_loading_number: senderLoadingNumber || null,
-
-      receiver_country: receiverCountry || null,
-      receiver_name: receiverName || null,
-      receiver_postal_code: receiverPostalCode || null,
-      receiver_city: receiverCity || null,
-      receiver_address: receiverAddress || null,
-      receiver_loading_number: receiverLoadingNumber || null,
-
-      route: route || null,
       start_lat: startLat,
       start_lng: startLng,
       end_lat: endLat,
@@ -280,6 +253,7 @@ export async function updateTrip(tripId: string, formData: FormData) {
     await renumberAllTrips(supabase);
   }
 
+  // ⬅️ ИЗМЕНЕНО: убран route из diffFields (в trips его больше нет)
   if (before) {
     const changes = diffFields(
       {
@@ -289,7 +263,6 @@ export async function updateTrip(tripId: string, formData: FormData) {
         client_id: before.client_id,
         start_date: before.start_date,
         end_date: before.end_date,
-        route: before.route,
         client_request_number: before.client_request_number,
         start_fuel_level: before.start_fuel_level,
       },
@@ -300,11 +273,10 @@ export async function updateTrip(tripId: string, formData: FormData) {
         client_id: clientId || null,
         start_date: startDate,
         end_date: endDate,
-        route: route || null,
         client_request_number: clientRequestNumber || null,
         start_fuel_level: startFuelLevel,
       },
-      ['revenue_eur', 'driver_id', 'truck_id', 'client_id', 'start_date', 'end_date', 'route', 'client_request_number', 'start_fuel_level']
+      ['revenue_eur', 'driver_id', 'truck_id', 'client_id', 'start_date', 'end_date', 'client_request_number', 'start_fuel_level']
     );
 
     const changedCount = Object.keys(changes).length;
@@ -329,9 +301,10 @@ export async function updateTrip(tripId: string, formData: FormData) {
 export async function deleteTrip(tripId: string) {
   const supabase = await createClient();
 
+  // ⬅️ ИЗМЕНЕНО: не читаем route из trips (в БД его скоро не будет)
   const { data: tripInfo } = await supabase
     .from('trips')
-    .select('trip_number, route, revenue_eur')
+    .select('trip_number, revenue_eur')
     .eq('id', tripId)
     .maybeSingle();
 
@@ -355,12 +328,13 @@ export async function deleteTrip(tripId: string) {
 
   await renumberAllTrips(supabase);
 
+  // ⬅️ ИЗМЕНЕНО: убрали route из summary — строим строку из того, что есть
   await logAudit({
     entity_type: 'trip',
     entity_id: tripId,
     action: 'delete',
     summary: tripInfo
-      ? `Удалён рейс №${tripInfo.trip_number ?? '—'}${tripInfo.route ? ' · ' + tripInfo.route : ''} (фрахт ${tripInfo.revenue_eur ?? 0} €)`
+      ? `Удалён рейс №${tripInfo.trip_number ?? '—'} (фрахт ${tripInfo.revenue_eur ?? 0} €)`
       : 'Удалён рейс',
   });
 
