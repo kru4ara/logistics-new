@@ -1,7 +1,8 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase-server';
-import DownloadButton from './DownloadButton';
+import { buildRouteMap, type SegmentRouteRow } from '../../lib/trip-route';
+import DownloadButton, { type RouteCardData } from './DownloadButton';
 import {
   Route as RouteIcon,
   TrendingUp,
@@ -20,52 +21,90 @@ export default async function RoutesPage() {
 
   const supabase = await createClient();
 
-  const { data: trips, error } = await supabase
-    .from('trips')
-    .select('route, revenue_eur, id');
+  const [tripsResult, expensesResult, segmentsResult] = await Promise.all([
+    supabase
+      .from('trips')
+      .select('id, revenue_eur'),
+    supabase
+      .from('trip_expenses')
+      .select('trip_id, amount_eur'),
+    supabase
+      .from('trip_segments')
+      .select('trip_id, position, from_city, from_country, to_city, to_country'),
+  ]);
 
-  if (error) {
-    return <div className="p-8 text-red-500">Ошибка загрузки рейсов: {error.message}</div>;
+  if (tripsResult.error) {
+    return (
+      <div className="p-8 text-red-500">
+        Ошибка загрузки рейсов: {tripsResult.error.message}
+      </div>
+    );
   }
 
-  const { data: expenses } = await supabase
-    .from('trip_expenses')
-    .select('trip_id, amount_eur');
+  const trips = tripsResult.data || [];
+  const expenses = expensesResult.data || [];
+  const segments = (segmentsResult.data || []) as SegmentRouteRow[];
 
-  const expensesByTrip = expenses?.reduce((acc, e) => {
+  const routeByTrip = buildRouteMap(segments);
+
+  const expensesByTrip = expenses.reduce((acc, e) => {
     if (!e.trip_id) return acc;
     if (!acc[e.trip_id]) acc[e.trip_id] = 0;
     acc[e.trip_id] += e.amount_eur || 0;
     return acc;
-  }, {} as Record<string, number>) || {};
+  }, {} as Record<string, number>);
 
-  const routes = trips?.reduce((acc, trip) => {
-    if (!trip.route) return acc;
-    const existing = acc.find((r) => r.route === trip.route);
+  // Группируем рейсы по вычисленному route
+  type RouteAgg = {
+    route: string;
+    revenue: number;
+    expenses: number;
+    count: number;
+    tripIds: string[];
+  };
+
+  const routeMap = new Map<string, RouteAgg>();
+
+  for (const trip of trips) {
+    const info = routeByTrip.get(trip.id);
+    const route = info?.route || null;
+    if (!route) continue;
+
+    const existing = routeMap.get(route);
+    const tripRevenue = trip.revenue_eur || 0;
+    const tripExpenses = expensesByTrip[trip.id] || 0;
+
     if (existing) {
-      existing.revenue += trip.revenue_eur || 0;
+      existing.revenue += tripRevenue;
+      existing.expenses += tripExpenses;
       existing.count += 1;
+      existing.tripIds.push(trip.id);
     } else {
-      acc.push({ route: trip.route, revenue: trip.revenue_eur || 0, count: 1 });
+      routeMap.set(route, {
+        route,
+        revenue: tripRevenue,
+        expenses: tripExpenses,
+        count: 1,
+        tripIds: [trip.id],
+      });
     }
-    return acc;
-  }, [] as Array<{ route: string; revenue: number; count: number }>) || [];
+  }
 
-  const routesWithExpenses = routes.map((route) => {
-    const tripIds = trips?.filter((t) => t.route === route.route).map((t) => t.id) || [];
-    const routeExpenses = expensesByTrip
-      ? Object.entries(expensesByTrip)
-          .filter(([tripId]) => tripIds.includes(tripId))
-          .reduce((sum, [, amount]) => sum + amount, 0)
-      : 0;
-    return { ...route, expenses: routeExpenses };
-  });
+  const sortedRoutes = Array.from(routeMap.values()).sort(
+    (a, b) => b.revenue - a.revenue
+  );
 
-  const totalRevenue = routesWithExpenses.reduce((sum, r) => sum + r.revenue, 0);
-  const totalExpenses = routesWithExpenses.reduce((sum, r) => sum + r.expenses, 0);
+  const totalRevenue = sortedRoutes.reduce((sum, r) => sum + r.revenue, 0);
+  const totalExpenses = sortedRoutes.reduce((sum, r) => sum + r.expenses, 0);
   const profit = totalRevenue - totalExpenses;
 
-  const sortedRoutes = [...routesWithExpenses].sort((a, b) => b.revenue - a.revenue);
+  const cardData: RouteCardData[] = sortedRoutes.map((r) => ({
+    route: r.route,
+    revenue: r.revenue,
+    expenses: r.expenses,
+    count: r.count,
+    profit: r.revenue - r.expenses,
+  }));
 
   return (
     <main className="min-h-screen bg-slate-50">
@@ -81,7 +120,7 @@ export default async function RoutesPage() {
               Всего маршрутов: <b className="text-slate-700">{sortedRoutes.length}</b>
             </p>
           </div>
-          <DownloadButton data={sortedRoutes} />
+          <DownloadButton data={cardData} />
         </div>
 
         {/* Счётчики */}
