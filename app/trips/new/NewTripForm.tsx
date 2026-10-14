@@ -6,8 +6,6 @@ import {
   FileText,
   MapPin,
   Flag,
-  Plus,
-  X,
 } from 'lucide-react';
 import { addTripWithAddress } from '../../geocode-actions';
 import SubmitButton from '../../components/SubmitButton';
@@ -80,7 +78,6 @@ export default function NewTripForm({
 }: Props) {
   const [sender, setSender] = useState<AddrState>({ ...emptyAddr });
   const [receiver, setReceiver] = useState<AddrState>({ ...emptyAddr });
-  const [extras, setExtras] = useState<AddrState[]>([]);
 
   const [truckId, setTruckId] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -137,39 +134,6 @@ export default function NewTripForm({
     });
   }
 
-  function addExtra() {
-    if (extras.length >= 4) return;
-    setExtras([...extras, { ...emptyAddr }]);
-  }
-
-  function removeExtra(idx: number) {
-    setExtras(extras.filter((_, i) => i !== idx));
-  }
-
-  function updateExtra(idx: number, field: keyof AddrState, value: string) {
-    setExtras(extras.map((e, i) => (i === idx ? { ...e, [field]: value } : e)));
-  }
-
-  function fillExtraFromLocation(idx: number, locId: string) {
-    if (!locId) return;
-    const loc = loadingLocations.find((l) => l.id === locId);
-    if (!loc) return;
-    setExtras(
-      extras.map((e, i) =>
-        i === idx
-          ? {
-              country: loc.country || '',
-              name: loc.company_name || '',
-              postal_code: loc.postal_code || '',
-              city: loc.city || '',
-              address: loc.address || '',
-              loading_number: loc.default_loading_number || '',
-            }
-          : e
-      )
-    );
-  }
-
   const inputClass = 'input';
   const labelClass = 'block text-sm font-medium text-slate-700 mb-1';
   const sectionClass = 'card p-4 md:p-6 space-y-4';
@@ -210,7 +174,6 @@ export default function NewTripForm({
                 <option key={t.id} value={t.id}>{t.label}</option>
               ))}
             </select>
-            {/* Проверка пересечений — только если есть тягач и дата старта */}
             <OverlapWarning
               truckId={truckId}
               startDate={startDate}
@@ -344,97 +307,9 @@ export default function NewTripForm({
           </div>
         </div>
 
-        {/* ДОП. ТОЧКИ ПОГРУЗКИ (до 4 доп. = всего 5) */}
-        {extras.map((extra, idx) => {
-          const n = idx + 2;
-          return (
-            <div key={idx} className="border-t-2 border-brand-200 pt-4 mt-4">
-              <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
-                <h3 className="font-semibold text-slate-800 text-sm md:text-base flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-brand-600" strokeWidth={2.2} />
-                  Доп. точка погрузки №{idx + 1}
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => removeExtra(idx)}
-                  className="inline-flex items-center gap-1 text-red-600 hover:text-red-700 text-xs md:text-sm font-medium px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 transition-colors"
-                >
-                  <X className="w-3.5 h-3.5" strokeWidth={2.5} />
-                  Удалить
-                </button>
-              </div>
-
-              <div>
-                <label className={labelClass}>Выбрать из сохранённых локаций</label>
-                <select
-                  onChange={(e) => fillExtraFromLocation(idx, e.target.value)}
-                  className={presetClass}
-                  defaultValue=""
-                >
-                  <option value="">— Выберите локацию —</option>
-                  {loadingLocations.map((loc) => (
-                    <option key={loc.id} value={loc.id}>
-                      {loc.name} {loc.city ? `· ${loc.city}` : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2 pt-2">
-                <div>
-                  <label className={labelClass}>Страна</label>
-                  <input type="text" name={`sender${n}_country`} value={extra.country}
-                    onChange={(e) => updateExtra(idx, 'country', e.target.value)}
-                    placeholder="Польша" className={inputClass} />
-                </div>
-                <div>
-                  <label className={labelClass}>Название отправителя</label>
-                  <input type="text" name={`sender${n}_name`} value={extra.name}
-                    onChange={(e) => updateExtra(idx, 'name', e.target.value)}
-                    placeholder="ООО Пример" className={inputClass} />
-                </div>
-                <div>
-                  <label className={labelClass}>Почтовый код</label>
-                  <input type="text" name={`sender${n}_postal_code`} value={extra.postal_code}
-                    onChange={(e) => updateExtra(idx, 'postal_code', e.target.value)}
-                    placeholder="00-001" className={inputClass} />
-                </div>
-                <div>
-                  <label className={labelClass}>Город</label>
-                  <input type="text" name={`sender${n}_city`} value={extra.city}
-                    onChange={(e) => updateExtra(idx, 'city', e.target.value)}
-                    placeholder="Варшава" className={inputClass} />
-                </div>
-                <div>
-                  <label className={labelClass}>Адрес</label>
-                  <input type="text" name={`sender${n}_address`} value={extra.address}
-                    onChange={(e) => updateExtra(idx, 'address', e.target.value)}
-                    placeholder="ул. Примерная, 1" className={inputClass} />
-                </div>
-                <div>
-                  <label className={labelClass}>Погрузочный номер</label>
-                  <input type="text" name={`sender${n}_loading_number`} value={extra.loading_number}
-                    onChange={(e) => updateExtra(idx, 'loading_number', e.target.value)}
-                    placeholder="Ramp 4" className={inputClass} />
-                </div>
-              </div>
-            </div>
-          );
-        })}
-
-        {extras.length < 4 && (
-          <button
-            type="button"
-            onClick={addExtra}
-            className="w-full mt-4 py-3 rounded-xl border-2 border-dashed border-brand-300 text-brand-600 font-medium
-                       hover:bg-brand-50 hover:border-brand-400 transition-all duration-150
-                       text-sm md:text-base active:scale-[0.99]
-                       inline-flex items-center justify-center gap-2"
-          >
-            <Plus className="w-4 h-4" strokeWidth={2.5} />
-            Добавить точку погрузки
-          </button>
-        )}
+        <p className="text-xs text-slate-500 mt-3 bg-slate-50 rounded-lg px-3 py-2">
+          💡 Если рейс сборный с несколькими точками погрузки — создайте рейс, затем на его карточке добавьте участки и грузы.
+        </p>
       </div>
 
       {/* ВЫГРУЗКА */}
