@@ -250,7 +250,6 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
     truck,
     trailerNumber,
     segments: segments as any,
-    subcontractors: [],        // ← добавить эту строку (заглушка, уберём в 3.3.2)
     markdown: false,
   });
 
