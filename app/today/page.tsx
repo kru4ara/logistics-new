@@ -109,22 +109,17 @@ export default async function TodayPage() {
   const todayTripUnloadings = allTrips.filter((t) => t.end_date === today);
   const activeTrips = allTrips.filter((t) => t.status === 'active');
 
-  // 2. ПОДРЯДЧИКИ
+    // 2. ПОДРЯДЧИКИ — участки-подрядчики в рейсах
   const { data: subs } = await supabase
-    .from('trip_subcontractors')
+    .from('trip_segments')
     .select(`
       id, trip_id, position,
-      load_date, load_city, load_country, load_company,
-      load2_date, load2_city, load2_country, load2_company,
-      load3_date, load3_city, load3_country, load3_company,
-      load4_date, load4_city, load4_country, load4_company,
-      load5_date, load5_city, load5_country, load5_company,
-      unload_date, unload_city, unload_country, unload_company,
+      date_from, from_city, from_country, from_company,
+      date_to, to_city, to_country, to_company,
+      stops,
       contractors(name)
     `)
-    .or(
-      `load_date.eq.${today},load2_date.eq.${today},load3_date.eq.${today},load4_date.eq.${today},load5_date.eq.${today},unload_date.eq.${today}`
-    );
+    .eq('executor_type', 'contractor');
 
   const subEventsToday: EventItem[] = [];
   (subs || []).forEach((s: any) => {
@@ -132,38 +127,48 @@ export default async function TodayPage() {
     const tripNumber = trip?.trip_number ? `№${trip.trip_number}` : '—';
     const clientName = pickName(trip?.clients) || null;
 
-    const loads: [string | null, string | null, string | null, string | null][] = [
-      [s.load_date, s.load_city, s.load_country, s.load_company],
-      [s.load2_date, s.load2_city, s.load2_country, s.load2_company],
-      [s.load3_date, s.load3_city, s.load3_country, s.load3_company],
-      [s.load4_date, s.load4_city, s.load4_country, s.load4_company],
-      [s.load5_date, s.load5_city, s.load5_country, s.load5_company],
-    ];
-
-    loads.forEach(([date, city, country, company], idx) => {
-      if (date !== today) return;
+    // Загрузка подрядчика
+    if (s.date_from === today) {
       subEventsToday.push({
         kind: 'sub',
         tripNumber,
         clientName,
-        company: company || pickName(s.contractors) || null,
-        city,
-        country,
-        date,
-        pointLabel: `A${idx + 1}`,
+        company: s.from_company || pickName(s.contractors) || null,
+        city: s.from_city,
+        country: s.from_country,
+        date: s.date_from,
+        pointLabel: 'A1',
+        href: `/trips/${s.trip_id}`,
+      });
+    }
+
+    // Промежуточные точки
+    const stops = Array.isArray(s.stops) ? s.stops : [];
+    stops.forEach((stop: any, idx: number) => {
+      if (stop.date !== today) return;
+      subEventsToday.push({
+        kind: 'sub',
+        tripNumber,
+        clientName,
+        company: stop.company || pickName(s.contractors) || null,
+        city: stop.city,
+        country: stop.country,
+        date: stop.date,
+        pointLabel: stop.type === 'unload' ? 'C' : `A${idx + 2}`,
         href: `/trips/${s.trip_id}`,
       });
     });
 
-    if (s.unload_date === today) {
+    // Выгрузка подрядчика (точка C — консолидация)
+    if (s.date_to === today) {
       subEventsToday.push({
         kind: 'sub',
         tripNumber,
         clientName,
-        company: s.unload_company || pickName(s.contractors) || null,
-        city: s.unload_city,
-        country: s.unload_country,
-        date: s.unload_date,
+        company: s.to_company || pickName(s.contractors) || null,
+        city: s.to_city,
+        country: s.to_country,
+        date: s.date_to,
         pointLabel: 'C',
         href: `/trips/${s.trip_id}`,
       });
