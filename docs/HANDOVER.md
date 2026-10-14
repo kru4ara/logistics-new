@@ -267,11 +267,9 @@ PRIMARY KEY (segment_id, cargo_id)
 **3.6.4 — ✅ ЗАКРЫТ:**
 - `lib/trip-task-text.ts` — локальная `buildRouteFromSegments` для шапки; **fallback-блок `sender_*`/`receiver_*` удалён целиком**.
 
-**3.6.5 — формы + экшены (4 файла):**
-- `app/geocode-actions.ts` (85–97, 188–200)
-- `app/trip-actions.tsx` (164–176, 190, 220–227, 254–266, 292, 363)
-- `app/trips/new/NewTripForm.tsx` (274–370)
-- `app/trips/[id]/edit/EditTripForm.tsx` (48–59, 107, 110, 276–360)
+**3.6.5 — ✅ ЗАКРЫТ (4 файла, 2 коммита):**
+- `app/geocode-actions.ts` + `app/trips/new/NewTripForm.tsx` — part 1: `sender_*`/`receiver_*` → `from_*`/`to_*`
+- `app/trip-actions.tsx` + `app/trips/[id]/edit/EditTripForm.tsx` — part 2: то же + геокодинг всегда (без before.sender_* сравнения), `route` убран из update/diff/select
 
 **3.6.6 — 3 файла из GitHub Search:**
 - `app/trips/DownloadButton.tsx:17`
@@ -481,9 +479,9 @@ Static page generation (60s timeout). Лечится: Redeploy без кэша �
 
 ## 📋 Шпаргалка по текущему состоянию (14.10.2026, поздний вечер)
 
-**Закрыто:** Фазы 3.1–3.5.7 + Пакеты A, B, C + Фазы 3.6.1, 3.6.2, 3.6.3, 3.6.4
-**В очереди:** 3.6.5 (4 файла), 3.6.6 (3 файла), 3.6.7 (SQL DROP)
-**Следующий шаг:** 3.6.5, файл `app/geocode-actions.ts` (начать с мелкого экшена).
+**Закрыто:** … + 3.6.5
+**В очереди:** 3.6.6 (3 файла), 3.6.7 (SQL DROP)
+**Следующий шаг:** 3.6.6, файлы `app/trips/DownloadButton.tsx`, `app/reports/DownloadButton.tsx`, `app/reports/page.tsx`
 
 ---
 
