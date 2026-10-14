@@ -251,37 +251,40 @@ PRIMARY KEY (segment_id, cargo_id)
 - `app/drivers/[id]/page.tsx`
 - `app/trucks/[id]/page.tsx`
 
-**3.6.2 — ✅ ЗАКРЫТ (0 файлов реально правились):**
+**3.6.2 — ✅ ЗАКРЫТ (0 реально правились):**
 - 🗑 `app/api/backfill-coordinates/route.ts` — **УДАЛЁН** (0 рейсов без координат)
-- ✅ `app/map/page.tsx` — уже читает через `buildRouteMap` (с Фазы 3.5.6), псевдонимы `sender_*` — локальные, не legacy
-- ✅ `app/map/MapView.tsx` — работает с props, БД не читает
-- ✅ `app/today/page.tsx` — уже читает через `buildRouteMap` (с Фазы 3.5.6), псевдонимы `sender_*` — локальные, не legacy
+- ✅ `app/map/page.tsx` — уже читает через buildRouteMap (Фаза 3.5.6)
+- ✅ `app/map/MapView.tsx` — props, не БД
+- ✅ `app/today/page.tsx` — уже через buildRouteMap
 
 **3.6.3 — ✅ ЗАКРЫТ (5 файлов):**
-- ✅ `app/trips/page.tsx` — buildRouteMap, поиск по сегментам
-- ✅ `app/trips/TripsBulkList.tsx` — уже был чист (props TripCardData)
-- ✅ `app/trips/[id]/page.tsx` — buildRouteMap, fallback убран
-- ✅ `app/driver/trips/[id]/page.tsx` — fallback убран
-- ✅ `app/driver/trip-status-actions.ts` — fallback убран
+- `app/trips/page.tsx` — buildRouteMap, поиск по сегментам
+- `app/trips/TripsBulkList.tsx` — уже был чист (props)
+- `app/trips/[id]/page.tsx` — buildRouteMap, fallback убран
+- `app/driver/trips/[id]/page.tsx` — fallback убран
+- `app/driver/trip-status-actions.ts` — fallback убран
 
-**Итог:** из 5 файлов 2 правились по 1 строке, 1 уже был чист.
+**3.6.4 — `lib/trip-task-text.ts`** (112, 185, 190–215) — убрать fallback-блок. **← СЛЕДУЮЩИЙ**
 
-**3.6.4** — `lib/trip-task-text.ts` — убрать fallback-блок.
+**3.6.5 — формы + экшены (4 файла):**
+- `app/geocode-actions.ts` (85–97, 188–200)
+- `app/trip-actions.tsx` (164–176, 190, 220–227, 254–266, 292, 363)
+- `app/trips/new/NewTripForm.tsx` (274–370)
+- `app/trips/[id]/edit/EditTripForm.tsx` (48–59, 107, 110, 276–360)
 
-**3.6.5** — формы + экшены (4 файла):
-- `app/geocode-actions.ts`, `app/trip-actions.tsx`
-- `app/trips/new/NewTripForm.tsx`, `app/trips/[id]/edit/EditTripForm.tsx`
-
-**3.6.6** — из GitHub Search (3 файла):
+**3.6.6 — 3 файла из GitHub Search:**
 - `app/trips/DownloadButton.tsx:17`
 - `app/reports/DownloadButton.tsx:34`
 - `app/reports/page.tsx:270,273,351`
 
-**3.6.7** — SQL `DROP COLUMN` (необратимо) + финальный grep.
+**3.6.7 — SQL `DROP COLUMN` (необратимо) + финальный grep.**
 
-**Следующий шаг:** 3.6.2 — начать с `app/api/backfill-coordinates/route.ts` (маленький).
+**Ложные срабатывания (НЕ трогать):** локальные псевдонимы `sender_*` / `receiver_*` из `buildRouteMap` в `map/page.tsx`, `today/page.tsx`. `map/MapView.tsx` — только типы/рендер, БД не читает.
 
-**Ложные срабатывания (НЕ трогать):** `.route` из `buildRouteMap` в `routes/*`, `map/page.tsx:61-65`, `today/page.tsx:114-118`, `search/actions.ts:121`.
+**Инциденты этого чата (уроки):**
+- Заливка связанных файлов **одним коммитом** (иначе билд падает на type-check — было с `page.tsx` + `TripsList.tsx`).
+- **`buildRouteMap` принимает `SegmentRouteRow[]` — поле `trip_id` обязательно.** Подавать `(segmentsRaw || [])`, а не смапленный `segments`.
+- **При добавлении импорта не удалять существующие** (было: пропал `buildDriverTaskText`).
 
 ## ⚠️ Рабочий процесс с кодом
 
@@ -465,15 +468,21 @@ Static page generation (60s timeout). Лечится: Redeploy без кэша �
 
 ---
 
-## 📋 Шпаргалка по текущему состоянию (14.10.2026, вечер)
+## 📋 Шпаргалка по текущему состоянию (14.10.2026, поздний вечер)
 
 - `trips`: 71, `trip_segments`: 94, `trip_cargo`: 74, `trip_segment_cargo`: 79, `trip_expenses`: ~416
 - `trip_subcontractors`: DROP
+- `trips.sender_*`, `trips.receiver_*`, `trips.route`: **ЕЩЁ ЕСТЬ** (DROP в 3.6.7)
 
-**Закрыто:** Фазы 3.1–3.5.7 + Пакеты A, B, C + Фаза 3.6.1, 3.6.2 + 3.6.3 (1 из 5)
-**В очереди:** 3.6.3 (4 файла), 3.6.4, 3.6.5, 3.6.6, 3.6.7 (SQL)
+**Закрыто:** Фазы 3.1–3.5.7 + Пакеты A, B, C + Фазы 3.6.1, 3.6.2, 3.6.3
 
-**Текущий шаг:** Фаза 3.6.1 (5 мелких «читателей» `t.route`).
+**В очереди:**
+- 3.6.4 — `lib/trip-task-text.ts`
+- 3.6.5 — формы + экшены (4 файла)
+- 3.6.6 — 3 мелких файла
+- 3.6.7 — SQL DROP + финальный grep
+
+**Следующий шаг:** 3.6.4, файл `lib/trip-task-text.ts`.
 
 ---
 
