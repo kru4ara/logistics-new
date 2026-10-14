@@ -251,11 +251,11 @@ PRIMARY KEY (segment_id, cargo_id)
 - `app/drivers/[id]/page.tsx`
 - `app/trucks/[id]/page.tsx`
 
-**3.6.2 — крупные «читатели» (4 файла):**
-- `app/api/backfill-coordinates/route.ts`
-- `app/map/MapView.tsx`
-- `app/map/page.tsx` (переименовать алиасы sender_→from_)
-- `app/today/page.tsx` (то же)
+**3.6.2 — крупные «читатели» (3 файла):**
+- 🗑 `app/api/backfill-coordinates/route.ts` — **УДАЛЁН** (0 рейсов без координат)
+- ⏳ `app/map/page.tsx` (переименовать алиасы sender_→from_)
+- ⏳ `app/map/MapView.tsx` (то же + типы)
+- ⏳ `app/today/page.tsx` (то же)
 
 **3.6.3 — убрать fallback `?? trip.route ??` (5 файлов):**
 - `app/trips/page.tsx`, `app/trips/TripsBulkList.tsx`, `app/trips/[id]/page.tsx`
