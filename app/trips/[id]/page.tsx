@@ -52,6 +52,22 @@ function pickOne<T>(rel: unknown): T | null {
   return rel as T;
 }
 
+function buildRouteFromSegments(segments: any[]): string | null {
+  if (!segments || segments.length === 0) return null;
+  const sorted = [...segments].sort((a, b) => (a.position || 0) - (b.position || 0));
+  const first = sorted[0];
+  const last = sorted[sorted.length - 1];
+
+  const fromParts = [first.from_city, first.from_country].filter(Boolean);
+  const toParts = [last.to_city, last.to_country].filter(Boolean);
+
+  if (fromParts.length === 0 && toParts.length === 0) return null;
+
+  const from = fromParts.join(', ') || '—';
+  const to = toParts.join(', ') || '—';
+  return `${from} → ${to}`;
+}
+
 export default async function TripDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: tripId } = await params;
   if (!tripId) return <div className="p-8">Ошибка: ID рейса не передан</div>;
@@ -182,6 +198,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
   });
 
   const segments = (segmentsRaw || []).map((s: any) => {
+    const computedRoute = buildRouteFromSegments(segments) || trip.route || '—';
     const truck = pickOne<{ registration_number: string | null }>(s.trucks);
     const driver = pickOne<{ first_name: string | null; last_name: string | null }>(s.drivers);
     const driverName = driver
@@ -363,7 +380,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
               <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Маршрут</div>
               <div className="flex items-start gap-1.5 text-slate-800 font-medium text-sm">
                 <RouteIcon className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" strokeWidth={2} />
-                <span className="break-words">{trip.route || '—'}</span>
+                  <span className="break-words">{computedRoute}</span>
               </div>
             </div>
             <div>
