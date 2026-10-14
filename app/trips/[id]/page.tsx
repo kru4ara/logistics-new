@@ -198,7 +198,6 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
   });
 
   const segments = (segmentsRaw || []).map((s: any) => {
-    const computedRoute = buildRouteFromSegments(segments) || trip.route || '—';
     const truck = pickOne<{ registration_number: string | null }>(s.trucks);
     const driver = pickOne<{ first_name: string | null; last_name: string | null }>(s.drivers);
     const driverName = driver
@@ -233,6 +232,8 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
       cargoLinks: cargoLinksBySegment[s.id] || [],
     };
   });
+
+  const computedRoute = buildRouteFromSegments(segments) || trip.route || '—';
 
   // ============================================================
   // Расчёты
@@ -380,7 +381,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
               <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Маршрут</div>
               <div className="flex items-start gap-1.5 text-slate-800 font-medium text-sm">
                 <RouteIcon className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" strokeWidth={2} />
-                  <span className="break-words">{computedRoute}</span>
+                <span className="break-words">{computedRoute}</span>
               </div>
             </div>
             <div>
