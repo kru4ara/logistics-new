@@ -1,7 +1,8 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase-server';
-import DownloadButton from './DownloadButton';
+import { buildRouteMap, type SegmentRouteRow } from '../../lib/trip-route';
+import DownloadButton, { type ReportRow } from './DownloadButton';
 import {
   Coins,
   BarChart3,
@@ -72,14 +73,25 @@ export default async function ReportsPage() {
 
   const supabase = await createClient();
 
-  const { data: trips, error: tripsError } = await supabase
-    .from('trips')
-    .select('*, clients(name)')
-    .order('trip_number', { ascending: false });
+  const [tripsResult, segmentsResult] = await Promise.all([
+    supabase
+      .from('trips')
+      .select('*, clients(name)')
+      .order('trip_number', { ascending: false }),
+    supabase
+      .from('trip_segments')
+      .select('trip_id, position, from_city, from_country, to_city, to_country'),
+  ]);
+
+  const trips = tripsResult.data;
+  const tripsError = tripsResult.error;
 
   if (tripsError) {
     return <div className="p-8 text-red-500">Ошибка загрузки: {tripsError.message}</div>;
   }
+
+  const segments = (segmentsResult.data || []) as SegmentRouteRow[];
+  const routeByTrip = buildRouteMap(segments);
 
   // ВАЖНО: тянем расходы ТОЛЬКО по актуальным рейсам.
   // Иначе PostgREST отдаёт первые 1000 строк из trip_expenses
@@ -109,10 +121,16 @@ export default async function ReportsPage() {
   const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount_eur || 0), 0);
   const profit = totalRevenue - totalExpenses;
 
-  const tripsWithExpenses = trips?.map((trip) => ({
-    ...trip,
-    expenses: expensesByTrip[trip.id] || 0
-  })) || [];
+  // Обогащаем рейсы вычисленным route + expenses + clientName
+  const reportRows: ReportRow[] = (trips || []).map((trip) => ({
+    id: trip.id,
+    trip_number: trip.trip_number ?? null,
+    clientName: pickName(trip.clients) || 'Не указан',
+    route: routeByTrip.get(trip.id)?.route || '—',
+    status: trip.status,
+    revenue_eur: trip.revenue_eur || 0,
+    expenses: expensesByTrip[trip.id] || 0,
+  }));
 
   const statusLabels: Record<string, string> = {
     planned: 'Планируется',
@@ -143,7 +161,7 @@ export default async function ReportsPage() {
             </h1>
             <p className="text-slate-500 mt-1 text-sm md:text-base">Полная финансовая сводка по всем рейсам</p>
           </div>
-          <DownloadButton data={tripsWithExpenses} />
+          <DownloadButton data={reportRows} />
         </div>
 
         {/* Быстрые ссылки */}
@@ -216,7 +234,7 @@ export default async function ReportsPage() {
             <h2 className="text-base md:text-lg font-bold text-slate-900">Детализация по рейсам</h2>
           </div>
 
-          {tripsWithExpenses.length === 0 ? (
+          {reportRows.length === 0 ? (
             <div className="p-10 md:p-16 text-center">
               <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-brand-50 flex items-center justify-center">
                 <Inbox className="w-8 h-8 text-brand-500" strokeWidth={1.5} />
@@ -227,9 +245,8 @@ export default async function ReportsPage() {
             <>
               {/* Mobile: карточки */}
               <div className="md:hidden divide-y divide-slate-100">
-                {tripsWithExpenses.map((trip) => {
-                  const tripProfit = (trip.revenue_eur || 0) - trip.expenses;
-                  const clientName = pickName(trip.clients) || 'Не указан';
+                {reportRows.map((trip) => {
+                  const tripProfit = trip.revenue_eur - trip.expenses;
                   return (
                     <a
                       key={trip.id}
@@ -242,7 +259,7 @@ export default async function ReportsPage() {
                             Рейс № {trip.trip_number || '—'}
                           </div>
                           <div className="font-semibold text-slate-800 break-words">
-                            {clientName}
+                            {trip.clientName}
                           </div>
                         </div>
                         <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap ${statusColors[trip.status] || 'bg-slate-100 text-slate-700'}`}>
@@ -250,7 +267,7 @@ export default async function ReportsPage() {
                         </span>
                       </div>
 
-                      {trip.route && (
+                      {trip.route && trip.route !== '—' && (
                         <div className="flex items-start gap-1 text-xs text-slate-500 mb-2 break-words">
                           <RouteIcon className="w-3 h-3 mt-0.5 shrink-0 text-slate-400" strokeWidth={2} />
                           <span>{trip.route}</span>
@@ -261,7 +278,7 @@ export default async function ReportsPage() {
                         <div>
                           <div className="text-[10px] uppercase text-slate-400 font-medium">Фрахт</div>
                           <div className="text-sm font-bold text-green-600 break-words tabular-nums">
-                            {(trip.revenue_eur || 0).toFixed(0)} €
+                            {trip.revenue_eur.toFixed(0)} €
                           </div>
                         </div>
                         <div>
@@ -318,9 +335,8 @@ export default async function ReportsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {tripsWithExpenses.map((trip) => {
-                      const tripProfit = (trip.revenue_eur || 0) - trip.expenses;
-                      const clientName = pickName(trip.clients) || 'Не указан';
+                    {reportRows.map((trip) => {
+                      const tripProfit = trip.revenue_eur - trip.expenses;
                       return (
                         <tr key={trip.id} className="border-b border-slate-50 hover:bg-brand-50/30 transition-colors">
                           <td className="px-6 py-4 text-sm text-slate-500 font-medium tabular-nums">
@@ -328,11 +344,11 @@ export default async function ReportsPage() {
                           </td>
                           <td className="px-6 py-4 font-medium text-slate-800">
                             <a href={`/trips/${trip.id}`} className="hover:text-brand-600 transition-colors">
-                              {clientName}
+                              {trip.clientName}
                             </a>
                           </td>
                           <td className="px-6 py-4 text-sm text-slate-600">
-                            {trip.route || '—'}
+                            {trip.route}
                           </td>
                           <td className="px-6 py-4">
                             <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold ${statusColors[trip.status] || 'bg-slate-100 text-slate-700'}`}>
@@ -340,7 +356,7 @@ export default async function ReportsPage() {
                             </span>
                           </td>
                           <td className="px-6 py-4 text-right font-semibold text-green-600 whitespace-nowrap tabular-nums">
-                            {(trip.revenue_eur || 0).toFixed(2)} €
+                            {trip.revenue_eur.toFixed(2)} €
                           </td>
                           <td className="px-6 py-4 text-right font-semibold text-red-500 whitespace-nowrap tabular-nums">
                             {trip.expenses.toFixed(2)} €
