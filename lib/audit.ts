@@ -13,7 +13,8 @@ export type AuditEntityType =
   | 'trip_expense'
   | 'forwarding_expense'
   | 'document'
-  | 'reminder';
+  | 'reminder'
+  | 'driver_transaction';
 
 type LogInput = {
   entity_type: AuditEntityType;
