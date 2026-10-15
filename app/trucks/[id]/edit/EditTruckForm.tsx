@@ -17,6 +17,7 @@ export type TruckData = {
   border_insurance_expiry: string | null;
   to_expiry: string | null;
   tachograph_calibration_expiry: string | null;
+  tachograph_last_download: string | null;  // ⬅️ НОВОЕ
   fuel_card_number: string | null;
   trailer_number: string | null;
   customs_certificate_expiry: string | null;
@@ -189,6 +190,18 @@ export default function EditTruckForm({ truck }: { truck: TruckData }) {
                   placeholder="Номер карты"
                   className={inputClass}
                 />
+              </div>
+              <div className="md:col-span-2">
+                <label className={labelClass}>Последнее считывание тахографа</label>
+                <input
+                  type="date"
+                  name="tachograph_last_download"
+                  defaultValue={dateVal(truck.tachograph_last_download)}
+                  className={inputClass}
+                />
+                <p className="text-xs text-slate-400 mt-1">
+                  Лимит — не реже 96 дней. Обновляется, когда офис/водитель скачивает данные.
+                </p>
               </div>
             </div>
           </div>
