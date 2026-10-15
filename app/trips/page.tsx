@@ -42,6 +42,7 @@ export default async function TripsPage({
     status?: string;
     driver?: string;
     truck?: string;
+    sort?: string;
   };
 }) {
   const role = cookies().get('role')?.value;
@@ -59,6 +60,7 @@ export default async function TripsPage({
   const statusFilter = searchParams?.status || null;
   const driverFilter = searchParams?.driver || null;
   const truckFilter = searchParams?.truck || null;
+  const sortBy: 'start' | 'created' = searchParams?.sort === 'created' ? 'created' : 'start';
   const hasExtraFilter =
     Boolean(q) || Boolean(statusFilter) || Boolean(driverFilter) || Boolean(truckFilter);
 
@@ -150,7 +152,7 @@ export default async function TripsPage({
   }
 
   const tripsWithoutDate = (trips || []).filter(
-    (t) => !t.start_date && !t.end_date && !hasExtraFilter
+    (t) => !t.start_date && !t.end_date && !hasExtraFilter && sortBy === 'start'
   );
 
   const filteredTrips = (trips || []).filter((t) => {
@@ -166,11 +168,22 @@ export default async function TripsPage({
 
     if (hasExtraFilter) return true;
 
-    const d = new Date(date);
+        const d = new Date(date);
     if (d.getFullYear() !== year) return false;
     if (monthFilter && d.getMonth() + 1 !== monthFilter) return false;
     return true;
   });
+
+  // ⬅️ НОВОЕ: применяем сортировку
+  if (sortBy === 'created') {
+    filteredTrips.sort((a, b) => {
+      const aT = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const bT = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return bT - aT;
+    });
+  } else {
+    filteredTrips.sort((a, b) => (b.trip_number || 0) - (a.trip_number || 0));
+  }
 
   const tripsByMonth: Record<string, { month: number; trips: any[] }> = {};
   filteredTrips.forEach((t) => {
@@ -231,6 +244,7 @@ export default async function TripsPage({
     status?: string | null;
     driver?: string | null;
     truck?: string | null;
+    sort?: 'start' | 'created' | null;
   }): string {
     const params = new URLSearchParams();
     const y = overrides.year !== undefined ? overrides.year : year;
@@ -239,12 +253,14 @@ export default async function TripsPage({
     const st = overrides.status === undefined ? statusFilter : overrides.status;
     const dr = overrides.driver === undefined ? driverFilter : overrides.driver;
     const tr = overrides.truck === undefined ? truckFilter : overrides.truck;
+    const so = overrides.sort === undefined ? (sortBy === 'created' ? 'created' : null) : overrides.sort;
     if (y) params.set('year', String(y));
     if (m) params.set('month', String(m));
     if (qq) params.set('q', qq);
     if (st) params.set('status', st);
     if (dr) params.set('driver', dr);
     if (tr) params.set('truck', tr);
+    if (so) params.set('sort', so);
     const s = params.toString();
     return s ? `/trips?${s}` : '/trips';
   }
@@ -270,21 +286,24 @@ export default async function TripsPage({
     };
   }
 
-  const monthGroups: MonthGroup[] = sortedMonthKeys.map((key) => {
-    const group = tripsByMonth[key];
-    const mTrips = group.trips;
-    const mRev = mTrips.reduce((sum, t) => sum + (t.revenue_eur || 0), 0);
-    const mExp = mTrips.reduce((sum, t) => sum + (expensesByTrip[t.id] || 0), 0);
-    const isNoDate = key === 'nodate';
-    return {
-      key,
-      isNoDate,
-      title: isNoDate ? 'Без даты старта' : `${monthNames[group.month - 1]} ${year}`,
-      trips: mTrips.map(prepareTrip),
-      revenue: mRev,
-      expenses: mExp,
-    };
-  });
+  // ⬅️ НОВОЕ: при сортировке по created_at — плоский список без месячной группировки
+  const monthGroups: MonthGroup[] = sortBy === 'created'
+    ? []
+    : sortedMonthKeys.map((key) => {
+        const group = tripsByMonth[key];
+        const mTrips = group.trips;
+        const mRev = mTrips.reduce((sum, t) => sum + (t.revenue_eur || 0), 0);
+        const mExp = mTrips.reduce((sum, t) => sum + (expensesByTrip[t.id] || 0), 0);
+        const isNoDate = key === 'nodate';
+        return {
+          key,
+          isNoDate,
+          title: isNoDate ? 'Без даты старта' : `${monthNames[group.month - 1]} ${year}`,
+          trips: mTrips.map(prepareTrip),
+          revenue: mRev,
+          expenses: mExp,
+        };
+      });
 
   const totalFiltered = filteredTrips.length;
   const isSearchMode = hasExtraFilter;
@@ -469,6 +488,31 @@ export default async function TripsPage({
             </div>
           </div>
 
+                    {/* Сортировка */}
+          <div>
+            <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2">Сортировка</div>
+            <div className="flex flex-wrap gap-1.5 md:gap-2">
+              <a
+                href={buildUrl({ sort: null })}
+                className={`px-2.5 md:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all
+                  ${sortBy === 'start'
+                    ? 'bg-brand-600 text-white shadow-brand'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+              >
+                По дате старта
+              </a>
+              <a
+                href={buildUrl({ sort: 'created' })}
+                className={`px-2.5 md:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all
+                  ${sortBy === 'created'
+                    ? 'bg-brand-600 text-white shadow-brand'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+              >
+                Последние созданные
+              </a>
+            </div>
+          </div>
+          
           {/* Сводка по фильтру */}
           <div className="grid grid-cols-3 gap-3 pt-3 border-t border-slate-100">
             <div>
@@ -526,7 +570,11 @@ export default async function TripsPage({
           </div>
         ) : (
           <TripsBulkList
-            tripsWithoutDate={tripsWithoutDate.map(prepareTrip)}
+            tripsWithoutDate={
+              sortBy === 'created'
+                ? filteredTrips.map(prepareTrip)   // ⬅️ НОВОЕ: плоский список
+                : tripsWithoutDate.map(prepareTrip)
+            }
             monthGroups={monthGroups}
             isSearchMode={isSearchMode}
           />
