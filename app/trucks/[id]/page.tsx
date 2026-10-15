@@ -18,6 +18,8 @@ import {
   Globe,
   FileCheck,
   Inbox,
+  Download,
+  AlertTriangle,
 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -117,6 +119,41 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ id
     return { color: 'bg-green-50 text-green-700 border-green-200', label: `${days} дн.` };
   }
 
+    // ⬅️ НОВОЕ: бейдж "считывание тахографа"
+  function downloadBadge(lastDate: string | null, warnAfter: number, maxAfter: number) {
+    const days = getDaysUntil(lastDate);
+    if (lastDate === null || days === null) {
+      return {
+        color: 'bg-slate-100 text-slate-500 border-slate-200',
+        label: 'нет данных',
+        daysAgo: null as number | null,
+      };
+    }
+    const daysAgo = -days;
+    if (daysAgo > maxAfter) {
+      return {
+        color: 'bg-red-50 text-red-700 border-red-200',
+        label: `просрочено · ${daysAgo} дн.`,
+        daysAgo,
+      };
+    }
+    if (daysAgo > warnAfter) {
+      return {
+        color: 'bg-orange-50 text-orange-700 border-orange-200',
+        label: `${daysAgo} дн.`,
+        daysAgo,
+      };
+    }
+    return {
+      color: 'bg-green-50 text-green-700 border-green-200',
+      label: `${daysAgo} дн.`,
+      daysAgo,
+    };
+  }
+
+  const TACHO_PERIOD = 96;
+  const TACHO_WARN = 90;
+  const tachoBadge = downloadBadge(truck.tachograph_last_download, TACHO_WARN, TACHO_PERIOD);
   const isTractor = truck.type === 'tractor';
   const typeLabel = isTractor ? 'Тягач' : truck.type === 'trailer' ? 'Прицеп' : truck.type;
   const TypeIcon = isTractor ? TruckIcon : Container;
@@ -356,6 +393,57 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ id
           </div>
         )}
 
+                {/* 📥 Считывание тахографа (только тягач) */}
+        {isTractor && (
+          <div className="card p-5 md:p-6">
+            <div className="flex items-start justify-between gap-3 flex-wrap mb-4">
+              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <Download className="w-5 h-5 text-brand-600" strokeWidth={2} />
+                Считывание тахографа
+              </h2>
+              <span className={`px-3 py-1 rounded-full text-xs font-semibold border whitespace-nowrap ${tachoBadge.color}`}>
+                {tachoBadge.label}
+              </span>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">
+                  Последнее считывание
+                </div>
+                <div className="text-slate-800 font-medium tabular-nums">
+                  {truck.tachograph_last_download
+                    ? new Date(truck.tachograph_last_download).toLocaleDateString('ru-RU')
+                    : '—'}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">
+                  Лимит
+                </div>
+                <div className="text-slate-800 font-medium tabular-nums">
+                  {TACHO_PERIOD} дн. (предупреждение с {TACHO_WARN})
+                </div>
+              </div>
+            </div>
+
+            {tachoBadge.daysAgo === null && (
+              <div className="mt-4 p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600">
+                💡 Дата последнего считывания тахографа не указана. Внесите её через <b>«Редактировать»</b>.
+              </div>
+            )}
+
+            {tachoBadge.daysAgo !== null && tachoBadge.daysAgo > TACHO_PERIOD && (
+              <div className="mt-4 p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" strokeWidth={2.2} />
+                <span>
+                  <b>Просрочено!</b> Тахограф нужно считывать не реже <b>{TACHO_PERIOD} дней</b>. Считайте как можно скорее.
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+        
         {/* 📅 Сроки документов */}
         <div className="card p-5 md:p-6">
           <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
