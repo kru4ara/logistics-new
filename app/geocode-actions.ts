@@ -4,7 +4,6 @@ import { createClient } from '../lib/supabase-server';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { logAudit } from '../lib/audit';
-import { renumberAllTrips } from '../lib/trip-renumber';
 
 // ⬅️ ИЗМЕНЕНО: параметры переименованы sender→from, receiver→to
 async function notifyDriverAboutNewTrip(
@@ -193,11 +192,11 @@ export async function addTripWithAddress(formData: FormData) {
         start_lng: startLng,
         end_lat: endLat,
         end_lng: endLng,
-        trip_number: 0, // временно, будет пересчитан ниже
+                trip_number: 0, // триггер set_trip_number поставит MAX+1
         status: 'planned',
       },
     ])
-    .select('id')
+    .select('id, trip_number')
     .single();
 
   if (error || !created) throw new Error(`Ошибка создания рейса: ${error?.message || 'unknown'}`);
@@ -277,17 +276,8 @@ export async function addTripWithAddress(formData: FormData) {
     console.error('[addTrip] auto-segment exception:', e);
   }
 
-  // Перенумерация всех рейсов по start_date ASC
-  await renumberAllTrips(supabase);
-
-  // Получаем финальный номер
-  const { data: finalTrip } = await supabase
-    .from('trips')
-    .select('trip_number')
-    .eq('id', created.id)
-    .single();
-
-  const finalNumber = finalTrip?.trip_number ?? 0;
+    // Номер рейса присвоен триггером set_trip_number
+  const finalNumber = created.trip_number ?? 0;
 
   await logAudit({
     entity_type: 'trip',
