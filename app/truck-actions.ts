@@ -41,6 +41,7 @@ function parseTruckForm(formData: FormData) {
     // Только для тягача
     to_expiry: trimOrNull('to_expiry'),
     tachograph_calibration_expiry: trimOrNull('tachograph_calibration_expiry'),
+    tachograph_last_download: trimOrNull('tachograph_last_download'),  // ⬅️ НОВОЕ
     fuel_card_number: trimOrNull('fuel_card_number'),
     trailer_number: trimOrNull('trailer_number'),
 
