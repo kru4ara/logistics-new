@@ -256,6 +256,39 @@ export default async function TodayPage() {
     ...subEventsToday.filter((e) => e.pointLabel === 'C'),
     ...fwdEventsToday.filter((e) => e.pointLabel === 'Выгрузка'),
   ];
+  
+  // 3.5. ЗАВЕРШЁННЫЕ РЕЙСЫ БЕЗ ЗП
+  const { data: completedTrips } = await supabase
+    .from('trips')
+    .select(`
+      id, trip_number, end_date,
+      clients(name),
+      drivers!driver_id(first_name, last_name)
+    `)
+    .eq('status', 'completed')
+    .not('driver_id', 'is', null);
+
+  const completedTripIds = (completedTrips || []).map((t: any) => t.id);
+
+  const { data: salaryExpenses } = completedTripIds.length > 0
+    ? await supabase
+        .from('trip_expenses')
+        .select('trip_id')
+        .eq('category', 'salary')
+        .in('trip_id', completedTripIds)
+    : { data: [] };
+
+  const tripsWithSalary = new Set((salaryExpenses || []).map((e: any) => e.trip_id));
+
+  const tripsWithoutSalary = (completedTrips || [])
+    .filter((t: any) => !tripsWithSalary.has(t.id))
+    .map((t: any) => ({
+      id: t.id,
+      trip_number: t.trip_number,
+      end_date: t.end_date,
+      clientName: pickName(t.clients) || null,
+      driverName: getDriverName(t.drivers),
+    }));
 
   // 4. ВНИМАНИЕ
   const { data: remindersRaw } = await supabase
@@ -279,7 +312,10 @@ export default async function TodayPage() {
   );
 
   const attentionCount =
-    overdueReminders.length + tripsWithoutDriver.length + tripsWithoutTruck.length;
+    overdueReminders.length +
+    tripsWithoutDriver.length +
+    tripsWithoutTruck.length +
+    tripsWithoutSalary.length;
 
   const todayHuman = new Date().toLocaleDateString('ru-RU', {
     day: '2-digit',
@@ -620,6 +656,37 @@ export default async function TodayPage() {
                         </span>
                       </Link>
                     ))}
+                  </div>
+                </div>
+              )}
+                            {tripsWithoutSalary.length > 0 && (
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-amber-600 font-semibold mb-2">
+                    Завершённые рейсы без ЗП · {tripsWithoutSalary.length}
+                  </div>
+                  <div className="space-y-1.5">
+                    {tripsWithoutSalary.slice(0, 5).map((t) => (
+                      <Link
+                        key={`ns-${t.id}`}
+                        href={`/trips/${t.id}`}
+                        className="flex items-center gap-2 text-sm text-slate-700 hover:text-brand-600 transition-colors"
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+                        <span className="truncate">
+                          №{t.trip_number || '—'}
+                          {t.clientName && ` · ${t.clientName}`}
+                          {t.driverName && ` · ${t.driverName}`}
+                        </span>
+                        <span className="ml-auto text-xs text-amber-600 whitespace-nowrap">
+                          нет ЗП
+                        </span>
+                      </Link>
+                    ))}
+                    {tripsWithoutSalary.length > 5 && (
+                      <div className="text-xs text-slate-400 text-center pt-1">
+                        и ещё {tripsWithoutSalary.length - 5}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
