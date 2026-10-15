@@ -190,7 +190,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
       : null;
     return {
       id: s.id,
-      trip_id: s.trip_id,     // ← добавить эту строку
+      trip_id: s.trip_id,
       position: s.position,
       executor_type: s.executor_type,
       contractor_id: s.contractor_id,
@@ -219,7 +219,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
     };
   });
 
-  // Route из сегментов через buildRouteMap (fallback на trip.route удалён в Фазе 3.6)
+  // Route из сегментов через buildRouteMap
   const routeMap = buildRouteMap((segmentsRaw || []) as SegmentRouteRow[]);
   const computedRoute = routeMap.get(tripId)?.route ?? '—';
 
@@ -614,8 +614,13 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
                   return (
                     <div key={exp.id} className="border border-slate-100 rounded-xl p-3 bg-slate-50/40">
                       <div className="flex justify-between items-start gap-2 mb-2">
-                        <div className="font-semibold text-slate-800 text-sm">
+                        <div className="font-semibold text-slate-800 text-sm flex items-center gap-2 flex-wrap">
                           {categoryLabel(exp.category)}
+                          {exp.paid_by_driver && (
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-200 whitespace-nowrap">
+                              🚛 за счёт водителя
+                            </span>
+                          )}
                         </div>
                         {!seg && (
                           <form action={async () => {
@@ -678,158 +683,15 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
                       return (
                         <tr key={exp.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
                           <td className="py-3 text-sm">
-                            {categoryLabel(exp.category)}
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {categoryLabel(exp.category)}
+                              {exp.paid_by_driver && (
+                                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-200 whitespace-nowrap">
+                                  🚛 за счёт водителя
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="py-3 text-xs text-slate-600">
                             {seg ? (
-                              <span className="text-brand-700 bg-brand-50 px-2 py-0.5 rounded whitespace-nowrap">
-                                #{seg.position} {seg.executor_type === 'us' ? 'Мы' : seg.contractor_name || ''}
-                              </span>
-                            ) : (
-                              <span className="text-slate-300">—</span>
-                            )}
-                          </td>
-                          <td className="py-3 text-right text-sm font-medium tabular-nums">
-                            {exp.original_amount} {exp.currency}
-                          </td>
-                          <td className="py-3 text-right text-sm font-bold text-red-500 tabular-nums">
-                            {exp.amount_eur} €
-                          </td>
-                          <td className="py-3 pl-4 text-sm text-slate-600">{exp.description || '-'}</td>
-                          <td className="py-3 text-right text-xs text-slate-500 tabular-nums">
-                            {exp.expense_date ? new Date(exp.expense_date).toLocaleDateString('ru-RU') : '-'}
-                          </td>
-                          <td className="py-3 text-right">
-                            {!seg && (
-                              <form action={async () => {
-                                'use server';
-                                await deleteExpense(exp.id, tripId);
-                              }}>
-                                <button type="submit" className="text-red-500 hover:text-red-700 text-xs font-medium px-2 py-1">
-                                  Удалить
-                                </button>
-                              </form>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* ЭКОНОМИКА */}
-        <div className="card p-5 md:p-6">
-          <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-            <Wallet className="w-5 h-5 text-brand-600" strokeWidth={2} />
-            Экономика рейса
-          </h2>
-
-          <div className="space-y-3">
-            <div className="flex items-center justify-between gap-3 pb-3 border-b border-slate-100">
-              <div className="text-sm font-medium text-slate-700">Фрахт</div>
-              <div className="text-lg font-bold text-green-600 tabular-nums">
-                {(trip.revenue_eur || 0).toFixed(2)} €
-              </div>
-            </div>
-
-            {contractorExpenses > 0 && (
-              <div className="flex items-center justify-between gap-3 pb-3 border-b border-slate-100">
-                <div className="text-sm font-medium text-slate-700 flex items-center gap-2">
-                  <Coins className="w-4 h-4 text-slate-400" strokeWidth={2} />
-                  Подрядчики
-                </div>
-                <div className="text-lg font-bold text-red-600 tabular-nums">
-                  −{contractorExpenses.toFixed(2)} €
-                </div>
-              </div>
-            )}
-
-            {otherExpenses > 0 && (
-              <div className="flex items-center justify-between gap-3 pb-3 border-b border-slate-100">
-                <div className="text-sm font-medium text-slate-700">Прочие расходы</div>
-                <div className="text-lg font-bold text-red-600 tabular-nums">
-                  −{otherExpenses.toFixed(2)} €
-                </div>
-              </div>
-            )}
-
-            <div className="flex items-center justify-between gap-3 pt-2">
-              <div className="text-base font-bold text-slate-900">Прибыль</div>
-              <div className={`text-2xl font-bold tabular-nums ${profit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                {profit.toFixed(2)} €
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ДОБАВИТЬ РАСХОД */}
-        <div className="card p-5 md:p-6">
-          <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-            <PlusCircle className="w-5 h-5 text-brand-600" strokeWidth={2} />
-            Добавить расход
-          </h2>
-          <p className="text-xs text-slate-500 mb-4">
-            Расход подрядчику создаётся автоматически из участка. Здесь — только прочие расходы:
-            топливо, EPI, стоянки, дозволы и т.д.
-          </p>
-          <form action={addExpense} className="space-y-4">
-            <input type="hidden" name="trip_id" value={tripId} />
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Категория</label>
-                <select name="category" required className="input">
-                  {expenseCategories.map((c) => (
-                    <option key={c.value} value={c.value}>{c.label}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Валюта</label>
-                <select name="currency" className="input">
-                  <option value="EUR">EUR</option>
-                  <option value="PLN">PLN</option>
-                  <option value="BYN">BYN</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Сумма</label>
-                <input type="number" name="amount" step="0.01" required className="input" />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Литры (для топлива)</label>
-                <input type="number" name="liters" step="0.01" placeholder="150" className="input" />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-slate-700 mb-1">Описание</label>
-                <input type="text" name="description" className="input" />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-slate-700 mb-1">Дата</label>
-                <input type="date" name="expense_date" className="input" />
-              </div>
-            </div>
-
-            <SubmitButton
-              className="btn btn-primary w-full py-3"
-              pendingText="Добавляю расход…"
-            >
-              <PlusCircle className="w-4 h-4" strokeWidth={2.5} />
-              Добавить расход
-            </SubmitButton>
-          </form>
-        </div>
-
-      </div>
-    </main>
-  );
-}
+                             
