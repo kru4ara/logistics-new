@@ -160,7 +160,6 @@ export async function updateTrip(tripId: string, formData: FormData) {
   const clientRequestNumber = formData.get('client_request_number') as string;
   const clientRequestDate = formData.get('client_request_date') as string;
 
-  // ⬅️ ИЗМЕНЕНО: from_* / to_* вместо sender_* / receiver_*
   const fromCountry = formData.get('from_country') as string;
   const fromName = formData.get('from_name') as string;
   const fromPostalCode = formData.get('from_postal_code') as string;
@@ -183,7 +182,6 @@ export async function updateTrip(tripId: string, formData: FormData) {
     }
   }
 
-  // ⬅️ ИЗМЕНЕНО: не читаем route и sender_*/receiver_* для аудита
   const { data: before } = await supabase
     .from('trips')
     .select('trip_number, revenue_eur, driver_id, truck_id, client_id, start_date, end_date, client_request_number, start_fuel_level, start_lat, start_lng, end_lat, end_lng')
@@ -209,7 +207,6 @@ export async function updateTrip(tripId: string, formData: FormData) {
     return null;
   }
 
-  // ⬅️ ИЗМЕНЕНО: всегда геокодим, если есть from/to (без сравнения before.sender_*)
   let startLat = before?.start_lat ?? 0;
   let startLng = before?.start_lng ?? 0;
   let endLat = before?.end_lat ?? 0;
@@ -224,7 +221,6 @@ export async function updateTrip(tripId: string, formData: FormData) {
     if (c) { endLat = c.lat; endLng = c.lng; }
   }
 
-  // ⬅️ ИЗМЕНЕНО: НЕ пишем sender_*/receiver_*/route в trips — только основные поля + координаты
   const { error } = await supabase
     .from('trips')
     .update({
@@ -245,9 +241,8 @@ export async function updateTrip(tripId: string, formData: FormData) {
     })
     .eq('id', tripId);
 
-   if (error) throw new Error(`Ошибка обновления: ${error.message}`);
+  if (error) throw new Error(`Ошибка обновления: ${error.message}`);
 
-  // ⬅️ ИЗМЕНЕНО: убран route из diffFields (в trips его больше нет)
   if (before) {
     const changes = diffFields(
       {
@@ -295,7 +290,6 @@ export async function updateTrip(tripId: string, formData: FormData) {
 export async function deleteTrip(tripId: string) {
   const supabase = await createClient();
 
-  // ⬅️ ИЗМЕНЕНО: не читаем route из trips (в БД его скоро не будет)
   const { data: tripInfo } = await supabase
     .from('trips')
     .select('trip_number, revenue_eur')
@@ -318,11 +312,8 @@ export async function deleteTrip(tripId: string) {
     .from('trips')
     .delete()
     .eq('id', tripId);
-   if (error) throw new Error(`Ошибка удаления рейса: ${error.message}`);
+  if (error) throw new Error(`Ошибка удаления рейса: ${error.message}`);
 
-  await logAudit({
-
-  // ⬅️ ИЗМЕНЕНО: убрали route из summary — строим строку из того, что есть
   await logAudit({
     entity_type: 'trip',
     entity_id: tripId,
