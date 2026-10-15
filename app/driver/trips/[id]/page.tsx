@@ -23,7 +23,7 @@ import {
 import { createClient } from '../../../../lib/supabase-server';
 import { buildRouteMap, type SegmentRouteRow } from '../../../../lib/trip-route';
 import { deleteExpense } from '../../../trip-actions';
-import AddExpenseForm from '../../trips/AddExpenseForm';
+import AddExpenseForm from '../../../trips/AddExpenseForm';
 import FileUpload from '../../FileUpload';
 import DocumentList from '../../DocumentList';
 import TripStatusButtons from '../../TripStatusButtons';
