@@ -1,5 +1,6 @@
 import { createClient } from '../../../lib/supabase-server';
-import { addExpense, deleteExpense, deleteTrip } from '../../trip-actions';
+import { deleteExpense, deleteTrip } from '../../trip-actions';
+import AddExpenseForm from '../AddExpenseForm';
 import FileUpload from '../../driver/FileUpload';
 import DocumentList from '../../driver/DocumentList';
 import TripStatusButtons from '../../driver/TripStatusButtons';
@@ -286,7 +287,6 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
   const expenseCategories: { value: string; label: string }[] = [
     { value: 'fuel', label: '⛽ Топливо' },
     { value: 'epi', label: '📄 EPI' },
-    { value: 'etoll', label: '🛣 e-TOLL' },
     { value: 'border', label: '🛂 Граница' },
     { value: 'salary', label: '💶 ЗП водителя' },
     { value: 'permit', label: '📋 Дозвол' },
@@ -778,94 +778,22 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
           </div>
         </div>
 
-        {/* ДОБАВИТЬ РАСХОД */}
+               {/* ДОБАВИТЬ РАСХОД */}
         <div className="card p-5 md:p-6">
           <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
             <PlusCircle className="w-5 h-5 text-brand-600" strokeWidth={2} />
             Добавить расход
           </h2>
           <p className="text-xs text-slate-500 mb-4">
-            Расход подрядчику создаётся автоматически из участка. Здесь — только прочие расходы:
-            топливо, EPI, стоянки, дозволы и т.д.
+            Расход подрядчику создаётся автоматически из участка. Здесь — прочие расходы:
+            топливо, EPI, стоянки, дозволы, ЗП водителя и т.д.
           </p>
-          <form action={addExpense} className="space-y-4">
-            <input type="hidden" name="trip_id" value={tripId} />
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Категория</label>
-                <select name="category" required className="input">
-                  {expenseCategories.map((c) => (
-                    <option key={c.value} value={c.value}>{c.label}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Валюта</label>
-                <select name="currency" className="input">
-                  <option value="EUR">EUR</option>
-                  <option value="PLN">PLN</option>
-                  <option value="BYN">BYN</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Сумма</label>
-                <input type="number" name="amount" step="0.01" required className="input" />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Литры (для топлива)</label>
-                <input type="number" name="liters" step="0.01" placeholder="150" className="input" />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-slate-700 mb-1">Описание</label>
-                <input type="text" name="description" className="input" />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-slate-700 mb-1">Дата</label>
-                <input type="date" name="expense_date" className="input" />
-              </div>
-
-              {/* Чекбокс: оплатил водитель за свои */}
-              <div className="md:col-span-2">
-                <label className={`flex items-start gap-3 p-3 rounded-xl border transition-colors ${
-                  driver
-                    ? 'bg-amber-50/40 border-amber-200 cursor-pointer hover:bg-amber-50'
-                    : 'bg-slate-50 border-slate-200 cursor-not-allowed opacity-60'
-                }`}>
-                  <input
-                    type="checkbox"
-                    name="paid_by_driver"
-                    value="true"
-                    disabled={!driver}
-                    className="mt-0.5 w-4 h-4 accent-amber-600"
-                  />
-                  <div className="min-w-0">
-                    <div className="text-sm font-semibold text-slate-800">
-                      🚛 Оплатил водитель за свои
-                    </div>
-                    <div className="text-xs text-slate-500 mt-0.5">
-                      {driver
-                        ? `Сумма уйдёт в долг водителя — ${driver.first_name} ${driver.last_name}. Погасить можно на его карточке.`
-                        : 'У рейса нет водителя — сначала назначьте, потом можно отмечать.'}
-                    </div>
-                  </div>
-                </label>
-              </div>
-            </div>
-
-            <SubmitButton
-              className="btn btn-primary w-full py-3"
-              pendingText="Добавляю расход…"
-            >
-              <PlusCircle className="w-4 h-4" strokeWidth={2.5} />
-              Добавить расход
-            </SubmitButton>
-          </form>
+          <AddExpenseForm
+            tripId={tripId}
+            hasDriver={Boolean(driver)}
+            driverName={driver ? `${driver.first_name} ${driver.last_name}` : null}
+            allowSalary={true}
+          />
         </div>
 
       </div>
