@@ -22,7 +22,8 @@ import {
 } from 'lucide-react';
 import { createClient } from '../../../../lib/supabase-server';
 import { buildRouteMap, type SegmentRouteRow } from '../../../../lib/trip-route';
-import { addExpense, deleteExpense } from '../../../trip-actions';
+import { deleteExpense } from '../../../trip-actions';
+import AddExpenseForm from '../../trips/AddExpenseForm';
 import FileUpload from '../../FileUpload';
 import DocumentList from '../../DocumentList';
 import TripStatusButtons from '../../TripStatusButtons';
@@ -176,9 +177,7 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
   const expenseCategories: { value: string; label: string; emoji: string }[] = [
     { value: 'fuel', label: 'Топливо', emoji: '⛽' },
     { value: 'epi', label: 'EPI', emoji: '📄' },
-    { value: 'etoll', label: 'e-TOLL', emoji: '🛣' },
     { value: 'border', label: 'Граница', emoji: '🛂' },
-    { value: 'salary', label: 'ЗП водителя', emoji: '💶' },
     { value: 'contractor', label: 'Подрядчик', emoji: '🚛' },
     { value: 'permit', label: 'Дозвол', emoji: '📋' },
     { value: 'tlc', label: 'ТЛЦ', emoji: '🏭' },
@@ -522,7 +521,7 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
           )}
         </div>
 
-        {/* Добавить расход */}
+              {/* Добавить расход */}
         <div className="card p-5">
           <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
             <PlusCircle className="w-5 h-5 text-brand-600" strokeWidth={2} />
@@ -531,80 +530,13 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
           <p className="text-xs text-slate-500 mb-4">
             Если вы оплатили из своих — поставьте галочку ниже. Сумма уйдёт в долг компании перед вами.
           </p>
-          <form action={addExpense} className="space-y-4">
-            <input type="hidden" name="trip_id" value={tripId} />
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <label className={labelClass}>Категория</label>
-                <select name="category" required className={inputClass}>
-                  {expenseCategories.map((c) => (
-                    <option key={c.value} value={c.value}>{c.emoji} {c.label}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className={labelClass}>Валюта</label>
-                <select name="currency" className={inputClass}>
-                  <option value="EUR">EUR</option>
-                  <option value="PLN">PLN</option>
-                  <option value="BYN">BYN</option>
-                </select>
-              </div>
-
-              <div>
-                <label className={labelClass}>Сумма</label>
-                <input type="number" name="amount" step="0.01" required className={inputClass} />
-              </div>
-
-              <div>
-                <label className={labelClass}>Литры (для топлива)</label>
-                <input type="number" name="liters" step="0.01" placeholder="150" className={inputClass} />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className={labelClass}>Описание</label>
-                <input type="text" name="description" placeholder="Комментарий" className={inputClass} />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className={labelClass}>Дата</label>
-                <input type="date" name="expense_date" className={inputClass} />
-              </div>
-
-              {/* Чекбокс: оплатил водитель за свои — по умолчанию отмечен */}
-              <div className="md:col-span-2">
-                <label className="flex items-start gap-3 p-3 rounded-xl border bg-amber-50/40 border-amber-200 cursor-pointer hover:bg-amber-50 transition-colors">
-                  <input
-                    type="checkbox"
-                    name="paid_by_driver"
-                    value="true"
-                    defaultChecked
-                    className="mt-0.5 w-4 h-4 accent-amber-600"
-                  />
-                  <div className="min-w-0">
-                    <div className="text-sm font-semibold text-slate-800">
-                      🚛 Я оплатил за свои
-                    </div>
-                    <div className="text-xs text-slate-500 mt-0.5">
-                      Сумма уйдёт в долг компании перед вами. Офис увидит и сможет погасить.
-                    </div>
-                  </div>
-                </label>
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 rounded-xl
-                         shadow-md shadow-emerald-600/20 transition-all duration-150 active:scale-[0.98]
-                         inline-flex items-center justify-center gap-2"
-            >
-              <PlusCircle className="w-4 h-4" strokeWidth={2.5} />
-              Добавить расход
-            </button>
-          </form>
+          <AddExpenseForm
+            tripId={tripId}
+            hasDriver={true}
+            allowSalary={false}
+            defaultPaidByDriver={true}
+            paidByDriverHint="Сумма уйдёт в долг компании перед вами. Офис увидит и сможет погасить."
+          />
         </div>
 
       </div>
