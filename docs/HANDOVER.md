@@ -246,8 +246,34 @@ created_at TIMESTAMPTZ DEFAULT NOW()
 ### ✅ Сделано (15.10.2026)
 
 1. **`created_at` в `trips`** — SQL, существующие заполнены, новые — автоматически.
+
 2. **Триггер `trip_number` (MAX+1)** — SQL. Убраны вызовы `renumberAllTrips`.
    - Побочный эффект: после удаления рейса — «дырка» в нумерации (норма).
+     
+3. **ЗП водителю → accrual** (15.10.2026):
+   - SQL-миграция старых `salary`-расходов → `driver_transactions`.
+   - `app/trips/AddExpenseForm.tsx` — общий client-компонент, чекбокс `paid_by_driver` скрыт при `salary`.
+   - `app/trip-actions.tsx` (`addExpense`) — accrual при `paid_by_driver=true` или `category='salary'`.
+   - Водитель не может начислять ЗП (`allowSalary={false}` в `/driver/trips/[id]`).
+   - `etoll` убран из категорий.
+   - **Предупреждение** на `/trips/[id]` — если `status='completed'`, есть водитель, нет `salary`-расхода.
+   - **Секция + KPI** на `/today` — «Завершённые рейсы без ЗП».
+     
+4. **Считывание тахографа и карты водителя** (15.10.2026):
+   - SQL: `trucks.tachograph_last_download`, `drivers.driver_card_last_download`.
+   - Лимиты: карта водителя — **28 дней** (warn 25), тахограф — **96 дней** (warn 90).
+   - `app/driver/reminders/page.tsx` — блок «Считывание данных» + **документы прицепа**.
+   - `app/drivers/[id]/page.tsx` — блок считывания карты водителя.
+   - `app/drivers/[id]/edit/page.tsx` — поле ввода.
+   - `app/driver-actions.ts` — сохранение.
+   - `app/trucks/[id]/page.tsx` — блок считывания тахографа (только тягач).
+   - `app/trucks/[id]/edit/EditTruckForm.tsx` — поле ввода.
+   - `app/truck-actions.ts` — сохранение.
+
+5. **Сортировка на `/trips`** (15.10.2026):
+   - Кнопка «По дате старта / Последние созданные».
+   - URL: `?sort=created`.
+   - При `sort=created` — плоский список (без месячной группировки).
 
 ### ⏳ В очереди (не срочно)
 
@@ -269,6 +295,8 @@ created_at TIMESTAMPTZ DEFAULT NOW()
 - `trip_expenses`: ~416
 - `driver_transactions`: новая, пока пустая (или с тестовыми)
 - `trip_subcontractors`: DROP
+- `trucks`: + `tachograph_last_download`
+- `drivers`: + `driver_card_last_download`
 
 **Бэкапы:**
 - `backup_2026-10-13_0730.json` — до Фазы 3
@@ -391,9 +419,8 @@ Static page generation (60s timeout). Лечится: Redeploy без кэша �
 - `driver_transactions`: новая
 - `trip_subcontractors`: DROP
 
-**Закрыто:** Фазы 3.1–3.6 + `created_at` + триггер `trip_number` + **Фаза 4 полностью**.
-
-**В очереди:** см. «Очередь задач» выше.
+**Закрыто:** Фазы 3.1–3.6 + created_at + триггер trip_number + Фаза 4 + ЗП-логика + тахограф/карта + сортировка.
+**В очереди:** см. «Идеи (не срочно)».
 
 ---
 
