@@ -21,7 +21,7 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import { createClient } from '../../../../lib/supabase-server';
-import { buildRouteMap, type SegmentRouteRow } from '../../../../lib/trip-route'; // ⬅️ ИЗМЕНЕНО
+import { buildRouteMap, type SegmentRouteRow } from '../../../../lib/trip-route';
 import { addExpense, deleteExpense } from '../../../trip-actions';
 import FileUpload from '../../FileUpload';
 import DocumentList from '../../DocumentList';
@@ -91,14 +91,12 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
     .eq('trip_id', tripId)
     .order('uploaded_at', { ascending: false });
 
-  // ⬅️ ИЗМЕНЕНО: тянем ВСЕ сегменты рейса (не только us) — route строится по всем
   const { data: segmentsRaw } = await supabase
     .from('trip_segments')
     .select('*')
     .eq('trip_id', tripId)
     .order('position', { ascending: true });
 
-   // Route из сегментов (fallback удалён в Фазе 3.6)
   const routeMap = buildRouteMap(
     (segmentsRaw || []).map((s: any) => ({
       trip_id: s.trip_id,
@@ -111,7 +109,6 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
   );
   const routeDisplay = routeMap.get(tripId)?.route ?? '—';
 
-  // ⬅️ ИЗМЕНЕНО: "Задание" — только us-сегменты (фильтр в JS, т.к. выше взяли все)
   const usSegmentsRaw = (segmentsRaw || []).filter((s: any) => s.executor_type === 'us');
   const segmentIds = usSegmentsRaw.map((s: any) => s.id);
   const segmentCargoRes = segmentIds.length > 0
@@ -329,7 +326,6 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
                     </div>
                   )}
 
-                  {/* Даты */}
                   {(seg.date_from || seg.date_to) && (
                     <div className="text-xs text-slate-500 inline-flex items-center gap-1.5 tabular-nums">
                       <Calendar className="w-3.5 h-3.5" strokeWidth={2} />
@@ -339,7 +335,6 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
                     </div>
                   )}
 
-                  {/* Откуда */}
                   <div className="border-l-4 border-green-500 pl-3 py-1">
                     <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-1 inline-flex items-center gap-1.5">
                       <MapPin className="w-3.5 h-3.5" strokeWidth={2} />
@@ -364,7 +359,6 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
                     )}
                   </div>
 
-                  {/* Промежуточные точки */}
                   {seg.stops.length > 0 && (
                     <div className="space-y-2">
                       {seg.stops.map((stop: StopDb, idx: number) => (
@@ -389,7 +383,6 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
                     </div>
                   )}
 
-                  {/* Куда */}
                   {(seg.to_city || seg.to_company || seg.to_country) && (
                     <div className="border-l-4 border-brand-500 pl-3 py-1">
                       <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-1 inline-flex items-center gap-1.5">
@@ -416,7 +409,6 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
                     </div>
                   )}
 
-                  {/* Грузы */}
                   {seg.cargoLinks.length > 0 && (
                     <div className="flex items-center gap-1.5 flex-wrap pt-1">
                       <Package className="w-3.5 h-3.5 text-slate-400 shrink-0" strokeWidth={2} />
@@ -482,8 +474,13 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
               {expenses?.map((exp) => (
                 <div key={exp.id} className="border border-slate-100 rounded-xl p-3 bg-slate-50/40">
                   <div className="flex items-center gap-2 mb-2">
-                    <div className="font-semibold text-slate-800 text-sm flex-1 min-w-0 truncate">
+                    <div className="font-semibold text-slate-800 text-sm flex-1 min-w-0 flex items-center gap-2 flex-wrap">
                       {categoryLabel(exp.category)}
+                      {exp.paid_by_driver && (
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-200 whitespace-nowrap">
+                          🚛 за счёт водителя
+                        </span>
+                      )}
                     </div>
                     <div className="text-right shrink-0">
                       <div className="text-xs text-slate-400 tabular-nums">
@@ -531,6 +528,9 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
             <PlusCircle className="w-5 h-5 text-brand-600" strokeWidth={2} />
             Добавить расход
           </h2>
+          <p className="text-xs text-slate-500 mb-4">
+            Если вы оплатили из своих — поставьте галочку ниже. Сумма уйдёт в долг компании перед вами.
+          </p>
           <form action={addExpense} className="space-y-4">
             <input type="hidden" name="trip_id" value={tripId} />
 
@@ -571,6 +571,27 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
               <div className="md:col-span-2">
                 <label className={labelClass}>Дата</label>
                 <input type="date" name="expense_date" className={inputClass} />
+              </div>
+
+              {/* Чекбокс: оплатил водитель за свои — по умолчанию отмечен */}
+              <div className="md:col-span-2">
+                <label className="flex items-start gap-3 p-3 rounded-xl border bg-amber-50/40 border-amber-200 cursor-pointer hover:bg-amber-50 transition-colors">
+                  <input
+                    type="checkbox"
+                    name="paid_by_driver"
+                    value="true"
+                    defaultChecked
+                    className="mt-0.5 w-4 h-4 accent-amber-600"
+                  />
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold text-slate-800">
+                      🚛 Я оплатил за свои
+                    </div>
+                    <div className="text-xs text-slate-500 mt-0.5">
+                      Сумма уйдёт в долг компании перед вами. Офис увидит и сможет погасить.
+                    </div>
+                  </div>
+                </label>
               </div>
             </div>
 
