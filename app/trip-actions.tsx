@@ -52,8 +52,6 @@ export async function addExpense(formData: FormData) {
   const description = formData.get('description') as string;
   const expenseDate = formData.get('expense_date') as string;
   const segmentId = (formData.get('segment_id') as string) || null;
-
-  // ⬅️ НОВОЕ: чекбокс "оплатил водитель за свои"
   const paidByDriver = formData.get('paid_by_driver') === 'true';
 
   const dateForRate = expenseDate || new Date().toISOString().split('T')[0];
@@ -92,7 +90,7 @@ export async function addExpense(formData: FormData) {
         liters: category === 'fuel' ? liters : null,
         description: description,
         expense_date: expenseDate || null,
-        paid_by_driver: paidByDriver, // ⬅️ НОВОЕ
+        paid_by_driver: paidByDriver,
       }
     ])
     .select('id')
@@ -108,18 +106,25 @@ export async function addExpense(formData: FormData) {
       summary: `Добавлен расход по рейсу: ${category} · ${originalAmount} ${currency} (≈ ${Math.round(amountEur * 100) / 100} €)${segmentId ? ' · привязан к участку' : ''}${paidByDriver ? ' · оплатил водитель' : ''}`,
     });
 
-    // ⬅️ НОВОЕ: если расход за счёт водителя — начисляем долг
-    if (paidByDriver && amountEur > 0) {
+    // ⬅️ accrual: при paid_by_driver=true ИЛИ category='salary' (salary приоритетнее)
+    const isSalary = category === 'salary';
+    const shouldAccrue = (paidByDriver || isSalary) && amountEur > 0;
+
+    if (shouldAccrue) {
       try {
         const { data: trip } = await supabase
           .from('trips')
-          .select('driver_id')
+          .select('driver_id, trip_number')
           .eq('id', tripId)
           .maybeSingle();
 
         const driverId = trip?.driver_id;
 
         if (driverId) {
+          const notesText = isSalary
+            ? `ЗП за рейс №${trip?.trip_number ?? '—'}`
+            : `Расход по рейсу: ${category}${description ? ' · ' + description : ''}`;
+
           const { data: dt, error: dtErr } = await supabase
             .from('driver_transactions')
             .insert([
@@ -132,7 +137,7 @@ export async function addExpense(formData: FormData) {
                 original_amount: originalAmount,
                 currency,
                 date: expenseDate || dateForRate,
-                notes: `Расход по рейсу: ${category}${description ? ' · ' + description : ''}`,
+                notes: notesText,
               },
             ])
             .select('id')
@@ -145,11 +150,13 @@ export async function addExpense(formData: FormData) {
               entity_type: 'driver_transaction',
               entity_id: dt.id,
               action: 'create',
-              summary: `Начислен долг водителю за расход: ${originalAmount} ${currency} (≈ ${Math.round(amountEur * 100) / 100} €)`,
+              summary: isSalary
+                ? `Начислена ЗП водителю: ${originalAmount} ${currency} (≈ ${Math.round(amountEur * 100) / 100} €)`
+                : `Начислен долг водителю за расход: ${originalAmount} ${currency} (≈ ${Math.round(amountEur * 100) / 100} €)`,
             });
           }
         } else {
-          console.warn('[addExpense] paid_by_driver=true, но у рейса нет водителя — долг не начислен');
+          console.warn('[addExpense] нет водителя — долг не начислен');
         }
       } catch (e) {
         console.error('[addExpense] driver_debt exception:', e);
@@ -188,10 +195,6 @@ export async function deleteExpense(expenseId: string, tripId: string) {
       ? `Удалён расход: ${before.category} · ${before.original_amount} ${before.currency}`
       : 'Удалён расход (данные не сохранились)',
   });
-
-  // ⬅️ ПРИМЕЧАНИЕ: driver_transactions.expense_id с ON DELETE SET NULL —
-  // при удалении расхода связанное начисление ОСТАЁТСЯ (долг не пропадает).
-  // Если нужно — офис удалит операцию вручную на карточке водителя.
 
   revalidatePath(`/trips/${tripId}`);
   revalidatePath('/trips');
