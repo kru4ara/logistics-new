@@ -21,7 +21,7 @@ type ConsolidationPoint = {
   postal_code: string | null;
   address: string | null;
 };
-
+ 
 export default async function DriverPage() {
   const cookieStore = cookies();
   const role = cookieStore.get('role')?.value;
