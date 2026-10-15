@@ -13,6 +13,7 @@ const TRACKED_FIELDS = [
   'tachograph_card_number', 'tachograph_card_expiry',
   'code_95_expiry', 'adr_expiry',
   'date_of_birth', 'address',
+  'driver_card_last_download', // ⬅️ НОВОЕ
 ] as const;
 
 export async function updateDriver(driverId: string, formData: FormData) {
@@ -32,11 +33,13 @@ export async function updateDriver(driverId: string, formData: FormData) {
   const adrExpiry = formData.get('adr_expiry') as string;
   const dateOfBirth = formData.get('date_of_birth') as string;
   const address = formData.get('address') as string;
+  // ⬅️ НОВОЕ
+  const driverCardLastDownload = formData.get('driver_card_last_download') as string;
 
   // Берём старые значения для audit
   const { data: before } = await supabase
     .from('drivers')
-    .select('first_name, last_name, phone, passport_number, passport_expiry, visa_expiry, license_number, license_expiry, tachograph_card_number, tachograph_card_expiry, code_95_expiry, adr_expiry, date_of_birth, address')
+    .select('first_name, last_name, phone, passport_number, passport_expiry, visa_expiry, license_number, license_expiry, tachograph_card_number, tachograph_card_expiry, code_95_expiry, adr_expiry, date_of_birth, address, driver_card_last_download')
     .eq('id', driverId)
     .maybeSingle();
 
@@ -55,6 +58,7 @@ export async function updateDriver(driverId: string, formData: FormData) {
     adr_expiry: adrExpiry || null,
     date_of_birth: dateOfBirth || null,
     address: address || null,
+    driver_card_last_download: driverCardLastDownload || null, // ⬅️ НОВОЕ
   };
 
   const { error } = await supabase
