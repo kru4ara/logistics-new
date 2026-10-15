@@ -145,6 +145,7 @@ cargo_id UUID REFERENCES trip_cargo ON DELETE CASCADE,
 PRIMARY KEY (segment_id, cargo_id)
 
 -- trip_expenses.segment_id — FK на trip_segments (ON DELETE SET NULL)
+
 УДАЛЁННЫЕ таблицы:
 
 trip_subcontractors — DROP (Фаза 3.3, 14.10.2026)
@@ -241,7 +242,22 @@ part 2: trip-actions.tsx + trips/[id]/edit/EditTripForm.tsx — то же; ге�
 
 3.6.7 — ✅ SQL DROP COLUMN: удалены 37 колонок.
 
-🎉 Legacy-модель sender→receiver мертва. Всё через trip_segments.
+### Фаза 4 — Расчёты с водителями (в работе)
+
+**Цель:** водитель платит за расходы рейса из своих → компания становится должна → уметь погашать долг.
+
+**Фаза 4.1 — ✅ ЗАКРЫТА:**
+- SQL: `driver_transactions` + `trip_expenses.paid_by_driver`.
+- `app/driver-debts-actions.ts`: `getDriverBalance`, `accrueDriverDebt`, `payOutDriverDebt`, `deleteDriverTransaction`.
+- `lib/audit.ts` — `AuditEntityType` расширен `'driver_transaction'`.
+
+**Фаза 4.2 — ✅ ЗАКРЫТА:**
+- `app/trip-actions.tsx` (`addExpense`) — создаёт `accrual` при `paid_by_driver=true`.
+- `app/trips/[id]/page.tsx` — чекбокс + бейдж «🚛 за счёт водителя».
+- `app/driver/trips/[id]/page.tsx` — чекбокс **по умолчанию отмечен**, подсказка.
+
+**Фаза 4.3 — ✅ ЗАКРЫТА:**
+- `app/drivers/[id]/page.tsx` — блок «Расчёты» вверху: баланс (цвет), начислено/выплачено, формы «Погасить» + «Начислить вручную», история операций (последние 20) с удалением.
 
 ⏭️ ОЧЕРЕДЬ ЗАДАЧ
 ### ✅ Сделано (15.10.2026)
@@ -401,8 +417,8 @@ trip_cargo: 74, trip_segment_cargo: 79, trip_expenses: ~416
 
 trip_subcontractors: DROP
 
-**Закрыто:** Фазы 3.1–3.6 + `created_at` + триггер `trip_number`.
-**В очереди:** см. «Идеи» (печатные формы, дубликаты, онбординг).
+**Закрыто:** Фазы 3.1–3.6 + created_at + триггер trip_number + Фаза 4.1, 4.2, 4.3.
+**В очереди:** Фаза 4.4 (кабинет водителя — просмотр баланса).
 
 🆕 Условие работы с AI-ассистентом (с 14.10.2026)
 При старте нового чата:
