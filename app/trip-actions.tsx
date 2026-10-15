@@ -4,7 +4,6 @@ import { createClient } from '../lib/supabase-server';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { logAudit, diffFields } from '../lib/audit';
-import { renumberAllTrips } from '../lib/trip-renumber';
 
 // ============================================================
 // Конвертация в EUR по курсу на дату
@@ -246,12 +245,7 @@ export async function updateTrip(tripId: string, formData: FormData) {
     })
     .eq('id', tripId);
 
-  if (error) throw new Error(`Ошибка обновления: ${error.message}`);
-
-  const dateChanged = (before?.start_date || '') !== (startDate || '');
-  if (dateChanged) {
-    await renumberAllTrips(supabase);
-  }
+   if (error) throw new Error(`Ошибка обновления: ${error.message}`);
 
   // ⬅️ ИЗМЕНЕНО: убран route из diffFields (в trips его больше нет)
   if (before) {
@@ -324,9 +318,9 @@ export async function deleteTrip(tripId: string) {
     .from('trips')
     .delete()
     .eq('id', tripId);
-  if (error) throw new Error(`Ошибка удаления рейса: ${error.message}`);
+   if (error) throw new Error(`Ошибка удаления рейса: ${error.message}`);
 
-  await renumberAllTrips(supabase);
+  await logAudit({
 
   // ⬅️ ИЗМЕНЕНО: убрали route из summary — строим строку из того, что есть
   await logAudit({
