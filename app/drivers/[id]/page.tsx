@@ -31,6 +31,7 @@ import {
   ArrowUpCircle,
   PlusCircle,
   Trash2,
+  Download,
 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -141,6 +142,42 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
     if (days < 30) return { color: 'bg-orange-50 text-orange-700 border-orange-200', label: `${days} дн.` };
     return { color: 'bg-green-50 text-green-700 border-green-200', label: `${days} дн.` };
   }
+
+    // ⬅️ НОВОЕ: бейдж "считывание карты водителя"
+  function downloadBadge(lastDate: string | null, warnAfter: number, maxAfter: number) {
+    const days = getDaysUntil(lastDate);
+    if (lastDate === null || days === null) {
+      return {
+        color: 'bg-slate-100 text-slate-500 border-slate-200',
+        label: 'нет данных',
+        daysAgo: null as number | null,
+      };
+    }
+    const daysAgo = -days;
+    if (daysAgo > maxAfter) {
+      return {
+        color: 'bg-red-50 text-red-700 border-red-200',
+        label: `просрочено · ${daysAgo} дн.`,
+        daysAgo,
+      };
+    }
+    if (daysAgo > warnAfter) {
+      return {
+        color: 'bg-orange-50 text-orange-700 border-orange-200',
+        label: `${daysAgo} дн.`,
+        daysAgo,
+      };
+    }
+    return {
+      color: 'bg-green-50 text-green-700 border-green-200',
+      label: `${daysAgo} дн.`,
+      daysAgo,
+    };
+  }
+
+  const DRIVER_CARD_PERIOD = 28;
+  const DRIVER_CARD_WARN = 25;
+  const driverCardBadge = downloadBadge(driver.driver_card_last_download, DRIVER_CARD_WARN, DRIVER_CARD_PERIOD);
 
   const initials = `${driver.first_name?.[0] || ''}${driver.last_name?.[0] || ''}`.toUpperCase();
 
@@ -385,6 +422,56 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
             </div>
           )}
         </div>   
+
+                {/* 📥 Считывание карты водителя */}
+        <div className="card p-5 md:p-6">
+          <div className="flex items-start justify-between gap-3 flex-wrap mb-4">
+            <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <Download className="w-5 h-5 text-brand-600" strokeWidth={2} />
+              Считывание карты водителя
+            </h2>
+            <span className={`px-3 py-1 rounded-full text-xs font-semibold border whitespace-nowrap ${driverCardBadge.color}`}>
+              {driverCardBadge.label}
+            </span>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">
+                Последнее считывание
+              </div>
+              <div className="text-slate-800 font-medium tabular-nums">
+                {driver.driver_card_last_download
+                  ? new Date(driver.driver_card_last_download).toLocaleDateString('ru-RU')
+                  : '—'}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">
+                Лимит
+              </div>
+              <div className="text-slate-800 font-medium tabular-nums">
+                {DRIVER_CARD_PERIOD} дн. (предупреждение с {DRIVER_CARD_WARN})
+              </div>
+            </div>
+          </div>
+
+          {driverCardBadge.daysAgo === null && (
+            <div className="mt-4 p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600">
+              💡 Дата последнего считывания не указана. Внесите её через <b>«Редактировать»</b>.
+            </div>
+          )}
+
+          {driverCardBadge.daysAgo !== null && driverCardBadge.daysAgo > DRIVER_CARD_PERIOD && (
+            <div className="mt-4 p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" strokeWidth={2.2} />
+              <span>
+                <b>Просрочено!</b> Карту водителя нужно считывать не реже <b>{DRIVER_CARD_PERIOD} дней</b> —
+                иначе данные тахографа перезаписываются и теряются. Считайте как можно скорее.
+              </span>
+            </div>
+          )}
+        </div>
         
         {/* 📊 Сводка по работе */}
         <div>
