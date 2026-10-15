@@ -247,6 +247,10 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
   const driver = pickOne<{ first_name: string | null; last_name: string | null; phone: string | null; telegram_chat_id: string | null }>(trip.drivers);
   const truck = pickOne<{ registration_number: string | null }>(trip.trucks);
 
+    // ⬅️ НОВОЕ: предупреждение "ЗП не начислена"
+  const hasSalaryExpense = (expenses || []).some((e: any) => e.category === 'salary');
+  const needsSalary = trip.status === 'completed' && Boolean(driver) && !hasSalaryExpense;
+
   const taskText = buildDriverTaskText({
     trip: {
       ...trip,
@@ -361,7 +365,24 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
             </form>
           </div>
         </div>
-
+               {/* ⚠️ ЗП не начислена */}
+        {needsSalary && (
+          <div className="card border-l-4 border-l-amber-500 bg-amber-50/40 p-4 md:p-5">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" strokeWidth={2.2} />
+              <div className="min-w-0">
+                <div className="font-bold text-amber-900 text-sm md:text-base">
+                  ЗП водителю не начислена
+                </div>
+                <div className="text-xs md:text-sm text-amber-800 mt-1">
+                  Рейс завершён, но расход <b>«💶 ЗП водителя»</b> не создан.
+                  Добавьте его ниже в блоке <b>«Добавить расход»</b> — или переведите рейс обратно
+                  в «В пути», если работа не закончена.
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
         {/* ИНФОРМАЦИЯ */}
         <div className="card p-5 md:p-6">
           <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
