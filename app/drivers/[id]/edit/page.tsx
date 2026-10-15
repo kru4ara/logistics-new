@@ -139,6 +139,30 @@ export default async function EditDriverPage({ params }: { params: Promise<{ id:
             </div>
           </div>
 
+                    {/* 📥 Считывание карты водителя */}
+          <div className="card p-5 md:p-6 space-y-4">
+            <h2 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2">
+              <CreditCard className="w-5 h-5 text-brand-600" strokeWidth={2} />
+              Считывание карты водителя
+            </h2>
+            <p className="text-xs text-slate-500">
+              Дата последнего считывания. Лимит — не реже 28 дней (иначе данные перезапишутся).
+            </p>
+            <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Последнее считывание
+                </label>
+                <input
+                  type="date"
+                  name="driver_card_last_download"
+                  defaultValue={driver.driver_card_last_download || ''}
+                  className="input"
+                />
+              </div>
+            </div>
+          </div>
+          
           <div className="flex flex-col-reverse sm:flex-row gap-3 sticky bottom-3 sm:static
                           bg-slate-50/95 sm:bg-transparent backdrop-blur-sm sm:backdrop-blur-none
                           -mx-4 px-4 sm:mx-0 sm:px-0 py-3 sm:py-0
