@@ -6,11 +6,7 @@ import TripsList from './TripsList';
 import OnboardingCard from './OnboardingCard';
 import {
   Rocket,
-  RadioTower,
-  BarChart3,
   Inbox,
-  ArrowRight,
-  HandCoins,
 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -158,20 +154,6 @@ export default async function DriverPage() {
 
   const monthName = now.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
 
-  // Расчёты с компанией — для карточки "Мои расчёты"
-  const { data: driverTransactions } = await supabase
-    .from('driver_transactions')
-    .select('type, amount_eur')
-    .eq('driver_id', driverId);
-
-  let accruedTotal = 0;
-  let paidOutTotal = 0;
-  for (const t of driverTransactions || []) {
-    if (t.type === 'accrual') accruedTotal += Number(t.amount_eur) || 0;
-    else if (t.type === 'payout') paidOutTotal += Number(t.amount_eur) || 0;
-  }
-  const balance = accruedTotal - paidOutTotal;
-
   const activeTrips = (trips || []).filter((t) => t.status === 'active');
   const otherTrips = (trips || []).filter((t) => t.status !== 'active');
 
@@ -213,74 +195,6 @@ export default async function DriverPage() {
             />
           </div>
         )}
-
-        {/* Ссылка на Logisat */}
-        <a
-          href="/driver/logisat"
-          className="block card card-hover p-5 active:scale-[0.99]"
-        >
-          <div className="flex items-center gap-4">
-            <div className="w-11 h-11 rounded-xl bg-brand-50 flex items-center justify-center shrink-0">
-              <RadioTower className="w-6 h-6 text-brand-600" strokeWidth={2.2} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-lg font-bold text-slate-900">Logisat — расход топлива</div>
-              <div className="text-sm text-slate-500 mt-0.5">
-                Проверить пробег и расход по машине за период
-              </div>
-            </div>
-            <ArrowRight className="w-5 h-5 text-slate-300 shrink-0" strokeWidth={2.5} />
-          </div>
-        </a>
-
-        {/* Ссылка на статистику */}
-        <a
-          href="/driver/stats"
-          className="block card card-hover p-5 active:scale-[0.99]"
-        >
-          <div className="flex items-center gap-4">
-            <div className="w-11 h-11 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
-              <BarChart3 className="w-6 h-6 text-emerald-600" strokeWidth={2.2} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-lg font-bold text-slate-900">Моя статистика</div>
-              <div className="text-sm text-slate-500 mt-0.5">
-                Рейсы, км, расход топлива и зарплата по месяцам
-              </div>
-            </div>
-            <ArrowRight className="w-5 h-5 text-slate-300 shrink-0" strokeWidth={2.5} />
-          </div>
-        </a>
-
-        {/* Ссылка на расчёты */}
-        <a
-          href="/driver/balance"
-          className="block card card-hover p-5 active:scale-[0.99]"
-        >
-          <div className="flex items-center gap-4">
-            <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
-              balance > 0 ? 'bg-amber-50' : balance < 0 ? 'bg-red-50' : 'bg-emerald-50'
-            }`}>
-              <HandCoins
-                className={`w-6 h-6 ${
-                  balance > 0 ? 'text-amber-600' : balance < 0 ? 'text-red-600' : 'text-emerald-600'
-                }`}
-                strokeWidth={2.2}
-              />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-lg font-bold text-slate-900">Мои расчёты</div>
-              <div className="text-sm text-slate-500 mt-0.5">
-                {balance > 0
-                  ? <>Компания должна вам <b className="text-amber-600 tabular-nums">{balance.toFixed(0)} €</b></>
-                  : balance < 0
-                    ? <>Вы должны компании <b className="text-red-600 tabular-nums">{Math.abs(balance).toFixed(0)} €</b></>
-                    : 'Долг закрыт'}
-              </div>
-            </div>
-            <ArrowRight className="w-5 h-5 text-slate-300 shrink-0" strokeWidth={2.5} />
-          </div>
-        </a>
 
         {/* Статистика за месяц */}
         <div>
