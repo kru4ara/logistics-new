@@ -24,6 +24,8 @@ import {
   X,
   Home,
   Calendar,
+  RadioTower,
+  HandCoins,
   type LucideIcon,
 } from 'lucide-react';
 import { logout } from '../login/actions';
@@ -75,6 +77,9 @@ const driverSections: NavSection[] = [
     title: 'Моё',
     items: [
       { href: '/driver', label: 'Мои рейсы', icon: Package },
+      { href: '/driver/logisat', label: 'Logisat — топливо', icon: RadioTower },
+      { href: '/driver/stats', label: 'Моя статистика', icon: BarChart3 },
+      { href: '/driver/balance', label: 'Мои расчёты', icon: HandCoins },
     ],
   },
 ];
