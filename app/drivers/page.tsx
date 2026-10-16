@@ -147,7 +147,9 @@ export default async function DriversPage() {
                         </div>
                         <div className="flex items-center gap-1.5 text-sm text-slate-500 truncate">
                           <Phone className="w-3.5 h-3.5 shrink-0 text-slate-400" strokeWidth={2} />
-                          <span className="truncate">{driver.phone || 'Телефон не указан'}</span>
+                          <span className="truncate">
+                            {driver.phone_pl || driver.phone_by || 'Телефон не указан'}
+                          </span>
                         </div>
                       </div>
                     </div>
