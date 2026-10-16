@@ -30,7 +30,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
   // Без legacy route — маршруты берём из trip_segments ниже
   const { data: trips, error: tripsError } = await supabase
     .from('trips')
-    .select('*, drivers!driver_id(first_name, last_name, phone), trucks!truck_id(registration_number)')
+    .select('*, drivers!driver_id(first_name, last_name, phone_by, phone_pl), trucks!truck_id(registration_number)')
     .eq('client_id', clientId)
     .order('trip_number', { ascending: false });
 
@@ -238,7 +238,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
                       </div>
                       <div className="flex items-center gap-2 text-slate-600">
                         <Phone className="w-3.5 h-3.5 shrink-0" />
-                        <span>{driver?.phone || '—'}</span>
+                        <span>{driver?.phone_pl || driver?.phone_by || '—'}</span>
                       </div>
                     </div>
                   </a>
