@@ -62,8 +62,12 @@ export default async function EditDriverPage({ params }: { params: Promise<{ id:
                 <input type="text" name="last_name" required defaultValue={driver.last_name || ''} className="input" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Телефон</label>
-                <input type="text" name="phone" defaultValue={driver.phone || ''} className="input" />
+                <label className="block text-sm font-medium text-slate-700 mb-1">Телефон BY</label>
+                <input type="text" name="phone_by" defaultValue={driver.phone_by || ''} placeholder="+375 ..." className="input" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Телефон PL</label>
+                <input type="text" name="phone_pl" defaultValue={driver.phone_pl || ''} placeholder="+48 ..." className="input" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Дата рождения</label>
@@ -76,21 +80,34 @@ export default async function EditDriverPage({ params }: { params: Promise<{ id:
             </div>
           </div>
 
-          <div className="card p-5 md:p-6 space-y-4">
-            <h2 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2">
-              <FileText className="w-5 h-5 text-brand-600" strokeWidth={2} />
-              Паспорт и виза
-            </h2>
             <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Серия паспорта</label>
+                <input type="text" name="passport_series" defaultValue={driver.passport_series || ''} placeholder="MP" className="input" />
+              </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Номер паспорта</label>
                 <input type="text" name="passport_number" defaultValue={driver.passport_number || ''} className="input" />
               </div>
               <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Дата выдачи паспорта</label>
+                <input type="date" name="passport_issued_date" defaultValue={driver.passport_issued_date || ''} className="input" />
+              </div>
+              <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Срок действия паспорта</label>
                 <input type="date" name="passport_expiry" defaultValue={driver.passport_expiry || ''} className="input" />
               </div>
-              <div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-slate-700 mb-1">Кем выдан паспорт</label>
+                <input
+                  type="text"
+                  name="passport_issued_by"
+                  defaultValue={driver.passport_issued_by || ''}
+                  placeholder="ОВД ... / Паспортный стол ..."
+                  className="input"
+                />
+              </div>
+              <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-slate-700 mb-1">Срок действия визы</label>
                 <input type="date" name="visa_expiry" defaultValue={driver.visa_expiry || ''} className="input" />
               </div>
