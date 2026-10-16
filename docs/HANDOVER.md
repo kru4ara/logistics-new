@@ -275,16 +275,25 @@ created_at TIMESTAMPTZ DEFAULT NOW()
    - URL: `?sort=created`.
    - При `sort=created` — плоский список (без месячной группировки).
 
-6. **Визитка водителя** (16.10.2026):
+6. **Визитка водителя + телефоны BY/PL** (16.10.2026):
    - SQL: `drivers.passport_series TEXT`, `drivers.passport_issued_date DATE` (`passport_issued_by` уже был).
-   - `app/drivers/[id]/page.tsx` — шапка переделана в **визитку**:
-     - Фото паспорта слева (первое `documents` где `document_type='passport'` + картинка `.jpg/.jpeg/.png/.webp`); fallback — кружок с инициалами.
-     - Имя, дата рождения, телефоны **BY + PL** (`phone_by`, `phone_pl`).
-     - Текущая машина — последний `active`/`planned` рейс → тягач + прицеп.
-     - Паспортные данные (серия, номер, дата выдачи, кем выдан).
-     - Кнопка «Редактировать» в правом верхнем углу.
-   - Телефоны в `drivers` — уже есть (`phone_by`, `phone_pl`), старая `phone` удалена ранее.
+   - `drivers.phone_by`, `drivers.phone_pl` — уже были, `phone` удалена ранее.
+   - **`app/drivers/[id]/page.tsx`** — визитка: фото паспорта, имя, дата рождения, телефоны BY+PL, текущий тягач/прицеп (из активного/планового рейса), паспортные данные (серия, номер, дата выдачи, кем выдан), кнопка «Редактировать».
+   - **`app/drivers/[id]/edit/page.tsx`** — поля: `phone_by`, `phone_pl`, `passport_series`, `passport_issued_date`, `passport_issued_by`.
+   - **`app/driver-actions.ts`** — сохранение новых полей, `TRACKED_FIELDS` обновлены.
+   - **`lib/trip-task-text.ts`** — `DriverInfo` расширен `phone_by?`, `phone_pl?`, `phone?` (optional).
+   - **7 файлов** мигрированы с `phone` на `phone_pl || phone_by`:
+     - `app/drivers/page.tsx`, `app/drivers/kpi/page.tsx` (2 места), `app/trips/[id]/page.tsx` (2 места — BY+PL в шапке), `app/trips/[id]/task-actions.ts` (4 места), `app/api/trips/[id]/segment/[segId]/driver-docx/route.ts` (2 места — BY·PL через ·), `app/search/actions.ts`, `app/clients/[id]/page.tsx`.
 
+7. **Фото паспорта в визитке водителя** (16.10.2026):
+   - Новый client-компонент `app/components/DriverPassportUpload.tsx` — компактная кнопка «📷 Добавить/Сменить фото».
+   - Новая функция `replaceDriverPassport(formData)` в `app/driver-actions.ts` — удаляет старые `passport`-документы (Storage + БД), загружает новое, audit.
+   - `app/drivers/[id]/page.tsx`:
+     - Фото паспорта — **горизонтальное** (`w-56 h-40 md:w-64 md:h-44`), `object-cover`.
+     - Кнопка «Сменить фото» под фото (если фото есть) / «Добавить фото» (если нет).
+     - Клик по фото → полный размер в новой вкладке.
+     - **Удалены** блоки «Загруженные файлы» и «Загрузить документ» (DocumentUpload).
+   - **Логика:** при загрузке нового фото — **старые `passport`-документы удаляются** (без галереи).
 
 ### ⏳ В очереди (не срочно)
 
@@ -294,11 +303,6 @@ created_at TIMESTAMPTZ DEFAULT NOW()
 4. **Косметика:** переименовать локальные псевдонимы `sender_city`/`receiver_city` в `map/page.tsx` и `today/page.tsx`.
 5. **Автоподстановка координат** — триггер на `trip_segments`.
 6. **«Последние созданные» на `/trips`** — сортировка по `created_at`.
-7. **Доработка визитки водителя** (в работе, 16.10.2026):
-   - ⏳ `app/drivers/[id]/edit/page.tsx` — форма: добавить `passport_series`, `passport_issued_by`, `passport_issued_date`; убрать `phone`, добавить `phone_by`/`phone_pl`.
-   - ⏳ `app/driver-actions.ts` — сохранять новые поля.
-   - ⏳ 7 файлов с `driver.phone` → `phone_by`/`phone_pl`: `drivers/page.tsx`, `drivers/kpi/page.tsx`, `trips/[id]/page.tsx`, `trips/[id]/task-actions.ts`, `api/trips/[id]/segment/[segId]/driver-docx/route.ts`, `search/actions.ts`, `clients/[id]/page.tsx`.
----
 
 ## 📊 СОСТОЯНИЕ ДАННЫХ (15.10.2026)
 
