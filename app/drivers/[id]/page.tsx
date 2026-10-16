@@ -1,7 +1,7 @@
 import { createClient } from '../../../lib/supabase-server';
 import { buildRouteMap, type SegmentRouteRow } from '../../../lib/trip-route';
 import { accrueDriverDebt, payOutDriverDebt, deleteDriverTransaction } from '../../driver-debts-actions';
-import DocumentUpload from '../../components/DocumentUpload';
+import DriverPassportUpload from '../../components/DriverPassportUpload';
 import TelegramLinkCard from './TelegramLinkCard';
 import SubmitButton from '../../components/SubmitButton';
 import {
@@ -11,9 +11,7 @@ import {
   Phone,
   BarChart3,
   Route as RouteIcon,
-  FileText,
   Calendar,
-  FolderOpen,
   BookOpen,
   Globe,
   Car,
@@ -21,15 +19,12 @@ import {
   ScrollText,
   AlertTriangle,
   TrendingUp,
-  Wallet,
   Gauge,
   Fuel,
-  Inbox,
   Truck,
   HandCoins,
   ArrowDownCircle,
   ArrowUpCircle,
-  PlusCircle,
   Trash2,
   Download,
   Container,
@@ -99,7 +94,6 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
     .eq('entity_id', driverId)
     .order('uploaded_at', { ascending: false });
 
-  // ⬅️ НОВОЕ: ищем фото паспорта (картинка)
   const passportPhotoDoc = (documents || []).find(
     (d: any) => d.document_type === 'passport' && isImagePath(d.file_path || '')
   );
@@ -107,7 +101,6 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
     ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/documents/${passportPhotoDoc.file_path}`
     : null;
 
-  // ⬅️ НОВОЕ: последний активный/планируемый рейс — тянем тягач и прицеп
   const { data: currentTripRaw } = await supabase
     .from('trips')
     .select('id, trip_number, truck_id, trailer_id, trucks!truck_id(registration_number), trailers:trucks!trailer_id(registration_number)')
@@ -120,7 +113,6 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
   const currentTruck = pickOne<{ registration_number: string | null }>(currentTrip?.trucks);
   const currentTrailer = pickOne<{ registration_number: string | null }>(currentTrip?.trailers);
 
-  // Расчёты
   const { data: transactions } = await supabase
     .from('driver_transactions')
     .select('*')
@@ -136,7 +128,6 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
   }
   const balance = accruedTotal - paidOutTotal;
 
-  // Рейсы водителя
   const { data: trips } = await supabase
     .from('trips')
     .select('id, trip_number, status, revenue_eur, actual_km, actual_liters, start_date, end_date, clients(name)')
@@ -183,32 +174,12 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
   function downloadBadge(lastDate: string | null, warnAfter: number, maxAfter: number) {
     const days = getDaysUntil(lastDate);
     if (lastDate === null || days === null) {
-      return {
-        color: 'bg-slate-100 text-slate-500 border-slate-200',
-        label: 'нет данных',
-        daysAgo: null as number | null,
-      };
+      return { color: 'bg-slate-100 text-slate-500 border-slate-200', label: 'нет данных', daysAgo: null as number | null };
     }
     const daysAgo = -days;
-    if (daysAgo > maxAfter) {
-      return {
-        color: 'bg-red-50 text-red-700 border-red-200',
-        label: `просрочено · ${daysAgo} дн.`,
-        daysAgo,
-      };
-    }
-    if (daysAgo > warnAfter) {
-      return {
-        color: 'bg-orange-50 text-orange-700 border-orange-200',
-        label: `${daysAgo} дн.`,
-        daysAgo,
-      };
-    }
-    return {
-      color: 'bg-green-50 text-green-700 border-green-200',
-      label: `${daysAgo} дн.`,
-      daysAgo,
-    };
+    if (daysAgo > maxAfter) return { color: 'bg-red-50 text-red-700 border-red-200', label: `просрочено · ${daysAgo} дн.`, daysAgo };
+    if (daysAgo > warnAfter) return { color: 'bg-orange-50 text-orange-700 border-orange-200', label: `${daysAgo} дн.`, daysAgo };
+    return { color: 'bg-green-50 text-green-700 border-green-200', label: `${daysAgo} дн.`, daysAgo };
   }
 
   const DRIVER_CARD_PERIOD = 28;
@@ -246,7 +217,7 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
                   href={passportPhotoUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="block w-32 h-40 md:w-40 md:h-52 rounded-2xl overflow-hidden border-2 border-slate-200 shadow-soft hover:shadow-soft-lg transition-shadow"
+                  className="block w-56 h-40 md:w-64 md:h-44 rounded-2xl overflow-hidden border-2 border-slate-200 shadow-soft hover:shadow-soft-lg transition-shadow"
                   title="Открыть фото паспорта"
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -257,11 +228,12 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
                   />
                 </a>
               ) : (
-                <div className="w-32 h-40 md:w-40 md:h-52 rounded-2xl bg-gradient-to-br from-brand-500 to-accent-500
+                <div className="w-56 h-40 md:w-64 md:h-44 rounded-2xl bg-gradient-to-br from-brand-500 to-accent-500
                                 flex items-center justify-center text-white font-bold text-3xl md:text-4xl shadow-brand">
                   {initials || <UserIcon className="w-10 h-10" strokeWidth={2} />}
                 </div>
               )}
+              <DriverPassportUpload driverId={driverId} hasPhoto={Boolean(passportPhotoUrl)} />
             </div>
 
             {/* Данные */}
@@ -721,53 +693,6 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
               );
             })}
           </div>
-        </div>
-
-        {/* Загруженные документы */}
-        <div className="card p-5 md:p-6">
-          <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-            <FolderOpen className="w-5 h-5 text-brand-600" strokeWidth={2} />
-            Загруженные файлы
-          </h2>
-          {documents?.length === 0 ? (
-            <div className="text-center py-8">
-              <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-slate-50 flex items-center justify-center">
-                <Inbox className="w-7 h-7 text-slate-300" strokeWidth={1.5} />
-              </div>
-              <div className="text-slate-400 text-sm">Файлы ещё не загружены</div>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {documents?.map((doc) => (
-                <div key={doc.id} className="flex justify-between items-center gap-3 border border-slate-100 rounded-xl p-3 hover:bg-slate-50/50 transition-colors">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-9 h-9 rounded-lg bg-brand-50 flex items-center justify-center shrink-0">
-                      <FileText className="w-4 h-4 text-brand-600" strokeWidth={2} />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="font-medium text-slate-800 truncate">{doc.document_type}</div>
-                      <div className="text-xs text-slate-400 tabular-nums">
-                        {doc.expiry_date ? `до ${new Date(doc.expiry_date).toLocaleDateString('ru-RU')}` : 'без срока'}
-                      </div>
-                    </div>
-                  </div>
-                  <a
-                    href={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/documents/${doc.file_path}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-brand-600 hover:underline font-medium text-sm whitespace-nowrap shrink-0"
-                  >
-                    Смотреть
-                  </a>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Загрузка документов */}
-        <div className="card p-5 md:p-6">
-          <DocumentUpload entityType="driver" entityId={driverId} />
         </div>
 
       </div>
