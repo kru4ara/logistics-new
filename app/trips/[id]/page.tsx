@@ -62,7 +62,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
 
   const { data: trip, error: tripError } = await supabase
     .from('trips')
-    .select('*, clients(name), drivers!driver_id(first_name, last_name, phone, telegram_chat_id), trucks!truck_id(registration_number)')
+    .select('*, clients(name), drivers!driver_id(first_name, last_name, phone_by, phone_pl, telegram_chat_id), trucks!truck_id(registration_number)')
     .eq('id', tripId)
     .single();
 
@@ -244,7 +244,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
   const fuelLeftIsNegative = fuelLeft < 0;
   const fuelLeftIsCritical = fuelLeft < NEGATIVE_FUEL_TOLERANCE;
 
-  const driver = pickOne<{ first_name: string | null; last_name: string | null; phone: string | null; telegram_chat_id: string | null }>(trip.drivers);
+  const driver = pickOne<{ first_name: string | null; last_name: string | null; phone_by: string | null; phone_pl: string | null; telegram_chat_id: string | null }>(trip.drivers);
   const truck = pickOne<{ registration_number: string | null }>(trip.trucks);
 
     // ⬅️ НОВОЕ: предупреждение "ЗП не начислена"
@@ -413,12 +413,29 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
               </div>
             </div>
             <div className="col-span-2">
-              <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Телефон</div>
-              <div className="flex items-center gap-1.5 text-slate-800 font-medium text-sm">
-                <Phone className="w-4 h-4 text-slate-400 shrink-0" strokeWidth={2} />
-                {driver?.phone ? (
-                  <a href={`tel:${driver.phone}`} className="hover:text-brand-600">{driver.phone}</a>
-                ) : '—'}
+              <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Телефоны</div>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-slate-800 font-medium text-sm">
+                {driver?.phone_by ? (
+                  <span className="inline-flex items-center gap-1.5">
+                    <Phone className="w-4 h-4 text-slate-400 shrink-0" strokeWidth={2} />
+                    <span className="text-xs font-semibold text-slate-400">BY</span>
+                    <a href={`tel:${driver.phone_by}`} className="hover:text-brand-600 tabular-nums">
+                      {driver.phone_by}
+                    </a>
+                  </span>
+                ) : null}
+                {driver?.phone_pl ? (
+                  <span className="inline-flex items-center gap-1.5">
+                    <Phone className="w-4 h-4 text-slate-400 shrink-0" strokeWidth={2} />
+                    <span className="text-xs font-semibold text-slate-400">PL</span>
+                    <a href={`tel:${driver.phone_pl}`} className="hover:text-brand-600 tabular-nums">
+                      {driver.phone_pl}
+                    </a>
+                  </span>
+                ) : null}
+                {!driver?.phone_by && !driver?.phone_pl && (
+                  <span className="text-slate-400">—</span>
+                )}
               </div>
             </div>
           </div>
