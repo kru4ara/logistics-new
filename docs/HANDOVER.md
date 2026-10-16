@@ -275,6 +275,17 @@ created_at TIMESTAMPTZ DEFAULT NOW()
    - URL: `?sort=created`.
    - При `sort=created` — плоский список (без месячной группировки).
 
+6. **Визитка водителя** (16.10.2026):
+   - SQL: `drivers.passport_series TEXT`, `drivers.passport_issued_date DATE` (`passport_issued_by` уже был).
+   - `app/drivers/[id]/page.tsx` — шапка переделана в **визитку**:
+     - Фото паспорта слева (первое `documents` где `document_type='passport'` + картинка `.jpg/.jpeg/.png/.webp`); fallback — кружок с инициалами.
+     - Имя, дата рождения, телефоны **BY + PL** (`phone_by`, `phone_pl`).
+     - Текущая машина — последний `active`/`planned` рейс → тягач + прицеп.
+     - Паспортные данные (серия, номер, дата выдачи, кем выдан).
+     - Кнопка «Редактировать» в правом верхнем углу.
+   - Телефоны в `drivers` — уже есть (`phone_by`, `phone_pl`), старая `phone` удалена ранее.
+
+
 ### ⏳ В очереди (не срочно)
 
 1. **Печатные формы** — PDF-отчёт по рейсу, акт выполненных работ.
@@ -283,7 +294,10 @@ created_at TIMESTAMPTZ DEFAULT NOW()
 4. **Косметика:** переименовать локальные псевдонимы `sender_city`/`receiver_city` в `map/page.tsx` и `today/page.tsx`.
 5. **Автоподстановка координат** — триггер на `trip_segments`.
 6. **«Последние созданные» на `/trips`** — сортировка по `created_at`.
-
+7. **Доработка визитки водителя** (в работе, 16.10.2026):
+   - ⏳ `app/drivers/[id]/edit/page.tsx` — форма: добавить `passport_series`, `passport_issued_by`, `passport_issued_date`; убрать `phone`, добавить `phone_by`/`phone_pl`.
+   - ⏳ `app/driver-actions.ts` — сохранять новые поля.
+   - ⏳ 7 файлов с `driver.phone` → `phone_by`/`phone_pl`: `drivers/page.tsx`, `drivers/kpi/page.tsx`, `trips/[id]/page.tsx`, `trips/[id]/task-actions.ts`, `api/trips/[id]/segment/[segId]/driver-docx/route.ts`, `search/actions.ts`, `clients/[id]/page.tsx`.
 ---
 
 ## 📊 СОСТОЯНИЕ ДАННЫХ (15.10.2026)
