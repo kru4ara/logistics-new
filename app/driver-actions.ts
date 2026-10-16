@@ -17,7 +17,7 @@ const TRACKED_FIELDS = [
   'date_of_birth', 'address',
   'driver_card_last_download',
 ] as const;
-
+ 
 export async function updateDriver(driverId: string, formData: FormData) {
   const supabase = await createClient();
 
