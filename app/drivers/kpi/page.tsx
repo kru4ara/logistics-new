@@ -171,7 +171,9 @@ export default async function DriverKpiPage() {
                         </div>
                         <div className="flex items-center gap-1.5 text-xs text-slate-400 truncate">
                           <Phone className="w-3 h-3 shrink-0" strokeWidth={2} />
-                          <span className="truncate">{item.driver.phone || '—'}</span>
+                          <span className="truncate">
+                            {item.driver.phone_pl || item.driver.phone_by || '—'}
+                          </span>
                         </div>
                       </div>
                       <ArrowLeft className="w-4 h-4 text-brand-500 rotate-180 shrink-0" strokeWidth={2.5} />
@@ -293,7 +295,9 @@ export default async function DriverKpiPage() {
                                 >
                                   {item.driver.first_name} {item.driver.last_name}
                                 </a>
-                                <div className="text-xs text-slate-400 truncate">{item.driver.phone || '—'}</div>
+                                  <div className="text-xs text-slate-400 truncate">
+                                  {item.driver.phone_pl || item.driver.phone_by || '—'}
+                                </div>
                               </div>
                             </div>
                           </td>
