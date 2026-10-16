@@ -31,7 +31,7 @@ export async function sendTaskToDriver(tripId: string): Promise<SendTaskResult> 
   // ============================================================
   const { data: trip, error: tripErr } = await supabase
     .from('trips')
-    .select('*, clients(name), drivers!driver_id(id, first_name, last_name, phone, telegram_chat_id), trucks!truck_id(registration_number)')
+    .select('*, clients(name), drivers!driver_id(id, first_name, last_name, phone_by, phone_pl, telegram_chat_id), trucks!truck_id(registration_number)')
     .eq('id', tripId)
     .single();
 
@@ -43,7 +43,8 @@ export async function sendTaskToDriver(tripId: string): Promise<SendTaskResult> 
     id: string;
     first_name: string | null;
     last_name: string | null;
-    phone: string | null;
+    phone_by: string | null;
+    phone_pl: string | null;
     telegram_chat_id: string | null;
   }>((trip as any).drivers);
 
@@ -205,7 +206,7 @@ export async function sendSegmentTaskToDriver(
   // ============================================================
   const { data: driverRow, error: driverErr } = await supabase
     .from('drivers')
-    .select('id, first_name, last_name, phone, telegram_chat_id')
+    .select('id, first_name, last_name, phone_by, phone_pl, telegram_chat_id')
     .eq('id', segment.driver_id)
     .maybeSingle();
 
@@ -223,7 +224,8 @@ export async function sendSegmentTaskToDriver(
     id: driverRow.id,
     first_name: driverRow.first_name,
     last_name: driverRow.last_name,
-    phone: driverRow.phone,
+    phone_by: driverRow.phone_by,
+    phone_pl: driverRow.phone_pl,
     telegram_chat_id: driverRow.telegram_chat_id,
   };
 
