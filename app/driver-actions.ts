@@ -106,3 +106,92 @@ export async function updateDriver(driverId: string, formData: FormData) {
   revalidatePath('/reminders');
   redirect(`/drivers/${driverId}`);
 }
+
+// ============================================================
+// Замена фото паспорта водителя (удаляет старые, ставит новое)
+// ============================================================
+export async function replaceDriverPassport(
+  formData: FormData
+): Promise<{ success: true } | { success: false; error: string }> {
+  const supabase = await createClient();
+
+  const driverId = String(formData.get('driver_id') || '').trim();
+  const file = formData.get('file') as File | null;
+
+  if (!driverId) return { success: false, error: 'Не передан ID водителя' };
+  if (!file || file.size === 0) return { success: false, error: 'Файл не выбран' };
+
+  // 1. Найти старые passport-документы (картинки)
+  const { data: oldDocs } = await supabase
+    .from('documents')
+    .select('id, file_path')
+    .eq('entity_type', 'driver')
+    .eq('entity_id', driverId)
+    .eq('document_type', 'passport');
+
+  // 2. Удалить старые из Storage + БД
+  if (oldDocs && oldDocs.length > 0) {
+    const paths = oldDocs.map((d) => d.file_path).filter(Boolean);
+    if (paths.length > 0) {
+      const { error: removeErr } = await supabase.storage.from('documents').remove(paths);
+      if (removeErr) {
+        console.error('[replaceDriverPassport] storage remove failed:', removeErr.message);
+      }
+    }
+    const { error: delErr } = await supabase
+      .from('documents')
+      .delete()
+      .in('id', oldDocs.map((d) => d.id));
+    if (delErr) {
+      console.error('[replaceDriverPassport] db delete failed:', delErr.message);
+    }
+  }
+
+  // 3. Загрузить новый файл
+  const safeName = file.name.replace(/[^\w.\-]+/g, '_');
+  const filePath = `driver/${driverId}/passport-${Date.now()}-${safeName}`;
+  const arrayBuffer = await file.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+
+  const { error: uploadErr } = await supabase.storage
+    .from('documents')
+    .upload(filePath, buffer, {
+      contentType: file.type || 'application/octet-stream',
+      upsert: false,
+    });
+
+  if (uploadErr) {
+    return { success: false, error: `Ошибка загрузки: ${uploadErr.message}` };
+  }
+
+  // 4. Создать запись
+  const { data: created, error: dbErr } = await supabase
+    .from('documents')
+    .insert({
+      entity_type: 'driver',
+      entity_id: driverId,
+      document_type: 'passport',
+      file_path: filePath,
+      expiry_date: null,
+    })
+    .select('id')
+    .single();
+
+  if (dbErr) {
+    await supabase.storage.from('documents').remove([filePath]);
+    return { success: false, error: `Ошибка сохранения: ${dbErr.message}` };
+  }
+
+  // Audit
+  if (created?.id) {
+    await logAudit({
+      entity_type: 'document',
+      entity_id: created.id,
+      action: 'create',
+      summary: `Заменено фото паспорта водителя`,
+    });
+  }
+
+  revalidatePath(`/drivers/${driverId}`);
+  return { success: true };
+}
