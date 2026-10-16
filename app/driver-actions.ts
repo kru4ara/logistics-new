@@ -7,13 +7,15 @@ import { syncReminders } from './reminder-actions';
 import { logAudit, diffFields } from '../lib/audit';
 
 const TRACKED_FIELDS = [
-  'first_name', 'last_name', 'phone',
-  'passport_number', 'passport_expiry', 'visa_expiry',
+  'first_name', 'last_name',
+  'phone_by', 'phone_pl',
+  'passport_series', 'passport_number', 'passport_issued_date', 'passport_issued_by', 'passport_expiry',
+  'visa_expiry',
   'license_number', 'license_expiry',
   'tachograph_card_number', 'tachograph_card_expiry',
   'code_95_expiry', 'adr_expiry',
   'date_of_birth', 'address',
-  'driver_card_last_download', // ⬅️ НОВОЕ
+  'driver_card_last_download',
 ] as const;
 
 export async function updateDriver(driverId: string, formData: FormData) {
@@ -21,8 +23,12 @@ export async function updateDriver(driverId: string, formData: FormData) {
 
   const firstName = formData.get('first_name') as string;
   const lastName = formData.get('last_name') as string;
-  const phone = formData.get('phone') as string;
+  const phoneBy = formData.get('phone_by') as string;
+  const phonePl = formData.get('phone_pl') as string;
+  const passportSeries = formData.get('passport_series') as string;
   const passportNumber = formData.get('passport_number') as string;
+  const passportIssuedDate = formData.get('passport_issued_date') as string;
+  const passportIssuedBy = formData.get('passport_issued_by') as string;
   const passportExpiry = formData.get('passport_expiry') as string;
   const visaExpiry = formData.get('visa_expiry') as string;
   const licenseNumber = formData.get('license_number') as string;
@@ -39,15 +45,19 @@ export async function updateDriver(driverId: string, formData: FormData) {
   // Берём старые значения для audit
   const { data: before } = await supabase
     .from('drivers')
-    .select('first_name, last_name, phone, passport_number, passport_expiry, visa_expiry, license_number, license_expiry, tachograph_card_number, tachograph_card_expiry, code_95_expiry, adr_expiry, date_of_birth, address, driver_card_last_download')
+    .select('first_name, last_name, phone_by, phone_pl, passport_series, passport_number, passport_issued_date, passport_issued_by, passport_expiry, visa_expiry, license_number, license_expiry, tachograph_card_number, tachograph_card_expiry, code_95_expiry, adr_expiry, date_of_birth, address, driver_card_last_download')
     .eq('id', driverId)
     .maybeSingle();
 
   const nextValues = {
     first_name: firstName,
     last_name: lastName,
-    phone: phone || null,
+    phone_by: phoneBy || null,
+    phone_pl: phonePl || null,
+    passport_series: passportSeries || null,
     passport_number: passportNumber || null,
+    passport_issued_date: passportIssuedDate || null,
+    passport_issued_by: passportIssuedBy || null,
     passport_expiry: passportExpiry || null,
     visa_expiry: visaExpiry || null,
     license_number: licenseNumber || null,
@@ -58,7 +68,7 @@ export async function updateDriver(driverId: string, formData: FormData) {
     adr_expiry: adrExpiry || null,
     date_of_birth: dateOfBirth || null,
     address: address || null,
-    driver_card_last_download: driverCardLastDownload || null, // ⬅️ НОВОЕ
+    driver_card_last_download: driverCardLastDownload || null,
   };
 
   const { error } = await supabase
