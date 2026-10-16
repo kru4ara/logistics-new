@@ -209,11 +209,16 @@ export async function GET(
     );
   }
 
-  let driver: { first_name: string | null; last_name: string | null; phone: string | null } | null = null;
+  let driver: {
+    first_name: string | null;
+    last_name: string | null;
+    phone_by: string | null;
+    phone_pl: string | null;
+  } | null = null;
   if (segment.driver_id) {
     const { data } = await supabase
       .from('drivers')
-      .select('first_name, last_name, phone')
+      .select('first_name, last_name, phone_by, phone_pl')
       .eq('id', segment.driver_id)
       .maybeSingle();
     driver = data;
@@ -297,9 +302,13 @@ export async function GET(
       children: [cellLabel('Водитель'), cellValue(driverName, { bold: true, size: 24 })],
     }),
   ];
-  if (driver?.phone) {
+  // Телефоны: BY и PL (оба, если есть)
+  const phoneParts: string[] = [];
+  if (driver?.phone_by) phoneParts.push(`BY: ${driver.phone_by}`);
+  if (driver?.phone_pl) phoneParts.push(`PL: ${driver.phone_pl}`);
+  if (phoneParts.length > 0) {
     infoRows.push(
-      new TableRow({ children: [cellLabel('Телефон'), cellValue(driver.phone)] })
+      new TableRow({ children: [cellLabel('Телефон'), cellValue(phoneParts.join(' · '))] })
     );
   }
   infoRows.push(
