@@ -32,6 +32,7 @@ import {
   PlusCircle,
   Trash2,
   Download,
+  Container,
 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -61,6 +62,22 @@ function pickName(rel: unknown): string | undefined {
   return undefined;
 }
 
+function pickOne<T>(rel: unknown): T | null {
+  if (!rel) return null;
+  if (Array.isArray(rel)) return (rel[0] as T) ?? null;
+  return rel as T;
+}
+
+function isImagePath(path: string): boolean {
+  const lower = path.toLowerCase();
+  return (
+    lower.endsWith('.jpg') ||
+    lower.endsWith('.jpeg') ||
+    lower.endsWith('.png') ||
+    lower.endsWith('.webp')
+  );
+}
+
 export default async function DriverDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: driverId } = await params;
   if (!driverId) return <div className="p-8">Ошибка: ID водителя не передан</div>;
@@ -82,7 +99,28 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
     .eq('entity_id', driverId)
     .order('uploaded_at', { ascending: false });
 
-    // Расчёты с водителем
+  // ⬅️ НОВОЕ: ищем фото паспорта (картинка)
+  const passportPhotoDoc = (documents || []).find(
+    (d: any) => d.document_type === 'passport' && isImagePath(d.file_path || '')
+  );
+  const passportPhotoUrl = passportPhotoDoc
+    ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/documents/${passportPhotoDoc.file_path}`
+    : null;
+
+  // ⬅️ НОВОЕ: последний активный/планируемый рейс — тянем тягач и прицеп
+  const { data: currentTripRaw } = await supabase
+    .from('trips')
+    .select('id, trip_number, truck_id, trailer_id, trucks!truck_id(registration_number), trailers:trucks!trailer_id(registration_number)')
+    .eq('driver_id', driverId)
+    .in('status', ['active', 'planned'])
+    .order('trip_number', { ascending: false })
+    .limit(1);
+
+  const currentTrip: any = currentTripRaw?.[0] || null;
+  const currentTruck = pickOne<{ registration_number: string | null }>(currentTrip?.trucks);
+  const currentTrailer = pickOne<{ registration_number: string | null }>(currentTrip?.trailers);
+
+  // Расчёты
   const { data: transactions } = await supabase
     .from('driver_transactions')
     .select('*')
@@ -98,14 +136,13 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
   }
   const balance = accruedTotal - paidOutTotal;
 
-  // Рейсы водителя — без legacy route (маршрут берём из trip_segments) ⬅️ ИЗМЕНЕНО
+  // Рейсы водителя
   const { data: trips } = await supabase
     .from('trips')
     .select('id, trip_number, status, revenue_eur, actual_km, actual_liters, start_date, end_date, clients(name)')
     .eq('driver_id', driverId)
     .order('trip_number', { ascending: false });
 
-  // Маршруты рейсов — из trip_segments ⬅️ ИЗМЕНЕНО
   const tripIds = (trips || []).map((t) => t.id);
   const routeByTrip = new Map<string, string>();
   if (tripIds.length > 0) {
@@ -143,7 +180,6 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
     return { color: 'bg-green-50 text-green-700 border-green-200', label: `${days} дн.` };
   }
 
-    // ⬅️ НОВОЕ: бейдж "считывание карты водителя"
   function downloadBadge(lastDate: string | null, warnAfter: number, maxAfter: number) {
     const days = getDaysUntil(lastDate);
     if (lastDate === null || days === null) {
@@ -199,43 +235,149 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
           Все водители
         </a>
 
-        {/* Шапка профиля */}
+        {/* ВИЗИТКА ВОДИТЕЛЯ */}
         <div className="card p-5 md:p-6">
-          <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-4">
-            <div className="flex items-center gap-4 md:gap-5">
-              <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-gradient-to-br from-brand-500 to-accent-500
-                              flex items-center justify-center text-white font-bold text-xl md:text-2xl shrink-0 shadow-brand">
-                {initials || <UserIcon className="w-8 h-8" strokeWidth={2} />}
-              </div>
-              <div className="min-w-0">
-                <h1 className="text-xl md:text-2xl font-bold text-slate-900 break-words tracking-tight">
-                  {driver.first_name} {driver.last_name}
-                </h1>
-                <div className="flex items-center gap-1.5 text-slate-500 mt-1 text-sm md:text-base">
-                  <Phone className="w-4 h-4 shrink-0 text-slate-400" strokeWidth={2} />
-                  <span className="break-words">{driver.phone || 'Телефон не указан'}</span>
+          <div className="flex flex-col md:flex-row gap-5 md:gap-6">
+
+            {/* Фото паспорта */}
+            <div className="shrink-0 self-start">
+              {passportPhotoUrl ? (
+                <a
+                  href={passportPhotoUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block w-32 h-40 md:w-40 md:h-52 rounded-2xl overflow-hidden border-2 border-slate-200 shadow-soft hover:shadow-soft-lg transition-shadow"
+                  title="Открыть фото паспорта"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={passportPhotoUrl}
+                    alt={`Фото паспорта — ${driver.first_name} ${driver.last_name}`}
+                    className="w-full h-full object-cover"
+                  />
+                </a>
+              ) : (
+                <div className="w-32 h-40 md:w-40 md:h-52 rounded-2xl bg-gradient-to-br from-brand-500 to-accent-500
+                                flex items-center justify-center text-white font-bold text-3xl md:text-4xl shadow-brand">
+                  {initials || <UserIcon className="w-10 h-10" strokeWidth={2} />}
                 </div>
-              </div>
+              )}
             </div>
 
-            <a
-              href={`/drivers/${driverId}/edit`}
-              className="btn btn-primary w-full sm:w-auto text-sm md:text-base"
-            >
-              <Pencil className="w-4 h-4" strokeWidth={2} />
-              Редактировать
-            </a>
+            {/* Данные */}
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
+                <div className="min-w-0">
+                  <h1 className="text-2xl md:text-3xl font-bold text-slate-900 break-words tracking-tight">
+                    {driver.first_name} {driver.last_name}
+                  </h1>
+                  {driver.date_of_birth && (
+                    <div className="text-sm text-slate-500 mt-1 tabular-nums">
+                      Дата рождения: {new Date(driver.date_of_birth).toLocaleDateString('ru-RU')}
+                    </div>
+                  )}
+                </div>
+
+                <a
+                  href={`/drivers/${driverId}/edit`}
+                  className="btn btn-primary w-full sm:w-auto text-sm md:text-base shrink-0"
+                >
+                  <Pencil className="w-4 h-4" strokeWidth={2} />
+                  Редактировать
+                </a>
+              </div>
+
+              {/* Телефоны */}
+              {(driver.phone_by || driver.phone_pl) && (
+                <div className="space-y-1 mb-4">
+                  {driver.phone_by && (
+                    <div className="flex items-center gap-2 text-slate-700">
+                      <Phone className="w-4 h-4 text-slate-400 shrink-0" strokeWidth={2} />
+                      <span className="text-xs font-semibold text-slate-400 w-6">BY</span>
+                      <a href={`tel:${driver.phone_by}`} className="hover:text-brand-600 font-medium tabular-nums">
+                        {driver.phone_by}
+                      </a>
+                    </div>
+                  )}
+                  {driver.phone_pl && (
+                    <div className="flex items-center gap-2 text-slate-700">
+                      <Phone className="w-4 h-4 text-slate-400 shrink-0" strokeWidth={2} />
+                      <span className="text-xs font-semibold text-slate-400 w-6">PL</span>
+                      <a href={`tel:${driver.phone_pl}`} className="hover:text-brand-600 font-medium tabular-nums">
+                        {driver.phone_pl}
+                      </a>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Текущая машина */}
+              {currentTrip && (currentTruck?.registration_number || currentTrailer?.registration_number) && (
+                <div className="mb-4 p-3 rounded-xl bg-brand-50/50 border border-brand-100">
+                  <div className="text-xs uppercase tracking-wide text-brand-600 font-semibold mb-1.5">
+                    Сейчас на рейсе №{currentTrip.trip_number || '—'}
+                  </div>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-700">
+                    {currentTruck?.registration_number && (
+                      <span className="inline-flex items-center gap-1.5">
+                        <Truck className="w-4 h-4 text-brand-600 shrink-0" strokeWidth={2} />
+                        <span className="tabular-nums font-semibold">{currentTruck.registration_number}</span>
+                      </span>
+                    )}
+                    {currentTrailer?.registration_number && (
+                      <span className="inline-flex items-center gap-1.5">
+                        <Container className="w-4 h-4 text-brand-600 shrink-0" strokeWidth={2} />
+                        <span className="tabular-nums font-semibold">{currentTrailer.registration_number}</span>
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Паспортные данные */}
+              {(driver.passport_series || driver.passport_number || driver.passport_issued_by || driver.passport_issued_date) && (
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                  <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-1.5">
+                    Паспорт
+                  </div>
+                  <div className="grid gap-x-4 gap-y-1 text-sm text-slate-700 sm:grid-cols-2">
+                    {(driver.passport_series || driver.passport_number) && (
+                      <div>
+                        <span className="text-slate-400">Серия и номер: </span>
+                        <span className="font-semibold tabular-nums">
+                          {[driver.passport_series, driver.passport_number].filter(Boolean).join(' ')}
+                        </span>
+                      </div>
+                    )}
+                    {driver.passport_issued_date && (
+                      <div>
+                        <span className="text-slate-400">Дата выдачи: </span>
+                        <span className="font-semibold tabular-nums">
+                          {new Date(driver.passport_issued_date).toLocaleDateString('ru-RU')}
+                        </span>
+                      </div>
+                    )}
+                    {driver.passport_issued_by && (
+                      <div className="sm:col-span-2">
+                        <span className="text-slate-400">Кем выдан: </span>
+                        <span className="font-semibold">{driver.passport_issued_by}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+            </div>
           </div>
         </div>
 
-                 {/* 💰 РАСЧЁТЫ С ВОДИТЕЛЕМ */}
+        {/* 💰 РАСЧЁТЫ С ВОДИТЕЛЕМ */}
         <div className="card p-5 md:p-6 space-y-5">
           <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
             <HandCoins className="w-5 h-5 text-brand-600" strokeWidth={2} />
             Расчёты
           </h2>
 
-          {/* Баланс */}
           <div className={`rounded-2xl p-5 ${
             balance > 0
               ? 'bg-gradient-to-br from-amber-500 to-amber-700 text-white'
@@ -256,9 +398,7 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
             </div>
           </div>
 
-          {/* Две формы: погасить + начислить вручную */}
           <div className="grid gap-4 md:grid-cols-2">
-            {/* Погашение долга */}
             <div className="border border-slate-200 rounded-xl p-4 space-y-3">
               <div className="flex items-center gap-2">
                 <ArrowUpCircle className="w-4 h-4 text-emerald-600" strokeWidth={2.2} />
@@ -270,33 +410,15 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
               <form action={payOutDriverDebt} className="space-y-2">
                 <input type="hidden" name="driver_id" value={driverId} />
                 <div className="grid grid-cols-2 gap-2">
-                  <input
-                    type="number"
-                    name="amount"
-                    step="0.01"
-                    required
-                    placeholder="Сумма"
-                    className="input"
-                  />
+                  <input type="number" name="amount" step="0.01" required placeholder="Сумма" className="input" />
                   <select name="currency" className="input">
                     <option value="EUR">EUR</option>
                     <option value="PLN">PLN</option>
                     <option value="BYN">BYN</option>
                   </select>
                 </div>
-                <input
-                  type="date"
-                  name="date"
-                  defaultValue={new Date().toISOString().split('T')[0]}
-                  required
-                  className="input"
-                />
-                <input
-                  type="text"
-                  name="notes"
-                  placeholder="Комментарий (наличные / перевод / зачёт в ЗП)"
-                  className="input"
-                />
+                <input type="date" name="date" defaultValue={new Date().toISOString().split('T')[0]} required className="input" />
+                <input type="text" name="notes" placeholder="Комментарий (наличные / перевод / зачёт в ЗП)" className="input" />
                 <SubmitButton
                   className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white font-semibold py-2.5 rounded-xl transition-all active:scale-[0.98] inline-flex items-center justify-center gap-2"
                   pendingText="Сохраняю…"
@@ -307,7 +429,6 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
               </form>
             </div>
 
-            {/* Начислить вручную */}
             <div className="border border-slate-200 rounded-xl p-4 space-y-3">
               <div className="flex items-center gap-2">
                 <ArrowDownCircle className="w-4 h-4 text-amber-600" strokeWidth={2.2} />
@@ -319,33 +440,15 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
               <form action={accrueDriverDebt} className="space-y-2">
                 <input type="hidden" name="driver_id" value={driverId} />
                 <div className="grid grid-cols-2 gap-2">
-                  <input
-                    type="number"
-                    name="amount"
-                    step="0.01"
-                    required
-                    placeholder="Сумма"
-                    className="input"
-                  />
+                  <input type="number" name="amount" step="0.01" required placeholder="Сумма" className="input" />
                   <select name="currency" className="input">
                     <option value="EUR">EUR</option>
                     <option value="PLN">PLN</option>
                     <option value="BYN">BYN</option>
                   </select>
                 </div>
-                <input
-                  type="date"
-                  name="date"
-                  defaultValue={new Date().toISOString().split('T')[0]}
-                  required
-                  className="input"
-                />
-                <input
-                  type="text"
-                  name="notes"
-                  placeholder="Комментарий (за что должны)"
-                  className="input"
-                />
+                <input type="date" name="date" defaultValue={new Date().toISOString().split('T')[0]} required className="input" />
+                <input type="text" name="notes" placeholder="Комментарий (за что должны)" className="input" />
                 <SubmitButton
                   className="w-full bg-amber-600 hover:bg-amber-700 disabled:bg-amber-400 text-white font-semibold py-2.5 rounded-xl transition-all active:scale-[0.98] inline-flex items-center justify-center gap-2"
                   pendingText="Сохраняю…"
@@ -357,7 +460,6 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
             </div>
           </div>
 
-          {/* История операций */}
           {transactions && transactions.length > 0 && (
             <div>
               <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2">
@@ -421,9 +523,9 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
               </div>
             </div>
           )}
-        </div>   
+        </div>
 
-                {/* 📥 Считывание карты водителя */}
+        {/* 📥 Считывание карты водителя */}
         <div className="card p-5 md:p-6">
           <div className="flex items-start justify-between gap-3 flex-wrap mb-4">
             <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
@@ -472,7 +574,7 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
             </div>
           )}
         </div>
-        
+
         {/* 📊 Сводка по работе */}
         <div>
           <h2 className="text-xs md:text-sm font-bold text-slate-500 uppercase tracking-wide mb-3 px-1">
@@ -537,162 +639,8 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
               {lastTrips.map((t) => {
                 const clientName = pickName(t.clients) || '—';
                 const dateStr = t.end_date || t.start_date;
-                const routeDisplay = routeByTrip.get(t.id) || '—'; // ⬅️ ИЗМЕНЕНО
+                const routeDisplay = routeByTrip.get(t.id) || '—';
                 return (
                   <a
                     key={t.id}
-                    href={`/trips/${t.id}`}
-                    className="block border border-slate-100 rounded-xl p-3 md:p-4 bg-slate-50/40
-                               hover:bg-brand-50/40 hover:border-brand-200 transition-all"
-                  >
-                    <div className="flex items-start justify-between gap-3 flex-wrap">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap mb-1">
-                          <span className="text-xs font-semibold text-slate-400 tabular-nums">
-                            № {t.trip_number || '—'}
-                          </span>
-                          <span className={`text-[10px] md:text-xs font-semibold px-2 py-0.5 rounded-full border whitespace-nowrap
-                                            ${statusColors[t.status] || 'bg-slate-100 text-slate-700 border-slate-200'}`}>
-                            {statusLabels[t.status] || t.status}
-                          </span>
-                          {dateStr && (
-                            <span className="text-xs text-slate-500 tabular-nums">
-                              · {new Date(dateStr).toLocaleDateString('ru-RU')}
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-sm font-semibold text-slate-800 break-words">
-                          {clientName}
-                        </div>
-                        <div className="flex items-start gap-1.5 text-xs text-slate-500 mt-0.5">
-                          <RouteIcon className="w-3.5 h-3.5 shrink-0 mt-0.5" strokeWidth={2} />
-                          <span className="break-words">{routeDisplay}</span>
-                        </div>
-                      </div>
-                      <div className="shrink-0 text-right">
-                        <div className="text-sm font-bold text-green-600 whitespace-nowrap tabular-nums">
-                          {t.revenue_eur ? `${t.revenue_eur} €` : '—'}
-                        </div>
-                        {t.actual_km && (
-                          <div className="text-xs text-slate-400 tabular-nums">
-                            {Math.round(t.actual_km)} км
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </a>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Личные данные */}
-        <div className="card p-5 md:p-6">
-          <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-            <UserIcon className="w-5 h-5 text-brand-600" strokeWidth={2} />
-            Личные данные
-          </h2>
-          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
-            <div>
-              <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Дата рождения</div>
-              <div className="text-slate-800 font-medium break-words tabular-nums">
-                {driver.date_of_birth ? new Date(driver.date_of_birth).toLocaleDateString('ru-RU') : '—'}
-              </div>
-            </div>
-            <div>
-              <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Паспорт</div>
-              <div className="text-slate-800 font-medium break-words">{driver.passport_number || '—'}</div>
-            </div>
-            <div>
-              <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Адрес</div>
-              <div className="text-slate-800 font-medium break-words">{driver.address || '—'}</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Telegram */}
-        <TelegramLinkCard
-          driverId={driverId}
-          isConnected={Boolean(driver.telegram_chat_id)}
-        />
-
-        {/* Сроки документов */}
-        <div className="card p-5 md:p-6">
-          <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-brand-600" strokeWidth={2} />
-            Сроки документов
-          </h2>
-          <div className="grid gap-3 md:gap-4 sm:grid-cols-2 md:grid-cols-3">
-            {documentFields.map((doc) => {
-              const badge = daysBadge(doc.value);
-              const Icon = doc.Icon;
-              return (
-                <div key={doc.label} className="border border-slate-100 rounded-xl p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Icon className="w-4 h-4 text-brand-600 shrink-0" strokeWidth={2} />
-                    <span className="text-sm font-semibold text-slate-700">{doc.label}</span>
-                  </div>
-                  <div className="text-slate-800 font-medium mb-2 tabular-nums">
-                    {doc.value ? new Date(doc.value).toLocaleDateString('ru-RU') : '—'}
-                  </div>
-                  <div className={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold border tabular-nums ${badge.color}`}>
-                    {badge.label}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Загруженные документы */}
-        <div className="card p-5 md:p-6">
-          <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-            <FolderOpen className="w-5 h-5 text-brand-600" strokeWidth={2} />
-            Загруженные файлы
-          </h2>
-          {documents?.length === 0 ? (
-            <div className="text-center py-8">
-              <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-slate-50 flex items-center justify-center">
-                <Inbox className="w-7 h-7 text-slate-300" strokeWidth={1.5} />
-              </div>
-              <div className="text-slate-400 text-sm">Файлы ещё не загружены</div>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {documents?.map((doc) => (
-                <div key={doc.id} className="flex justify-between items-center gap-3 border border-slate-100 rounded-xl p-3 hover:bg-slate-50/50 transition-colors">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-9 h-9 rounded-lg bg-brand-50 flex items-center justify-center shrink-0">
-                      <FileText className="w-4 h-4 text-brand-600" strokeWidth={2} />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="font-medium text-slate-800 truncate">{doc.document_type}</div>
-                      <div className="text-xs text-slate-400 tabular-nums">
-                        {doc.expiry_date ? `до ${new Date(doc.expiry_date).toLocaleDateString('ru-RU')}` : 'без срока'}
-                      </div>
-                    </div>
-                  </div>
-                  <a
-                    href={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/documents/${doc.file_path}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-brand-600 hover:underline font-medium text-sm whitespace-nowrap shrink-0"
-                  >
-                    Смотреть
-                  </a>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Загрузка документов */}
-        <div className="card p-5 md:p-6">
-          <DocumentUpload entityType="driver" entityId={driverId} />
-        </div>
-
-      </div>
-    </main>
-  );
-}
+                    href={`/trips/${t
