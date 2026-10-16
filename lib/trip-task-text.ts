@@ -13,7 +13,9 @@
 type DriverInfo = {
   first_name: string | null;
   last_name: string | null;
-  phone: string | null;
+  phone?: string | null;      // legacy, fallback
+  phone_by?: string | null;   // ⬅️ НОВОЕ
+  phone_pl?: string | null;   // ⬅️ НОВОЕ
 } | null;
 
 type TruckInfo = {
