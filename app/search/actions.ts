@@ -151,7 +151,7 @@ export async function globalSearch(rawQuery: string): Promise<SearchResult> {
   // ============================================================
   const { data: driversData } = await supabase
     .from('drivers')
-    .select('id, first_name, last_name, phone')
+    .select('id, first_name, last_name, phone_by, phone_pl')
     .or(`first_name.ilike.${like},last_name.ilike.${like}`)
     .order('last_name')
     .limit(LIMIT_PER_DOMAIN);
@@ -160,7 +160,7 @@ export async function globalSearch(rawQuery: string): Promise<SearchResult> {
     domain: 'driver',
     id: d.id,
     title: `${d.first_name} ${d.last_name}`,
-    subtitle: d.phone || null,
+    subtitle: d.phone_pl || d.phone_by || null,
     icon: '🚛',
     href: `/drivers/${d.id}`,
   }));
