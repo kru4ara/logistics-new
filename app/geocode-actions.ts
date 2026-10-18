@@ -4,6 +4,7 @@ import { createClient } from '../lib/supabase-server';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { logAudit } from '../lib/audit';
+import { geocode } from '../lib/geocode';
 
 // ⬅️ ИЗМЕНЕНО: параметры переименованы sender→from, receiver→to
 async function notifyDriverAboutNewTrip(
@@ -130,28 +131,6 @@ export async function addTripWithAddress(formData: FormData) {
 
       if (startFuelLevel < 0) startFuelLevel = 0;
     }
-  }
-
-  async function geocode(city: string, country: string): Promise<{ lat: number; lng: number } | null> {
-    if (!city || !country) return null;
-    try {
-      const query = encodeURIComponent(`${city}, ${country}`);
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1`,
-        { headers: { 'User-Agent': 'LogisticsCRM/1.0 (contact@raibuilding.pl)' } }
-      );
-      if (!response.ok) return null;
-      const data = await response.json();
-      if (Array.isArray(data) && data.length > 0) {
-        return {
-          lat: parseFloat(data[0].lat),
-          lng: parseFloat(data[0].lon),
-        };
-      }
-    } catch (e) {
-      console.error('Ошибка геокодирования:', e);
-    }
-    return null;
   }
 
   // ⬅️ ИЗМЕНЕНО: геокодинг по from_*/to_*
