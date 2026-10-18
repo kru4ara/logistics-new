@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import SubmitButton from '../../components/SubmitButton';
 import { logAudit } from '../../../lib/audit';
 import { ArrowLeft, Users, Building2, Save } from 'lucide-react';
+import DuplicateChecker from '../../components/DuplicateChecker';
 
 async function createClient(formData: FormData) {
   'use server';
@@ -75,15 +76,12 @@ export default function NewClientPage() {
             </h2>
             <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Название компании *
-                </label>
-                <input
-                  type="text"
-                  name="name"
-                  required
+                <DuplicateChecker
+                  type="client"
+                  inputName="name"
+                  label="Название компании *"
                   placeholder="ООО «ТрансЛогистик»"
-                  className="input"
+                  required
                 />
               </div>
               <div>
