@@ -254,11 +254,11 @@ export async function updateTrip(tripId: string, formData: FormData) {
   let endLng = before?.end_lng ?? 0;
 
   if (fromCity && fromCountry) {
-    const c = await geocode(fromCity, fromCountry);
+    const c = await geocode(fromCity, fromCountry, fromPostalCode);
     if (c) { startLat = c.lat; startLng = c.lng; }
   }
   if (toCity && toCountry) {
-    const c = await geocode(toCity, toCountry);
+    const c = await geocode(toCity, toCountry, toPostalCode);
     if (c) { endLat = c.lat; endLng = c.lng; }
   }
 
@@ -376,9 +376,7 @@ export async function recalcTripCoords(tripId: string): Promise<{ success: boole
   // 1. Все сегменты рейса
   const { data: segments } = await supabase
     .from('trip_segments')
-    .select('position, from_city, from_country, to_city, to_country')
-    .eq('trip_id', tripId)
-    .order('position', { ascending: true });
+    .select('position, from_city, from_country, from_postal_code, to_city, to_country, to_postal_code')
 
   if (!segments || segments.length === 0) {
     return { success: false, error: 'У рейса нет сегментов' };
@@ -387,8 +385,8 @@ export async function recalcTripCoords(tripId: string): Promise<{ success: boole
   const first = segments[0];
   const last = segments[segments.length - 1];
 
-  const startCoords = await geocode(first.from_city, first.from_country);
-  const endCoords = await geocode(last.to_city, last.to_country);
+  const startCoords = await geocode(first.from_city, first.from_country, first.from_postal_code);
+  const endCoords = await geocode(last.to_city, last.to_country, last.to_postal_code);
 
   // 3. UPDATE
   const updateData: Record<string, number> = {};
