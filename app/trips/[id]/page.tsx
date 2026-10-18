@@ -13,6 +13,7 @@ import TripCargoBlock from './TripCargoBlock';
 import TripSegmentsBlock from './TripSegmentsBlock';
 import { buildRouteMap, type SegmentRouteRow } from '../../../lib/trip-route';
 import { buildDriverTaskText } from '../../../lib/trip-task-text';
+import RecalcCoordsButton from './RecalcCoordsButton';
 import {
   ArrowLeft,
   Pencil,
@@ -495,6 +496,12 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
               Logisat синхронизирован: {new Date(trip.logisat_synced_at).toLocaleString('ru-RU')}
             </div>
           )}
+                    <div className="flex items-center justify-between gap-3 mt-3 pt-3 border-t border-slate-100">
+            <div className="text-xs text-slate-400">
+              {trip.start_lat && trip.start_lng ? 'Координаты есть' : 'Координаты не заполнены'}
+            </div>
+            <RecalcCoordsButton tripId={tripId} />
+          </div>
         </div>
 
         {/* ГРУЗЫ */}
