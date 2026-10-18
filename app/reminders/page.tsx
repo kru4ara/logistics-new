@@ -12,7 +12,6 @@ import {
   Check,
   Inbox,
   Download,
-  CreditCard,
   Truck as TruckIcon,
   UserCircle,
 } from 'lucide-react';
@@ -210,7 +209,7 @@ export default async function RemindersPage({
           </div>
         </div>
 
-                {/* 📥 Считывание тахографа и карт водителей */}
+        {/* 📥 Считывание тахографа и карт водителей */}
         {downloadRows.length > 0 && (
           <div className="card p-4 md:p-5 border-l-4 border-l-amber-500">
             <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
@@ -268,9 +267,6 @@ export default async function RemindersPage({
           </div>
         )}
 
-        {/* Фильтр */}
-        <div className="card p-3 flex flex-wrap gap-2">
-        
         {/* Фильтр */}
         <div className="card p-3 flex flex-wrap gap-2">
           <a
