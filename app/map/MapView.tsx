@@ -93,10 +93,10 @@ type Trip = {
   end_lat: number | null;
   end_lng: number | null;
   start_date: string | null;
-  sender_city: string | null;
-  sender_country: string | null;
-  receiver_city: string | null;
-  receiver_country: string | null;
+  from_city: string | null;
+  from_country: string | null;
+  to_city: string | null;
+  to_country: string | null;
 };
 
 export default function MapView({ trips }: { trips: Trip[] }) {
@@ -184,7 +184,7 @@ export default function MapView({ trips }: { trips: Trip[] }) {
                     Загрузка · №{trip.trip_number || '—'}
                   </div>
                   <div style={{ fontSize: '12px', color: '#475569', marginBottom: '4px' }}>
-                    {trip.sender_city}, {trip.sender_country}
+                    {trip.from_city}, {trip.from_country}
                   </div>
                   <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '8px' }}>
                     <b>Маршрут:</b> {trip.route || '—'}
@@ -233,7 +233,7 @@ export default function MapView({ trips }: { trips: Trip[] }) {
                     Выгрузка · №{trip.trip_number || '—'}
                   </div>
                   <div style={{ fontSize: '12px', color: '#475569', marginBottom: '4px' }}>
-                    {trip.receiver_city}, {trip.receiver_country}
+                    {trip.to_city}, {trip.to_country}
                   </div>
                   <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '8px' }}>
                     <b>Маршрут:</b> {trip.route || '—'}
