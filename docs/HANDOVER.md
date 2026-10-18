@@ -327,6 +327,18 @@ created_at TIMESTAMPTZ DEFAULT NOW()
     - Вставлен в блок «Информация» карточки рейса.
     - **Зачем:** при изменении сегментов (городов) координаты в `trips` не обновлялись → карта показывала старые точки. Теперь — кнопка для пересчёта.
 
+13. **Фикс геокодирования (viewbox Europe)** (18.10.2026):
+    - Новый `lib/geocode.ts` — единая функция с `viewbox=-25,20,60,72&bounded=1` (Европа + MENA).
+    - Заменяет 3 дублирующие локальные `geocode` в `app/trip-actions.tsx` (×2) и `app/geocode-actions.ts` (×1).
+    - **Зачем:** без viewbox Nominatim находил «Nola, Italy» как «Nola, Louisiana» (США) → координаты -90 lon. Теперь поиск ограничен Европой.
+
+14. **Геокодирование — фикс с postal_code** (18.10.2026):
+    - `lib/geocode.ts` — `cleanCity()` (убирает `(...)` из города), `COUNTRY_ISO` (маппинг ~50 стран), приоритет `postal_code → city`.
+    - Сигнатура: `geocode(city, country, postalCode?)`.
+    - Вызовы обновлены в `app/geocode-actions.ts` (1) и `app/trip-actions.tsx` (2).
+    - `recalcTripCoords` — в select сегментов добавлены `from_postal_code, to_postal_code`.
+    - **Зачем:** Nominatim путался между «Nola, Italy» и «Nola, Louisiana». Postal code — самый точный идентификатор.
+
 ### ⏳ В очереди (не срочно)
 
 1. **Дубликаты клиентов/подрядчиков** — предупреждение при создании.
