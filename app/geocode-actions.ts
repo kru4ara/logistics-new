@@ -134,8 +134,8 @@ export async function addTripWithAddress(formData: FormData) {
   }
 
   // ⬅️ ИЗМЕНЕНО: геокодинг по from_*/to_*
-  const fromCoords = await geocode(fromCity, fromCountry);
-  const toCoords = await geocode(toCity, toCountry);
+  const fromCoords = await geocode(fromCity, fromCountry, fromPostalCode);
+  const toCoords = await geocode(toCity, toCountry, toPostalCode);
 
   const startLat = fromCoords?.lat ?? 0;
   const startLng = fromCoords?.lng ?? 0;
