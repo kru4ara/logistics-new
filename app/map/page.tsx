@@ -59,10 +59,10 @@ export default async function MapPage() {
     return {
       ...t,
       route: r?.route || null,
-      sender_city: r?.from_city || null,
-      sender_country: r?.from_country || null,
-      receiver_city: r?.to_city || null,
-      receiver_country: r?.to_country || null,
+      from_city: r?.from_city || null,
+      from_country: r?.from_country || null,
+      to_city: r?.to_city || null,
+      to_country: r?.to_country || null,
     };
   });
 
@@ -158,10 +158,10 @@ export default async function MapPage() {
                       </div>
                       <div className="text-xs text-slate-400 truncate flex items-center gap-1.5 mt-0.5">
                         <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" />
-                        <span className="truncate">{trip.sender_city || '—'}, {trip.sender_country || '—'}</span>
+                        <span className="truncate">{trip.from_city || '—'}, {trip.from_country || '—'}</span>
                         <span className="text-slate-300">→</span>
                         <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
-                        <span className="truncate">{trip.receiver_city || '—'}, {trip.receiver_country || '—'}</span>
+                        <span className="truncate">{trip.to_city || '—'}, {trip.to_country || '—'}</span>
                       </div>
                     </div>
                   </div>
