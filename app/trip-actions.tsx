@@ -4,6 +4,7 @@ import { createClient } from '../lib/supabase-server';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { logAudit, diffFields } from '../lib/audit';
+import { geocode } from '../lib/geocode';
 
 // ============================================================
 // Конвертация в EUR по курсу на дату
@@ -247,25 +248,6 @@ export async function updateTrip(tripId: string, formData: FormData) {
     .eq('id', tripId)
     .single();
 
-  async function geocode(city: string, country: string): Promise<{ lat: number; lng: number } | null> {
-    if (!city || !country) return null;
-    try {
-      const query = encodeURIComponent(`${city}, ${country}`);
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1`,
-        { headers: { 'User-Agent': 'LogisticsCRM/1.0 (contact@raibuilding.pl)' } }
-      );
-      if (!response.ok) return null;
-      const data = await response.json();
-      if (Array.isArray(data) && data.length > 0) {
-        return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
-      }
-    } catch (e) {
-      console.error('Ошибка геокодирования:', e);
-    }
-    return null;
-  }
-
   let startLat = before?.start_lat ?? 0;
   let startLng = before?.start_lng ?? 0;
   let endLat = before?.end_lat ?? 0;
@@ -404,26 +386,6 @@ export async function recalcTripCoords(tripId: string): Promise<{ success: boole
 
   const first = segments[0];
   const last = segments[segments.length - 1];
-
-  // 2. Геокодирование
-  async function geocode(city: string | null, country: string | null) {
-    if (!city || !country) return null;
-    try {
-      const q = encodeURIComponent(`${city}, ${country}`);
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1`,
-        { headers: { 'User-Agent': 'LogisticsCRM/1.0 (contact@raibuilding.pl)' } }
-      );
-      if (!res.ok) return null;
-      const data = await res.json();
-      if (Array.isArray(data) && data.length > 0) {
-        return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
-      }
-    } catch (e) {
-      console.error('[recalcTripCoords] geocode error:', e);
-    }
-    return null;
-  }
 
   const startCoords = await geocode(first.from_city, first.from_country);
   const endCoords = await geocode(last.to_city, last.to_country);
