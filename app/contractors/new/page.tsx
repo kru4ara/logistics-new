@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { createContractor } from '../actions';
 import { EUROPEAN_COUNTRIES } from '../../../lib/countries';
 import SubmitButton from '../../components/SubmitButton';
+import DuplicateChecker from '../../components/DuplicateChecker';
 import {
   ArrowLeft,
   Building2,
@@ -48,15 +49,13 @@ export default function NewContractorPage() {
             </h2>
             <div className="space-y-3">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Короткое название *
-                </label>
-                <input
-                  type="text"
-                  name="name"
-                  required
+                <DuplicateChecker
+                  type="contractor"
+                  inputName="name"
+                  taxIdInputName="tax_id"
+                  label="Короткое название *"
                   placeholder="KAM-TRANS"
-                  className="input"
+                  required
                 />
                 <p className="text-xs text-slate-400 mt-1">Для списков и выбора в заявках</p>
               </div>
