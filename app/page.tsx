@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '../lib/supabase-server';
 import { MonthlyBars, ExpenseDonut } from './components/DashboardCharts';
+import AdminOnboardingCard from './components/AdminOnboardingCard';
 import {
   TrendingUp,
   TrendingDown,
@@ -51,6 +52,7 @@ export default async function Home() {
   const userName = cookies().get('user_name')?.value
     ? decodeURIComponent(cookies().get('user_name')!.value)
     : 'Офис';
+  const adminOnboarded = cookies().get('admin_onboarded')?.value === '1'; // ⬅️ НОВОЕ
 
   if (role === 'driver') redirect('/driver');
   if (role !== 'admin') redirect('/login');
@@ -342,6 +344,11 @@ export default async function Home() {
             Обзор вашей логистики за {monthName}
           </p>
         </div>
+
+        {/* 🆕 ОНБОРДИНГ АДМИНА — показывается только в первый раз */}
+        {!adminOnboarded && (
+          <AdminOnboardingCard userName={userName} />
+        )}
 
         {/* ПОКАЗАТЕЛИ ЗА МЕСЯЦ */}
         <div>
