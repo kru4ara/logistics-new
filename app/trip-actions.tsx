@@ -385,3 +385,80 @@ export async function deleteTrip(tripId: string) {
   revalidatePath('/trips');
   redirect('/trips?toast=trip_deleted');
 }
+// ============================================================
+// Пересчёт координат рейса по сегментам (from первого, to последнего)
+// ============================================================
+export async function recalcTripCoords(tripId: string): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createClient();
+
+  // 1. Все сегменты рейса
+  const { data: segments } = await supabase
+    .from('trip_segments')
+    .select('position, from_city, from_country, to_city, to_country')
+    .eq('trip_id', tripId)
+    .order('position', { ascending: true });
+
+  if (!segments || segments.length === 0) {
+    return { success: false, error: 'У рейса нет сегментов' };
+  }
+
+  const first = segments[0];
+  const last = segments[segments.length - 1];
+
+  // 2. Геокодирование
+  async function geocode(city: string | null, country: string | null) {
+    if (!city || !country) return null;
+    try {
+      const q = encodeURIComponent(`${city}, ${country}`);
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1`,
+        { headers: { 'User-Agent': 'LogisticsCRM/1.0 (contact@raibuilding.pl)' } }
+      );
+      if (!res.ok) return null;
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+      }
+    } catch (e) {
+      console.error('[recalcTripCoords] geocode error:', e);
+    }
+    return null;
+  }
+
+  const startCoords = await geocode(first.from_city, first.from_country);
+  const endCoords = await geocode(last.to_city, last.to_country);
+
+  // 3. UPDATE
+  const updateData: Record<string, number> = {};
+  if (startCoords) {
+    updateData.start_lat = startCoords.lat;
+    updateData.start_lng = startCoords.lng;
+  }
+  if (endCoords) {
+    updateData.end_lat = endCoords.lat;
+    updateData.end_lng = endCoords.lng;
+  }
+
+  if (Object.keys(updateData).length === 0) {
+    return { success: false, error: 'Не удалось геокодировать ни один город' };
+  }
+
+  const { error } = await supabase
+    .from('trips')
+    .update(updateData)
+    .eq('id', tripId);
+
+  if (error) return { success: false, error: error.message };
+
+  await logAudit({
+    entity_type: 'trip',
+    entity_id: tripId,
+    action: 'update',
+    summary: `Пересчёт координат рейса: ${startCoords ? 'старт OK' : 'старт fail'} · ${endCoords ? 'финиш OK' : 'финиш fail'}`,
+  });
+
+  revalidatePath(`/trips/${tripId}`);
+  revalidatePath('/map');
+
+  return { success: true };
+}
