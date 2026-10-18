@@ -11,6 +11,10 @@ import {
   List as ListIcon,
   Check,
   Inbox,
+  Download,
+  CreditCard,
+  Truck as TruckIcon,
+  UserCircle,
 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -37,6 +41,85 @@ export default async function RemindersPage({
   if (error) {
     return <div className="p-8 text-red-500">Ошибка загрузки: {error.message}</div>;
   }
+
+  // ⬅️ НОВОЕ: тахограф + карта водителя
+  const DRIVER_CARD_PERIOD = 28;
+  const DRIVER_CARD_WARN = 25;
+  const TACHO_PERIOD = 96;
+  const TACHO_WARN = 90;
+
+  const { data: driversDownloadData } = await supabase
+    .from('drivers')
+    .select('id, first_name, last_name, driver_card_last_download');
+
+  const { data: trucksDownloadData } = await supabase
+    .from('trucks')
+    .select('id, registration_number, tachograph_last_download')
+    .eq('type', 'tractor');
+
+  function daysAgoFrom(dateString: string | null): number | null {
+    if (!dateString) return null;
+    const today = new Date();
+    const target = new Date(dateString);
+    return Math.floor((today.getTime() - target.getTime()) / (1000 * 60 * 60 * 24));
+  }
+
+  type DownloadRow = {
+    id: string;
+    label: string;
+    subtitle: string | null;
+    href: string;
+    daysAgo: number | null;
+    maxDays: number;
+    warnDays: number;
+    kind: 'driver' | 'truck';
+  };
+
+  const downloadRows: DownloadRow[] = [];
+
+  for (const d of driversDownloadData || []) {
+    const daysAgo = daysAgoFrom(d.driver_card_last_download);
+    const name = `${d.first_name || ''} ${d.last_name || ''}`.trim() || 'Без имени';
+    if (daysAgo === null || daysAgo > DRIVER_CARD_WARN) {
+      downloadRows.push({
+        id: d.id,
+        label: name,
+        subtitle: d.driver_card_last_download
+          ? `Последнее считывание: ${new Date(d.driver_card_last_download).toLocaleDateString('ru-RU')}`
+          : 'Никогда не считана',
+        href: `/drivers/${d.id}`,
+        daysAgo,
+        maxDays: DRIVER_CARD_PERIOD,
+        warnDays: DRIVER_CARD_WARN,
+        kind: 'driver',
+      });
+    }
+  }
+
+  for (const t of trucksDownloadData || []) {
+    const daysAgo = daysAgoFrom(t.tachograph_last_download);
+    if (daysAgo === null || daysAgo > TACHO_WARN) {
+      downloadRows.push({
+        id: t.id,
+        label: t.registration_number || '—',
+        subtitle: t.tachograph_last_download
+          ? `Последнее считывание: ${new Date(t.tachograph_last_download).toLocaleDateString('ru-RU')}`
+          : 'Никогда не считан',
+        href: `/trucks/${t.id}`,
+        daysAgo,
+        maxDays: TACHO_PERIOD,
+        warnDays: TACHO_WARN,
+        kind: 'truck',
+      });
+    }
+  }
+
+  // Сортировка: просроченные (и никогда не считанные) → warn
+  downloadRows.sort((a, b) => {
+    const aVal = a.daysAgo === null ? 99999 : a.daysAgo;
+    const bVal = b.daysAgo === null ? 99999 : b.daysAgo;
+    return bVal - aVal;
+  });
 
   function getDaysUntil(dateString: string | null) {
     if (!dateString) return null;
@@ -127,6 +210,67 @@ export default async function RemindersPage({
           </div>
         </div>
 
+                {/* 📥 Считывание тахографа и карт водителей */}
+        {downloadRows.length > 0 && (
+          <div className="card p-4 md:p-5 border-l-4 border-l-amber-500">
+            <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
+              <h2 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2">
+                <Download className="w-5 h-5 text-amber-600" strokeWidth={2.2} />
+                Считывание тахографа и карт
+              </h2>
+              <span className="text-xs bg-amber-100 text-amber-800 px-2.5 py-0.5 rounded-full font-semibold tabular-nums">
+                {downloadRows.length}
+              </span>
+            </div>
+
+            <div className="space-y-1.5">
+              {downloadRows.map((row) => {
+                const isOverdue = row.daysAgo !== null && row.daysAgo > row.maxDays;
+                const isNever = row.daysAgo === null;
+                const isWarn = !isOverdue && !isNever;
+
+                const color = isOverdue || isNever
+                  ? 'bg-red-50 text-red-700 border-red-200'
+                  : 'bg-orange-50 text-orange-700 border-orange-200';
+
+                const label = isNever
+                  ? 'никогда'
+                  : isOverdue
+                    ? `просрочено · ${row.daysAgo} дн.`
+                    : `${row.daysAgo} дн.`;
+
+                const Icon = row.kind === 'driver' ? UserCircle : TruckIcon;
+                const kindLabel = row.kind === 'driver' ? 'Карта водителя' : 'Тахограф';
+
+                return (
+                  <a
+                    key={`${row.kind}-${row.id}`}
+                    href={row.href}
+                    className="flex items-center gap-3 rounded-lg border border-slate-100 p-3 hover:bg-slate-50/60 transition-colors"
+                  >
+                    <Icon className="w-4 h-4 text-slate-400 shrink-0" strokeWidth={2.2} />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-semibold text-slate-800 truncate">
+                        {row.label}
+                      </div>
+                      <div className="text-xs text-slate-500 truncate">
+                        <span className="text-slate-400">{kindLabel}</span>
+                        {row.subtitle && <span> · {row.subtitle}</span>}
+                      </div>
+                    </div>
+                    <span className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-semibold border whitespace-nowrap tabular-nums ${color}`}>
+                      {label}
+                    </span>
+                  </a>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Фильтр */}
+        <div className="card p-3 flex flex-wrap gap-2">
+        
         {/* Фильтр */}
         <div className="card p-3 flex flex-wrap gap-2">
           <a
