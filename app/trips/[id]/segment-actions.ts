@@ -8,14 +8,14 @@ function str(formData: FormData, key: string): string | null {
   const v = (formData.get(key) as string)?.trim();
   return v || null;
 }
- 
+
 function parseCargoIds(formData: FormData): string[] {
   const ids = formData.getAll('cargo_ids') as string[];
   return ids.filter(Boolean);
 }
 
 type Stop = {
-  type: 'load' | 'reload' | 'unload';
+  type: 'load' | 'reload' | 'unload' | 'customs';
   company: string | null;
   country: string | null;
   city: string | null;
@@ -142,6 +142,15 @@ export async function createSegment(tripId: string, formData: FormData) {
   const cargoIds = parseCargoIds(formData);
   const stops = parseStops(formData);
 
+  // Данные подрядчика
+  const contractorTruckNumber = str(formData, 'contractor_truck_number');
+  const contractorDriverName = str(formData, 'contractor_driver_name');
+  const contractorPaymentDaysRaw = str(formData, 'contractor_payment_days');
+  const contractorPaymentDays = contractorPaymentDaysRaw ? parseInt(contractorPaymentDaysRaw, 10) : null;
+  const contractorPaymentDocType = str(formData, 'contractor_payment_document_type');
+  const contractorTransportType = str(formData, 'contractor_transport_type');
+  const contractorTransportTemp = str(formData, 'contractor_transport_temperature');
+
   const priceRaw = str(formData, 'price');
   const price = priceRaw ? parseFloat(priceRaw) : null;
   const currency = str(formData, 'currency') || 'EUR';
@@ -200,6 +209,13 @@ export async function createSegment(tripId: string, formData: FormData) {
       notes,
       price: executorType === 'contractor' ? price : null,
       currency: executorType === 'contractor' ? currency : null,
+      // Данные подрядчика
+      contractor_truck_number: executorType === 'contractor' ? contractorTruckNumber : null,
+      contractor_driver_name: executorType === 'contractor' ? contractorDriverName : null,
+      contractor_payment_days: executorType === 'contractor' ? contractorPaymentDays : null,
+      contractor_payment_document_type: executorType === 'contractor' ? contractorPaymentDocType : null,
+      contractor_transport_type: executorType === 'contractor' ? contractorTransportType : null,
+      contractor_transport_temperature: executorType === 'contractor' ? contractorTransportTemp : null,
     }])
     .select('id')
     .single();
@@ -212,7 +228,6 @@ export async function createSegment(tripId: string, formData: FormData) {
     .insert(links);
   if (linkErr) throw new Error(`Ошибка привязки грузов: ${linkErr.message}`);
 
-  // Автоматически создаём расход, если это подрядчик с ценой
   if (executorType === 'contractor' && contractorId && price && price > 0) {
     const dateForRate = dateFrom || new Date().toISOString().split('T')[0];
     const routeHint = [fromCity, toCity].filter(Boolean).join(' → ');
@@ -252,6 +267,14 @@ export async function updateSegment(segmentId: string, tripId: string, formData:
   const notes = str(formData, 'notes');
   const cargoIds = parseCargoIds(formData);
   const stops = parseStops(formData);
+
+  const contractorTruckNumber = str(formData, 'contractor_truck_number');
+  const contractorDriverName = str(formData, 'contractor_driver_name');
+  const contractorPaymentDaysRaw = str(formData, 'contractor_payment_days');
+  const contractorPaymentDays = contractorPaymentDaysRaw ? parseInt(contractorPaymentDaysRaw, 10) : null;
+  const contractorPaymentDocType = str(formData, 'contractor_payment_document_type');
+  const contractorTransportType = str(formData, 'contractor_transport_type');
+  const contractorTransportTemp = str(formData, 'contractor_transport_temperature');
 
   const priceRaw = str(formData, 'price');
   const price = priceRaw ? parseFloat(priceRaw) : null;
@@ -299,12 +322,17 @@ export async function updateSegment(segmentId: string, tripId: string, formData:
       notes,
       price: executorType === 'contractor' ? price : null,
       currency: executorType === 'contractor' ? currency : null,
+      contractor_truck_number: executorType === 'contractor' ? contractorTruckNumber : null,
+      contractor_driver_name: executorType === 'contractor' ? contractorDriverName : null,
+      contractor_payment_days: executorType === 'contractor' ? contractorPaymentDays : null,
+      contractor_payment_document_type: executorType === 'contractor' ? contractorPaymentDocType : null,
+      contractor_transport_type: executorType === 'contractor' ? contractorTransportType : null,
+      contractor_transport_temperature: executorType === 'contractor' ? contractorTransportTemp : null,
     })
     .eq('id', segmentId);
 
   if (error) throw new Error(`Ошибка обновления участка: ${error.message}`);
 
-  // Обновить привязку грузов
   await supabase
     .from('trip_segment_cargo')
     .delete()
@@ -316,10 +344,8 @@ export async function updateSegment(segmentId: string, tripId: string, formData:
     .insert(links);
   if (linkErr) throw new Error(`Ошибка привязки грузов: ${linkErr.message}`);
 
-  // Синхронизация расхода: удаляем старый, если он был
   await deleteSegmentExpense(supabase, segmentId);
 
-  // Создаём новый, если это подрядчик с ценой
   if (executorType === 'contractor' && contractorId && price && price > 0) {
     const dateForRate = dateFrom || new Date().toISOString().split('T')[0];
     const routeHint = [fromCity, toCity].filter(Boolean).join(' → ');
@@ -349,10 +375,8 @@ export async function deleteSegment(segmentId: string, tripId: string) {
     .eq('id', segmentId)
     .maybeSingle();
 
-  // Удаляем связанный расход
   await deleteSegmentExpense(supabase, segmentId);
 
-  // Удаляем сам сегмент
   const { error } = await supabase
     .from('trip_segments')
     .delete()
