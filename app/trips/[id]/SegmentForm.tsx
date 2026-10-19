@@ -57,7 +57,7 @@ type Addr = {
 };
 
 type Stop = {
-  type: 'load' | 'reload' | 'unload';
+  type: 'load' | 'reload' | 'unload' | 'customs';
   country: string;
   city: string;
   company: string;
@@ -120,12 +120,14 @@ const STOP_TYPE_LABELS: Record<Stop['type'], string> = {
   load: 'Загрузка',
   reload: 'Догруз / перегруз',
   unload: 'Выгрузка',
+  customs: 'Таможня',
 };
 
 const STOP_TYPE_COLORS: Record<Stop['type'], string> = {
   load: 'bg-green-100 text-green-800 border-green-300',
   reload: 'bg-amber-100 text-amber-800 border-amber-300',
   unload: 'bg-red-100 text-red-800 border-red-300',
+  customs: 'bg-blue-100 text-blue-800 border-blue-300',
 };
 
 export default function SegmentForm({
@@ -822,6 +824,7 @@ if (executorType === 'contractor') {
                       <option value="load">Загрузка</option>
                       <option value="reload">Догруз / перегруз</option>
                       <option value="unload">Выгрузка</option>
+                      <option value="customs">Таможня</option>
                     </select>
                   </div>
                   <button
