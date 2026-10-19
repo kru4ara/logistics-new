@@ -14,9 +14,6 @@ export default async function EditTripPage({ params }: { params: Promise<{ id: s
     .single();
 
   const { data: clients } = await supabase.from('clients').select('id, name').order('name');
-  const { data: tractors } = await supabase.from('trucks').select('id, registration_number').eq('type', 'tractor');
-  const { data: trailers } = await supabase.from('trucks').select('id, registration_number').eq('type', 'trailer');
-  const { data: drivers } = await supabase.from('drivers').select('id, first_name, last_name');
 
   const { data: loadingLocations } = await supabase
     .from('locations')
@@ -40,16 +37,13 @@ export default async function EditTripPage({ params }: { params: Promise<{ id: s
         </a>
 
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">✏️ Редактировать рейс №{trip.trip_number || '—'}</h1>
+          <h1 className="text-3xl font-bold text-slate-900">✏️ Редактировать заявку №{trip.trip_number || '—'}</h1>
         </div>
 
         <EditTripForm
           trip={trip}
           tripId={tripId}
           clients={(clients || []).map((c) => ({ id: c.id, label: c.name }))}
-          tractors={(tractors || []).map((t) => ({ id: t.id, label: t.registration_number }))}
-          trailers={(trailers || []).map((t) => ({ id: t.id, label: t.registration_number }))}
-          drivers={(drivers || []).map((d) => ({ id: d.id, label: `${d.first_name} ${d.last_name}` }))}
           loadingLocations={loadingLocations || []}
           unloadingLocations={unloadingLocations || []}
         />
