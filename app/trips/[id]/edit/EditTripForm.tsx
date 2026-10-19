@@ -6,10 +6,10 @@ import {
   FileText,
   MapPin,
   Flag,
+  AlertTriangle,
 } from 'lucide-react';
 import { updateTrip } from '../../../trip-actions';
 import SubmitButton from '../../../components/SubmitButton';
-import OverlapWarning from '../../OverlapWarning';
 
 type Location = {
   id: string;
@@ -34,7 +34,6 @@ type AddrState = {
   loading_number: string;
 };
 
-// ⬅️ ИЗМЕНЕНО: sender_*/receiver_* → from_*/to_*
 type Trip = {
   client_id: string | null;
   truck_id: string | null;
@@ -64,9 +63,6 @@ type Props = {
   trip: Trip;
   tripId: string;
   clients: Option[];
-  tractors: Option[];
-  trailers: Option[];
-  drivers: Option[];
   loadingLocations: Location[];
   unloadingLocations: Location[];
 };
@@ -89,22 +85,13 @@ function toAddr(
   };
 }
 
-function toIsoDate(d: string | null): string {
-  if (!d) return '';
-  return d.split('T')[0];
-}
-
 export default function EditTripForm({
   trip,
   tripId,
   clients,
-  tractors,
-  trailers,
-  drivers,
   loadingLocations,
   unloadingLocations,
 }: Props) {
-  // ⬅️ ИЗМЕНЕНО: sender→from, receiver→to + trip.from_*/trip.to_*
   const [from, setFrom] = useState<AddrState>(
     toAddr(trip.from_country, trip.from_name, trip.from_postal_code, trip.from_city, trip.from_address, trip.from_loading_number)
   );
@@ -112,12 +99,6 @@ export default function EditTripForm({
     toAddr(trip.to_country, trip.to_name, trip.to_postal_code, trip.to_city, trip.to_address, trip.to_loading_number)
   );
 
-  // Controlled — для OverlapWarning
-  const [truckId, setTruckId] = useState(trip.truck_id || '');
-  const [startDate, setStartDate] = useState(toIsoDate(trip.start_date));
-  const [endDate, setEndDate] = useState(toIsoDate(trip.end_date));
-
-  // ⬅️ ИЗМЕНЕНО: fillSender → fillFrom
   function fillFrom(locId: string) {
     if (!locId) return;
     const loc = loadingLocations.find((l) => l.id === locId);
@@ -132,7 +113,6 @@ export default function EditTripForm({
     });
   }
 
-  // ⬅️ ИЗМЕНЕНО: fillReceiver → fillTo
   function fillTo(locId: string) {
     if (!locId) return;
     const loc = unloadingLocations.find((l) => l.id === locId);
@@ -158,10 +138,21 @@ export default function EditTripForm({
   return (
     <form action={updateTrip.bind(null, tripId)} className="space-y-4 md:space-y-6">
 
+      {/* ПРЕДУПРЕЖДЕНИЕ ОБ ИЗМЕНЕНИЯХ */}
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800 flex items-start gap-2">
+        <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" strokeWidth={2.2} />
+        <div>
+          <b>Транспорт, даты и фрахт</b> теперь редактируются в карточке рейса:
+          <br />• Машина, водитель, даты — в блоке <b>«Участки»</b> (кнопка «Добавить участок»).
+          <br />• Фрахт — в блоке <b>«Грузы»</b> (кнопка «Изменить» у груза).
+          <br />Здесь вы можете изменить только данные заявки и маршрут.
+        </div>
+      </div>
+
       <div className={sectionClass}>
         <h2 className={sectionTitleClass}>
-          <Truck className="w-5 h-5 text-brand-600" strokeWidth={2.2} />
-          Основные данные
+          <FileText className="w-5 h-5 text-brand-600" strokeWidth={2.2} />
+          Заявка клиента
         </h2>
         <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-3">
           <div>
@@ -171,77 +162,6 @@ export default function EditTripForm({
               {clients.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
             </select>
           </div>
-          <div>
-            <label className={labelClass}>Тягач</label>
-            <select
-              name="truck_id"
-              value={truckId}
-              onChange={(e) => setTruckId(e.target.value)}
-              className={inputClass}
-            >
-              <option value="">Выберите тягач...</option>
-              {tractors.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
-            </select>
-            <OverlapWarning
-              truckId={truckId}
-              startDate={startDate}
-              endDate={endDate}
-              excludeTripId={tripId}
-            />
-          </div>
-          <div>
-            <label className={labelClass}>Прицеп</label>
-            <select name="trailer_id" defaultValue={trip.trailer_id || ''} className={inputClass}>
-              <option value="">Без прицепа</option>
-              {trailers.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className={labelClass}>Водитель</label>
-            <select name="driver_id" defaultValue={trip.driver_id || ''} className={inputClass}>
-              <option value="">Выберите водителя...</option>
-              {drivers.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className={labelClass}>Дата старта</label>
-            <input
-              type="date"
-              name="start_date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              required
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <label className={labelClass}>Дата финиша</label>
-            <input
-              type="date"
-              name="end_date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className={inputClass}
-            />
-            <p className="text-xs text-slate-400 mt-1">Оставьте пустым, если рейс ещё не завершён</p>
-          </div>
-          <div>
-            <label className={labelClass}>Фрахт (€)</label>
-            <input type="number" name="revenue_eur" step="0.01" defaultValue={trip.revenue_eur || 0} className={inputClass} />
-          </div>
-          <div className="md:col-span-3 lg:col-span-1">
-            <label className={labelClass}>Остаток топлива (л)</label>
-            <input type="number" name="start_fuel_level" step="0.01" defaultValue={trip.start_fuel_level || 0} className={inputClass} />
-          </div>
-        </div>
-      </div>
-
-      <div className={sectionClass}>
-        <h2 className={sectionTitleClass}>
-          <FileText className="w-5 h-5 text-brand-600" strokeWidth={2.2} />
-          Заявка клиента
-        </h2>
-        <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
           <div>
             <label className={labelClass}>Номер заявки</label>
             <input type="text" name="client_request_number" defaultValue={trip.client_request_number || ''} className={inputClass} />
@@ -264,7 +184,6 @@ export default function EditTripForm({
             Выбрать из сохранённых локаций
             <span className="text-xs text-slate-400 font-normal ml-2 hidden sm:inline">(заполнит поля ниже)</span>
           </label>
-          {/* ⬅️ ИЗМЕНЕНО: fillSender → fillFrom */}
           <select onChange={(e) => fillFrom(e.target.value)} className={presetClass} defaultValue="">
             <option value="">— Выберите локацию —</option>
             {loadingLocations.map((loc) => (
@@ -275,7 +194,6 @@ export default function EditTripForm({
           </select>
         </div>
 
-        {/* ⬅️ ИЗМЕНЕНО: sender_* → from_*, sender→from */}
         <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2 pt-2 border-t border-slate-100">
           <div>
             <label className={labelClass}>Страна</label>
@@ -308,10 +226,6 @@ export default function EditTripForm({
               onChange={(e) => setFrom({ ...from, loading_number: e.target.value })} className={inputClass} />
           </div>
         </div>
-
-        <p className="text-xs text-slate-500 mt-3 bg-slate-50 rounded-lg px-3 py-2">
-          💡 Дополнительные точки погрузки и участки рейса — на карточке рейса в блоке «Участки».
-        </p>
       </div>
 
       <div className={sectionClass}>
@@ -325,7 +239,6 @@ export default function EditTripForm({
             Выбрать из сохранённых локаций
             <span className="text-xs text-slate-400 font-normal ml-2 hidden sm:inline">(заполнит поля ниже)</span>
           </label>
-          {/* ⬅️ ИЗМЕНЕНО: fillReceiver → fillTo */}
           <select onChange={(e) => fillTo(e.target.value)} className={presetClass} defaultValue="">
             <option value="">— Выберите локацию —</option>
             {unloadingLocations.map((loc) => (
@@ -336,7 +249,6 @@ export default function EditTripForm({
           </select>
         </div>
 
-        {/* ⬅️ ИЗМЕНЕНО: receiver_* → to_*, receiver→to */}
         <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2 pt-2 border-t border-slate-100">
           <div>
             <label className={labelClass}>Страна</label>
@@ -368,6 +280,17 @@ export default function EditTripForm({
             <input type="text" name="to_loading_number" value={to.loading_number}
               onChange={(e) => setTo({ ...to, loading_number: e.target.value })} className={inputClass} />
           </div>
+        </div>
+      </div>
+
+      <div className={sectionClass}>
+        <h2 className={sectionTitleClass}>
+          <Truck className="w-5 h-5 text-brand-600" strokeWidth={2.2} />
+          Технические данные
+        </h2>
+        <div>
+          <label className={labelClass}>Остаток топлива (л)</label>
+          <input type="number" name="start_fuel_level" step="0.01" defaultValue={trip.start_fuel_level || 0} className={inputClass} />
         </div>
       </div>
 
