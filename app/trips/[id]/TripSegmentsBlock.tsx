@@ -480,6 +480,7 @@ export default function TripSegmentsBlock({
           drivers={drivers}
           loadingLocations={loadingLocations}
           unloadingLocations={unloadingLocations}
+          customsLocations={customsLocations}
           cargoList={cargoList}
           onClose={handleClose}
           onSaved={() => {
