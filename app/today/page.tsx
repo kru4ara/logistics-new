@@ -124,9 +124,14 @@ export default async function TodayPage() {
     tripById[t.id] = t;
   });
 
-  const todayTripLoadings = allTrips.filter((t) => t.start_date === today);
-  const todayTripUnloadings = allTrips.filter((t) => t.end_date === today);
-  const activeTrips = allTrips.filter((t) => t.status === 'active');
+function isDateToday(dateStr: string | null): boolean {
+  if (!dateStr) return false;
+  return dateStr.slice(0, 10) === today;
+}
+
+const todayTripLoadings = allTrips.filter((t) => isDateToday(t.start_date));
+const todayTripUnloadings = allTrips.filter((t) => isDateToday(t.end_date));
+const activeTrips = allTrips.filter((t) => t.status === 'active');
 
   // 2. ПОДРЯДЧИКИ — участки-подрядчики в рейсах
   const { data: subs } = await supabase
