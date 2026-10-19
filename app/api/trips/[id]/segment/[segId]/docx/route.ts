@@ -319,7 +319,8 @@ export async function GET(
   const zlecenieNumber = `${baseNumber}-${segment.position || 1}`;
 
   const paymentDays = segment.contractor_payment_days ?? 30;
-  const terms = getTerms(paymentDays);
+  const paymentDocType = (segment.contractor_payment_document_type === 'scans' ? 'scans' : 'originals') as 'originals' | 'scans';
+  const terms = getTerms(paymentDays, paymentDocType);
 
   const [stampBuf, qrBuf] = await Promise.all([
     downloadAsset(supabase, 'assets/stamp.png', 'STAMP'),
