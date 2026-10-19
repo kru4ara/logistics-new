@@ -15,6 +15,7 @@ import {
   ArrowRight,
   Coins,
   Wand2,
+  ShieldCheck,
 } from 'lucide-react';
 import { createSegment, updateSegment } from './segment-actions';
 
@@ -140,6 +141,7 @@ export default function SegmentForm({
   drivers,
   loadingLocations,
   unloadingLocations,
+  customsLocations,
   cargoList,
   onClose,
   onSaved,
@@ -153,6 +155,7 @@ export default function SegmentForm({
   drivers: Option[];
   loadingLocations: Location[];
   unloadingLocations: Location[];
+  customsLocations: Location[];
   cargoList: CargoOption[];
   onClose: () => void;
   onSaved: () => void;
@@ -182,7 +185,7 @@ export default function SegmentForm({
   );
   const [contractorTransportType, setContractorTransportType] = useState(initialData?.contractor_transport_type || '');
   const [contractorTransportTemp, setContractorTransportTemp] = useState(initialData?.contractor_transport_temperature || '');
-  
+
 
   const [from, setFrom] = useState<Addr>(
     toAddr(
@@ -230,6 +233,9 @@ export default function SegmentForm({
   const presetClass =
     'w-full rounded-lg border-2 border-dashed border-brand-300 bg-brand-50 px-3 py-2.5 text-base text-slate-900 font-medium ' +
     'focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-solid focus:border-brand-500 transition-all';
+
+  // Объединённый список для пресета промежуточных точек (все типы)
+  const allStopLocations = [...loadingLocations, ...unloadingLocations, ...customsLocations];
 
   function fillFromLocation(locId: string) {
     if (!locId) return;
@@ -317,8 +323,7 @@ export default function SegmentForm({
 
   function fillStopFromLocation(idx: number, locId: string) {
     if (!locId) return;
-    const loc = loadingLocations.find((l) => l.id === locId)
-      || unloadingLocations.find((l) => l.id === locId);
+    const loc = allStopLocations.find((l) => l.id === locId);
     if (!loc) return;
     setStops(
       stops.map((s, i) =>
@@ -803,7 +808,7 @@ if (executorType === 'contractor') {
             </div>
 
             <p className="text-[11px] text-amber-700">
-              Заезды по пути (догруз, перегруз, промежуточная выгрузка). Если машина везёт без остановок — оставьте пустым.
+              Заезды по пути (догруз, перегруз, таможня, промежуточная выгрузка). Если машина везёт без остановок — оставьте пустым.
             </p>
 
             {stops.map((stop, idx) => (
@@ -848,9 +853,9 @@ if (executorType === 'contractor') {
                     defaultValue=""
                   >
                     <option value="">— Выберите локацию —</option>
-                    {loadingLocations.map((loc) => (
+                    {allStopLocations.map((loc) => (
                       <option key={loc.id} value={loc.id}>
-                        {loc.name} {loc.city ? `· ${loc.city}` : ''}
+                        {loc.name} {loc.city ? `· ${loc.city}` : ''} {loc.type === 'customs' ? '(Таможня)' : ''}
                       </option>
                     ))}
                   </select>
