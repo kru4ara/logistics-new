@@ -94,6 +94,7 @@ type SegmentData = {
   contractor_payment_document_type?: string | null;
   contractor_transport_type?: string | null;
   contractor_transport_temperature?: string | null;
+  contractor_transport_height?: string | null;
 };
 
 function toAddr(
@@ -182,9 +183,11 @@ export default function SegmentForm({
   const [contractorPaymentDocType, setContractorPaymentDocType] = useState(
      initialData?.contractor_payment_document_type || 'originals'
   );
-  const [contractorTransportType, setContractorTransportType] = useState(initialData?.contractor_transport_type || '');
+  
+  // Умный тип транспорта
+  const [contractorTransportType, setContractorTransportType] = useState(initialData?.contractor_transport_type || 'standard');
   const [contractorTransportTemp, setContractorTransportTemp] = useState(initialData?.contractor_transport_temperature || '');
-
+  const [contractorTransportHeight, setContractorTransportHeight] = useState(initialData?.contractor_transport_height || '');
 
   const [from, setFrom] = useState<Addr>(
     toAddr(
@@ -385,8 +388,9 @@ if (executorType === 'contractor') {
   formData.set('contractor_driver_name', contractorDriverName.trim());
   formData.set('contractor_payment_days', contractorPaymentDays);
   formData.set('contractor_payment_document_type', contractorPaymentDocType);
-  formData.set('contractor_transport_type', contractorTransportType.trim());
-  formData.set('contractor_transport_temperature', contractorTransportTemp.trim());
+  formData.set('contractor_transport_type', contractorTransportType);
+  formData.set('contractor_transport_temperature', contractorTransportType === 'chlodnia' ? contractorTransportTemp.trim() : '');
+  formData.set('contractor_transport_height', contractorTransportType === 'mega' ? contractorTransportHeight.trim() : '');
 }
 
     selectedCargo.forEach((cid) => formData.append('cargo_ids', cid));
@@ -523,15 +527,15 @@ if (executorType === 'contractor') {
   </p>
 </div>
 
-{/* ДАННЫЕ ПОДРЯДЧИКА */}
+{/* ДАННЫЕ ПОДРЯДЧИКА (на польском) */}
 <div className="bg-white rounded-lg border border-violet-200 p-3 space-y-2">
   <div className="flex items-center gap-2 text-xs font-semibold text-violet-800">
     <Truck className="w-3.5 h-3.5" strokeWidth={2.2} />
-    Данные машины и водителя подрядчика
+    Dane pojazdu i kierowcy podwykonawcy
   </div>
   <div className="grid grid-cols-1 gap-2">
     <div>
-      <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Numer auta (тягач / прицеп)</label>
+      <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Numer auta (ciągnik / naczepa)</label>
       <input
         type="text"
         value={contractorTruckNumber}
@@ -550,31 +554,57 @@ if (executorType === 'contractor') {
         className="input text-base py-2"
       />
     </div>
+    
     <div className="grid grid-cols-2 gap-2">
       <div>
-        <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Тип транспорта</label>
-        <input
-          type="text"
+        <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Rodzaj transportu</label>
+        <select
           value={contractorTransportType}
-          onChange={(e) => setContractorTransportType(e.target.value)}
-          placeholder="Plandeka / Ref / Mega"
+          onChange={(e) => {
+            setContractorTransportType(e.target.value);
+            // Сбрасываем лишние поля при смене типа
+            if (e.target.value !== 'chlodnia') setContractorTransportTemp('');
+            if (e.target.value !== 'mega') setContractorTransportHeight('');
+          }}
           className="input text-base py-2"
-        />
+        >
+          <option value="standard">Standard / Plandeka</option>
+          <option value="mega">Mega</option>
+          <option value="chlodnia">Chłodnia</option>
+        </select>
       </div>
-      <div>
-        <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Температура (если реф)</label>
-        <input
-          type="text"
-          value={contractorTransportTemp}
-          onChange={(e) => setContractorTransportTemp(e.target.value)}
-          placeholder="+4 / −18"
-          className="input text-base py-2"
-        />
-      </div>
+      
+      {/* Умные поля в зависимости от типа */}
+      {contractorTransportType === 'chlodnia' && (
+        <div>
+          <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Temperatura</label>
+          <input
+            type="text"
+            value={contractorTransportTemp}
+            onChange={(e) => setContractorTransportTemp(e.target.value)}
+            placeholder="+4 / -18"
+            className="input text-base py-2"
+          />
+        </div>
+      )}
+      
+      {contractorTransportType === 'mega' && (
+        <div>
+          <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Wysokość załadunku</label>
+          <input
+            type="text"
+            value={contractorTransportHeight}
+            onChange={(e) => setContractorTransportHeight(e.target.value)}
+            placeholder="np. 3.0m"
+            className="input text-base py-2"
+          />
+        </div>
+      )}
     </div>
+
     <div className="grid grid-cols-2 gap-2">
       <div>
-        <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Оплата через (дней)</label>
+        <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Płatność (dni)</label>
         <input
           type="number"
           value={contractorPaymentDays}
@@ -584,14 +614,14 @@ if (executorType === 'contractor') {
         />
       </div>
       <div>
-        <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Документы</label>
+        <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Dokumenty</label>
         <select
           value={contractorPaymentDocType}
           onChange={(e) => setContractorPaymentDocType(e.target.value)}
           className="input text-base py-2"
         >
-          <option value="originals">Оригиналы CMR</option>
-          <option value="scans">Сканы CMR</option>
+          <option value="originals">Oryginały CMR</option>
+          <option value="scans">Skany CMR</option>
         </select>
       </div>
     </div>
