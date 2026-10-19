@@ -95,6 +95,7 @@ const BLUE = '1E40AF';
 const RED = 'B91C1C';
 const GREEN = '15803D';
 const GRAY = '6B7280';
+const AMBER = 'D97706';
 
 type TextOpts = {
   bold?: boolean;
@@ -183,7 +184,6 @@ function buildPointChildren(params: {
 
   const cityLine = [postal_code, city, country].filter(Boolean).join(', ') || '—';
   
-  // Определяем цвета и заголовки
   let numberColor = GREEN;
   let title = 'ZAŁADUNEK';
   
@@ -191,10 +191,10 @@ function buildPointChildren(params: {
     numberColor = RED;
     title = 'ROZŁADUNEK';
   } else if (kind === 'reload') {
-    numberColor = 'D97706';
+    numberColor = AMBER;
     title = 'DOŁADUNEK / PRZEŁADUNEK';
   } else if (kind === 'customs') {
-    numberColor = '2563EB'; // Синий
+    numberColor = '2563EB';
     title = 'ODPRAWA CELNA';
   }
 
@@ -203,14 +203,16 @@ function buildPointChildren(params: {
       spacing: { line: LINE, after: 20, before: 0 },
       children: [
         new TextRun({ text: `#${idx}   `, bold: true, size: 20, font: FONT, color: numberColor }),
-        new TextRun({
-          text: date ? fmtDate(date) : '',
-          bold: true,
-          size: 20,
-          font: FONT,
-          color: BLUE,
-        }),
-        ...(date ? [new TextRun({ text: '   ', size: 20, font: FONT })] : []),
+        ...(date ? [
+          new TextRun({
+            text: fmtDate(date),
+            bold: true,
+            size: 20,
+            font: FONT,
+            color: BLUE,
+          }),
+          new TextRun({ text: '   ', size: 20, font: FONT }),
+        ] : []),
         new TextRun({
           text: title,
           bold: true,
@@ -489,7 +491,7 @@ export async function GET(
     children.push(txt(contractor.email, { size: 20, after: 20, color: '475569' }));
   }
 
-  // ⬅️ НОВОЕ: Данные машины и водителя подрядчика
+  // Данные машины и водителя подрядчика
   if (segment.contractor_truck_number || segment.contractor_driver_name) {
     children.push(txt('', { after: 60 }));
     children.push(
@@ -594,6 +596,7 @@ export async function GET(
         ],
       })
     );
+  }
 
   // Стрелка перед точкой C
   routeRows.push(
@@ -1000,5 +1003,6 @@ export async function GET(
       'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
       Pragma: 'no-cache',
       Expires: '0',
+    },
   });
 }
