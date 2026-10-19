@@ -140,6 +140,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
     label: c.label,
     cargo_type: c.cargo_type,
     weight_kg: c.weight_kg,
+    pallets: c.pallets ?? null,
     client_id: c.client_id,
     client_name: pickName(c.clients) || null,
     notes: c.notes,
@@ -153,6 +154,15 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
     to_company: c.to_company,
     to_address: c.to_address,
     to_postal_code: c.to_postal_code,
+    customs_place: c.customs_place ?? null,
+    customs_country: c.customs_country ?? null,
+    customs_city: c.customs_city ?? null,
+    customs_postal_code: c.customs_postal_code ?? null,
+    customs_address: c.customs_address ?? null,
+    customs_lat: c.customs_lat ?? null,
+    customs_lng: c.customs_lng ?? null,
+    freight_amount: c.freight_amount != null ? Number(c.freight_amount) : null,
+    freight_currency: c.freight_currency ?? null,
   }));
 
   // ============================================================
