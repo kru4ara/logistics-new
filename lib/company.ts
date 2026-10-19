@@ -38,7 +38,6 @@ export const LOGO_URL =
 // Условия перевозки (8 пунктов)
 // ============================================================
 export function getTerms(paymentDays: number, docType: 'originals' | 'scans' = 'originals'): string[] {
-  // Текст для пункта 1 в зависимости от типа документов
   const docText = docType === 'scans'
     ? 'skanów CMR (potwierdzonych podpisem, pieczątką odbiorcy) przesłanych drogą mailową'
     : 'oryginała CMR (potwierdzonego podpisem, pieczątką odbiorcy)';
@@ -46,11 +45,13 @@ export function getTerms(paymentDays: number, docType: 'originals' | 'scans' = '
   return [
     `1) Termin płatności ${paymentDays} dni po dostarczeniu ${docText} oraz prawidłowo wystawionej faktury, vat = 0% (Część transportu drogowego, stawka podatku vat wynosi 0%, zgodnie z przepisami art. 28b, ust.1 w odniesieniu do art 83 ust 1pkt 23 ustawy o podatku od towarów i usług, trasa stanowi czesc transportu miedzynarodowego w rozumieniu przepisów rozporzadzenia ministra finansów z dn 28 listopada 2008 par 9 ust 1 pkt 1 i 2.)`,
     `2) W celu terminowej płatności, przed wysłaniem dokumentów, należy przesłać skan faktury i CMR na ${COMPANY.email}`,
-    `3) Ustalony normatywny postój na terenie UE-24 godziny, BY/RUS-48 godzin. Opłata ponadnormatywnego postoju wynosi 100 EUR za każde dobę.`,
+    `3) Ustalony normatywny postój na terenie UE-24 godziny, BY/RUS-48 godzin. Opłata ponadnormatywnego postoju wynosi 100 EUR za każde rozpoczęte dobę.`,
     `4) Faktura powinna być wystawiona w miesiącu wykonania usługi!!! Data zakończenia dostawy/usługi = dacie rozładunku.`,
-    `5) Za opóźnienie na załadunek powyżej godziny przewoźnik może być obciążany mandatem 30 EUR za każde godzinę opóźnienia ale nie więcej 300 EUR za dobę.`,
+    `5) Za opóźnienie na załadunek powyżej godziny przewoźnik może być obciążany mandatem 30 EUR za każde rozpoczętą godzinę opóźnienia, ale nie więcej 300 EUR za dobę.`,
     `6) ZAKAZ POKAZYWANIA NASZEGO ZLECENIA NA MIEJSCU ZAŁADUNKU i ROZŁADUNKU!!!`,
-    `7) Kierowca ma pilnować sprawność towaru pod czas załadunku i rozładunku. Po załadunku wysłac zdjęcie załadowanego towaru i dokumentów!!!`,
-    `8) Przeładunek towaru w tranzycie jest zabroniony! Mandat 1000 euro`,
+    `7) Kierowca ma pilnować sprawność towaru pod czas załadunku i rozładunku. Po załadunku wysłać zdjęcie załadowanego towaru i dokumentów!!!`,
+    `8) Przeładunek towaru w tranzycie jest zabroniony! Mandat 1000 euro.`,
+    `9) W przypadku braku podstawienia pojazdu w ustalonym terminie, przewoźnik ponosi karę umowną w wysokości 500 EUR.`,
+    `10) Przewoźnik zobowiązany jest do stałego kontaktu telefonicznego z kierowcą i przekazywania statusów na żądanie zleceniodawcy.`,
   ];
 }
