@@ -533,7 +533,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
           clients={(clientsList || []).map((c) => ({ id: c.id, label: c.name }))}
           loadingLocations={(loadingLocations || []) as any}
           unloadingLocations={(unloadingLocations || []) as any}
-          customsLocations={(customsLocations || []) as any}  {/* <--- ДОБАВИТЬ */}
+          customsLocations={(customsLocations || []) as any}
           defaultClientId={trip.client_id}
         />
 
