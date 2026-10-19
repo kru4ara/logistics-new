@@ -175,6 +175,7 @@ export default function TripSegmentsBlock({
   drivers,
   loadingLocations,
   unloadingLocations,
+  customsLocations,
   cargoList,
 }: {
   tripId: string;
@@ -184,6 +185,7 @@ export default function TripSegmentsBlock({
   drivers: Option[];
   loadingLocations: Location[];
   unloadingLocations: Location[];
+  customsLocations: Location[];
   cargoList: CargoOption[];
 }) {
   const router = useRouter();
