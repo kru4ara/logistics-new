@@ -9,6 +9,78 @@ function str(formData: FormData, key: string): string | null {
   return v || null;
 }
 
+// Конвертация в EUR (EUR / PLN / BYN)
+async function toEur(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  amount: number,
+  currency: string,
+  date: string
+): Promise<number> {
+  if (!amount || amount <= 0) return 0;
+  const cur = (currency || 'EUR').toUpperCase();
+  if (cur === 'EUR') return amount;
+
+  if (cur === 'PLN') {
+    const { data: rate } = await supabase
+      .from('rates')
+      .select('pln_to_eur')
+      .lte('rate_date', date)
+      .order('rate_date', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    return amount * (rate?.pln_to_eur ?? 0.23);
+  }
+
+  if (cur === 'BYN') {
+    const { data: rate } = await supabase
+      .from('rates')
+      .select('byn_to_eur')
+      .lte('rate_date', date)
+      .order('rate_date', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    return amount * (rate?.byn_to_eur ?? 0.30);
+  }
+
+  return amount;
+}
+
+// Синхронизация трипса: revenue_eur = сумма фрахтов всех грузов
+async function syncTripRevenue(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  tripId: string
+) {
+  // 1. Получаем дату заявки для курса
+  const { data: trip } = await supabase
+    .from('trips')
+    .select('client_request_date')
+    .eq('id', tripId)
+    .maybeSingle();
+  const dateForRate = trip?.client_request_date || new Date().toISOString().slice(0, 10);
+
+  // 2. Получаем все грузы рейса
+  const { data: cargos } = await supabase
+    .from('trip_cargo')
+    .select('freight_amount, freight_currency')
+    .eq('trip_id', tripId);
+
+  if (!cargos) return;
+
+  // 3. Считаем сумму в EUR
+  let totalEur = 0;
+  for (const c of cargos) {
+    const amount = Number(c.freight_amount) || 0;
+    const currency = c.freight_currency || 'EUR';
+    totalEur += await toEur(supabase, amount, currency, dateForRate);
+  }
+
+  // 4. Обновляем рейс
+  await supabase
+    .from('trips')
+    .update({ revenue_eur: totalEur })
+    .eq('id', tripId);
+}
+
 export async function createCargo(tripId: string, formData: FormData) {
   const supabase = await createClient();
 
@@ -16,6 +88,8 @@ export async function createCargo(tripId: string, formData: FormData) {
   const cargoType = str(formData, 'cargo_type');
   const weightRaw = formData.get('weight_kg') as string;
   const weight = weightRaw ? parseFloat(weightRaw) : null;
+  const palletsRaw = formData.get('pallets') as string;
+  const pallets = palletsRaw ? parseInt(palletsRaw, 10) : null;
   const clientId = str(formData, 'client_id');
   const notes = str(formData, 'notes');
 
@@ -30,6 +104,16 @@ export async function createCargo(tripId: string, formData: FormData) {
   const toCompany = str(formData, 'to_company');
   const toAddress = str(formData, 'to_address');
   const toPostalCode = str(formData, 'to_postal_code');
+
+  const customsPlace = str(formData, 'customs_place');
+  const customsCountry = str(formData, 'customs_country');
+  const customsCity = str(formData, 'customs_city');
+  const customsPostalCode = str(formData, 'customs_postal_code');
+  const customsAddress = str(formData, 'customs_address');
+
+  const freightRaw = formData.get('freight_amount') as string;
+  const freightAmount = freightRaw ? parseFloat(freightRaw) : 0;
+  const freightCurrency = (str(formData, 'freight_currency') || 'EUR').toUpperCase();
 
   if (!label) throw new Error('Укажите название груза');
 
@@ -51,6 +135,7 @@ export async function createCargo(tripId: string, formData: FormData) {
       label,
       cargo_type: cargoType,
       weight_kg: weight,
+      pallets,
       client_id: clientId,
       notes,
       from_country: fromCountry,
@@ -63,11 +148,21 @@ export async function createCargo(tripId: string, formData: FormData) {
       to_company: toCompany,
       to_address: toAddress,
       to_postal_code: toPostalCode,
+      customs_place: customsPlace,
+      customs_country: customsCountry,
+      customs_city: customsCity,
+      customs_postal_code: customsPostalCode,
+      customs_address: customsAddress,
+      freight_amount: freightAmount,
+      freight_currency: freightCurrency,
     }])
     .select('id')
     .single();
 
   if (error) throw new Error(`Ошибка создания груза: ${error.message}`);
+
+  // Синхронизируем фрахт рейса
+  await syncTripRevenue(supabase, tripId);
 
   await logAudit({
     entity_type: 'trip',
@@ -88,6 +183,8 @@ export async function updateCargo(cargoId: string, tripId: string, formData: For
   const cargoType = str(formData, 'cargo_type');
   const weightRaw = formData.get('weight_kg') as string;
   const weight = weightRaw ? parseFloat(weightRaw) : null;
+  const palletsRaw = formData.get('pallets') as string;
+  const pallets = palletsRaw ? parseInt(palletsRaw, 10) : null;
   const clientId = str(formData, 'client_id');
   const notes = str(formData, 'notes');
 
@@ -103,6 +200,16 @@ export async function updateCargo(cargoId: string, tripId: string, formData: For
   const toAddress = str(formData, 'to_address');
   const toPostalCode = str(formData, 'to_postal_code');
 
+  const customsPlace = str(formData, 'customs_place');
+  const customsCountry = str(formData, 'customs_country');
+  const customsCity = str(formData, 'customs_city');
+  const customsPostalCode = str(formData, 'customs_postal_code');
+  const customsAddress = str(formData, 'customs_address');
+
+  const freightRaw = formData.get('freight_amount') as string;
+  const freightAmount = freightRaw ? parseFloat(freightRaw) : 0;
+  const freightCurrency = (str(formData, 'freight_currency') || 'EUR').toUpperCase();
+
   if (!label) throw new Error('Укажите название груза');
 
   const { error } = await supabase
@@ -111,6 +218,7 @@ export async function updateCargo(cargoId: string, tripId: string, formData: For
       label,
       cargo_type: cargoType,
       weight_kg: weight,
+      pallets,
       client_id: clientId,
       notes,
       from_country: fromCountry,
@@ -123,10 +231,20 @@ export async function updateCargo(cargoId: string, tripId: string, formData: For
       to_company: toCompany,
       to_address: toAddress,
       to_postal_code: toPostalCode,
+      customs_place: customsPlace,
+      customs_country: customsCountry,
+      customs_city: customsCity,
+      customs_postal_code: customsPostalCode,
+      customs_address: customsAddress,
+      freight_amount: freightAmount,
+      freight_currency: freightCurrency,
     })
     .eq('id', cargoId);
 
   if (error) throw new Error(`Ошибка обновления груза: ${error.message}`);
+
+  // Синхронизируем фрахт рейса
+  await syncTripRevenue(supabase, tripId);
 
   revalidatePath(`/trips/${tripId}`);
   return { success: true };
@@ -147,6 +265,9 @@ export async function deleteCargo(cargoId: string, tripId: string) {
     .eq('id', cargoId);
 
   if (error) throw new Error(`Ошибка удаления груза: ${error.message}`);
+
+  // Синхронизируем фрахт рейса
+  await syncTripRevenue(supabase, tripId);
 
   await logAudit({
     entity_type: 'trip',
