@@ -15,9 +15,10 @@ import {
   RefreshCw,
   ChevronDown,
   X,
+  Clock,
 } from 'lucide-react';
 import { bulkSetStatus, bulkDelete } from './bulk-actions';
- 
+
 export type TripCardData = {
   id: string;
   trip_number: number | null;
@@ -85,10 +86,12 @@ export default function TripsBulkList({
   tripsWithoutDate,
   monthGroups,
   isSearchMode,
+  flatMode = false,
 }: {
   tripsWithoutDate: TripCardData[];
   monthGroups: MonthGroup[];
   isSearchMode: boolean;
+  flatMode?: boolean;
 }) {
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -156,28 +159,26 @@ export default function TripsBulkList({
   function TripCard({ trip }: { trip: TripCardData }) {
     const isSelected = selected.has(trip.id);
     const tripProfit = (trip.revenue_eur || 0) - trip.expenses;
+    const hasNumber = trip.trip_number != null;
 
     return (
       <div
         className={`group card card-hover overflow-hidden relative active:scale-[0.99]
           ${isSelected ? 'ring-2 ring-brand-500 border-brand-300' : ''}`}
       >
-        {/* Ссылка на всю площадь карточки */}
         <Link
           href={`/trips/${trip.id}`}
           className="absolute inset-0 z-0"
-          aria-label={`Открыть рейс № ${trip.trip_number || ''}`}
+          aria-label={hasNumber ? `Открыть рейс № ${trip.trip_number}` : 'Открыть заявку'}
         />
 
         <div className={`h-1.5 ${statusStripColors[trip.status] || 'bg-slate-300'}`} />
 
-        {/* Контент — pointer-events-none, чтобы клики шли на Link */}
         <div className="p-4 md:p-5 pointer-events-none relative">
-          {/* Чекбокс — поверх всего, кликабельный */}
           <button
             type="button"
             onClick={() => toggle(trip.id)}
-            aria-label={isSelected ? 'Снять выделение' : 'Выделить рейс'}
+            aria-label={isSelected ? 'Снять выделение' : 'Выделить'}
             className={`pointer-events-auto absolute top-4 right-4 md:top-5 md:right-5 z-10
               w-6 h-6 rounded-md border-2 flex items-center justify-center
               transition-all active:scale-90
@@ -190,9 +191,16 @@ export default function TripsBulkList({
 
           <div className="flex items-start justify-between gap-2 mb-3 pr-8">
             <div className="min-w-0 flex-1">
-              <div className="text-xs text-slate-400 font-medium tabular-nums">
-                № {trip.trip_number || '—'}
-              </div>
+              {hasNumber ? (
+                <div className="text-xs text-slate-400 font-medium tabular-nums">
+                  Рейс № {trip.trip_number}
+                </div>
+              ) : (
+                <div className="text-xs font-medium inline-flex items-center gap-1 text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5">
+                  <Clock className="w-3 h-3" strokeWidth={2.2} />
+                  Без номера · заявка
+                </div>
+              )}
               <div className="text-base md:text-lg font-bold text-slate-900 mt-0.5 break-words">
                 {trip.clientName}
               </div>
@@ -261,6 +269,11 @@ export default function TripsBulkList({
     );
   }
 
+  const sectionTitle = flatMode ? 'Последние созданные' : 'Без номера · новые заявки';
+  const sectionSubtitle = flatMode
+    ? `Рейсов: ${tripsWithoutDate.length}`
+    : `Заявок: ${tripsWithoutDate.length} · ждут назначения машины и водителя`;
+
   return (
     <>
       {/* STICKY TOOLBAR */}
@@ -298,7 +311,6 @@ export default function TripsBulkList({
             </div>
 
             <div className="flex flex-wrap items-center gap-2 md:shrink-0">
-              {/* Меню смены статуса */}
               <details className="relative">
                 <summary
                   className={`btn btn-secondary text-sm cursor-pointer list-none inline-flex items-center gap-2
@@ -351,18 +363,21 @@ export default function TripsBulkList({
         </div>
       )}
 
-      {/* БЕЗ ДАТЫ СТАРТА */}
-      {!isSearchMode && tripsWithoutDate.length > 0 && (
+      {/* СЕКЦИЯ БЕЗ НОМЕРА / НОВЫЕ ЗАЯВКИ (или плоский список) */}
+      {tripsWithoutDate.length > 0 && (!isSearchMode || flatMode) && (
         <div>
           <div className="flex items-center gap-3 mb-3 md:mb-4 px-1">
-            <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
-              <FileText className="w-4 h-4 md:w-5 md:h-5 text-amber-600" strokeWidth={2} />
+            <div className={`w-9 h-9 md:w-10 md:h-10 rounded-xl flex items-center justify-center shrink-0
+              ${flatMode ? 'bg-brand-50' : 'bg-amber-50'}`}>
+              {flatMode ? (
+                <Calendar className="w-4 h-4 md:w-5 md:h-5 text-brand-600" strokeWidth={2} />
+              ) : (
+                <FileText className="w-4 h-4 md:w-5 md:h-5 text-amber-600" strokeWidth={2} />
+              )}
             </div>
             <div className="min-w-0">
-              <h2 className="text-lg md:text-xl font-bold text-slate-900">Без даты старта</h2>
-              <div className="text-xs text-slate-400">
-                Рейсов: {tripsWithoutDate.length} · черновики, ждут назначения машины/даты
-              </div>
+              <h2 className="text-lg md:text-xl font-bold text-slate-900">{sectionTitle}</h2>
+              <div className="text-xs text-slate-400">{sectionSubtitle}</div>
             </div>
           </div>
           <div className="grid gap-4 md:gap-5 md:grid-cols-2 lg:grid-cols-3">
@@ -377,16 +392,12 @@ export default function TripsBulkList({
       <div className="space-y-6 md:space-y-8">
         {monthGroups.map((g) => {
           const monthProfit = g.revenue - g.expenses;
-          const IconComponent = g.isNoDate ? FileText : Calendar;
-          const iconBg = g.isNoDate ? 'bg-amber-50' : 'bg-brand-50';
-          const iconColor = g.isNoDate ? 'text-amber-600' : 'text-brand-600';
-
           return (
             <div key={g.key} className="animate-slide-up">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-3 md:mb-4 px-1">
                 <div className="flex items-center gap-3">
-                  <div className={`w-9 h-9 md:w-10 md:h-10 rounded-xl ${iconBg} flex items-center justify-center shrink-0`}>
-                    <IconComponent className={`w-4 h-4 md:w-5 md:h-5 ${iconColor}`} strokeWidth={2} />
+                  <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-brand-50 flex items-center justify-center shrink-0">
+                    <Calendar className="w-4 h-4 md:w-5 md:h-5 text-brand-600" strokeWidth={2} />
                   </div>
                   <div className="min-w-0">
                     <h2 className="text-lg md:text-xl font-bold text-slate-900">{g.title}</h2>
