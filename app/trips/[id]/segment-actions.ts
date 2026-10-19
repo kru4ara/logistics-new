@@ -150,6 +150,7 @@ export async function createSegment(tripId: string, formData: FormData) {
   const contractorPaymentDocType = str(formData, 'contractor_payment_document_type');
   const contractorTransportType = str(formData, 'contractor_transport_type');
   const contractorTransportTemp = str(formData, 'contractor_transport_temperature');
+  const contractorTransportHeight = str(formData, 'contractor_transport_height');
 
   const priceRaw = str(formData, 'price');
   const price = priceRaw ? parseFloat(priceRaw) : null;
@@ -216,6 +217,7 @@ export async function createSegment(tripId: string, formData: FormData) {
       contractor_payment_document_type: executorType === 'contractor' ? contractorPaymentDocType : null,
       contractor_transport_type: executorType === 'contractor' ? contractorTransportType : null,
       contractor_transport_temperature: executorType === 'contractor' ? contractorTransportTemp : null,
+      contractor_transport_height: executorType === 'contractor' ? contractorTransportHeight : null,
     }])
     .select('id')
     .single();
@@ -275,6 +277,7 @@ export async function updateSegment(segmentId: string, tripId: string, formData:
   const contractorPaymentDocType = str(formData, 'contractor_payment_document_type');
   const contractorTransportType = str(formData, 'contractor_transport_type');
   const contractorTransportTemp = str(formData, 'contractor_transport_temperature');
+  const contractorTransportHeight = str(formData, 'contractor_transport_height');
 
   const priceRaw = str(formData, 'price');
   const price = priceRaw ? parseFloat(priceRaw) : null;
@@ -328,6 +331,7 @@ export async function updateSegment(segmentId: string, tripId: string, formData:
       contractor_payment_document_type: executorType === 'contractor' ? contractorPaymentDocType : null,
       contractor_transport_type: executorType === 'contractor' ? contractorTransportType : null,
       contractor_transport_temperature: executorType === 'contractor' ? contractorTransportTemp : null,
+      contractor_transport_height: executorType === 'contractor' ? contractorTransportHeight : null,
     })
     .eq('id', segmentId);
 
