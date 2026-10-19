@@ -107,7 +107,6 @@ export async function addExpense(formData: FormData) {
       summary: `Добавлен расход по рейсу: ${category} · ${originalAmount} ${currency} (≈ ${Math.round(amountEur * 100) / 100} €)${segmentId ? ' · привязан к участку' : ''}${paidByDriver ? ' · оплатил водитель' : ''}`,
     });
 
-    // ⬅️ accrual: при paid_by_driver=true ИЛИ category='salary' (salary приоритетнее)
     const isSalary = category === 'salary';
     const shouldAccrue = (paidByDriver || isSalary) && amountEur > 0;
 
@@ -203,18 +202,14 @@ export async function deleteExpense(expenseId: string, tripId: string) {
 }
 
 // ============================================================
-// Редактирование рейса
+// Редактирование рейса (ЗАЯВКА + МАРШРУТ)
+// Транспорт, даты и фрахт НЕ трогаем — они синхронизируются
+// из trip_segments и trip_cargo.
 // ============================================================
 export async function updateTrip(tripId: string, formData: FormData) {
   const supabase = await createClient();
 
   const clientId = formData.get('client_id') as string;
-  const truckId = formData.get('truck_id') as string;
-  const trailerId = formData.get('trailer_id') as string;
-  const driverId = formData.get('driver_id') as string;
-  const startDate = formData.get('start_date') as string;
-  const endDate = (formData.get('end_date') as string) || null;
-  const revenueEur = parseFloat(formData.get('revenue_eur') as string) || 0;
   const startFuelLevel = parseFloat(formData.get('start_fuel_level') as string) || 0;
 
   const clientRequestNumber = formData.get('client_request_number') as string;
@@ -233,14 +228,6 @@ export async function updateTrip(tripId: string, formData: FormData) {
   const toCity = formData.get('to_city') as string;
   const toAddress = formData.get('to_address') as string;
   const toLoadingNumber = formData.get('to_loading_number') as string;
-
-  if (endDate && startDate) {
-    const s = new Date(startDate).getTime();
-    const e = new Date(endDate).getTime();
-    if (e < s) {
-      throw new Error('Дата финиша не может быть раньше даты старта');
-    }
-  }
 
   const { data: before } = await supabase
     .from('trips')
@@ -266,12 +253,6 @@ export async function updateTrip(tripId: string, formData: FormData) {
     .from('trips')
     .update({
       client_id: clientId || null,
-      truck_id: truckId || null,
-      trailer_id: trailerId || null,
-      driver_id: driverId || null,
-      start_date: startDate,
-      end_date: endDate,
-      revenue_eur: revenueEur,
       start_fuel_level: startFuelLevel,
       client_request_number: clientRequestNumber || null,
       client_request_date: clientRequestDate || null,
@@ -287,26 +268,16 @@ export async function updateTrip(tripId: string, formData: FormData) {
   if (before) {
     const changes = diffFields(
       {
-        revenue_eur: before.revenue_eur,
-        driver_id: before.driver_id,
-        truck_id: before.truck_id,
         client_id: before.client_id,
-        start_date: before.start_date,
-        end_date: before.end_date,
         client_request_number: before.client_request_number,
         start_fuel_level: before.start_fuel_level,
       },
       {
-        revenue_eur: revenueEur,
-        driver_id: driverId || null,
-        truck_id: truckId || null,
         client_id: clientId || null,
-        start_date: startDate,
-        end_date: endDate,
         client_request_number: clientRequestNumber || null,
         start_fuel_level: startFuelLevel,
       },
-      ['revenue_eur', 'driver_id', 'truck_id', 'client_id', 'start_date', 'end_date', 'client_request_number', 'start_fuel_level']
+      ['client_id', 'client_request_number', 'start_fuel_level']
     );
 
     const changedCount = Object.keys(changes).length;
@@ -367,16 +338,18 @@ export async function deleteTrip(tripId: string) {
   revalidatePath('/trips');
   redirect('/trips?toast=trip_deleted');
 }
+
 // ============================================================
-// Пересчёт координат рейса по сегментам (from первого, to последнего)
+// Пересчёт координат рейса по сегментам
 // ============================================================
 export async function recalcTripCoords(tripId: string): Promise<{ success: boolean; error?: string }> {
   const supabase = await createClient();
 
-  // 1. Все сегменты рейса
   const { data: segments } = await supabase
     .from('trip_segments')
     .select('position, from_city, from_country, from_postal_code, to_city, to_country, to_postal_code')
+    .eq('trip_id', tripId)
+    .order('position', { ascending: true });
 
   if (!segments || segments.length === 0) {
     return { success: false, error: 'У рейса нет сегментов' };
@@ -388,7 +361,6 @@ export async function recalcTripCoords(tripId: string): Promise<{ success: boole
   const startCoords = await geocode(first.from_city, first.from_country, first.from_postal_code);
   const endCoords = await geocode(last.to_city, last.to_country, last.to_postal_code);
 
-  // 3. UPDATE
   const updateData: Record<string, number> = {};
   if (startCoords) {
     updateData.start_lat = startCoords.lat;
