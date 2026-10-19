@@ -172,6 +172,7 @@ export default function TripSegmentsBlock({
   segments,
   contractors,
   trucks,
+  trailers,
   drivers,
   loadingLocations,
   unloadingLocations,
@@ -182,6 +183,7 @@ export default function TripSegmentsBlock({
   segments: Segment[];
   contractors: Option[];
   trucks: Option[];
+  trailers: Option[];
   drivers: Option[];
   loadingLocations: Location[];
   unloadingLocations: Location[];
