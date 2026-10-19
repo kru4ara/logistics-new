@@ -91,7 +91,7 @@ const { data: tripsRaw, error: tripsError } = await supabase
     id, trip_number, status, start_date, end_date,
     driver_id, truck_id,
     clients(name),
-    drivers!driver_id(first_name, last_name, phone),
+    drivers!driver_id(first_name, last_name, phone_by, phone_pl),
     trucks!truck_id(registration_number)
   `);
 
