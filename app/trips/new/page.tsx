@@ -1,6 +1,6 @@
 import { createClient } from '../../../lib/supabase-server';
 import NewTripForm from './NewTripForm';
-import { ArrowLeft, Package, Plus } from 'lucide-react';
+import { ArrowLeft, Package } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,20 +11,6 @@ export default async function NewTripPage() {
     .from('clients')
     .select('id, name')
     .order('name');
-
-  const { data: tractors } = await supabase
-    .from('trucks')
-    .select('id, registration_number')
-    .eq('type', 'tractor');
-
-  const { data: trailers } = await supabase
-    .from('trucks')
-    .select('id, registration_number')
-    .eq('type', 'trailer');
-
-  const { data: drivers } = await supabase
-    .from('drivers')
-    .select('id, first_name, last_name');
 
   const { data: loadingLocations } = await supabase
     .from('locations')
@@ -38,29 +24,11 @@ export default async function NewTripPage() {
     .in('type', ['unloading', 'both'])
     .order('name');
 
-  // Последний рейс каждой машины → для авто-подстановки даты старта.
-  const tractorIds = (tractors || []).map((t) => t.id);
-  const lastEndDates: Record<string, { end_date: string; trip_number: number | null }> = {};
-
-  if (tractorIds.length > 0) {
-    const { data: trips } = await supabase
-      .from('trips')
-      .select('truck_id, start_date, end_date, trip_number')
-      .in('truck_id', tractorIds)
-      .order('start_date', { ascending: false });
-
-    const seen = new Set<string>();
-    for (const t of trips || []) {
-      if (!t.truck_id || seen.has(t.truck_id)) continue;
-      seen.add(t.truck_id);
-      if (t.end_date) {
-        lastEndDates[t.truck_id] = {
-          end_date: t.end_date,
-          trip_number: t.trip_number ?? null,
-        };
-      }
-    }
-  }
+  const { data: customsLocations } = await supabase
+    .from('locations')
+    .select('*')
+    .in('type', ['customs', 'both'])
+    .order('name');
 
   return (
     <main className="min-h-screen bg-slate-50">
@@ -77,21 +45,18 @@ export default async function NewTripPage() {
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2.5 tracking-tight">
             <Package className="w-6 h-6 md:w-7 md:h-7 text-brand-600" strokeWidth={2.2} />
-            Создать новый рейс
+            Новая заявка
           </h1>
           <p className="text-slate-500 mt-1 text-sm md:text-base">
-            Заполните данные для создания рейса
+            Внесите данные из заявки клиента. Транспорт добавите позже, когда найдёте машину.
           </p>
         </div>
 
         <NewTripForm
           clients={(clients || []).map((c) => ({ id: c.id, label: c.name }))}
-          tractors={(tractors || []).map((t) => ({ id: t.id, label: t.registration_number }))}
-          trailers={(trailers || []).map((t) => ({ id: t.id, label: t.registration_number }))}
-          drivers={(drivers || []).map((d) => ({ id: d.id, label: `${d.first_name} ${d.last_name}` }))}
-          loadingLocations={loadingLocations || []}
-          unloadingLocations={unloadingLocations || []}
-          lastEndDates={lastEndDates}
+          loadingLocations={(loadingLocations || []) as any}
+          unloadingLocations={(unloadingLocations || []) as any}
+          customsLocations={(customsLocations || []) as any}
         />
 
       </div>
