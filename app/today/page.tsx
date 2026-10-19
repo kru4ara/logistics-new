@@ -85,15 +85,24 @@ export default async function TodayPage() {
   const today = todayIso();
 
   // 1. РЕЙСЫ
-  const { data: tripsRaw } = await supabase
-    .from('trips')
-    .select(`
-      id, trip_number, status, start_date, end_date,
-      driver_id, truck_id,
-      clients(name),
-      drivers!driver_id(first_name, last_name, phone),
-      trucks!truck_id(registration_number)
-    `);
+const { data: tripsRaw, error: tripsError } = await supabase
+  .from('trips')
+  .select(`
+    id, trip_number, status, start_date, end_date,
+    driver_id, truck_id,
+    clients(name),
+    drivers!driver_id(first_name, last_name, phone),
+    trucks!truck_id(registration_number)
+  `);
+
+if (tripsError) {
+  console.error('[today] trips query error:', tripsError.message);
+  return (
+    <div className="p-8 text-red-500">
+      Ошибка загрузки рейсов: {tripsError.message}
+    </div>
+  );
+}
 
   const tripIds = (tripsRaw || []).map((t: any) => t.id);
 
