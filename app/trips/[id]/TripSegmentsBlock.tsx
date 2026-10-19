@@ -239,6 +239,12 @@ export default function TripSegmentsBlock({
         to_company: editingSegment.to_company,
         to_address: editingSegment.to_address,
         to_postal_code: editingSegment.to_postal_code,
+              contractor_truck_number: editingSegment.contractor_truck_number ?? null,
+      contractor_driver_name: editingSegment.contractor_driver_name ?? null,
+      contractor_payment_days: editingSegment.contractor_payment_days ?? null,
+      contractor_payment_document_type: editingSegment.contractor_payment_document_type ?? null,
+      contractor_transport_type: editingSegment.contractor_transport_type ?? null,
+      contractor_transport_temperature: editingSegment.contractor_transport_temperature ?? null,
         stops: (editingSegment.stops || []).map(stopDbToForm),
       }
     : undefined;
