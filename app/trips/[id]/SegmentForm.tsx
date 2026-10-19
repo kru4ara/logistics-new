@@ -88,6 +88,12 @@ type SegmentData = {
   stops?: Stop[] | null;
   price?: number | null;
   currency?: string | null;
+  contractor_truck_number?: string | null;
+  contractor_driver_name?: string | null;
+  contractor_payment_days?: number | null;
+  contractor_payment_document_type?: string | null;
+  contractor_transport_type?: string | null;
+  contractor_transport_temperature?: string | null;
 };
 
 function toAddr(
@@ -164,6 +170,17 @@ export default function SegmentForm({
     initialData?.price != null ? String(initialData.price) : ''
   );
   const [currency, setCurrency] = useState(initialData?.currency || 'EUR');
+  const [contractorTruckNumber, setContractorTruckNumber] = useState(initialData?.contractor_truck_number || '');
+  const [contractorDriverName, setContractorDriverName] = useState(initialData?.contractor_driver_name || '');
+  const [contractorPaymentDays, setContractorPaymentDays] = useState<string>(
+     initialData?.contractor_payment_days != null ? String(initialData.contractor_payment_days) : ''
+  );
+  const [contractorPaymentDocType, setContractorPaymentDocType] = useState(
+     initialData?.contractor_payment_document_type || 'originals'
+  );
+  const [contractorTransportType, setContractorTransportType] = useState(initialData?.contractor_transport_type || '');
+  const [contractorTransportTemp, setContractorTransportTemp] = useState(initialData?.contractor_transport_temperature || '');
+  
 
   const [from, setFrom] = useState<Addr>(
     toAddr(
@@ -355,10 +372,16 @@ export default function SegmentForm({
     formData.set('to_address', to.address);
     formData.set('to_postal_code', to.postal_code);
     formData.set('stops', JSON.stringify(cleanStops));
-    if (executorType === 'contractor') {
-      formData.set('price', price);
-      formData.set('currency', currency);
-    }
+if (executorType === 'contractor') {
+  formData.set('price', price);
+  formData.set('currency', currency);
+  formData.set('contractor_truck_number', contractorTruckNumber.trim());
+  formData.set('contractor_driver_name', contractorDriverName.trim());
+  formData.set('contractor_payment_days', contractorPaymentDays);
+  formData.set('contractor_payment_document_type', contractorPaymentDocType);
+  formData.set('contractor_transport_type', contractorTransportType.trim());
+  formData.set('contractor_transport_temperature', contractorTransportTemp.trim());
+}
 
     selectedCargo.forEach((cid) => formData.append('cargo_ids', cid));
 
@@ -456,37 +479,118 @@ export default function SegmentForm({
                   </select>
                 </div>
 
-                {/* ЦЕНА ПОДРЯДЧИКУ */}
-                <div className="bg-white rounded-lg border border-amber-200 p-3 space-y-2">
-                  <div className="flex items-center gap-2 text-xs font-semibold text-amber-800">
-                    <Coins className="w-3.5 h-3.5" strokeWidth={2.2} />
-                    Стоимость подрядчику
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Сумма</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={price}
-                        onChange={(e) => setPrice(e.target.value)}
-                        placeholder="1500"
-                        className="input text-base py-2"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Валюта</label>
-                      <select
-                        value={currency}
-                        onChange={(e) => setCurrency(e.target.value)}
-                        className="input text-base py-2"
-                      >
-                        <option value="EUR">EUR €</option>
-                        <option value="PLN">PLN zł</option>
-                        <option value="BYN">BYN Br</option>
-                      </select>
-                    </div>
-                  </div>
+
+
+{/* ЦЕНА ПОДРЯДЧИКУ */}
+<div className="bg-white rounded-lg border border-amber-200 p-3 space-y-2">
+  <div className="flex items-center gap-2 text-xs font-semibold text-amber-800">
+    <Coins className="w-3.5 h-3.5" strokeWidth={2.2} />
+    Стоимость подрядчику
+  </div>
+  <div className="grid grid-cols-2 gap-2">
+    <div>
+      <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Сумма</label>
+      <input
+        type="number"
+        step="0.01"
+        value={price}
+        onChange={(e) => setPrice(e.target.value)}
+        placeholder="1500"
+        className="input text-base py-2"
+      />
+    </div>
+    <div>
+      <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Валюта</label>
+      <select
+        value={currency}
+        onChange={(e) => setCurrency(e.target.value)}
+        className="input text-base py-2"
+      >
+        <option value="EUR">EUR €</option>
+        <option value="PLN">PLN zł</option>
+        <option value="BYN">BYN Br</option>
+      </select>
+    </div>
+  </div>
+  <p className="text-[11px] text-amber-700">
+    Расход по этому участку создастся автоматически.
+  </p>
+</div>
+
+{/* ДАННЫЕ ПОДРЯДЧИКА */}
+<div className="bg-white rounded-lg border border-violet-200 p-3 space-y-2">
+  <div className="flex items-center gap-2 text-xs font-semibold text-violet-800">
+    <Truck className="w-3.5 h-3.5" strokeWidth={2.2} />
+    Данные машины и водителя подрядчика
+  </div>
+  <div className="grid grid-cols-1 gap-2">
+    <div>
+      <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Numer auta (тягач / прицеп)</label>
+      <input
+        type="text"
+        value={contractorTruckNumber}
+        onChange={(e) => setContractorTruckNumber(e.target.value)}
+        placeholder="WS3800K / WS9850C"
+        className="input text-base py-2"
+      />
+    </div>
+    <div>
+      <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Kierowca</label>
+      <input
+        type="text"
+        value={contractorDriverName}
+        onChange={(e) => setContractorDriverName(e.target.value)}
+        placeholder="Yury Novikau"
+        className="input text-base py-2"
+      />
+    </div>
+    <div className="grid grid-cols-2 gap-2">
+      <div>
+        <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Тип транспорта</label>
+        <input
+          type="text"
+          value={contractorTransportType}
+          onChange={(e) => setContractorTransportType(e.target.value)}
+          placeholder="Plandeka / Ref / Mega"
+          className="input text-base py-2"
+        />
+      </div>
+      <div>
+        <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Температура (если реф)</label>
+        <input
+          type="text"
+          value={contractorTransportTemp}
+          onChange={(e) => setContractorTransportTemp(e.target.value)}
+          placeholder="+4 / −18"
+          className="input text-base py-2"
+        />
+      </div>
+    </div>
+    <div className="grid grid-cols-2 gap-2">
+      <div>
+        <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Оплата через (дней)</label>
+        <input
+          type="number"
+          value={contractorPaymentDays}
+          onChange={(e) => setContractorPaymentDays(e.target.value)}
+          placeholder="30"
+          className="input text-base py-2"
+        />
+      </div>
+      <div>
+        <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Документы</label>
+        <select
+          value={contractorPaymentDocType}
+          onChange={(e) => setContractorPaymentDocType(e.target.value)}
+          className="input text-base py-2"
+        >
+          <option value="originals">Оригиналы CMR</option>
+          <option value="scans">Сканы CMR</option>
+        </select>
+      </div>
+    </div>
+  </div>
+</div>
                   <p className="text-[11px] text-amber-700">
                     Расход по этому участку создастся автоматически.
                   </p>
