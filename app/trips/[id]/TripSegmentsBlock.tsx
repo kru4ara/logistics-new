@@ -22,7 +22,7 @@ import SegmentDocxButton from './SegmentDocxButton';
 import SegmentDriverDocxButton from './SegmentDriverDocxButton';
 import SendSegmentTaskButton from './SendSegmentTaskButton';
 import { deleteSegment } from './segment-actions';
-
+ 
 type Location = {
   id: string;
   name: string;
