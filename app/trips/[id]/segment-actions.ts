@@ -135,6 +135,7 @@ export async function createSegment(tripId: string, formData: FormData) {
   const executorType = str(formData, 'executor_type') || 'us';
   const contractorId = str(formData, 'contractor_id');
   const truckId = str(formData, 'truck_id');
+  const trailerId = str(formData, 'trailer_id');
   const driverId = str(formData, 'driver_id');
   const dateFrom = str(formData, 'date_from');
   const dateTo = str(formData, 'date_to');
@@ -193,6 +194,7 @@ export async function createSegment(tripId: string, formData: FormData) {
       executor_type: executorType,
       contractor_id: executorType === 'contractor' ? contractorId : null,
       truck_id: executorType === 'us' ? truckId : null,
+      trailer_id: executorType === 'us' ? trailerId : null,
       driver_id: executorType === 'us' ? driverId : null,
       date_from: dateFrom,
       date_to: dateTo,
@@ -263,6 +265,7 @@ export async function updateSegment(segmentId: string, tripId: string, formData:
   const executorType = str(formData, 'executor_type') || 'us';
   const contractorId = str(formData, 'contractor_id');
   const truckId = str(formData, 'truck_id');
+  const trailerId = str(formData, 'trailer_id');
   const driverId = str(formData, 'driver_id');
   const dateFrom = str(formData, 'date_from');
   const dateTo = str(formData, 'date_to');
@@ -308,6 +311,7 @@ export async function updateSegment(segmentId: string, tripId: string, formData:
       executor_type: executorType,
       contractor_id: executorType === 'contractor' ? contractorId : null,
       truck_id: executorType === 'us' ? truckId : null,
+      trailer_id: executorType === 'us' ? trailerId : null,
       driver_id: executorType === 'us' ? driverId : null,
       date_from: dateFrom,
       date_to: dateTo,
