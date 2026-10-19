@@ -71,6 +71,7 @@ type SegmentData = {
   executor_type: string;
   contractor_id: string | null;
   truck_id: string | null;
+  trailer_id?: string | null;
   driver_id: string | null;
   date_from: string | null;
   date_to: string | null;
@@ -138,6 +139,7 @@ export default function SegmentForm({
   initialCargoIds,
   contractors,
   trucks,
+  trailers, // <-- добавлено
   drivers,
   loadingLocations,
   unloadingLocations,
@@ -152,6 +154,7 @@ export default function SegmentForm({
   initialCargoIds?: string[];
   contractors: Option[];
   trucks: Option[];
+  trailers: Option[]; // <-- добавлено
   drivers: Option[];
   loadingLocations: Location[];
   unloadingLocations: Location[];
@@ -167,6 +170,7 @@ export default function SegmentForm({
   );
   const [contractorId, setContractorId] = useState(initialData?.contractor_id || '');
   const [truckId, setTruckId] = useState(initialData?.truck_id || '');
+  const [trailerId, setTrailerId] = useState(initialData?.trailer_id || ''); // <-- добавлено
   const [driverId, setDriverId] = useState(initialData?.driver_id || '');
   const [dateFrom, setDateFrom] = useState(initialData?.date_from || '');
   const [dateTo, setDateTo] = useState(initialData?.date_to || '');
@@ -366,6 +370,7 @@ export default function SegmentForm({
     formData.set('executor_type', executorType);
     formData.set('contractor_id', contractorId);
     formData.set('truck_id', truckId);
+    formData.set('trailer_id', trailerId); // <-- добавлено
     formData.set('driver_id', driverId);
     formData.set('date_from', dateFrom);
     formData.set('date_to', dateTo);
@@ -631,8 +636,8 @@ if (executorType === 'contractor') {
               </>
             )}
 
-            {executorType === 'us' && (
-              <div className="grid grid-cols-2 gap-3">
+             {executorType === 'us' && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div>
                   <label className={labelClass}>Машина</label>
                   <select
@@ -642,6 +647,19 @@ if (executorType === 'contractor') {
                   >
                     <option value="">— Не указана —</option>
                     {trucks.map((t) => (
+                      <option key={t.id} value={t.id}>{t.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className={labelClass}>Прицеп</label>
+                  <select
+                    value={trailerId}
+                    onChange={(e) => setTrailerId(e.target.value)}
+                    className={inputClass}
+                  >
+                    <option value="">— Без прицепа —</option>
+                    {trailers.map((t) => (
                       <option key={t.id} value={t.id}>{t.label}</option>
                     ))}
                   </select>
