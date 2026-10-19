@@ -477,6 +477,7 @@ export default function TripSegmentsBlock({
           initialCargoIds={editingSegment?.cargoLinks.map((cl) => cl.cargo_id) || []}
           contractors={contractors}
           trucks={trucks}
+          trailers={trailers}
           drivers={drivers}
           loadingLocations={loadingLocations}
           unloadingLocations={unloadingLocations}
