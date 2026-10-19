@@ -339,10 +339,11 @@ created_at TIMESTAMPTZ DEFAULT NOW()
     - `recalcTripCoords` — в select сегментов добавлены `from_postal_code, to_postal_code`.
     - **Зачем:** Nominatim путался между «Nola, Italy» и «Nola, Louisiana». Postal code — самый точный идентификатор.
 
-15. **Фикс `/today` после миграции phone** (19.10.2026):
-    - `app/today/page.tsx` — в `select` для `drivers!driver_id` заменено `phone` → `phone_by, phone_pl` (колонка `phone` удалена в Фазе 4.2).
-    - Симптом был: весь запрос `tripsRaw` падал с `column drivers_1.phone does not exist` → `allTrips = []` → «В пути = 0», «Рейс —».
-    - **Урок:** при миграции колонок — проверять ВСЕ `.select(...)` во всех файлах, где используется старая колонка. `grep` по `drivers!driver_id(first_name` и/или `phone`.
+15. **Фикс `/today` после миграции `phone`** (19.10.2026):
+    - **Симптом:** «В пути = 0», «Выгрузки» с пустыми номерами (`Рейс —`).
+    - **Причина:** `app/today/page.tsx` — в `.select('drivers!driver_id(first_name, last_name, phone)')` тянулась **удалённая** колонка `phone` → запрос падал с `column drivers_1.phone does not exist` → `tripsRaw = null` → `allTrips = []`.
+    - **Фикс:** `phone` → `phone_by, phone_pl`.
+    - **Урок:** при миграции колонок — проверять **все** `.select(...)` в проекте через grep/GitHub Search.
 
 ### ⏳ В очереди (не срочно)
 
