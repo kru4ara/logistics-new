@@ -1,4 +1,4 @@
-# HANDOVER — Logistics CRM (19.10.2026)
+# HANDOVER — Logistics CRM (20.10.2026)
 
 ## Стек и инфраструктура
 - Next.js 14 (App Router) + Supabase + Vercel
@@ -65,12 +65,12 @@
   - `app/X/[id]/page.tsx` → `../../../lib/`, `../../../components/`
   - `app/X/[id]/edit/page.tsx` → `../../../../lib/`, `../../../components/`
   - `app/X/Y/page.tsx` → `../../../lib/`
+- **Один коммит = связанные файлы** (иначе Vercel падает на type-check)
 
 ### ⚠️ Правки через GitHub Web UI
 - Карандаш → выделить всё → вставить → Commit
 - Локальный клон `~/projects/logistics-new` отстаёт — перед grep делать `git pull`
 - grep: `https://github.com/kru4ara/logistics-new/search?q=ТЕРМИН&type=code`
-- Связанные файлы — **один коммит** (иначе Vercel падает на type-check)
 
 ### ⚠️ Урок: при миграции колонок — grep всех `.select()`
 После миграции `drivers.phone` → `phone_by`/`phone_pl` (Фаза 4.2) `/today` падал в рантайме: `column drivers_1.phone does not exist`. Билд был зелёным (TS SQL не проверяет).
@@ -106,15 +106,17 @@ Lucide-react `^0.460.0` — везде. Emoji только в `<option>`, лог
 
 ### Гибкая модель рейсов (грузы + сегменты) — АКТИВНА
 
-**`trip_cargo`**: `id`, `trip_id`, `position`, `label`, `cargo_type`, `weight_kg`, `client_id`, `notes`, `from_*`, `to_*`, `created_at`
+**`trip_cargo`**: `id`, `trip_id`, `position`, `label`, `cargo_type`, `weight_kg`, `pallets`, `client_id`, `notes`, `from_*`, `to_*`, `customs_place`, `customs_country`, `customs_city`, `customs_postal_code`, `customs_address`, `customs_lat`, `customs_lng`, `freight_amount`, `freight_currency`, `created_at`
 
-**`trip_segments`**: `id`, `trip_id`, `position`, `executor_type` (`'us'` | `'contractor'`), `contractor_id`, `truck_id`, `driver_id`, `date_from`, `date_to`, `from_*`, `to_*`, `stops` JSONB, `price`, `currency`, `notes`, `created_at`
+**`trip_segments`**: `id`, `trip_id`, `position`, `executor_type` (`'us'` | `'contractor'`), `contractor_id`, `truck_id`, `trailer_id`, `driver_id`, `date_from`, `date_to`, `from_*`, `to_*`, `stops` JSONB, `price`, `currency`, `notes`, `contractor_truck_number`, `contractor_driver_name`, `contractor_payment_days`, `contractor_payment_document_type`, `contractor_transport_type`, `contractor_transport_temperature`, `contractor_transport_height`, `created_at`
 
 **`trip_segment_cargo`**: `segment_id`, `cargo_id` (PK составной)
 
 **`trip_expenses.segment_id`** — FK на `trip_segments` (`ON DELETE SET NULL`)
 
 **`driver_transactions`**: `id`, `driver_id`, `trip_id`, `expense_id`, `type` (`'accrual'` | `'payout'`), `amount_eur`, `original_amount`, `currency`, `date`, `notes`, `created_at`
+
+**`counters`**: `name` (PK), `last_value` — для сплошной нумерации рейсов
 
 ### Удалённые таблицы
 - `trip_subcontractors` — DROP (Фаза 3.3)
@@ -133,20 +135,22 @@ Lucide-react `^0.460.0` — везде. Emoji только в `<option>`, лог
 - `drivers.passport_series` (16.10)
 - `drivers.passport_issued_date` (16.10)
 - `drivers.passport_issued_by` (было)
+- `trip_cargo`: `pallets`, `customs_*`, `freight_amount`, `freight_currency` (20.10)
+- `trip_segments`: `contractor_*` (truck/driver/payment/transport), `contractor_transport_height`, `trailer_id` (20.10)
 
-### Триггеры
-- `set_trip_number()` + `trg_set_trip_number` — `trip_number = MAX+1` (BEFORE INSERT на `trips`)
+### Триггеры и функции
+- **`counters` + `next_trip_number()`** — монотонная нумерация без дырок
+- **`assign_trip_number_on_segment()` + `trg_assign_trip_number_on_segment`** — присваивает `trip_number` при появлении us-сегмента с машиной и водителем
+- **`renumber_all_trips()`** — пересчёт при удалении рейса (вызывается из `deleteTrip`)
+- **`sync_trip_from_segment()` + `trg_sync_trip_from_segment`** — синхронизирует `trips.truck_id/driver_id/start_date/end_date` из `trip_segments` (для Logisat/DOCX)
 
 ### Хелперы
-- **`lib/trip-route.ts`** — `buildRouteMap(segments)`. Типы: `SegmentRouteRow { trip_id, position, from_city, from_country, to_city, to_country }`. `trip_id` **обязателен**, подавать сырые `*Raw`.
-- **`lib/geocode.ts`** — `geocode(city, country, postalCode?)`:
-  - приоритет: `postal_code + country` → `city + country` → `city`
-  - `cleanCity()` убирает `(...)` из города
-  - `COUNTRY_ISO` (~50 стран EN + RU)
-  - `viewbox=-25,20,60,72&bounded=1` (Европа + MENA)
-  - `countrycodes=` если страна найдена
+- **`lib/trip-route.ts`** — `buildRouteMap(segments)`
+- **`lib/geocode.ts`** — `geocode(city, country, postalCode?)` (postal_code + viewbox + countrycodes + cleanCity)
 - **`lib/trip-renumber.ts`** — `renumberAllTrips()` больше не вызывается (триггер)
-- **`lib/trip-task-text.ts`** — `DriverInfo` с `phone?`, `phone_by?`, `phone_pl?` (все optional)
+- **`lib/trip-task-text.ts`** — `DriverInfo` с `phone?`, `phone_by?`, `phone_pl?`
+- **`lib/translate-pl.ts`** — `translateToPl(text)` — словарь перевода на польский (грузы, типы)
+- **`lib/company.ts`** — `COMPANY`, `APP_URL`, `getTerms(paymentDays, docType)` (текст условий на польском)
 
 ---
 
@@ -169,11 +173,19 @@ Lucide-react `^0.460.0` — везде. Emoji только в `<option>`, лог
 - 4.3 — блок «Расчёты» на `/drivers/[id]`
 - 4.4 — `/driver/balance` + карточка
 
-ЗП → `accrual`. `AddExpenseForm` — чекбокс скрыт при `salary`. Предупреждения на `/trips/[id]` + `/today`.
+### Фаза 5 — Переделка создания рейса (груз первичен) — ✅ 20.10
+- Новая модель: заявка создаёт `trip` (обёртка) + `trip_cargo` (груз). Сегмент — потом.
+- `createCargoWithTrip` в `geocode-actions.ts`. Старый `addTripWithAddress` помечен `@deprecated`.
+- Сплошная нумерация через `counters` (без дырок).
+- `EditTripForm` очищен от транспорта (без дублирования с сегментами).
+- `SegmentForm`: таможня как промежуточная точка, фильтр локаций, польские поля подрядчика.
+- `TripCargoBlock` + `CargoForm`: паллеты, таможня, фрахт.
+- Список `/trips`: сортировка по дате (новые сверху), бездатные — в секции «Без номера».
+- DOCX: польский, Palety, Dane pojazdu, `translateToPl`, `getTerms(paymentDays, docType)`.
 
 ---
 
-## ⏭️ Сделано (15.10–19.10.2026)
+## ⏭️ Сделано (15.10–20.10.2026)
 
 ### 15.10.2026
 1. `created_at` в `trips` — SQL.
@@ -187,33 +199,58 @@ Lucide-react `^0.460.0` — везде. Emoji только в `<option>`, лог
    - `app/drivers/[id]/page.tsx` — фото паспорта (горизонтальное, клик → full-size)
    - `app/components/DriverPassportUpload.tsx` — «📷 Добавить/Сменить фото»
    - `replaceDriverPassport()` — удаляет старые, загружает новое
-   - Паспортные данные, телефоны BY/PL, текущий тягач/прицеп
 7. **Реорганизация sidebar водителя** — Logisat, Статистика, Расчёты + упрощение `/driver`
 
 ### 18.10.2026
-8. **Проверка дубликатов**:
-   - `app/api/check-duplicates/route.ts` — `name`/`tax_id`
-   - `app/components/DuplicateChecker.tsx` — live-проверка
-   - Вставлен в `/clients/new`, `/contractors/new`
-   - SQL: **0 дубликатов** в БД
-9. **Косметика:** `sender_*`/`receiver_*` убраны из `map/page.tsx`, `map/MapView.tsx`, `today/page.tsx`
-10. **Считывание в офисном `/reminders`** — секция «📥 Считывание тахографа и карт»
-11. **Онбординг админа**:
-    - `app/admin-onboarding-actions.ts` — cookie `admin_onboarded=1`
-    - `app/components/AdminOnboardingCard.tsx` — 5 плиток
-    - `app/page.tsx` — показывается один раз
+8. **Проверка дубликатов** — `check-duplicates`, `DuplicateChecker`, SQL: 0 дубликатов.
+9. **Косметика:** `sender_*`/`receiver_*` убраны из `map/page.tsx`, `map/MapView.tsx`, `today/page.tsx`.
+10. **Считывание в офисном `/reminders`** — секция «📥 Считывание тахографа и карт».
+11. **Онбординг админа** — `admin-onboarding-actions.ts`, `AdminOnboardingCard.tsx`, `/page.tsx`.
 
 ### 19.10.2026
-12. **Фикс `/today`** после миграции `phone`:
-    - `app/today/page.tsx` — `drivers!driver_id(first_name, last_name, phone)` → `phone_by, phone_pl`
-    - Симптом: `column drivers_1.phone does not exist` → всё по 0
-13. **Поиск + фильтр статуса в `/driver`**:
-    - `searchParams.q` + `searchParams.status`
-    - `matchesSearch` — номер, заявка, клиент, from/to, route
-    - Чипы, форма `GET /driver?q=...`, «Ничего не найдено»
+12. **Фикс `/today`** — `phone_by, phone_pl` вместо `phone`.
+13. **Поиск + фильтр статуса в `/driver`** — `searchParams.q` + `searchParams.status`.
 
-### Геокодирование — финальный фикс
-`lib/geocode.ts` — `viewbox` + `postal_code` + `countrycodes` + `cleanCity`. Проблема была: «Nola, Italy» → «Nola, Louisiana» → «Nola, England».
+### 20.10.2026 (главное)
+14. **Новая модель создания рейса:**
+    - `/trips/new` → заявка/груз (клиент, маршрут, таможня, груз, фрахт).
+    - `createCargoWithTrip` — атомарно `trips` + `trip_cargo`, без сегмента.
+    - `addTripWithAddress` помечен `@deprecated`.
+15. **SQL:**
+    - `trip_cargo`: `pallets`, `freight_amount`, `freight_currency`, `customs_*`.
+    - `trip_segments`: `contractor_*` поля, `contractor_transport_height`, `trailer_id`.
+    - `locations.type`: добавлен `'customs'`.
+    - `counters` + `next_trip_number()` — сплошная нумерация без дырок.
+    - `renumber_all_trips()` — вызывается из `deleteTrip`.
+    - `sync_trip_from_segment` — для Logisat/DOCX.
+16. **UI:**
+    - Список `/trips`: новые сверху, бездатные («Без номера») — отдельно.
+    - `EditTripForm`: убраны тягач/прицеп/водитель/даты/фрахт (без дубликатов).
+    - `SegmentForm`: таможня как промежуточная точка, фильтр локаций по типу, польские поля подрядчика, тип транспорта (Standard/Mega/Chłodnia + температура/высота), прицеп.
+    - `CargoForm` + `TripCargoBlock`: паллеты, таможня, фрахт.
+    - `locations/page.tsx` + `[id]/edit/page.tsx` + `new/page.tsx`: тип «Таможня».
+17. **DOCX для подрядчика:**
+    - `lib/translate-pl.ts` — перевод названий грузов и типов на польский.
+    - `docx/route.ts`: Palety, Dane pojazdu, `#1 ZAŁADUNEK`, `#2 ODPRAWA CELNA`, `#3 ROZŁADUNEK`.
+    - `getTerms(paymentDays, docType)` — условия под сканы/оригиналы.
+
+---
+
+## 🚨 Текущий блокер (на утро)
+
+**Билд падает на `app/trips/[id]/TripSegmentsBlock.tsx:480`** — `Cannot find name 'trailers'`. 
+
+Причина: в деструктуризации `TripSegmentsBlock` не добавлен `trailers`, хотя в `<SegmentForm>` уже передаётся `trailers={trailers}`.
+
+**Что сделать утром:**
+1. Открыть `app/trips/[id]/TripSegmentsBlock.tsx`.
+2. В начале файла в `export default function TripSegmentsBlock({ ... })` добавить `trailers,` (после `trucks,`).
+3. В типе пропсов добавить `trailers: Option[];` (после `trucks: Option[];`).
+4. Убедиться, что в `page.tsx` в `<TripSegmentsBlock>` есть `trailers={(trailersList || []).map((t) => ({ id: t.id, label: t.registration_number }))}` (между `trucks` и `drivers`).
+5. Сделать **новый коммит** (последний `657a81d` — без этих правок).
+6. Проверить на проде: создать сегмент «Наша машина», выбрать прицеп, сохранить, убедиться, что в карточке отображается `LRA59818 / XXX`.
+
+**Ожидаемый результат:** билд зелёный, прицеп сохраняется и отображается.
 
 ---
 
@@ -221,22 +258,29 @@ Lucide-react `^0.460.0` — везде. Emoji только в `<option>`, лог
 
 | № | Задача | Размер |
 |---|---|---|
-| 1 | Массовый пересчёт координат (кнопка `/trips`) | 1 час |
-| 2 | Слияние дубликатов (merge tool) | Средний |
-| 3 | Фото водителя в `/drivers` — превью в списке | 1 час |
-| 4 | Проверки после миграции — grep всех `.select()` | 30 мин |
+| 1 | Починить билд: `trailers` в `TripSegmentsBlock` (блокер) | 10 мин |
+| 2 | Проверить DOCX: Palety, Dane pojazdu, перевод, условия | 15 мин |
+| 3 | Удалить `addTripWithAddress` (`@deprecated`) из `geocode-actions.ts` | 10 мин |
+| 4 | Поиск в `/trips` по `from_loading_number`, `to_loading_number`, `customs_place` | 30 мин |
+| 5 | Блокировка Logisat-синка для рейсов без `trip_number` | 30 мин |
+| 6 | `trailer_id` в задании водителю (`trip-task-text.ts`) | 30 мин |
+| 7 | Массовый пересчёт координат (кнопка `/trips`) | 1 час |
+| 8 | Слияние дубликатов (merge tool) | Средний |
+| 9 | Фото водителя в `/drivers` — превью в списке | 1 час |
+| 10 | Grep-аудит `.select()` после миграций | 30 мин |
 
 ---
 
-## 📊 Состояние данных (19.10.2026)
+## 📊 Состояние данных (20.10.2026)
 
-- `trips`: 73 (+ `created_at`, `trip_number` через триггер)
-- `trip_segments`: ~96 (71 us + 25 contractor)
-- `trip_cargo`: 74
-- `trip_segment_cargo`: 79
+- `trips`: ~75 (+ `created_at`, `trip_number` через `counters`)
+- `trip_segments`: ~100 (с новыми полями подрядчика и `trailer_id`)
+- `trip_cargo`: ~75 (+ `pallets`, `customs_*`, `freight_*`)
+- `trip_segment_cargo`: ~80
 - `trip_expenses`: ~416
-- `driver_transactions`: новая, наполняется
+- `driver_transactions`: наполняется
 - `trip_subcontractors`: DROP
+- `counters`: `last_value` для `trip_number`
 
 **Бэкапы:** `backup_2026-10-13_0730.json`, `backup_2026-10-14_0607.json`, `backup_2026-10-14_0730.json`. Cron `/api/cron/backup` — 7:00.
 
@@ -250,7 +294,7 @@ Login через server action + `bcrypt.compare` + httpOnly cookie. Sidebar с�
 ### Домены
 - Рейсы + сегменты + грузы + расходы + документы
 - Экспедирование (orders + contractors + points + expenses)
-- Клиенты, водители, тягачи, локации, подрядчики
+- Клиенты, водители, тягачи, прицепы, локации (с таможней), подрядчики
 - Напоминания + cron Telegram
 - Logisat (синк, bulk-синк)
 - Курсы валют, документы
@@ -264,6 +308,8 @@ Login через server action + `bcrypt.compare` + httpOnly cookie. Sidebar с�
 - `/reports/logisat` — ошибки
 - Онбординг водителя + **онбординг админа**
 - Bulk-операции, CSV-экспорт, проверка пересечений
+- **Заявки без номера** (секция в списке)
+- **Документы подрядчику на польском** (ZLECENIE)
 
 ### Cron
 - `/api/update-rates` — `0 6 * * *`
@@ -275,20 +321,16 @@ Login через server action + `bcrypt.compare` + httpOnly cookie. Sidebar с�
 ## Подводные камни
 
 ### PostgREST и FK
-У `trips` два FK на `trucks` (`truck_id`, `trailer_id`). Алиасы обязательны: `.select('*, trucks!truck_id(...), trucks!trailer_id(...)')`
+У `trips` два FK на `trucks` (`truck_id`, `trailer_id`). Алиасы обязательны: `.select('*, trucks!truck_id(...), trucks!trailer_id(...)')`. То же для `trip_segments` (алиас `trailer:trucks!trailer_id(...)`).
 
 ### Supabase SQL Editor: `DROP COLUMN a, b, c`
-**Не работает** (`syntax error at or near "b"`). **Решение:** `DROP COLUMN` перед каждой колонкой.
-
-### `buildRouteMap` требует `trip_id`
-Подавать сырые `*Raw` из supabase.
+**Не работает**. **Решение:** `DROP COLUMN` перед каждой колонкой.
 
 ### Миграция колонок → grep ВСЕХ `.select()`
-После `drivers.phone` — `/today` падал в рантайме, билд зелёный (TS SQL не проверяет).
-**Правило:** при DROP COLUMN — grep во всех `.select()` в `app/` и `lib/`.
+После `drivers.phone` — `/today` падал в рантайме, билд зелёный. **Правило:** при DROP COLUMN — grep во всех `.select()` в `app/` и `lib/`.
 
 ### Геокодирование — Nominatim путается
-«Nola (NA), Italy» → «Nola, Louisiana» → «Nola, England». **Решение:** `postal_code` + `viewbox` + `countrycodes` + `cleanCity`.
+«Nola (NA), Italy» → «Nola, Louisiana». **Решение:** `postal_code` + `viewbox` + `countrycodes` + `cleanCity`.
 
 ### `recalcTripCoords`
 При пересчёте — селектим `from_postal_code, to_postal_code` в сегментах.
@@ -297,7 +339,7 @@ Login через server action + `bcrypt.compare` + httpOnly cookie. Sidebar с�
 Static page generation 60s. Лечится: Redeploy без кэша.
 
 ### Автокоммит
-Каждое изменение = коммит + билд.
+Каждое изменение = коммит + билд. **Связанные файлы — один коммит**.
 
 ### Потеря импорта / обрыв при копипасте
 Не удалять существующие импорты. Проверять, что файл дошёл до конца (`}`).
@@ -305,15 +347,24 @@ Static page generation 60s. Лечится: Redeploy без кэша.
 ### `driver.phone` больше нет
 Все `.select()` с `drivers!driver_id(..., phone)` → `phone_by, phone_pl`.
 
+### DOCX: перевод на польский
+`lib/translate-pl.ts` — словарь. Если слово не найдено, остаётся как есть. Пополнять по мере необходимости.
+
+### `getTerms(paymentDays, docType)`
+Тип документов (`'originals' | 'scans'`) влияет на текст пункта 1 в WARUNKI ZLECENIA.
+
 ---
 
 ## 📋 Шпаргалка
 
-- `trips`: 73, `trip_segments`: ~96, `trip_expenses`: ~416
-- `driver_transactions`: новая
+- `trips`: ~75, `trip_segments`: ~100, `trip_cargo`: ~75, `trip_expenses`: ~416
+- `driver_transactions`: наполняется
 - `trip_subcontractors`: DROP
+- `counters`: сплошная нумерация
 
-**Закрыто:** Фазы 3.1–3.6, Фаза 4, `created_at`, триггер `trip_number`, считывание тахографа/карт, визитка водителя, sidebar водителя, дубликаты, онбординг админа, геокодирование с postal_code, фикс `/today`, поиск в «Мои рейсы».
+**Закрыто:** Фазы 3.1–3.6, Фаза 4, Фаза 5 (груз первичен), `created_at`, нумерация через `counters`, считывание тахографа/карт, визитка водителя, sidebar водителя, дубликаты, онбординг админа, геокодирование с postal_code, фикс `/today`, поиск в «Мои рейсы», таможня (в карточке и сегментах), прицеп в сегменте, DOCX на польском (Palety, Dane pojazdu, условия под сканы/оригиналы).
+
+**Текущий блокер:** `trailers` в `TripSegmentsBlock.tsx` (см. раздел 🚨).
 
 ---
 
@@ -321,7 +372,7 @@ Static page generation 60s. Лечится: Redeploy без кэша.
 
 **При старте нового чата:**
 1. Полный HANDOVER (один раз)
-2. Что делаем сейчас
+2. Что делаем сейчас (блокер на утро)
 3. Сам файл, целиком
 4. Дальше по одному файлу
 
