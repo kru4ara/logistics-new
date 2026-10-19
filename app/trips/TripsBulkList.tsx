@@ -271,7 +271,7 @@ export default function TripsBulkList({
 
   const sectionTitle = flatMode ? 'Последние созданные' : 'Без номера · новые заявки';
   const sectionSubtitle = flatMode
-    ? `Рейсов: ${tripsWithoutDate.length}`
+    ? `Записей: ${tripsWithoutDate.length}`
     : `Заявок: ${tripsWithoutDate.length} · ждут назначения машины и водителя`;
 
   return (
