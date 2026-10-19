@@ -37,9 +37,14 @@ export const LOGO_URL =
 // ============================================================
 // Условия перевозки (8 пунктов)
 // ============================================================
-export function getTerms(paymentDays: number): string[] {
+export function getTerms(paymentDays: number, docType: 'originals' | 'scans' = 'originals'): string[] {
+  // Текст для пункта 1 в зависимости от типа документов
+  const docText = docType === 'scans'
+    ? 'skanów CMR (potwierdzonych podpisem, pieczątką odbiorcy) przesłanych drogą mailową'
+    : 'oryginała CMR (potwierdzonego podpisem, pieczątką odbiorcy)';
+
   return [
-    `1) Termin płatności ${paymentDays} dni po dostarczeniu oryginała CMR (potwierdzonego podpisem, pieczątką odbiorcy) oraz prawidłowo wystawionej faktury, vat = 0% (Część transportu drogowego, stawka podatku vat wynosi 0%, zgodnie z przepisami art. 28b, ust.1 w odniesieniu do art 83 ust 1pkt 23 ustawy o podatku od towarów i usług, trasa stanowi czesc transportu miedzynarodowego w rozumieniu przepisów rozporzadzenia ministra finansów z dn 28 listopada 2008 par 9 ust 1 pkt 1 i 2.)`,
+    `1) Termin płatności ${paymentDays} dni po dostarczeniu ${docText} oraz prawidłowo wystawionej faktury, vat = 0% (Część transportu drogowego, stawka podatku vat wynosi 0%, zgodnie z przepisami art. 28b, ust.1 w odniesieniu do art 83 ust 1pkt 23 ustawy o podatku od towarów i usług, trasa stanowi czesc transportu miedzynarodowego w rozumieniu przepisów rozporzadzenia ministra finansów z dn 28 listopada 2008 par 9 ust 1 pkt 1 i 2.)`,
     `2) W celu terminowej płatności, przed wysłaniem dokumentów, należy przesłać skan faktury i CMR na ${COMPANY.email}`,
     `3) Ustalony normatywny postój na terenie UE-24 godziny, BY/RUS-48 godzin. Opłata ponadnormatywnego postoju wynosi 100 EUR za każde dobę.`,
     `4) Faktura powinna być wystawiona w miesiącu wykonania usługi!!! Data zakończenia dostawy/usługi = dacie rozładunku.`,
