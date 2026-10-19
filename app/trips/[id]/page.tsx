@@ -109,6 +109,12 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
     .in('type', ['unloading', 'both'])
     .order('name');
 
+    const { data: customsLocations } = await supabase
+    .from('locations')
+    .select('id, name, type, country, company_name, postal_code, city, address, default_loading_number')
+    .in('type', ['customs', 'both'])
+    .order('name');
+
   const { data: clientsList } = await supabase
     .from('clients')
     .select('id, name')
@@ -527,6 +533,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
           clients={(clientsList || []).map((c) => ({ id: c.id, label: c.name }))}
           loadingLocations={(loadingLocations || []) as any}
           unloadingLocations={(unloadingLocations || []) as any}
+          customsLocations={(customsLocations || []) as any}  {/* <--- ДОБАВИТЬ */}
           defaultClientId={trip.client_id}
         />
 
