@@ -195,7 +195,7 @@ export default function TripSegmentsBlock({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-
+ 
   function handleAdd() {
     setEditingId(null);
     setIsFormOpen(true);
