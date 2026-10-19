@@ -178,12 +178,25 @@ function buildPointChildren(params: {
   city: string | null;
   postal_code: string | null;
   address: string | null;
-  label?: string;
 }): Paragraph[] {
-  const { idx, kind, date, company, country, city, postal_code, address, label } = params;
+  const { idx, kind, date, company, country, city, postal_code, address } = params;
 
   const cityLine = [postal_code, city, country].filter(Boolean).join(', ') || '—';
-  const numberColor = kind === 'unloading' ? RED : kind === 'reload' ? 'D97706' : kind === 'customs' ? '2563EB' : GREEN;
+  
+  // Определяем цвета и заголовки
+  let numberColor = GREEN;
+  let title = 'ZAŁADUNEK';
+  
+  if (kind === 'unloading') {
+    numberColor = RED;
+    title = 'ROZŁADUNEK';
+  } else if (kind === 'reload') {
+    numberColor = 'D97706';
+    title = 'DOŁADUNEK / PRZEŁADUNEK';
+  } else if (kind === 'customs') {
+    numberColor = '2563EB'; // Синий
+    title = 'ODPRAWA CELNA';
+  }
 
   const children: Paragraph[] = [
     new Paragraph({
@@ -191,11 +204,19 @@ function buildPointChildren(params: {
       children: [
         new TextRun({ text: `#${idx}   `, bold: true, size: 20, font: FONT, color: numberColor }),
         new TextRun({
-          text: date ? fmtDate(date) : '—',
+          text: date ? fmtDate(date) : '',
           bold: true,
           size: 20,
           font: FONT,
           color: BLUE,
+        }),
+        ...(date ? [new TextRun({ text: '   ', size: 20, font: FONT })] : []),
+        new TextRun({
+          text: title,
+          bold: true,
+          size: 16,
+          font: FONT,
+          color: numberColor,
         }),
         new TextRun({ text: '   ', size: 20, font: FONT }),
         new TextRun({
@@ -205,18 +226,6 @@ function buildPointChildren(params: {
           font: FONT,
           color: '0F172A',
         }),
-        ...(label
-          ? [
-              new TextRun({ text: '   ', size: 18, font: FONT }),
-              new TextRun({
-                text: label,
-                size: 16,
-                font: FONT,
-                color: numberColor,
-                italics: true,
-              }),
-            ]
-          : []),
       ],
     }),
   ];
@@ -565,13 +574,6 @@ export async function GET(
       stop.type === 'unload' ? 'unloading' : 
       stop.type === 'customs' ? 'customs' : 
       stop.type === 'reload' ? 'reload' : 'loading';
-      
-    const labelMap: Record<string, string | undefined> = {
-      load: 'załadunek',
-      reload: 'doładunek / przeładunek',
-      unload: 'rozładunek',
-      customs: 'odprawa celna / tamże',
-    };
 
     routeRows.push(
       new TableRow({
@@ -587,13 +589,11 @@ export async function GET(
               city: stop.city || null,
               postal_code: stop.postal_code || null,
               address: stop.address || null,
-              label: labelMap[stop.type] || undefined,
             }),
           }),
         ],
       })
     );
-  }
 
   // Стрелка перед точкой C
   routeRows.push(
