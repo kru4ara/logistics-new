@@ -60,7 +60,7 @@ type CargoLink = {
 };
 
 type StopDb = {
-  type: 'load' | 'reload' | 'unload';
+  type: 'load' | 'reload' | 'unload' | 'customs';
   company: string | null;
   country: string | null;
   city: string | null;
@@ -151,12 +151,14 @@ const STOP_TYPE_LABELS: Record<StopDb['type'], string> = {
   load: 'загрузка',
   reload: 'догруз',
   unload: 'выгрузка',
+  customs: 'таможня',
 };
 
 const STOP_TYPE_BADGES: Record<StopDb['type'], string> = {
   load: 'bg-green-50 text-green-700 border-green-200',
   reload: 'bg-amber-50 text-amber-700 border-amber-200',
   unload: 'bg-red-50 text-red-700 border-red-200',
+  customs: 'bg-blue-50 text-blue-700 border-blue-200',
 };
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
