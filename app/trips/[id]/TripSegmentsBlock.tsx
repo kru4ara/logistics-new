@@ -104,6 +104,12 @@ type Segment = {
   to_company: string | null;
   to_address: string | null;
   to_postal_code: string | null;
+  contractor_truck_number?: string | null;
+  contractor_driver_name?: string | null;
+  contractor_payment_days?: number | null;
+  contractor_payment_document_type?: string | null;
+  contractor_transport_type?: string | null;
+  contractor_transport_temperature?: string | null;
   stops: StopDb[] | null;
   cargoLinks: CargoLink[];
 };
