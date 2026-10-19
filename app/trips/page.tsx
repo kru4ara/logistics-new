@@ -30,8 +30,6 @@ function pickOne<T>(rel: unknown): T | null {
 
 type DriverRel = { first_name: string | null; last_name: string | null };
 
-// buildRouteFromSegments удалена — используем buildRouteMap из lib/trip-route ⬅️ ИЗМЕНЕНО
-
 export default async function TripsPage({
   searchParams,
 }: {
@@ -68,7 +66,7 @@ export default async function TripsPage({
     supabase
       .from('trips')
       .select('*, clients(name), drivers!driver_id(first_name, last_name)')
-      .order('trip_number', { ascending: false }),
+      .order('trip_number', { ascending: false, nullsFirst: false }),
     supabase
       .from('trip_expenses')
       .select('trip_id, amount_eur'),
@@ -98,7 +96,6 @@ export default async function TripsPage({
   const tractorsList = tractorsResult.data || [];
   const segments = segmentsResult.data || [];
 
-  // ⬅️ ИЗМЕНЕНО: buildRouteMap из lib вместо локальной buildRouteFromSegments
   const routeMap: Map<string, TripRouteInfo> = buildRouteMap(
     segments as SegmentRouteRow[]
   );
@@ -110,12 +107,10 @@ export default async function TripsPage({
     return acc;
   }, {} as Record<string, number>) || {};
 
-  // ⬅️ ИЗМЕНЕНО: убран fallback t.route
   function getRoute(t: any): string {
     return routeMap.get(t.id)?.route || '—';
   }
 
-  // ⬅️ ИЗМЕНЕНО: поиск по сегментам (from_*/to_*) вместо legacy sender_*/receiver_*
   function matchesSearch(t: any): boolean {
     if (!qLower) return true;
     const clientName = pickName(t.clients) || '';
@@ -151,10 +146,6 @@ export default async function TripsPage({
     return t.truck_id === truckFilter;
   }
 
-  const tripsWithoutDate = (trips || []).filter(
-    (t) => !t.start_date && !t.end_date && !hasExtraFilter && sortBy === 'start'
-  );
-
   const filteredTrips = (trips || []).filter((t) => {
     if (!matchesSearch(t)) return false;
     if (!matchesStatus(t)) return false;
@@ -162,19 +153,20 @@ export default async function TripsPage({
     if (!matchesTruck(t)) return false;
 
     const date = t.end_date || t.start_date;
-    if (!date) {
-      return hasExtraFilter;
-    }
+
+    // Бездатные (новые заявки) — показываем всегда, если прошли поиск/фильтры.
+    // Год/месяц к ним не применяем: они не привязаны к датам.
+    if (!date) return true;
 
     if (hasExtraFilter) return true;
 
-        const d = new Date(date);
+    const d = new Date(date);
     if (d.getFullYear() !== year) return false;
     if (monthFilter && d.getMonth() + 1 !== monthFilter) return false;
     return true;
   });
 
-  // ⬅️ НОВОЕ: применяем сортировку
+  // Сортировка
   if (sortBy === 'created') {
     filteredTrips.sort((a, b) => {
       const aT = a.created_at ? new Date(a.created_at).getTime() : 0;
@@ -182,28 +174,38 @@ export default async function TripsPage({
       return bT - aT;
     });
   } else {
-    filteredTrips.sort((a, b) => (b.trip_number || 0) - (a.trip_number || 0));
+    // по дате старта (убывание); бездатные уйдут в отдельную секцию
+    filteredTrips.sort((a, b) => {
+      const aD = a.start_date ? new Date(a.start_date).getTime() : 0;
+      const bD = b.start_date ? new Date(b.start_date).getTime() : 0;
+      if (aD !== bD) return bD - aD;
+      // при равенстве дат — по номеру (если есть), иначе по created_at
+      const aN = a.trip_number ?? 0;
+      const bN = b.trip_number ?? 0;
+      if (aN !== bN) return bN - aN;
+      const aT = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const bT = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return bT - aT;
+    });
   }
 
+  // Бездатные (новые заявки) — только прошедшие фильтры
+  const filteredWithoutDate = filteredTrips.filter(
+    (t) => !t.start_date && !t.end_date
+  );
+
+  // Группировка по месяцам — только датированные
   const tripsByMonth: Record<string, { month: number; trips: any[] }> = {};
   filteredTrips.forEach((t) => {
     const date = t.end_date || t.start_date;
-    if (!date) {
-      if (!tripsByMonth['nodate']) tripsByMonth['nodate'] = { month: 0, trips: [] };
-      tripsByMonth['nodate'].trips.push(t);
-      return;
-    }
+    if (!date) return; // бездатные не группируем здесь
     const d = new Date(date);
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
     if (!tripsByMonth[key]) tripsByMonth[key] = { month: d.getMonth() + 1, trips: [] };
     tripsByMonth[key].trips.push(t);
   });
 
-  const sortedMonthKeys = Object.keys(tripsByMonth).sort((a, b) => {
-    if (a === 'nodate') return -1;
-    if (b === 'nodate') return 1;
-    return b.localeCompare(a);
-  });
+  const sortedMonthKeys = Object.keys(tripsByMonth).sort((a, b) => b.localeCompare(a));
 
   const tripYears = new Set<number>();
   trips?.forEach((t) => {
@@ -286,7 +288,6 @@ export default async function TripsPage({
     };
   }
 
-  // ⬅️ НОВОЕ: при сортировке по created_at — плоский список без месячной группировки
   const monthGroups: MonthGroup[] = sortBy === 'created'
     ? []
     : sortedMonthKeys.map((key) => {
@@ -294,11 +295,10 @@ export default async function TripsPage({
         const mTrips = group.trips;
         const mRev = mTrips.reduce((sum, t) => sum + (t.revenue_eur || 0), 0);
         const mExp = mTrips.reduce((sum, t) => sum + (expensesByTrip[t.id] || 0), 0);
-        const isNoDate = key === 'nodate';
         return {
           key,
-          isNoDate,
-          title: isNoDate ? 'Без даты старта' : `${monthNames[group.month - 1]} ${year}`,
+          isNoDate: false,
+          title: `${monthNames[group.month - 1]} ${year}`,
           trips: mTrips.map(prepareTrip),
           revenue: mRev,
           expenses: mExp,
@@ -327,14 +327,14 @@ export default async function TripsPage({
               )}
             </p>
           </div>
-                    <div className="flex flex-wrap gap-2 md:gap-3">
+          <div className="flex flex-wrap gap-2 md:gap-3">
             <DownloadButton data={filteredTrips.map(prepareTrip)} />
             <a
               href="/trips/new"
               className="btn btn-primary text-sm md:text-base flex-1 sm:flex-none"
             >
               <Plus className="w-4 h-4 md:w-[18px] md:h-[18px]" strokeWidth={2.5} />
-              Создать рейс
+              Создать заявку
             </a>
           </div>
         </div>
@@ -488,7 +488,7 @@ export default async function TripsPage({
             </div>
           </div>
 
-                    {/* Сортировка */}
+          {/* Сортировка */}
           <div>
             <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2">Сортировка</div>
             <div className="flex flex-wrap gap-1.5 md:gap-2">
@@ -512,7 +512,7 @@ export default async function TripsPage({
               </a>
             </div>
           </div>
-          
+
           {/* Сводка по фильтру */}
           <div className="grid grid-cols-3 gap-3 pt-3 border-t border-slate-100">
             <div>
@@ -564,7 +564,7 @@ export default async function TripsPage({
                 className="btn btn-primary inline-flex"
               >
                 <Plus className="w-4 h-4" strokeWidth={2.5} />
-                Создать рейс
+                Создать заявку
               </a>
             )}
           </div>
@@ -572,11 +572,12 @@ export default async function TripsPage({
           <TripsBulkList
             tripsWithoutDate={
               sortBy === 'created'
-                ? filteredTrips.map(prepareTrip)   // ⬅️ НОВОЕ: плоский список
-                : tripsWithoutDate.map(prepareTrip)
+                ? filteredTrips.map(prepareTrip)
+                : filteredWithoutDate.map(prepareTrip)
             }
             monthGroups={monthGroups}
             isSearchMode={isSearchMode}
+            flatMode={sortBy === 'created'}
           />
         )}
 
