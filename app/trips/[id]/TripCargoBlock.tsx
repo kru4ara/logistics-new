@@ -267,7 +267,12 @@ export default function TripCargoBlock({
                           <ShieldCheck className="w-3.5 h-3.5 text-slate-500 mt-0.5 shrink-0" strokeWidth={2.2} />
                           <div className="text-sm text-slate-700 break-words">
                             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide mr-1.5">Таможня:</span>
-                            {fmtPlace(c.customs_place, c.customs_city, c.customs_country, c.customs_address)}
+                            {fmtPlace(
+                                c.customs_place ?? null,
+                                c.customs_city ?? null,
+                                c.customs_country ?? null,
+                                c.customs_address ?? null
+                            )}
                           </div>
                         </div>
                       )}
