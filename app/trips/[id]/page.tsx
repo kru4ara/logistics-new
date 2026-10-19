@@ -216,6 +216,12 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
       to_company: s.to_company,
       to_address: s.to_address,
       to_postal_code: s.to_postal_code,
+      contractor_truck_number: s.contractor_truck_number,
+      contractor_driver_name: s.contractor_driver_name,
+      contractor_payment_days: s.contractor_payment_days,
+      contractor_payment_document_type: s.contractor_payment_document_type,
+      contractor_transport_type: s.contractor_transport_type,
+      contractor_transport_temperature: s.contractor_transport_temperature,
       stops: Array.isArray(s.stops) ? s.stops : [],
       cargoLinks: cargoLinksBySegment[s.id] || [],
     };
