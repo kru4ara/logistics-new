@@ -15,12 +15,13 @@ import {
   Pencil,
   Trash2,
   Inbox,
+  ShieldCheck,
   type LucideIcon,
 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
-type LocationType = 'loading' | 'unloading' | 'both';
+type LocationType = 'loading' | 'unloading' | 'both' | 'customs';
 
 const typeMeta: Record<LocationType, {
   label: string;
@@ -39,6 +40,12 @@ const typeMeta: Record<LocationType, {
     Icon: ArrowUpFromLine,
     badge: 'bg-brand-50 text-brand-700 border-brand-200',
     iconBg: 'bg-brand-50 text-brand-600',
+  },
+  customs: {
+    label: 'Таможня',
+    Icon: ShieldCheck,
+    badge: 'bg-amber-50 text-amber-700 border-amber-200',
+    iconBg: 'bg-amber-50 text-amber-600',
   },
   both: {
     label: 'Универсально',
