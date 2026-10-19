@@ -591,10 +591,7 @@ if (executorType === 'contractor') {
     </div>
   </div>
 </div>
-                  <p className="text-[11px] text-amber-700">
-                    Расход по этому участку создастся автоматически.
-                  </p>
-                </div>
+
               </>
             )}
 
