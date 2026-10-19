@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { translateToPl } from '../../../../../../../lib/translate-pl';
 import {
   Document,
   Packer,
@@ -318,8 +319,8 @@ export async function GET(
     if (!c) return;
     cargoItems.push({
       position: c.position || 0,
-      label: c.label || '—',
-      cargoType: c.cargo_type || null,
+      label: translateToPl(c.label) || '—',
+      cargoType: c.cargo_type ? translateToPl(c.cargo_type) : null,
       weight: c.weight_kg ?? null,
       pallets: c.pallets ?? null,
     });
