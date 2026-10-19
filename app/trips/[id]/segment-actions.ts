@@ -8,7 +8,7 @@ function str(formData: FormData, key: string): string | null {
   const v = (formData.get(key) as string)?.trim();
   return v || null;
 }
-
+ 
 function parseCargoIds(formData: FormData): string[] {
   const ids = formData.getAll('cargo_ids') as string[];
   return ids.filter(Boolean);
