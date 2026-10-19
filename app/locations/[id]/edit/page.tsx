@@ -77,6 +77,7 @@ export default async function EditLocationPage({ params }: { params: Promise<{ i
                 <select name="type" required className="input" defaultValue={location.type || 'both'}>
                   <option value="loading">Только погрузка</option>
                   <option value="unloading">Только выгрузка</option>
+                  <option value="customs">Таможня</option>
                   <option value="both">Универсальная</option>
                 </select>
               </div>
