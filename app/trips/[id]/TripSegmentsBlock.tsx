@@ -70,7 +70,7 @@ type StopDb = {
 };
 
 type StopForm = {
-  type: 'load' | 'reload' | 'unload';
+  type: 'load' | 'reload' | 'unload' | 'customs';
   company: string;
   country: string;
   city: string;
