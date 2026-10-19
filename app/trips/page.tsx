@@ -173,19 +173,19 @@ export default async function TripsPage({
       const bT = b.created_at ? new Date(b.created_at).getTime() : 0;
       return bT - aT;
     });
-  } else {
-    // по дате старта (убывание); бездатные уйдут в отдельную секцию
+   } else {
+    // по дате старта (ВОЗРАСТАНИЕ); бездатные уйдут в отдельную секцию
     filteredTrips.sort((a, b) => {
       const aD = a.start_date ? new Date(a.start_date).getTime() : 0;
       const bD = b.start_date ? new Date(b.start_date).getTime() : 0;
-      if (aD !== bD) return bD - aD;
+      if (aD !== bD) return aD - bD;
       // при равенстве дат — по номеру (если есть), иначе по created_at
       const aN = a.trip_number ?? 0;
       const bN = b.trip_number ?? 0;
-      if (aN !== bN) return bN - aN;
+      if (aN !== bN) return aN - bN;
       const aT = a.created_at ? new Date(a.created_at).getTime() : 0;
       const bT = b.created_at ? new Date(b.created_at).getTime() : 0;
-      return bT - aT;
+      return aT - bT;
     });
   }
 
