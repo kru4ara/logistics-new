@@ -63,6 +63,7 @@ export default function NewLocationPage() {
                 <select name="type" required className="input" defaultValue="both">
                   <option value="loading">Только погрузка</option>
                   <option value="unloading">Только выгрузка</option>
+                  <option value="customs">Таможня</option>
                   <option value="both">Универсальная</option>
                 </select>
               </div>
