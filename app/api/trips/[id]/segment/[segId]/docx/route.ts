@@ -171,7 +171,7 @@ function cellValue(
 
 function buildPointChildren(params: {
   idx: number;
-  kind: 'loading' | 'unloading' | 'reload';
+  kind: 'loading' | 'unloading' | 'reload' | 'customs';
   date: string | null;
   company: string | null;
   country: string | null;
@@ -183,7 +183,7 @@ function buildPointChildren(params: {
   const { idx, kind, date, company, country, city, postal_code, address, label } = params;
 
   const cityLine = [postal_code, city, country].filter(Boolean).join(', ') || '—';
-  const numberColor = kind === 'unloading' ? RED : kind === 'reload' ? 'D97706' : GREEN;
+  const numberColor = kind === 'unloading' ? RED : kind === 'reload' ? 'D97706' : kind === 'customs' ? '2563EB' : GREEN;
 
   const children: Paragraph[] = [
     new Paragraph({
@@ -298,10 +298,10 @@ export async function GET(
   // Грузы сегмента
   const { data: segmentCargoRaw } = await supabase
     .from('trip_segment_cargo')
-    .select('cargo_id, trip_cargo(position, label, cargo_type, weight_kg)')
+    .select('cargo_id, trip_cargo(position, label, cargo_type, weight_kg, pallets)')
     .eq('segment_id', segmentId);
 
-  const cargoItems: { position: number; label: string; cargoType: string | null; weight: number | null }[] = [];
+  const cargoItems: { position: number; label: string; cargoType: string | null; weight: number | null; pallets: number | null }[] = [];
   (segmentCargoRaw || []).forEach((sc: any) => {
     const c = Array.isArray(sc.trip_cargo) ? sc.trip_cargo[0] : sc.trip_cargo;
     if (!c) return;
@@ -310,6 +310,7 @@ export async function GET(
       label: c.label || '—',
       cargoType: c.cargo_type || null,
       weight: c.weight_kg ?? null,
+      pallets: c.pallets ?? null,
     });
   });
   cargoItems.sort((a, b) => a.position - b.position);
@@ -317,7 +318,7 @@ export async function GET(
   const baseNumber = trip.client_request_number ?? trip.trip_number ?? '?';
   const zlecenieNumber = `${baseNumber}-${segment.position || 1}`;
 
-  const paymentDays = 30;
+  const paymentDays = segment.contractor_payment_days ?? 30;
   const terms = getTerms(paymentDays);
 
   const [stampBuf, qrBuf] = await Promise.all([
@@ -478,6 +479,35 @@ export async function GET(
     children.push(txt(contractor.email, { size: 20, after: 20, color: '475569' }));
   }
 
+  // ⬅️ НОВОЕ: Данные машины и водителя подрядчика
+  if (segment.contractor_truck_number || segment.contractor_driver_name) {
+    children.push(txt('', { after: 60 }));
+    children.push(
+      txt('Dane pojazdu i kierowcy:', { bold: true, size: 20, after: 40, color: '334155' })
+    );
+    if (segment.contractor_truck_number) {
+      children.push(txt(`Nr auta: ${segment.contractor_truck_number}`, { size: 20, after: 20 }));
+    }
+    if (segment.contractor_driver_name) {
+      children.push(txt(`Kierowca: ${segment.contractor_driver_name}`, { size: 20, after: 20 }));
+    }
+    if (segment.contractor_transport_type) {
+      const typeMap: Record<string, string> = {
+        standard: 'Standard / Plandeka',
+        mega: 'Mega',
+        chlodnia: 'Chłodnia',
+      };
+      const typeLabel = typeMap[segment.contractor_transport_type] || segment.contractor_transport_type;
+      children.push(txt(`Rodzaj transportu: ${typeLabel}`, { size: 20, after: 20 }));
+    }
+    if (segment.contractor_transport_temperature) {
+      children.push(txt(`Temperatura: ${segment.contractor_transport_temperature}`, { size: 20, after: 20 }));
+    }
+    if (segment.contractor_transport_height) {
+      children.push(txt(`Wysokość załadunku: ${segment.contractor_transport_height}`, { size: 20, after: 20 }));
+    }
+  }
+
   children.push(divider());
 
   // ============================================================
@@ -530,11 +560,16 @@ export async function GET(
       })
     );
 
-    const kind = stop.type === 'unload' ? 'unloading' : stop.type === 'reload' ? 'reload' : 'loading';
+    const kind = 
+      stop.type === 'unload' ? 'unloading' : 
+      stop.type === 'customs' ? 'customs' : 
+      stop.type === 'reload' ? 'reload' : 'loading';
+      
     const labelMap: Record<string, string | undefined> = {
       load: 'załadunek',
       reload: 'doładunek / przeładunek',
       unload: 'rozładunek',
+      customs: 'odprawa celna / tamże',
     };
 
     routeRows.push(
@@ -642,7 +677,7 @@ export async function GET(
             ],
           }),
           new TableCell({
-            width: { size: 50, type: WidthType.PERCENTAGE },
+            width: { size: 40, type: WidthType.PERCENTAGE },
             shading: { fill: 'F1F5F9' },
             margins: { top: 80, bottom: 80, left: 100, right: 100 },
             children: [
@@ -652,7 +687,7 @@ export async function GET(
             ],
           }),
           new TableCell({
-            width: { size: 22, type: WidthType.PERCENTAGE },
+            width: { size: 18, type: WidthType.PERCENTAGE },
             shading: { fill: 'F1F5F9' },
             margins: { top: 80, bottom: 80, left: 100, right: 100 },
             children: [
@@ -662,7 +697,17 @@ export async function GET(
             ],
           }),
           new TableCell({
-            width: { size: 20, type: WidthType.PERCENTAGE },
+            width: { size: 17, type: WidthType.PERCENTAGE },
+            shading: { fill: 'F1F5F9' },
+            margins: { top: 80, bottom: 80, left: 100, right: 100 },
+            children: [
+              new Paragraph({
+                children: [new TextRun({ text: 'Palety', bold: true, size: 20, font: FONT, color: '334155' })],
+              }),
+            ],
+          }),
+          new TableCell({
+            width: { size: 17, type: WidthType.PERCENTAGE },
             shading: { fill: 'F1F5F9' },
             margins: { top: 80, bottom: 80, left: 100, right: 100 },
             children: [
@@ -700,6 +745,14 @@ export async function GET(
               children: [
                 new Paragraph({
                   children: [new TextRun({ text: c.cargoType || '—', size: 20, font: FONT, color: '475569' })],
+                }),
+              ],
+            }),
+            new TableCell({
+              margins: { top: 80, bottom: 80, left: 100, right: 100 },
+              children: [
+                new Paragraph({
+                  children: [new TextRun({ text: c.pallets != null ? `${c.pallets} szt.` : '—', size: 20, font: FONT, color: '475569' })],
                 }),
               ],
             }),
@@ -746,6 +799,23 @@ export async function GET(
             ? `${segment.price} ${segment.currency || 'EUR'} (vat = 0%)`
             : `— ${segment.currency || 'EUR'} (vat = 0%)`,
           { bold: true, size: 28, color: RED }
+        ),
+      ],
+    }),
+    new TableRow({
+      children: [
+        cellLabel('Płatność'),
+        cellValue(`${paymentDays} dni`, { size: 22 }),
+      ],
+    }),
+    new TableRow({
+      children: [
+        cellLabel('Dokumenty'),
+        cellValue(
+          segment.contractor_payment_document_type === 'scans' 
+            ? 'Skany CMR' 
+            : 'Oryginały CMR', 
+          { size: 22 }
         ),
       ],
     }),
