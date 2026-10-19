@@ -166,26 +166,26 @@ export default async function TripsPage({
     return true;
   });
 
-  // Сортировка
+   // Сортировка
   if (sortBy === 'created') {
     filteredTrips.sort((a, b) => {
       const aT = a.created_at ? new Date(a.created_at).getTime() : 0;
       const bT = b.created_at ? new Date(b.created_at).getTime() : 0;
       return bT - aT;
     });
-   } else {
-    // по дате старта (ВОЗРАСТАНИЕ); бездатные уйдут в отдельную секцию
+  } else {
+    // по дате старта (УБЫВАНИЕ: новые сверху); бездатные уйдут в отдельную секцию
     filteredTrips.sort((a, b) => {
       const aD = a.start_date ? new Date(a.start_date).getTime() : 0;
       const bD = b.start_date ? new Date(b.start_date).getTime() : 0;
-      if (aD !== bD) return aD - bD;
+      if (aD !== bD) return bD - aD; // <--- УБЫВАНИЕ
       // при равенстве дат — по номеру (если есть), иначе по created_at
       const aN = a.trip_number ?? 0;
       const bN = b.trip_number ?? 0;
-      if (aN !== bN) return aN - bN;
+      if (aN !== bN) return bN - aN; // <--- УБЫВАНИЕ
       const aT = a.created_at ? new Date(a.created_at).getTime() : 0;
       const bT = b.created_at ? new Date(b.created_at).getTime() : 0;
-      return aT - bT;
+      return bT - aT;
     });
   }
 
@@ -197,8 +197,8 @@ export default async function TripsPage({
   // Группировка по месяцам — только датированные
   const tripsByMonth: Record<string, { month: number; trips: any[] }> = {};
   filteredTrips.forEach((t) => {
-    const date = t.end_date || t.start_date;
-    if (!date) return; // бездатные не группируем здесь
+    const date = t.start_date || t.end_date; // <--- СТАЛО (сначала старт)
+    if (!date) return;
     const d = new Date(date);
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
     if (!tripsByMonth[key]) tripsByMonth[key] = { month: d.getMonth() + 1, trips: [] };
