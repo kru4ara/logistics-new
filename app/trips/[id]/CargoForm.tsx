@@ -8,6 +8,8 @@ import {
   X,
   Check,
   Loader2,
+  ShieldCheck,
+  Coins,
 } from 'lucide-react';
 import { createCargo, updateCargo } from './cargo-actions';
 
@@ -30,6 +32,7 @@ type CargoData = {
   label: string;
   cargo_type: string;
   weight_kg: number | null;
+  pallets?: number | null;
   client_id: string | null;
   notes: string;
   from_country: string | null;
@@ -42,6 +45,13 @@ type CargoData = {
   to_company: string | null;
   to_address: string | null;
   to_postal_code: string | null;
+  customs_place?: string | null;
+  customs_country?: string | null;
+  customs_city?: string | null;
+  customs_postal_code?: string | null;
+  customs_address?: string | null;
+  freight_amount?: number | null;
+  freight_currency?: string | null;
 };
 
 type Addr = {
@@ -52,12 +62,12 @@ type Addr = {
   postal_code: string;
 };
 
-const emptyAddr: Addr = {
-  country: '',
-  city: '',
-  company: '',
-  address: '',
-  postal_code: '',
+type CustomsAddr = {
+  place: string;
+  country: string;
+  city: string;
+  postal_code: string;
+  address: string;
 };
 
 function toAddr(
@@ -76,6 +86,22 @@ function toAddr(
   };
 }
 
+function toCustoms(
+  place: string | null | undefined,
+  country: string | null | undefined,
+  city: string | null | undefined,
+  postal_code: string | null | undefined,
+  address: string | null | undefined
+): CustomsAddr {
+  return {
+    place: place || '',
+    country: country || '',
+    city: city || '',
+    postal_code: postal_code || '',
+    address: address || '',
+  };
+}
+
 export default function CargoForm({
   tripId,
   cargoId,
@@ -83,6 +109,7 @@ export default function CargoForm({
   clients,
   loadingLocations,
   unloadingLocations,
+  customsLocations,
   defaultClientId,
   onClose,
   onSaved,
@@ -93,6 +120,7 @@ export default function CargoForm({
   clients: ClientOption[];
   loadingLocations: Location[];
   unloadingLocations: Location[];
+  customsLocations: Location[];
   defaultClientId?: string | null;
   onClose: () => void;
   onSaved: () => void;
@@ -104,10 +132,18 @@ export default function CargoForm({
   const [weight, setWeight] = useState<string>(
     initialData?.weight_kg != null ? String(initialData.weight_kg) : ''
   );
+  const [pallets, setPallets] = useState<string>(
+    initialData?.pallets != null ? String(initialData.pallets) : ''
+  );
   const [clientId, setClientId] = useState(
     initialData?.client_id || defaultClientId || ''
   );
   const [notes, setNotes] = useState(initialData?.notes || '');
+
+  const [freightAmount, setFreightAmount] = useState<string>(
+    initialData?.freight_amount != null ? String(initialData.freight_amount) : ''
+  );
+  const [freightCurrency, setFreightCurrency] = useState(initialData?.freight_currency || 'EUR');
 
   const [from, setFrom] = useState<Addr>(
     toAddr(
@@ -125,6 +161,15 @@ export default function CargoForm({
       initialData?.to_company ?? null,
       initialData?.to_address ?? null,
       initialData?.to_postal_code ?? null
+    )
+  );
+  const [customs, setCustoms] = useState<CustomsAddr>(
+    toCustoms(
+      initialData?.customs_place,
+      initialData?.customs_country,
+      initialData?.customs_city,
+      initialData?.customs_postal_code,
+      initialData?.customs_address
     )
   );
 
@@ -163,6 +208,19 @@ export default function CargoForm({
     });
   }
 
+  function fillCustomsLocation(locId: string) {
+    if (!locId) return;
+    const loc = customsLocations.find((l) => l.id === locId);
+    if (!loc) return;
+    setCustoms({
+      place: loc.name || loc.company_name || '',
+      country: loc.country || '',
+      city: loc.city || '',
+      postal_code: loc.postal_code || '',
+      address: loc.address || '',
+    });
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -176,6 +234,7 @@ export default function CargoForm({
     formData.set('label', label.trim());
     formData.set('cargo_type', cargoType.trim());
     formData.set('weight_kg', weight);
+    formData.set('pallets', pallets);
     formData.set('client_id', clientId);
     formData.set('notes', notes.trim());
     formData.set('from_country', from.country);
@@ -188,6 +247,15 @@ export default function CargoForm({
     formData.set('to_company', to.company);
     formData.set('to_address', to.address);
     formData.set('to_postal_code', to.postal_code);
+    
+    formData.set('customs_place', customs.place);
+    formData.set('customs_country', customs.country);
+    formData.set('customs_city', customs.city);
+    formData.set('customs_postal_code', customs.postal_code);
+    formData.set('customs_address', customs.address);
+    
+    formData.set('freight_amount', freightAmount);
+    formData.set('freight_currency', freightCurrency);
 
     startTransition(async () => {
       try {
@@ -244,7 +312,7 @@ export default function CargoForm({
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               <div>
                 <label className={labelClass}>Тип груза</label>
                 <input
@@ -263,6 +331,18 @@ export default function CargoForm({
                   value={weight}
                   onChange={(e) => setWeight(e.target.value)}
                   placeholder="22000"
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Паллеты (шт)</label>
+                <input
+                  type="number"
+                  step="1"
+                  min="0"
+                  value={pallets}
+                  onChange={(e) => setPallets(e.target.value)}
+                  placeholder="22"
                   className={inputClass}
                 />
               </div>
@@ -363,6 +443,86 @@ export default function CargoForm({
             </div>
           </div>
 
+          {/* ТАМОЖНЯ */}
+          <div className="bg-slate-100 rounded-xl p-4 space-y-3 border border-slate-300">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-slate-700" strokeWidth={2.2} />
+              <h4 className="text-sm font-bold text-slate-800">Место затаможки</h4>
+            </div>
+            
+            <div>
+              <label className={labelClass}>Подставить из справочника</label>
+              <select
+                onChange={(e) => {
+                  fillCustomsLocation(e.target.value);
+                  e.target.value = '';
+                }}
+                className="w-full rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 px-3 py-2.5 text-base text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-solid focus:border-slate-500 transition-all"
+                defaultValue=""
+              >
+                <option value="">— Выберите локацию —</option>
+                {customsLocations.map((loc) => (
+                  <option key={loc.id} value={loc.id}>
+                    {loc.name} {loc.city ? `· ${loc.city}` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-slate-200">
+              <div className="md:col-span-2">
+                <label className={labelClass}>Название поста / компании</label>
+                <input
+                  type="text"
+                  value={customs.place}
+                  onChange={(e) => setCustoms({ ...customs, place: e.target.value })}
+                  placeholder="ТЛЦ Брест"
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Страна</label>
+                <input
+                  type="text"
+                  value={customs.country}
+                  onChange={(e) => setCustoms({ ...customs, country: e.target.value })}
+                  placeholder="Беларусь"
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Город</label>
+                <input
+                  type="text"
+                  value={customs.city}
+                  onChange={(e) => setCustoms({ ...customs, city: e.target.value })}
+                  placeholder="Брест"
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Почтовый код</label>
+                <input
+                  type="text"
+                  value={customs.postal_code}
+                  onChange={(e) => setCustoms({ ...customs, postal_code: e.target.value })}
+                  placeholder="224000"
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Адрес</label>
+                <input
+                  type="text"
+                  value={customs.address}
+                  onChange={(e) => setCustoms({ ...customs, address: e.target.value })}
+                  placeholder="ул. Таможенная 1"
+                  className={inputClass}
+                />
+              </div>
+            </div>
+          </div>
+
           {/* КУДА */}
           <div className="bg-red-50 rounded-xl p-4 space-y-3 border border-red-200">
             <div className="flex items-center gap-2">
@@ -441,6 +601,42 @@ export default function CargoForm({
                 />
               </div>
             </div>
+          </div>
+
+          {/* ФРАХТ */}
+          <div className="bg-emerald-50 rounded-xl p-4 space-y-3 border border-emerald-200">
+            <div className="flex items-center gap-2">
+              <Coins className="w-4 h-4 text-emerald-700" strokeWidth={2.2} />
+              <h4 className="text-sm font-bold text-emerald-800">Фрахт</h4>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={labelClass}>Сумма</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={freightAmount}
+                  onChange={(e) => setFreightAmount(e.target.value)}
+                  placeholder="1500"
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Валюта</label>
+                <select
+                  value={freightCurrency}
+                  onChange={(e) => setFreightCurrency(e.target.value)}
+                  className={inputClass}
+                >
+                  <option value="EUR">EUR €</option>
+                  <option value="PLN">PLN zł</option>
+                  <option value="BYN">BYN Br</option>
+                </select>
+              </div>
+            </div>
+            <p className="text-[11px] text-emerald-700">
+              Сумма автоматически пересчитается в EUR и обновит общий фрахт рейса.
+            </p>
           </div>
 
           {/* ЗАМЕТКИ */}
