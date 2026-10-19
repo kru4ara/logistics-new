@@ -1,12 +1,20 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase-server';
-import { buildRouteMap, type SegmentRouteRow, type TripRouteInfo } from '../../lib/trip-route'; // ⬅️ ИЗМЕНЕНО
+import { buildRouteMap, type SegmentRouteRow, type TripRouteInfo } from '../../lib/trip-route';
 import TripsList from './TripsList';
 import OnboardingCard from './OnboardingCard';
 import {
   Rocket,
   Inbox,
+  Search,
+  X,
+  Clock,
+  CheckCircle2,
+  FileText,
+  Wallet,
+  Truck as TruckIcon,
+  Route as RouteIcon,
 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -18,8 +26,12 @@ type ConsolidationPoint = {
   postal_code: string | null;
   address: string | null;
 };
- 
-export default async function DriverPage() {
+
+export default async function DriverPage({
+  searchParams,
+}: {
+  searchParams: { q?: string; status?: string };
+}) {
   const cookieStore = cookies();
   const role = cookieStore.get('role')?.value;
   const driverId = cookieStore.get('driver_id')?.value;
@@ -55,11 +67,9 @@ export default async function DriverPage() {
   const tripIds = trips?.map((t) => t.id) || [];
 
   const consolidationByTrip: Record<string, ConsolidationPoint> = {};
-  const segmentsByTrip: Record<string, TripRouteInfo> = {}; // ⬅️ ИЗМЕНЕНО
+  const segmentsByTrip: Record<string, TripRouteInfo> = {};
 
   if (tripIds.length > 0) {
-    // ⬅️ ИЗМЕНЕНО: тянем ВСЕ сегменты (не только contractor) — один запрос
-    // на всё: консолидацию + route/from/to для карточек водителя.
     const { data: segsAll } = await supabase
       .from('trip_segments')
       .select('trip_id, position, executor_type, from_city, from_country, to_city, to_country, to_company, to_postal_code, to_address, date_to')
@@ -95,7 +105,6 @@ export default async function DriverPage() {
       };
     });
 
-    // ⬅️ ИЗМЕНЕНО: route/from/to из сегментов
     const routeMap = buildRouteMap(
       (segsAll || []).map((s: any) => ({
         trip_id: s.trip_id,
@@ -111,7 +120,46 @@ export default async function DriverPage() {
     });
   }
 
-  // Зарплата за всё время
+  // ============================================================
+  // ПОИСК + ФИЛЬТР ПО СТАТУСУ (водитель)
+  // ============================================================
+  const q = (searchParams?.q || '').trim();
+  const qLower = q.toLowerCase();
+  const statusFilter = searchParams?.status || null;
+
+  function matchesSearch(t: any): boolean {
+    if (!qLower) return true;
+    const clientName = (t.clients as any)?.name || '';
+    const routeInfo = segmentsByTrip[t.id];
+    const route = routeInfo?.route || '';
+    const haystack = [
+      t.trip_number?.toString() || '',
+      t.client_request_number || '',
+      clientName,
+      route,
+      routeInfo?.from_city || '',
+      routeInfo?.from_country || '',
+      routeInfo?.to_city || '',
+      routeInfo?.to_country || '',
+    ]
+      .join(' ')
+      .toLowerCase();
+    return haystack.includes(qLower);
+  }
+
+  function matchesStatus(t: any): boolean {
+    if (!statusFilter) return true;
+    return t.status === statusFilter;
+  }
+
+  const filteredTrips = (trips || []).filter((t) => matchesSearch(t) && matchesStatus(t));
+
+  const activeTrips = filteredTrips.filter((t) => t.status === 'active');
+  const otherTrips = filteredTrips.filter((t) => t.status !== 'active');
+
+  // ============================================================
+  // Salary total
+  // ============================================================
   let salaryTotal = 0;
   if (tripIds.length > 0) {
     const { data: salaryExpenses } = await supabase
@@ -154,8 +202,25 @@ export default async function DriverPage() {
 
   const monthName = now.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
 
-  const activeTrips = (trips || []).filter((t) => t.status === 'active');
-  const otherTrips = (trips || []).filter((t) => t.status !== 'active');
+  const hasFilter = Boolean(q || statusFilter);
+  const statusChips = [
+    { value: null, label: 'Все' },
+    { value: 'planned', label: 'Планируется' },
+    { value: 'active', label: 'В пути' },
+    { value: 'completed', label: 'Завершён' },
+    { value: 'invoiced', label: 'Счёт' },
+    { value: 'paid', label: 'Оплачен' },
+  ];
+
+  function buildUrl(overrides: { q?: string | null; status?: string | null }): string {
+    const params = new URLSearchParams();
+    const qq = overrides.q === undefined ? (q || null) : overrides.q;
+    const st = overrides.status === undefined ? statusFilter : overrides.status;
+    if (qq) params.set('q', qq);
+    if (st) params.set('status', st);
+    const s = params.toString();
+    return s ? `/driver?${s}` : '/driver';
+  }
 
   return (
     <main className="min-h-screen bg-slate-50">
@@ -170,8 +235,72 @@ export default async function DriverPage() {
           </div>
         </div>
 
-        {/* Онбординг — только при первом входе */}
+        {/* Онбординг */}
         {showOnboarding && <OnboardingCard driverName={userName} />}
+
+        {/* Поиск + фильтр */}
+        <div className="card p-4 space-y-3">
+          <form method="GET" action="/driver" className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" strokeWidth={2.2} />
+            <input
+              type="text"
+              name="q"
+              defaultValue={q}
+              placeholder="Рейс, клиент, город, заявка..."
+              className="input pl-10 pr-10"
+            />
+            {statusFilter && <input type="hidden" name="status" value={statusFilter} />}
+            {q && (
+              <a
+                href={buildUrl({ q: null })}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+                aria-label="Очистить"
+              >
+                <X className="w-4 h-4" strokeWidth={2.2} />
+              </a>
+            )}
+          </form>
+
+          <div className="flex flex-wrap gap-1.5">
+            {statusChips.map(({ value, label }) => {
+              const active = statusFilter === value;
+              return (
+                <a
+                  key={value || 'all'}
+                  href={buildUrl({ status: value })}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all
+                    ${active
+                      ? 'bg-brand-600 text-white shadow-brand'
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+                >
+                  {label}
+                </a>
+              );
+            })}
+          </div>
+
+          {hasFilter && (
+            <div className="text-xs text-slate-500 pt-1 border-t border-slate-100">
+              Найдено рейсов: <b className="text-slate-700 tabular-nums">{filteredTrips.length}</b>
+              {q && <> · по запросу «{q}»</>}
+              {' · '}
+              <a href="/driver" className="text-brand-600 hover:underline">Сбросить</a>
+            </div>
+          )}
+        </div>
+
+        {/* Если ничего не найдено */}
+        {hasFilter && filteredTrips.length === 0 && (
+          <div className="card p-10 text-center">
+            <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-slate-50 flex items-center justify-center">
+              <Inbox className="w-7 h-7 text-slate-300" strokeWidth={1.5} />
+            </div>
+            <div className="text-slate-500 text-sm">Ничего не найдено</div>
+            <a href="/driver" className="text-xs text-brand-600 hover:underline mt-2 inline-block">
+              Сбросить фильтры
+            </a>
+          </div>
+        )}
 
         {/* АКТИВНЫЕ РЕЙСЫ */}
         {activeTrips.length > 0 && (
@@ -229,7 +358,7 @@ export default async function DriverPage() {
           <h2 className="text-xs md:text-sm font-bold text-slate-500 uppercase tracking-wide mb-3 px-1">
             История рейсов
           </h2>
-          {otherTrips.length === 0 ? (
+          {otherTrips.length === 0 && !hasFilter ? (
             <div className="card p-10 text-center">
               <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-brand-50 flex items-center justify-center">
                 <Inbox className="w-8 h-8 text-brand-500" strokeWidth={1.5} />
@@ -239,7 +368,7 @@ export default async function DriverPage() {
               </h2>
               <p className="text-slate-500 text-sm">Ожидайте заданий от офиса</p>
             </div>
-          ) : (
+          ) : otherTrips.length === 0 && hasFilter ? null : (
             <TripsList
               trips={otherTrips}
               consolidationByTrip={consolidationByTrip}
