@@ -33,7 +33,7 @@ function parseStops(formData: FormData): Stop[] {
     return arr
       .filter((s: any) => s && (s.company || s.city || s.country || s.address))
       .map((s: any) => ({
-        type: s.type === 'load' || s.type === 'unload' ? s.type : 'reload',
+        type: ['load', 'unload', 'customs'].includes(s.type) ? s.type : 'reload',
         company: String(s.company || '').trim() || null,
         country: String(s.country || '').trim() || null,
         city: String(s.city || '').trim() || null,
