@@ -15,7 +15,6 @@ import {
   ArrowRight,
   Coins,
   Wand2,
-  ShieldCheck,
 } from 'lucide-react';
 import { createSegment, updateSegment } from './segment-actions';
 
@@ -234,9 +233,6 @@ export default function SegmentForm({
     'w-full rounded-lg border-2 border-dashed border-brand-300 bg-brand-50 px-3 py-2.5 text-base text-slate-900 font-medium ' +
     'focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-solid focus:border-brand-500 transition-all';
 
-  // Объединённый список для пресета промежуточных точек (все типы)
-  const allStopLocations = [...loadingLocations, ...unloadingLocations, ...customsLocations];
-
   function fillFromLocation(locId: string) {
     if (!locId) return;
     const loc = loadingLocations.find((l) => l.id === locId);
@@ -323,7 +319,10 @@ export default function SegmentForm({
 
   function fillStopFromLocation(idx: number, locId: string) {
     if (!locId) return;
-    const loc = allStopLocations.find((l) => l.id === locId);
+    const loc =
+      loadingLocations.find((l) => l.id === locId) ||
+      unloadingLocations.find((l) => l.id === locId) ||
+      customsLocations.find((l) => l.id === locId);
     if (!loc) return;
     setStops(
       stops.map((s, i) =>
@@ -853,11 +852,26 @@ if (executorType === 'contractor') {
                     defaultValue=""
                   >
                     <option value="">— Выберите локацию —</option>
-                    {allStopLocations.map((loc) => (
-                      <option key={loc.id} value={loc.id}>
-                        {loc.name} {loc.city ? `· ${loc.city}` : ''} {loc.type === 'customs' ? '(Таможня)' : ''}
-                      </option>
-                    ))}
+                    {(() => {
+                      // Фильтруем локации в зависимости от выбранного типа точки
+                      let filtered: Location[] = [];
+                      if (stop.type === 'customs') {
+                        filtered = customsLocations;
+                      } else if (stop.type === 'load') {
+                        filtered = loadingLocations;
+                      } else if (stop.type === 'unload') {
+                        filtered = unloadingLocations;
+                      } else {
+                        // reload — показываем универсальные (both)
+                        filtered = loadingLocations.filter(l => l.type === 'both');
+                      }
+                      
+                      return filtered.map((loc) => (
+                        <option key={loc.id} value={loc.id}>
+                          {loc.name} {loc.city ? `· ${loc.city}` : ''}
+                        </option>
+                      ));
+                    })()}
                   </select>
                 </div>
 
