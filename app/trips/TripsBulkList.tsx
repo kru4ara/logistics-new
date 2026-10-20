@@ -168,6 +168,7 @@ export default function TripsBulkList({
       >
         <Link
           href={`/trips/${trip.id}`}
+          prefetch={false}
           className="absolute inset-0 z-0"
           aria-label={hasNumber ? `Открыть рейс № ${trip.trip_number}` : 'Открыть заявку'}
         />
