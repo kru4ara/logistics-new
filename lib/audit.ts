@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers';
 import { createClient } from './supabase-server';
 
-export type AuditAction = 'create' | 'update' | 'delete' | 'status_change';
+export type AuditAction = 'create' | 'update' | 'delete' | 'status_change' | 'merge';
 
 export type AuditEntityType =
   | 'trip'
