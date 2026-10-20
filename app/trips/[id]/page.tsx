@@ -385,7 +385,11 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
               <Pencil className="w-4 h-4" strokeWidth={2} />
               Редактировать
             </a>
-            <SyncLogisatButton tripId={tripId} />
+            <SyncLogisatButton
+              tripId={tripId}
+              disabled={!trip.trip_number}
+              disabledHint="Сначала назначьте транспорт (участок «Наша машина»)"
+            />
             <form action={deleteTrip.bind(null, tripId)} className="flex-1 sm:flex-none">
               <button type="submit" className="btn btn-danger text-sm w-full">
                 <Trash2 className="w-4 h-4" strokeWidth={2} />
