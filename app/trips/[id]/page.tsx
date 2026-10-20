@@ -37,7 +37,7 @@ import {
 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
-
+ 
 const NEGATIVE_FUEL_TOLERANCE = -200;
 
 function pickName(rel: unknown): string | undefined {
