@@ -6,10 +6,7 @@ import {
   BarChart3,
   User as UserIcon,
   Phone,
-  TrendingUp,
-  TrendingDown,
   Wallet,
-  Gauge,
   Fuel,
   Package,
 } from 'lucide-react';
@@ -35,10 +32,10 @@ export default async function DriverKpiPage() {
     .from('trips')
     .select('id, driver_id, revenue_eur, actual_km, actual_liters, start_date, end_date, status');
 
-  const { data: salaryExpenses } = await supabase
+  // ⬅️ ВСЕ расходы (не только ЗП)
+  const { data: allExpenses } = await supabase
     .from('trip_expenses')
-    .select('trip_id, amount_eur, expense_date')
-    .eq('category', 'salary');
+    .select('trip_id, amount_eur, category, expense_date');
 
   const tripToDriver: Record<string, string> = {};
   (trips || []).forEach((t) => {
@@ -50,24 +47,34 @@ export default async function DriverKpiPage() {
   const currentYear = now.getFullYear();
   const monthName = now.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
 
+  // ЗП по месяцам (для колонок «ЗП мес» / «ЗП всего»)
   const monthSalaryByDriver: Record<string, number> = {};
-  (salaryExpenses || []).forEach((e) => {
-    if (!e.trip_id || !e.expense_date) return;
-    const driverId = tripToDriver[e.trip_id];
-    if (!driverId) return;
-    const d = new Date(e.expense_date);
-    if (d.getFullYear() !== currentYear || d.getMonth() !== currentMonth) return;
-    monthSalaryByDriver[driverId] =
-      (monthSalaryByDriver[driverId] || 0) + Number(e.amount_eur || 0);
-  });
-
   const totalSalaryByDriver: Record<string, number> = {};
-  (salaryExpenses || []).forEach((e) => {
+
+  // Все расходы по водителю (для прибыли)
+  const totalExpensesByDriver: Record<string, number> = {};
+
+  (allExpenses || []).forEach((e) => {
     if (!e.trip_id) return;
     const driverId = tripToDriver[e.trip_id];
     if (!driverId) return;
-    totalSalaryByDriver[driverId] =
-      (totalSalaryByDriver[driverId] || 0) + Number(e.amount_eur || 0);
+
+    const amount = Number(e.amount_eur || 0);
+
+    // Все расходы
+    totalExpensesByDriver[driverId] = (totalExpensesByDriver[driverId] || 0) + amount;
+
+    // ЗП — отдельно
+    if (e.category === 'salary') {
+      totalSalaryByDriver[driverId] = (totalSalaryByDriver[driverId] || 0) + amount;
+
+      if (e.expense_date) {
+        const d = new Date(e.expense_date);
+        if (d.getFullYear() === currentYear && d.getMonth() === currentMonth) {
+          monthSalaryByDriver[driverId] = (monthSalaryByDriver[driverId] || 0) + amount;
+        }
+      }
+    }
   });
 
   const kpi = drivers?.map((driver) => {
@@ -97,6 +104,8 @@ export default async function DriverKpiPage() {
     const avgConsumption = totalKmForFuel > 0 ? (totalLitersForFuel / totalKmForFuel) * 100 : null;
 
     const totalRevenue = driverTrips.reduce((sum, t) => sum + (t.revenue_eur || 0), 0);
+    const totalExpenses = totalExpensesByDriver[driver.id] || 0;
+    const profit = totalRevenue - totalExpenses;
 
     return {
       driver,
@@ -108,10 +117,12 @@ export default async function DriverKpiPage() {
       totalLiters,
       avgConsumption,
       totalRevenue,
+      totalExpenses,
+      profit,
     };
   }) || [];
 
-  const sortedKpi = [...kpi].sort((a, b) => b.monthTripsCount - a.monthTripsCount);
+  const sortedKpi = [...kpi].sort((a, b) => b.profit - a.profit);
 
   function consumptionColor(c: number | null): string {
     if (c === null) return 'text-slate-400';
@@ -179,27 +190,48 @@ export default async function DriverKpiPage() {
                       <ArrowLeft className="w-4 h-4 text-brand-500 rotate-180 shrink-0" strokeWidth={2.5} />
                     </div>
 
-                    {/* Рейсы — крупно */}
-                    <div className="bg-brand-50 rounded-xl px-4 py-3 flex items-center justify-between">
+                    {/* Прибыль — крупно */}
+                    <div className={`rounded-xl px-4 py-3 flex items-center justify-between ${
+                      item.profit >= 0 ? 'bg-emerald-50' : 'bg-red-50'
+                    }`}>
+                      <div className={`flex items-center gap-2 text-xs font-medium ${
+                        item.profit >= 0 ? 'text-emerald-700' : 'text-red-700'
+                      }`}>
+                        <Wallet className="w-3.5 h-3.5" strokeWidth={2} />
+                        Прибыль
+                      </div>
+                      <div className={`text-2xl font-bold tabular-nums ${
+                        item.profit >= 0 ? 'text-emerald-700' : 'text-red-700'
+                      }`}>
+                        {item.profit.toFixed(0)} €
+                      </div>
+                    </div>
+
+                    {/* Рейсы — компактно */}
+                    <div className="bg-brand-50 rounded-xl px-4 py-2.5 flex items-center justify-between">
                       <div className="flex items-center gap-2 text-xs text-brand-700 font-medium">
                         <Package className="w-3.5 h-3.5" strokeWidth={2} />
                         Рейсов
                       </div>
                       <div className="flex items-baseline gap-1">
-                        <span className="text-2xl font-bold text-brand-700 tabular-nums">{item.monthTripsCount}</span>
+                        <span className="text-lg font-bold text-brand-700 tabular-nums">{item.monthTripsCount}</span>
                         <span className="text-xs text-brand-500">за месяц</span>
                         <span className="text-sm text-slate-400 ml-2 tabular-nums">/ {item.totalTrips} всего</span>
                       </div>
                     </div>
 
                     {/* Экономика */}
-                    <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="grid grid-cols-3 gap-2 text-xs">
                       <div className="bg-slate-50 rounded-lg p-2.5">
-                        <div className="text-[10px] uppercase text-slate-400 font-medium mb-0.5">ЗП месяц</div>
-                        <div className="font-bold text-emerald-600 break-words tabular-nums">{item.salaryMonth.toFixed(0)} €</div>
+                        <div className="text-[10px] uppercase text-slate-400 font-medium mb-0.5">Фрахт</div>
+                        <div className="font-bold text-slate-700 break-words tabular-nums">{item.totalRevenue.toFixed(0)} €</div>
                       </div>
                       <div className="bg-slate-50 rounded-lg p-2.5">
-                        <div className="text-[10px] uppercase text-slate-400 font-medium mb-0.5">ЗП всего</div>
+                        <div className="text-[10px] uppercase text-slate-400 font-medium mb-0.5">Расходы</div>
+                        <div className="font-bold text-red-500 break-words tabular-nums">{item.totalExpenses.toFixed(0)} €</div>
+                      </div>
+                      <div className="bg-slate-50 rounded-lg p-2.5">
+                        <div className="text-[10px] uppercase text-slate-400 font-medium mb-0.5">ЗП</div>
                         <div className="font-bold text-slate-600 break-words tabular-nums">{item.salaryTotal.toFixed(0)} €</div>
                       </div>
                     </div>
@@ -225,32 +257,9 @@ export default async function DriverKpiPage() {
                         </div>
                       </div>
                     </div>
-
-                    {/* Фрахт */}
-                    <div className="pt-3 border-t border-slate-100 flex justify-between items-center">
-                      <div className="text-xs text-slate-400 font-medium">Общий фрахт</div>
-                      <div className="font-bold text-green-600 break-words tabular-nums">
-                        {item.totalRevenue.toFixed(0)} €
-                      </div>
-                    </div>
                   </a>
                 );
               })}
-
-              {/* Легенда */}
-              <div className="text-xs text-slate-500 card p-4">
-                <div className="flex items-start gap-2">
-                  <Fuel className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" strokeWidth={2} />
-                  <div>
-                    <b className="text-slate-700">Расход</b> считается только по рейсам, где есть и пробег, и литры.
-                    <div className="mt-2 flex flex-wrap gap-3">
-                      <span className="flex items-center gap-1"><span className="text-emerald-600 font-bold">●</span> норма (≤30)</span>
-                      <span className="flex items-center gap-1"><span className="text-orange-500 font-bold">●</span> выше 30</span>
-                      <span className="flex items-center gap-1"><span className="text-red-500 font-bold">●</span> выше 35</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
             </div>
 
             {/* Desktop: таблица */}
@@ -264,12 +273,13 @@ export default async function DriverKpiPage() {
                         Рейсов<br/>
                         <span className="text-[10px] font-normal text-slate-400 normal-case">мес / всего</span>
                       </th>
+                      <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Фрахт</th>
+                      <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Расходы</th>
+                      <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Прибыль</th>
                       <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">ЗП мес</th>
                       <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">ЗП всего</th>
                       <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Пробег</th>
-                      <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Топливо</th>
                       <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Расход</th>
-                      <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Фрахт</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -307,7 +317,18 @@ export default async function DriverKpiPage() {
                               <span className="text-xs text-slate-400 tabular-nums">/ {item.totalTrips}</span>
                             </span>
                           </td>
-                          <td className="px-4 py-4 text-right font-bold text-emerald-600 whitespace-nowrap tabular-nums">
+                          <td className="px-4 py-4 text-right text-slate-700 whitespace-nowrap tabular-nums">
+                            {item.totalRevenue.toFixed(0)} €
+                          </td>
+                          <td className="px-4 py-4 text-right text-red-500 whitespace-nowrap tabular-nums">
+                            {item.totalExpenses.toFixed(0)} €
+                          </td>
+                          <td className={`px-4 py-4 text-right font-bold whitespace-nowrap tabular-nums ${
+                            item.profit >= 0 ? 'text-emerald-600' : 'text-red-600'
+                          }`}>
+                            {item.profit.toFixed(0)} €
+                          </td>
+                          <td className="px-4 py-4 text-right text-emerald-600 whitespace-nowrap tabular-nums">
                             {item.salaryMonth.toFixed(0)} €
                           </td>
                           <td className="px-4 py-4 text-right text-slate-600 whitespace-nowrap tabular-nums">
@@ -316,14 +337,8 @@ export default async function DriverKpiPage() {
                           <td className="px-4 py-4 text-right text-slate-700 whitespace-nowrap tabular-nums">
                             {item.totalKm > 0 ? `${item.totalKm.toFixed(0)} км` : '—'}
                           </td>
-                          <td className="px-4 py-4 text-right text-slate-700 whitespace-nowrap tabular-nums">
-                            {item.totalLiters > 0 ? `${item.totalLiters.toFixed(0)} л` : '—'}
-                          </td>
                           <td className={`px-4 py-4 text-right font-semibold whitespace-nowrap tabular-nums ${consumptionClr}`}>
-                            {item.avgConsumption !== null ? `${item.avgConsumption.toFixed(1)} л/100км` : '—'}
-                          </td>
-                          <td className="px-4 py-4 text-right font-bold text-green-600 whitespace-nowrap tabular-nums">
-                            {item.totalRevenue.toFixed(0)} €
+                            {item.avgConsumption !== null ? `${item.avgConsumption.toFixed(1)}` : '—'}
                           </td>
                         </tr>
                       );
@@ -335,9 +350,7 @@ export default async function DriverKpiPage() {
               <div className="p-4 border-t border-slate-100 bg-slate-50/50 text-xs text-slate-500 flex items-start gap-2">
                 <Fuel className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" strokeWidth={2} />
                 <div>
-                  <b>Расход</b> считается только по рейсам, где есть и пробег, и литры.
-                  {' · '}
-                  <span className="text-emerald-600">Зелёный</span> = норма, <span className="text-orange-500">оранжевый</span> = выше 30, <span className="text-red-500">красный</span> = выше 35.
+                  <b>Прибыль</b> = фрахт − все расходы (топливо, подрядчик, граница, ЗП и т.д.).
                   {' · '}
                   <b>Рейсы за месяц</b> — по дате финиша. <b>ЗП за месяц</b> — по дате выплаты.
                 </div>
