@@ -126,6 +126,12 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
     .eq('type', 'tractor')
     .order('registration_number');
 
+  const { data: trailersList } = await supabase
+    .from('trucks')
+    .select('id, registration_number')
+    .eq('type', 'trailer')
+    .order('registration_number');
+
   const { data: driversList } = await supabase
     .from('drivers')
     .select('id, first_name, last_name')
