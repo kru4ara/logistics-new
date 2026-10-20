@@ -129,6 +129,72 @@ async function createSegmentExpense(
   }
 }
 
+// ============================================================
+// Расчёт остатка топлива с предыдущего рейса машины
+// ============================================================
+async function calcFuelFromPrevTrip(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  truckId: string,
+  currentTripId: string
+): Promise<number | null> {
+  const { data: prevTrip } = await supabase
+    .from('trips')
+    .select('id, start_fuel_level, actual_liters, trip_number')
+    .eq('truck_id', truckId)
+    .neq('id', currentTripId)
+    .not('trip_number', 'is', null)
+    .order('trip_number', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!prevTrip) return null;
+
+  const { data: fuelExpenses } = await supabase
+    .from('trip_expenses')
+    .select('liters')
+    .eq('trip_id', prevTrip.id)
+    .eq('category', 'fuel');
+
+  const totalRefuel = fuelExpenses?.reduce((sum, e) => sum + (e.liters || 0), 0) || 0;
+  const consumed = prevTrip.actual_liters || 0;
+  const prevStart = prevTrip.start_fuel_level || 0;
+
+  const fuelLeft = consumed > 0
+    ? prevStart + totalRefuel - consumed
+    : prevStart + totalRefuel;
+
+  return Math.max(0, fuelLeft);
+}
+
+// Если у рейса start_fuel_level = 0/null — заполнить из предыдущего рейса машины
+async function tryAutofillFuel(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  tripId: string,
+  truckId: string | null
+) {
+  if (!truckId) return;
+  try {
+    const { data: currentTrip } = await supabase
+      .from('trips')
+      .select('start_fuel_level')
+      .eq('id', tripId)
+      .maybeSingle();
+
+    // Если топливо уже задано — не трогаем
+    if (currentTrip?.start_fuel_level && currentTrip.start_fuel_level > 0) return;
+
+    const fuel = await calcFuelFromPrevTrip(supabase, truckId, tripId);
+    if (fuel === null) return;
+
+    await supabase
+      .from('trips')
+      .update({ start_fuel_level: fuel })
+      .eq('id', tripId);
+  } catch (e) {
+    console.error('[segment-actions] tryAutofillFuel exception:', e);
+  }
+}
+
 export async function createSegment(tripId: string, formData: FormData) {
   const supabase = await createClient();
 
@@ -231,6 +297,11 @@ export async function createSegment(tripId: string, formData: FormData) {
     .from('trip_segment_cargo')
     .insert(links);
   if (linkErr) throw new Error(`Ошибка привязки грузов: ${linkErr.message}`);
+
+  // ⬅️ Автозаполнение топлива из предыдущего рейса машины
+  if (executorType === 'us' && truckId) {
+    await tryAutofillFuel(supabase, tripId, truckId);
+  }
 
   if (executorType === 'contractor' && contractorId && price && price > 0) {
     const dateForRate = dateFrom || new Date().toISOString().split('T')[0];
@@ -351,6 +422,11 @@ export async function updateSegment(segmentId: string, tripId: string, formData:
     .from('trip_segment_cargo')
     .insert(links);
   if (linkErr) throw new Error(`Ошибка привязки грузов: ${linkErr.message}`);
+
+  // ⬅️ Автозаполнение топлива из предыдущего рейса машины
+  if (executorType === 'us' && truckId) {
+    await tryAutofillFuel(supabase, tripId, truckId);
+  }
 
   await deleteSegmentExpense(supabase, segmentId);
 
