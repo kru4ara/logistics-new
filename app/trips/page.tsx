@@ -9,6 +9,10 @@ import {
   Package,
   Plus,
   Inbox,
+  User,
+  Truck,
+  Calendar,
+  ArrowUpDown,
 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -40,6 +44,7 @@ export default async function TripsPage({
     status?: string;
     driver?: string;
     truck?: string;
+    client?: string;
     sort?: string;
   };
 }) {
@@ -58,11 +63,13 @@ export default async function TripsPage({
   const statusFilter = searchParams?.status || null;
   const driverFilter = searchParams?.driver || null;
   const truckFilter = searchParams?.truck || null;
+  const clientFilter = searchParams?.client || null;
   const sortBy: 'start' | 'created' = searchParams?.sort === 'created' ? 'created' : 'start';
+  
   const hasExtraFilter =
-    Boolean(q) || Boolean(statusFilter) || Boolean(driverFilter) || Boolean(truckFilter);
+    Boolean(q) || Boolean(statusFilter) || Boolean(driverFilter) || Boolean(truckFilter) || Boolean(clientFilter);
 
-  const [tripsResult, expensesResult, driversResult, tractorsResult, segmentsResult] = await Promise.all([
+  const [tripsResult, expensesResult, driversResult, tractorsResult, clientsResult, segmentsResult] = await Promise.all([
     supabase
       .from('trips')
       .select('*, clients(name), drivers!driver_id(first_name, last_name)')
@@ -80,6 +87,10 @@ export default async function TripsPage({
       .eq('type', 'tractor')
       .order('registration_number'),
     supabase
+      .from('clients')
+      .select('id, name')
+      .order('name'),
+    supabase
       .from('trip_segments')
       .select('trip_id, position, from_city, from_country, to_city, to_country'),
   ]);
@@ -94,6 +105,7 @@ export default async function TripsPage({
   const expenses = expensesResult.data;
   const driversList = driversResult.data || [];
   const tractorsList = tractorsResult.data || [];
+  const clientsList = clientsResult.data || [];
   const segments = segmentsResult.data || [];
 
   const routeMap: Map<string, TripRouteInfo> = buildRouteMap(
@@ -146,16 +158,21 @@ export default async function TripsPage({
     return t.truck_id === truckFilter;
   }
 
+  function matchesClient(t: any): boolean {
+    if (!clientFilter) return true;
+    return t.client_id === clientFilter;
+  }
+
   const filteredTrips = (trips || []).filter((t) => {
     if (!matchesSearch(t)) return false;
     if (!matchesStatus(t)) return false;
     if (!matchesDriver(t)) return false;
     if (!matchesTruck(t)) return false;
+    if (!matchesClient(t)) return false;
 
     const date = t.end_date || t.start_date;
 
     // Бездатные (новые заявки) — показываем всегда, если прошли поиск/фильтры.
-    // Год/месяц к ним не применяем: они не привязаны к датам.
     if (!date) return true;
 
     if (hasExtraFilter) return true;
@@ -174,30 +191,26 @@ export default async function TripsPage({
       return bT - aT;
     });
   } else {
-    // по дате старта (УБЫВАНИЕ: новые сверху); бездатные уйдут в отдельную секцию
     filteredTrips.sort((a, b) => {
       const aD = a.start_date ? new Date(a.start_date).getTime() : 0;
       const bD = b.start_date ? new Date(b.start_date).getTime() : 0;
-      if (aD !== bD) return bD - aD; // <--- УБЫВАНИЕ
-      // при равенстве дат — по номеру (если есть), иначе по created_at
+      if (aD !== bD) return bD - aD;
       const aN = a.trip_number ?? 0;
       const bN = b.trip_number ?? 0;
-      if (aN !== bN) return bN - aN; // <--- УБЫВАНИЕ
+      if (aN !== bN) return bN - aN;
       const aT = a.created_at ? new Date(a.created_at).getTime() : 0;
       const bT = b.created_at ? new Date(b.created_at).getTime() : 0;
       return bT - aT;
     });
   }
 
-  // Бездатные (новые заявки) — только прошедшие фильтры
   const filteredWithoutDate = filteredTrips.filter(
     (t) => !t.start_date && !t.end_date
   );
 
-  // Группировка по месяцам — только датированные
   const tripsByMonth: Record<string, { month: number; trips: any[] }> = {};
   filteredTrips.forEach((t) => {
-    const date = t.start_date || t.end_date; // <--- СТАЛО (сначала старт)
+    const date = t.start_date || t.end_date;
     if (!date) return;
     const d = new Date(date);
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -246,6 +259,7 @@ export default async function TripsPage({
     status?: string | null;
     driver?: string | null;
     truck?: string | null;
+    client?: string | null;
     sort?: 'start' | 'created' | null;
   }): string {
     const params = new URLSearchParams();
@@ -255,6 +269,7 @@ export default async function TripsPage({
     const st = overrides.status === undefined ? statusFilter : overrides.status;
     const dr = overrides.driver === undefined ? driverFilter : overrides.driver;
     const tr = overrides.truck === undefined ? truckFilter : overrides.truck;
+    const cl = overrides.client === undefined ? clientFilter : overrides.client;
     const so = overrides.sort === undefined ? (sortBy === 'created' ? 'created' : null) : overrides.sort;
     if (y) params.set('year', String(y));
     if (m) params.set('month', String(m));
@@ -262,6 +277,7 @@ export default async function TripsPage({
     if (st) params.set('status', st);
     if (dr) params.set('driver', dr);
     if (tr) params.set('truck', tr);
+    if (cl) params.set('client', cl);
     if (so) params.set('sort', so);
     const s = params.toString();
     return s ? `/trips?${s}` : '/trips';
@@ -349,172 +365,164 @@ export default async function TripsPage({
             status={statusFilter}
           />
 
-          {/* Статус */}
-          <div>
-            <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2">Статус</div>
-            <div className="flex flex-wrap gap-1.5 md:gap-2">
-              <a
-                href={buildUrl({ status: null })}
-                className={`px-2.5 md:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all
-                  ${!statusFilter
-                    ? 'bg-brand-600 text-white shadow-brand'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
-              >
-                Все
-              </a>
-              {statusOrder.map((st) => (
-                <a
-                  key={st}
-                  href={buildUrl({ status: st })}
-                  className={`inline-flex items-center gap-1.5 px-2.5 md:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all
-                    ${statusFilter === st
-                      ? 'bg-brand-600 text-white shadow-brand'
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
-                >
-                  <span className={`w-2 h-2 rounded-full ${statusPillColors[st]}`} />
-                  {statusLabels[st]}
-                </a>
-              ))}
-            </div>
-          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+            
+            {/* ЛЕВАЯ КОЛОНКА: Клиент, Водитель, Тягач */}
+            <div className="space-y-4">
+              {/* Клиент */}
+              {clientsList.length > 0 && (
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2 flex items-center gap-1.5">
+                    <User className="w-3.5 h-3.5" /> Клиент
+                  </div>
+                  <select
+                    className="input text-sm py-2"
+                    value={clientFilter || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      window.location.href = buildUrl({ client: val || null });
+                    }}
+                  >
+                    <option value="">Все клиенты</option>
+                    {clientsList.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
-          {/* Водитель */}
-          {driversList.length > 0 && (
-            <div>
-              <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2">Водитель</div>
-              <div className="flex flex-wrap gap-1.5 md:gap-2">
-                <a
-                  href={buildUrl({ driver: null })}
-                  className={`px-2.5 md:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all
-                    ${!driverFilter
-                      ? 'bg-brand-600 text-white shadow-brand'
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
-                >
-                  Все
-                </a>
-                {driversList.map((d) => (
+              {/* Водитель */}
+              {driversList.length > 0 && (
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2 flex items-center gap-1.5">
+                    <User className="w-3.5 h-3.5" /> Водитель
+                  </div>
+                  <select
+                    className="input text-sm py-2"
+                    value={driverFilter || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      window.location.href = buildUrl({ driver: val || null });
+                    }}
+                  >
+                    <option value="">Все водители</option>
+                    {driversList.map((d) => (
+                      <option key={d.id} value={d.id}>{d.first_name} {d.last_name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Тягач */}
+              {tractorsList.length > 0 && (
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2 flex items-center gap-1.5">
+                    <Truck className="w-3.5 h-3.5" /> Тягач
+                  </div>
+                  <select
+                    className="input text-sm py-2"
+                    value={truckFilter || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      window.location.href = buildUrl({ truck: val || null });
+                    }}
+                  >
+                    <option value="">Все тягачи</option>
+                    {tractorsList.map((t) => (
+                      <option key={t.id} value={t.id}>{t.registration_number}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+
+            {/* ПРАВАЯ КОЛОНКА: Статус, Год/Месяц, Сортировка */}
+            <div className="space-y-4">
+              {/* Статус */}
+              <div>
+                <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2">Статус</div>
+                <div className="flex flex-wrap gap-1.5 md:gap-2">
                   <a
-                    key={d.id}
-                    href={buildUrl({ driver: d.id })}
-                    className={`px-2.5 md:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all
-                      ${driverFilter === d.id
+                    href={buildUrl({ status: null })}
+                    className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all
+                      ${!statusFilter
                         ? 'bg-brand-600 text-white shadow-brand'
                         : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
                   >
-                    {d.first_name} {d.last_name}
+                    Все
                   </a>
-                ))}
+                  {statusOrder.map((st) => (
+                    <a
+                      key={st}
+                      href={buildUrl({ status: st })}
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all
+                        ${statusFilter === st
+                          ? 'bg-brand-600 text-white shadow-brand'
+                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+                    >
+                      <span className={`w-2 h-2 rounded-full ${statusPillColors[st]}`} />
+                      {statusLabels[st]}
+                    </a>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
 
-          {/* Тягач */}
-          {tractorsList.length > 0 && (
-            <div>
-              <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2">Тягач</div>
-              <div className="flex flex-wrap gap-1.5 md:gap-2">
-                <a
-                  href={buildUrl({ truck: null })}
-                  className={`px-2.5 md:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all
-                    ${!truckFilter
-                      ? 'bg-brand-600 text-white shadow-brand'
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
-                >
-                  Все
-                </a>
-                {tractorsList.map((t) => (
-                  <a
-                    key={t.id}
-                    href={buildUrl({ truck: t.id })}
-                    className={`px-2.5 md:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all tabular-nums
-                      ${truckFilter === t.id
-                        ? 'bg-brand-600 text-white shadow-brand'
-                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+              {/* Год / Месяц */}
+              <div>
+                <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2 flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5" /> Год / Месяц
+                </div>
+                <div className="flex gap-2">
+                  <select
+                    className="input text-sm py-2 flex-1"
+                    value={String(year)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      window.location.href = buildUrl({ year: parseInt(val) });
+                    }}
                   >
-                    {t.registration_number}
-                  </a>
-                ))}
+                    {years.map((y) => (
+                      <option key={y} value={y}>{y}</option>
+                    ))}
+                  </select>
+                  <select
+                    className="input text-sm py-2 flex-1"
+                    value={monthFilter || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      window.location.href = buildUrl({ month: val ? parseInt(val) : null });
+                    }}
+                  >
+                    <option value="">Все месяцы</option>
+                    {monthNames.map((mn, i) => (
+                      <option key={i+1} value={i+1}>{mn}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
-            </div>
-          )}
 
-          {/* Год */}
-          <div>
-            <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2">Год</div>
-            <div className="flex flex-wrap gap-2">
-              {years.map((y) => (
-                <a
-                  key={y}
-                  href={buildUrl({ year: y })}
-                  className={`px-3 md:px-4 py-2 rounded-lg text-sm font-semibold transition-all tabular-nums
-                    ${y === year
-                      ? 'bg-brand-600 text-white shadow-brand'
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+              {/* Сортировка */}
+              <div>
+                <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2 flex items-center gap-1.5">
+                  <ArrowUpDown className="w-3.5 h-3.5" /> Сортировка
+                </div>
+                <select
+                  className="input text-sm py-2"
+                  value={sortBy}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    window.location.href = buildUrl({ sort: val === 'created' ? 'created' : null });
+                  }}
                 >
-                  {y}
-                </a>
-              ))}
-            </div>
-          </div>
-
-          {/* Месяц */}
-          <div>
-            <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2">Месяц</div>
-            <div className="flex flex-wrap gap-1.5 md:gap-2">
-              <a
-                href={buildUrl({ month: null })}
-                className={`px-2.5 md:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all
-                  ${!monthFilter
-                    ? 'bg-brand-600 text-white shadow-brand'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
-              >
-                Все
-              </a>
-              {monthNames.map((mn, i) => {
-                const mNum = i + 1;
-                return (
-                  <a
-                    key={mNum}
-                    href={buildUrl({ month: mNum })}
-                    className={`px-2.5 md:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all
-                      ${mNum === monthFilter
-                        ? 'bg-brand-600 text-white shadow-brand'
-                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
-                  >
-                    {mn.slice(0, 3)}
-                  </a>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Сортировка */}
-          <div>
-            <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2">Сортировка</div>
-            <div className="flex flex-wrap gap-1.5 md:gap-2">
-              <a
-                href={buildUrl({ sort: null })}
-                className={`px-2.5 md:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all
-                  ${sortBy === 'start'
-                    ? 'bg-brand-600 text-white shadow-brand'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
-              >
-                По дате старта
-              </a>
-              <a
-                href={buildUrl({ sort: 'created' })}
-                className={`px-2.5 md:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all
-                  ${sortBy === 'created'
-                    ? 'bg-brand-600 text-white shadow-brand'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
-              >
-                Последние созданные
-              </a>
+                  <option value="start">По дате старта</option>
+                  <option value="created">Последние созданные</option>
+                </select>
+              </div>
             </div>
           </div>
 
           {/* Сводка по фильтру */}
-          <div className="grid grid-cols-3 gap-3 pt-3 border-t border-slate-100">
+          <div className="grid grid-cols-3 gap-3 pt-4 border-t border-slate-100">
             <div>
               <div className="text-xs text-slate-400 font-medium">Фрахт</div>
               <div className="text-base md:text-lg font-bold text-green-600 tabular-nums">
@@ -552,7 +560,7 @@ export default async function TripsPage({
             </p>
             {isSearchMode ? (
               <a
-                href={buildUrl({ q: null, status: null, driver: null, truck: null })}
+                href={buildUrl({ q: null, status: null, driver: null, truck: null, client: null })}
                 className="inline-flex items-center gap-2 bg-slate-200 hover:bg-slate-300 text-slate-700
                            font-semibold px-6 py-3 rounded-xl transition-all"
               >
