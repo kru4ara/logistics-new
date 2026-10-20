@@ -11,10 +11,6 @@ import {
   Package,
   Plus,
   Inbox,
-  User,
-  Truck,
-  Calendar,
-  ArrowUpDown,
 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -165,7 +161,6 @@ export default async function TripsPage({
 
     const date = t.end_date || t.start_date;
 
-    // Бездатные (новые заявки) — показываем всегда, если прошли поиск/фильтры.
     if (!date) return true;
 
     if (hasExtraFilter) return true;
@@ -176,7 +171,6 @@ export default async function TripsPage({
     return true;
   });
 
-   // Сортировка
   if (sortBy === 'created') {
     filteredTrips.sort((a, b) => {
       const aT = a.created_at ? new Date(a.created_at).getTime() : 0;
@@ -321,7 +315,6 @@ export default async function TripsPage({
     <main className="min-h-screen bg-slate-50">
       <div className="max-w-[1600px] mx-auto px-4 md:px-6 py-6 md:py-8 space-y-5 md:space-y-6">
 
-        {/* ЗАГОЛОВОК */}
         <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:justify-between sm:items-center">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2.5 tracking-tight">
@@ -337,6 +330,7 @@ export default async function TripsPage({
             </p>
           </div>
           <div className="flex flex-wrap gap-2 md:gap-3">
+            <RecalcAllCoordsButton tripIds={filteredTrips.map((t) => t.id)} />
             <DownloadButton data={filteredTrips.map(prepareTrip)} />
             <a
               href="/trips/new"
@@ -348,9 +342,7 @@ export default async function TripsPage({
           </div>
         </div>
 
-        {/* ФИЛЬТРЫ */}
         <div className="card p-4 md:p-5 space-y-4">
-
           <SearchInput
             initialQ={q}
             year={year}
@@ -372,7 +364,6 @@ export default async function TripsPage({
             currentSort={sortBy}
           />
 
-          {/* Сводка по фильтру */}
           <div className="grid grid-cols-3 gap-3 pt-4 border-t border-slate-100">
             <div>
               <div className="text-xs text-slate-400 font-medium">Фрахт</div>
@@ -395,7 +386,6 @@ export default async function TripsPage({
           </div>
         </div>
 
-        {/* СПИСОК или ПУСТО */}
         {totalFiltered === 0 ? (
           <div className="card p-10 md:p-16 text-center">
             <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-slate-50 flex items-center justify-center">
