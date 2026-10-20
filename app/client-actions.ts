@@ -100,3 +100,29 @@ export async function deleteClient(clientId: string) {
   revalidatePath('/clients');
   redirect('/clients');
 }
+
+export async function mergeClients(sourceId: string, targetId: string) {
+  const supabase = await createClient();
+
+  if (sourceId === targetId) {
+    throw new Error('Нельзя объединить клиента с самим собой');
+  }
+
+  const { error } = await supabase.rpc('merge_clients', {
+    source_id: sourceId,
+    target_id: targetId,
+  });
+
+  if (error) throw new Error(`Ошибка объединения: ${error.message}`);
+
+  await logAudit({
+    entity_type: 'client',
+    entity_id: targetId,
+    action: 'merge',
+    summary: `Объединён клиент ${sourceId} → ${targetId}`,
+  });
+
+  revalidatePath('/clients');
+  revalidatePath('/trips');
+  redirect('/clients?toast=clients_merged');
+}
