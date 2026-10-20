@@ -77,6 +77,19 @@ async function sendTelegramDocument(
   }
 }
 
+    // Записываем факт успешного бэкапа в audit_log (для сторожа)
+    if (sent) {
+      await supabase.from('audit_log').insert([{
+        user_role: 'system',
+        user_id: null,
+        user_name: 'Cron',
+        entity_type: 'trip',
+        entity_id: '00000000-0000-0000-0000-000000000000',
+        action: 'create',
+        summary: `Бэкап выполнен: ${filename} (${totalRows} строк, ${sizeKb} KB)`,
+      }]);
+    }
+
 /**
  * Выгружает все строки таблицы порциями по PAGE_SIZE, обходя лимит 1000.
  * Возвращает массив всех строк и количество прочитанных страниц.
