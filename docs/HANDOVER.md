@@ -72,6 +72,13 @@
 - Локальный клон `~/projects/logistics-new` отстаёт — перед grep делать `git pull`
 - grep: `https://github.com/kru4ara/logistics-new/search?q=ТЕРМИН&type=code`
 
+### ⚠️ Git и локальная работа
+- В Git Bash настроен `user.name` и `user.email` (глобально).
+- Если `git push` выдаёт `rejected` — сделать `git pull`, решить конфликты (если есть), затем `git push`.
+- Если случайно открылся Vim при коммите без `-m`: `Esc` → `:wq` → `Enter`.
+- **Всегда** пиши `git commit -m "Текст"`, чтобы не открывался редактор.
+- Если в коммит попал `node_modules` — `git reset HEAD~1`, добавить `node_modules/` в `.gitignore`, `git rm -r --cached node_modules`, затем заново `git add` и `git commit`.
+
 ### ⚠️ Урок: при миграции колонок — grep всех `.select()`
 После миграции `drivers.phone` → `phone_by`/`phone_pl` (Фаза 4.2) `/today` падал в рантайме: `column drivers_1.phone does not exist`. Билд был зелёным (TS SQL не проверяет).
 **Правило:** при удалении колонки — grep её имени **во всех** `.select(...)` в `app/` и `lib/`.
@@ -178,10 +185,11 @@ Lucide-react `^0.460.0` — везде. Emoji только в `<option>`, лог
 - `createCargoWithTrip` в `geocode-actions.ts`. Старый `addTripWithAddress` помечен `@deprecated`.
 - Сплошная нумерация через `counters` (без дырок).
 - `EditTripForm` очищен от транспорта (без дублирования с сегментами).
-- `SegmentForm`: таможня как промежуточная точка, фильтр локаций, польские поля подрядчика.
+- `SegmentForm`: таможня как промежуточная точка, фильтр локаций, польские поля подрядчика, прицеп.
 - `TripCargoBlock` + `CargoForm`: паллеты, таможня, фрахт.
-- Список `/trips`: сортировка по дате (новые сверху), бездатные — в секции «Без номера».
+- Список `/trips`: сортировка по дате (новые сверху), бездатные — в секции «Без номера», фильтры в селектах (компактно), фильтр по клиентам.
 - DOCX: польский, Palety, Dane pojazdu, `translateToPl`, `getTerms(paymentDays, docType)`.
+- Оптимизация: индексы в БД, `prefetch={false}` для карточек, скелетон загрузки, Speed Insights.
 
 ---
 
@@ -223,8 +231,9 @@ Lucide-react `^0.460.0` — везде. Emoji только в `<option>`, лог
     - `counters` + `next_trip_number()` — сплошная нумерация без дырок.
     - `renumber_all_trips()` — вызывается из `deleteTrip`.
     - `sync_trip_from_segment` — для Logisat/DOCX.
+    - Индексы на `trips(client_id)`, `trips(driver_id)`, `trips(truck_id)`, `trips(start_date)`.
 16. **UI:**
-    - Список `/trips`: новые сверху, бездатные («Без номера») — отдельно.
+    - Список `/trips`: новые сверху, бездатные («Без номера») — отдельно, компактные фильтры (селекты в 2 колонки), фильтр по клиентам.
     - `EditTripForm`: убраны тягач/прицеп/водитель/даты/фрахт (без дубликатов).
     - `SegmentForm`: таможня как промежуточная точка, фильтр локаций по типу, польские поля подрядчика, тип транспорта (Standard/Mega/Chłodnia + температура/высота), прицеп.
     - `CargoForm` + `TripCargoBlock`: паллеты, таможня, фрахт.
@@ -233,24 +242,21 @@ Lucide-react `^0.460.0` — везде. Emoji только в `<option>`, лог
     - `lib/translate-pl.ts` — перевод названий грузов и типов на польский.
     - `docx/route.ts`: Palety, Dane pojazdu, `#1 ZAŁADUNEK`, `#2 ODPRAWA CELNA`, `#3 ROZŁADUNEK`.
     - `getTerms(paymentDays, docType)` — условия под сканы/оригиналы.
+18. **Оптимизация:**
+    - `prefetch={false}` для карточек рейсов.
+    - `app/trips/loading.tsx` — скелетон загрузки.
+    - Speed Insights подключён (`@vercel/speed-insights`).
+    - SQL индексы для фильтрации.
 
 ---
 
-## 🚨 Текущий блокер (на утро)
+## 📈 Состояние скорости (20.10.2026)
 
-**Билд падает на `app/trips/[id]/TripSegmentsBlock.tsx:480`** — `Cannot find name 'trailers'`. 
-
-Причина: в деструктуризации `TripSegmentsBlock` не добавлен `trailers`, хотя в `<SegmentForm>` уже передаётся `trailers={trailers}`.
-
-**Что сделать утром:**
-1. Открыть `app/trips/[id]/TripSegmentsBlock.tsx`.
-2. В начале файла в `export default function TripSegmentsBlock({ ... })` добавить `trailers,` (после `trucks,`).
-3. В типе пропсов добавить `trailers: Option[];` (после `trucks: Option[];`).
-4. Убедиться, что в `page.tsx` в `<TripSegmentsBlock>` есть `trailers={(trailersList || []).map((t) => ({ id: t.id, label: t.registration_number }))}` (между `trucks` и `drivers`).
-5. Сделать **новый коммит** (последний `657a81d` — без этих правок).
-6. Проверить на проде: создать сегмент «Наша машина», выбрать прицеп, сохранить, убедиться, что в карточке отображается `LRA59818 / XXX`.
-
-**Ожидаемый результат:** билд зелёный, прицеп сохраняется и отображается.
+- **Vercel Speed Insights (Desktop, P75):** **94/100** (зелёная зона, «Great»). Более 75% визитов — отличный опыт.
+- **PageSpeed Insights (Desktop):** 83/100 (хорошо, близко к зелёной зоне).
+- **Главная рекомендация PageSpeed:** «Удалить неиспользуемый JS» (~165 КБ). Это статический вес первого визита, на повторных заходах берётся из кэша (все скрипты `(disk cache)`, время 6–16 мс). **Не критично.**
+- **Регион Vercel:** `Washington, D.C. (iad1)` — не меняли, так как TTFB в норме (Speed Insights 94).
+- **`next.config.js`:** не менялся (только `serverActions.bodySizeLimit`). Опция `optimizePackageImports` не применялась (не требуется).
 
 ---
 
@@ -258,16 +264,15 @@ Lucide-react `^0.460.0` — везде. Emoji только в `<option>`, лог
 
 | № | Задача | Размер |
 |---|---|---|
-| 1 | Починить билд: `trailers` в `TripSegmentsBlock` (блокер) | 10 мин |
-| 2 | Проверить DOCX: Palety, Dane pojazdu, перевод, условия | 15 мин |
-| 3 | Удалить `addTripWithAddress` (`@deprecated`) из `geocode-actions.ts` | 10 мин |
-| 4 | Поиск в `/trips` по `from_loading_number`, `to_loading_number`, `customs_place` | 30 мин |
-| 5 | Блокировка Logisat-синка для рейсов без `trip_number` | 30 мин |
-| 6 | `trailer_id` в задании водителю (`trip-task-text.ts`) | 30 мин |
-| 7 | Массовый пересчёт координат (кнопка `/trips`) | 1 час |
-| 8 | Слияние дубликатов (merge tool) | Средний |
-| 9 | Фото водителя в `/drivers` — превью в списке | 1 час |
-| 10 | Grep-аудит `.select()` после миграций | 30 мин |
+| 1 | Удалить `addTripWithAddress` (`@deprecated`) из `geocode-actions.ts` | 10 мин |
+| 2 | Поиск в `/trips` по `from_loading_number`, `to_loading_number`, `customs_place` | 30 мин |
+| 3 | Блокировка Logisat-синка для рейсов без `trip_number` | 30 мин |
+| 4 | `trailer_id` в задании водителю (`trip-task-text.ts`) | 30 мин |
+| 5 | Массовый пересчёт координат (кнопка `/trips`) | 1 час |
+| 6 | Слияние дубликатов (merge tool) | Средний |
+| 7 | Фото водителя в `/drivers` — превью в списке | 1 час |
+| 8 | Grep-аудит `.select()` после миграций | 30 мин |
+| 9 | Оптимизация JS-бандла (если захочется дожать PageSpeed до 90+) | 1 час |
 
 ---
 
@@ -310,6 +315,7 @@ Login через server action + `bcrypt.compare` + httpOnly cookie. Sidebar с�
 - Bulk-операции, CSV-экспорт, проверка пересечений
 - **Заявки без номера** (секция в списке)
 - **Документы подрядчику на польском** (ZLECENIE)
+- **Speed Insights** (Vercel)
 
 ### Cron
 - `/api/update-rates` — `0 6 * * *`
@@ -353,6 +359,15 @@ Static page generation 60s. Лечится: Redeploy без кэша.
 ### `getTerms(paymentDays, docType)`
 Тип документов (`'originals' | 'scans'`) влияет на текст пункта 1 в WARUNKI ZLECENIA.
 
+### Speed Insights
+Пакет `@vercel/speed-insights` установлен через `npm i`. Компонент `<SpeedInsights />` в `layout.tsx` (внизу `<body>`). Включён в панели Vercel.
+
+### Git (локально)
+- В Git Bash настроены `user.name` / `user.email`.
+- При `git push` с ошибкой `rejected` — сделать `git pull`, затем `git push`.
+- Всегда `git commit -m "Текст"` (чтобы не открывался Vim).
+- Если в коммит попал `node_modules` — `git reset HEAD~1`, добавить в `.gitignore`, `git rm -r --cached node_modules`, заново `git add`/`commit`.
+
 ---
 
 ## 📋 Шпаргалка
@@ -361,10 +376,9 @@ Static page generation 60s. Лечится: Redeploy без кэша.
 - `driver_transactions`: наполняется
 - `trip_subcontractors`: DROP
 - `counters`: сплошная нумерация
+- Скорость: **94/100** (Speed Insights Desktop)
 
-**Закрыто:** Фазы 3.1–3.6, Фаза 4, Фаза 5 (груз первичен), `created_at`, нумерация через `counters`, считывание тахографа/карт, визитка водителя, sidebar водителя, дубликаты, онбординг админа, геокодирование с postal_code, фикс `/today`, поиск в «Мои рейсы», таможня (в карточке и сегментах), прицеп в сегменте, DOCX на польском (Palety, Dane pojazdu, условия под сканы/оригиналы).
-
-**Текущий блокер:** `trailers` в `TripSegmentsBlock.tsx` (см. раздел 🚨).
+**Закрыто:** Фазы 3.1–3.6, Фаза 4, Фаза 5 (груз первичен), `created_at`, нумерация через `counters`, считывание тахографа/карт, визитка водителя, sidebar водителя, дубликаты, онбординг админа, геокодирование с postal_code, фикс `/today`, поиск в «Мои рейсы», таможня (в карточке и сегментах), прицеп в сегменте, DOCX на польском (Palety, Dane pojazdu, условия под сканы/оригиналы), компактные фильтры + клиенты, Speed Insights, индексы БД, `prefetch={false}`.
 
 ---
 
@@ -372,7 +386,7 @@ Static page generation 60s. Лечится: Redeploy без кэша.
 
 **При старте нового чата:**
 1. Полный HANDOVER (один раз)
-2. Что делаем сейчас (блокер на утро)
+2. Что делаем сейчас
 3. Сам файл, целиком
 4. Дальше по одному файлу
 
