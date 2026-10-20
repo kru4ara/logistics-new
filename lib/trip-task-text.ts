@@ -29,7 +29,7 @@ type CargoLink = {
 };
 
 type StopItem = {
-  type: 'load' | 'reload' | 'unload';
+  type: 'load' | 'reload' | 'unload' | 'customs';
   company: string | null;
   city: string | null;
   country: string | null;
@@ -43,6 +43,8 @@ type SegmentInfo = {
   executor_type: string;
   date_from: string | null;
   date_to: string | null;
+  truck_reg?: string | null;
+  trailer_reg?: string | null; // ⬅️ НОВОЕ
   from_country: string | null;
   from_city: string | null;
   from_company: string | null;
@@ -87,7 +89,6 @@ function fmtPlace(
   return parts;
 }
 
-// ⬅️ ИЗМЕНЕНО: маршрут из сегментов (from первого → to последнего)
 function buildRouteFromSegments(segments: SegmentInfo[]): string {
   if (!segments || segments.length === 0) return '—';
   const sorted = [...segments].sort((a, b) => (a.position || 0) - (b.position || 0));
@@ -106,6 +107,7 @@ const STOP_LABEL: Record<StopItem['type'], string> = {
   load: 'Загрузка',
   reload: 'Догруз / перегруз',
   unload: 'Выгрузка',
+  customs: 'Таможня',
 };
 
 export function buildDriverTaskText({
@@ -128,12 +130,12 @@ export function buildDriverTaskText({
   if (trip.clients?.name) {
     lines.push(`${b('Клиент:')} ${trip.clients.name}`);
   }
-  // ⬅️ ИЗМЕНЕНО: маршрут — из сегментов (fallback на trip.route удалён)
   lines.push(`${b('Маршрут:')} ${buildRouteFromSegments(segments)}`);
   if (trip.start_date) {
     lines.push(`${b('Старт:')} ${fmtDate(trip.start_date)}`);
   }
 
+  // Тягач в шапке — только если он не выводится в сегментах
   const truckReg = truck?.registration_number || null;
   if (truckReg) {
     const tractorTrailer = trailerNumber ? `${truckReg} / ${trailerNumber}` : truckReg;
@@ -158,6 +160,14 @@ export function buildDriverTaskText({
       const isMulti = usSegments.length > 1;
       if (isMulti) {
         lines.push(b(`Участок ${segIdx + 1}:`));
+      }
+
+      // Машина и прицеп (если заданы в сегменте)
+      if (seg.truck_reg) {
+        const t = seg.trailer_reg ? `${seg.truck_reg} / ${seg.trailer_reg}` : seg.truck_reg;
+        lines.push(`🚚 ${b('Машина:')} ${t}`);
+      } else if (seg.trailer_reg) {
+        lines.push(`🚚 ${b('Прицеп:')} ${seg.trailer_reg}`);
       }
 
       // Даты сегмента
@@ -200,7 +210,6 @@ export function buildDriverTaskText({
       }
     });
   }
-  // ⬅️ ИЗМЕНЕНО: fallback-блок sender_*/receiver_* удалён (Фаза 3.6.4)
 
   // ============================================================
   // Футер (для Telegram)
