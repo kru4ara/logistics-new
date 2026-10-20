@@ -4,7 +4,7 @@
 - Next.js 14 (App Router) + Supabase + Vercel
 - GitHub: `kru4ara/logistics-new` (master) — автокоммит на каждое изменение
 - Prod: https://logistics-new-ebon.vercel.app
-- Supabase Project: `smodijsjwvsscfgloh` (в Supabase Dashboard называется `logistics-core`, org `Raibuilding`)
+- Supabase Project: `smodijsjiwcvsscfgloh` (в Supabase Dashboard называется `logistics-core`, org `Raibuilding`)
 - Vercel project: `kru4aras-projects/logistics-new`
 
 ### ENV (Vercel → Settings → Environment Variables)
