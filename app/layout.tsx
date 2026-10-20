@@ -1,20 +1,9 @@
-import './globals.css';
+import type { Metadata, Viewport } from 'next';
 import { Suspense } from 'react';
-import type { Viewport } from 'next';
+import './globals.css';
 import AppShell from './components/AppShell';
 import Toaster from './components/Toaster';
 import { SpeedInsights } from '@vercel/speed-insights/next';
-
-export default function RootLayout({ children }) {
-  return (
-    <html>
-      <body>
-        {children}
-        <SpeedInsights />
-      </body>
-    </html>
-  );
-}
 
 export const viewport: Viewport = {
   themeColor: '#0f172a',
@@ -24,13 +13,13 @@ export const viewport: Viewport = {
   userScalable: false,
 };
 
-export const metadata = {
+export const metadata: Metadata = {
   title: 'Logistics CRM',
   description: 'Управление рейсами и расходами',
   applicationName: 'Logistics CRM',
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'black-translucent' as const,
+    statusBarStyle: 'black-translucent',
     title: 'Logistics',
   },
   formatDetection: {
@@ -50,6 +39,7 @@ export default function RootLayout({
           <Toaster />
         </Suspense>
         <AppShell>{children}</AppShell>
+        <SpeedInsights />
       </body>
     </html>
   );
