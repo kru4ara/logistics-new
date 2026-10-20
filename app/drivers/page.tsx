@@ -40,6 +40,48 @@ export default async function DriversPage() {
     tripsCountByDriver[t.driver_id] = (tripsCountByDriver[t.driver_id] || 0) + 1;
   });
 
+  // Загружаем фото паспортов (signed URLs)
+  const driverIds = (drivers || []).map((d) => d.id);
+  const passportUrlByDriver: Record<string, string> = {};
+
+  if (driverIds.length > 0) {
+    const { data: passportDocs } = await supabase
+      .from('documents')
+      .select('entity_id, file_path, uploaded_at')
+      .eq('entity_type', 'driver')
+      .eq('document_type', 'passport')
+      .in('entity_id', driverIds)
+      .order('uploaded_at', { ascending: false });
+
+    // Берём только последний паспорт на каждого водителя
+    const lastPassportByDriver: Record<string, string> = {};
+    for (const doc of passportDocs || []) {
+      if (!doc.entity_id || !doc.file_path) continue;
+      if (!lastPassportByDriver[doc.entity_id]) {
+        lastPassportByDriver[doc.entity_id] = doc.file_path;
+      }
+    }
+
+    // Генерируем signed URLs пачкой
+    const paths = Object.values(lastPassportByDriver);
+    if (paths.length > 0) {
+      const { data: signedUrls } = await supabase
+        .storage
+        .from('documents')
+        .createSignedUrls(paths, 60 * 60); // 1 час
+
+      if (signedUrls) {
+        const urlByPath: Record<string, string> = {};
+        for (const s of signedUrls) {
+          if (s.path && s.signedUrl) urlByPath[s.path] = s.signedUrl;
+        }
+        for (const [driverId, path] of Object.entries(lastPassportByDriver)) {
+          if (urlByPath[path]) passportUrlByDriver[driverId] = urlByPath[path];
+        }
+      }
+    }
+  }
+
   function getDaysUntil(dateString: string | null) {
     if (!dateString) return null;
     const today = new Date();
@@ -128,6 +170,7 @@ export default async function DriversPage() {
 
               const initials = `${driver.first_name?.[0] || ''}${driver.last_name?.[0] || ''}`.toUpperCase();
               const tripsCount = tripsCountByDriver[driver.id] || 0;
+              const photoUrl = passportUrlByDriver[driver.id];
 
               return (
                 <a
@@ -137,10 +180,18 @@ export default async function DriversPage() {
                 >
                   <div className="p-4 md:p-5">
                     <div className="flex items-center gap-4 mb-4">
-                      <div className="w-14 h-14 rounded-full bg-gradient-to-br from-brand-500 to-accent-500
-                                      flex items-center justify-center text-white font-bold text-lg shrink-0 shadow-brand">
-                        {initials || <UserIcon className="w-6 h-6" strokeWidth={2} />}
-                      </div>
+                      {photoUrl ? (
+                        <img
+                          src={photoUrl}
+                          alt={`${driver.first_name} ${driver.last_name}`}
+                          className="w-14 h-14 rounded-full object-cover shrink-0 shadow-brand border border-slate-200"
+                        />
+                      ) : (
+                        <div className="w-14 h-14 rounded-full bg-gradient-to-br from-brand-500 to-accent-500
+                                        flex items-center justify-center text-white font-bold text-lg shrink-0 shadow-brand">
+                          {initials || <UserIcon className="w-6 h-6" strokeWidth={2} />}
+                        </div>
+                      )}
                       <div className="min-w-0 flex-1">
                         <div className="text-lg font-bold text-slate-900 group-hover:text-brand-600 transition-colors truncate">
                           {driver.first_name} {driver.last_name}
