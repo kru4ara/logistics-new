@@ -126,18 +126,9 @@ export default async function TripsPage({
 
   function matchesSearch(t: any): boolean {
     if (!qLower) return true;
-    const clientName = pickName(t.clients) || '';
-    const computedRoute = getRoute(t);
-    const info = routeMap.get(t.id);
     const haystack = [
       t.trip_number?.toString() || '',
       t.client_request_number || '',
-      computedRoute,
-      info?.from_city || '',
-      info?.from_country || '',
-      info?.to_city || '',
-      info?.to_country || '',
-      clientName,
     ]
       .join(' ')
       .toLowerCase();
