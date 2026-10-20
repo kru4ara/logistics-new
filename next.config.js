@@ -4,6 +4,7 @@ const nextConfig = {
     serverActions: {
       bodySizeLimit: '10mb',
     },
+    optimizePackageImports: ['lucide-react', 'recharts', 'docx', 'qrcode', 'image-size'],
   },
 };
 
