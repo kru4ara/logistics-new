@@ -4,7 +4,7 @@
 - Next.js 14 (App Router) + Supabase + Vercel
 - GitHub: `kru4ara/logistics-new` (master) — автокоммит на каждое изменение
 - Prod: https://logistics-new-ebon.vercel.app
-- Supabase Project: `smodijsjwcvsscfgloh`
+- Supabase Project: `smodijsjwvsscfgloh` (в Supabase Dashboard называется `logistics-core`, org `Raibuilding`)
 - Vercel project: `kru4aras-projects/logistics-new`
 
 ### ENV (Vercel → Settings → Environment Variables)
@@ -13,11 +13,36 @@
 - `SUPABASE_SERVICE_ROLE_KEY` — server client, обходит RLS
 - `LOGISAT_SERVER` / `LOGISAT_USERNAME` / `LOGISAT_PASSWORD`
 - `TELEGRAM_BOT_TOKEN` — @raibuilding_bot
-- `TELEGRAM_CHAT_ID` — общий чат офиса
+- `TELEGRAM_CHAT_ID` — `921520481` (личка владельца; общего чата офиса нет)
 - `TELEGRAM_WEBHOOK_SECRET`
 - `CRON_SECRET`
 
-**Vercel Secret-переменные не редактируются** — только удалить + создать заново + Redeploy.
+**Vercel Secret-переменные не редактируются** — только удалить + создать заново + Redeploy. `vercel env pull` не вытаскивает Secret (write-only).
+
+---
+
+## 🚨 Текущий блокер: DNS Supabase
+
+**Симптом:** проект `smodijsjwvsscfgloh` показывает «Healthy» в Dashboard, но домен `smodijsjwvsscfgloh.supabase.co` возвращает **NXDOMAIN** (не резолвится). Локальный `npm run dev` не может подключиться к базе.
+
+**Проверено:**
+- `nslookup ... 8.8.8.8` → `Non-existent domain`
+- `nslookup ... 1.1.1.1` → `Non-existent domain`
+- Проект **не на паузе** (Active), статус Supabase — «fully operational».
+- `.env.local` содержит правильный URL (`smodijsjwvsscfgloh`, не опечатка).
+
+**Что сделано:**
+- Открыт тикет в поддержку Supabase: **`SU-516613`**, conversation ID `cnv_1opuwaji`.
+- В форме привязки выбран проект `logistics-core` (`smodijsjwvsscfgloh`), issue = `Other`.
+- Ожидаем ответа инженера (перерегистрация DNS-записи API-шлюза).
+
+**Прод работает** — Vercel-функции используют альтернативный пул соединений (Supavisor), он резолвится даже при «лежащем» API-домене.
+
+**Что делать завтра:**
+1. Проверить почту / Supabase Dashboard → Support → тикет `SU-516613`.
+2. Если ответили — выполнить инструкцию (перерегистрация DNS или workaround).
+3. Проверить, пришёл ли бэкап в Telegram (`921520481`) в 7:00 UTC.
+4. После восстановления DNS — `npm run dev` заработает локально.
 
 ---
 
@@ -32,6 +57,7 @@
 - Уже заменённые файлы
 - Логи билдов целиком
 - Огромные JSON/дампы
+- **Секреты** (`TELEGRAM_BOT_TOKEN`, `CRON_SECRET`, `SUPABASE_SERVICE_ROLE_KEY` и т.д.) — если засветились, сразу перевыпустить
 
 ### Что грузить
 - Только файлы, которые **сейчас правим** (по одному)
@@ -49,7 +75,7 @@
 
 ### Как начинать новый чат
 1. Полный HANDOVER
-2. Что делаем сейчас
+2. Что делаем сейчас (блокер — тикет `SU-516613`)
 3. Сам файл
 4. Дальше — по одному файлу
 
@@ -77,6 +103,7 @@
 - При `git push` с ошибкой `rejected` — сделать `git pull`, затем `git push`.
 - Всегда `git commit -m "Текст"` (чтобы не открывался Vim).
 - Если в коммит попал `node_modules` — `git reset HEAD~1`, добавить в `.gitignore`, `git rm -r --cached node_modules`, заново `git add`/`commit`.
+- `.gitignore` в проекте **есть** (добавлен 20.10). Содержит `node_modules/`, `.next/`, `.env*.local`, `backup_*.json` и т.д.
 
 ### ⚠️ Урок: при миграции колонок — grep всех `.select()`
 После миграции `drivers.phone` → `phone_by`/`phone_pl` (Фаза 4.2) `/today` падал в рантайме: `column drivers_1.phone does not exist`. Билд был зелёным (TS SQL не проверяет).
@@ -205,6 +232,13 @@ Lucide-react `^0.460.0` — везде. Emoji только в `<option>`, лог
 - Сторожевой бэкап: `/api/cron/backup` пишет в `audit_log` «Бэкап выполнен»; `/api/cron/backup-watch` (8:00 UTC) проверяет и шлёт алерт, если бэкапа нет.
 - Авто-расчёт топлива (`calcFuelFromPrevTrip`, `tryAutofillFuel`) и даты старта (`calcSuggestedStartDate`) при добавлении us-сегмента.
 
+### Фаза 7 — KPI водителей с прибылью — ✅ 20.10 (вечер)
+- `app/drivers/kpi/page.tsx`: вместо «Фрахт» — колонка **«Прибыль»** (фрахт − все расходы).
+- Запрос `trip_expenses` теперь берёт **все** категории (не только `salary`).
+- Mobile: блок «Прибыль» крупно, зелёный/красный; под ним — «Рейсов» и «Фрахт / Расходы / ЗП».
+- Desktop: колонки «Фрахт», «Расходы», «Прибыль» (цветная), «ЗП мес», «ЗП всего», «Пробег», «Расход».
+- Сортировка — по прибыли (убывание).
+
 ---
 
 ## ⏭️ Сделано (15.10–20.10.2026)
@@ -292,6 +326,17 @@ Lucide-react `^0.460.0` — везде. Emoji только в `<option>`, лог
     - `calcFuelFromPrevTrip`, `tryAutofillFuel` — подтягивают остаток топлива с последнего рейса машины.
     - `calcSuggestedStartDate` — подсказывает `date_from` = следующий день после `end_date` последнего рейса.
     - В `createSegment`/`updateSegment` для us-сегментов вызываются автоматически.
+28. **KPI водителей с прибылью:**
+    - `app/drivers/kpi/page.tsx`: прибыль = фрахт − все расходы; сортировка по прибыли.
+    - Запрос `trip_expenses` берёт все категории (не только `salary`).
+    - Mobile: блок «Прибыль» крупно; Desktop: колонки «Фрахт / Расходы / Прибыль / ЗП мес / ЗП всего / Пробег / Расход».
+29. **Инцидент с секретами (20.10):**
+    - В чат были случайно отправлены `TELEGRAM_BOT_TOKEN`, `CRON_SECRET`, `TELEGRAM_WEBHOOK_SECRET`, `VERCEL_OIDC_TOKEN`.
+    - **Перевыпущены:** `TELEGRAM_BOT_TOKEN` (BotFather → Revoke), `CRON_SECRET` (новый), `TELEGRAM_WEBHOOK_SECRET` (новый).
+    - `TELEGRAM_CHAT_ID` = `921520481` (личка владельца; общего чата офиса нет).
+    - Обновлено в Vercel (Production) + Redeploy (`vercel --prod`).
+    - Восстановлен вебхук: `setWebhook` → `{"ok":true,"description":"Webhook is already set"}`.
+    - **Не забыть:** проверить, что завтра бэкап приходит в личку.
 
 ---
 
@@ -308,12 +353,12 @@ Lucide-react `^0.460.0` — везде. Emoji только в `<option>`, лог
 
 | № | Задача | Размер |
 |---|---|---|
-| 1 | Grep-аудит всех `.select()` после миграций | 30 мин |
-| 2 | Сторожевой бэкап — проверить, что сработал (завтра) | 5 мин |
-| 3 | Массовый пересчёт координат — опционально увеличить батч до 40 | 5 мин |
-| 4 | `optimizePackageImports` в `next.config.js` (если хочется дожать PageSpeed) | 10 мин |
-| 5 | Merge tool для подрядчиков (по аналогии с клиентами) | 1 час |
-| 6 | Отчёт «фрахт по грузам» (если понадобится) | Средний |
+| 1 | Дождаться ответа Supabase по тикету `SU-516613` (DNS) | — |
+| 2 | Проверить бэкап в Telegram завтра в 7:00 UTC | 5 мин |
+| 3 | Grep-аудит всех `.select()` после миграций | 30 мин |
+| 4 | Merge tool для подрядчиков (по аналогии с клиентами) | 1 час |
+| 5 | Отчёт «фрахт по грузам» (если понадобится) | Средний |
+| 6 | `optimizePackageImports` в `next.config.js` (если хочется дожать PageSpeed) | 10 мин |
 
 ---
 
@@ -336,7 +381,7 @@ Lucide-react `^0.460.0` — везде. Emoji только в `<option>`, лог
 ## Что работает
 
 ### Авторизация
-Login через server action + `bcrypt.compare` + httpOnly cookie. Sidebar серверный → `AppShell.tsx` → `Sidebar.tsx`. RLS включён.
+Login через server action + `bcrypt.compare` + httpOnly cookie. Таблица `users` (для офиса, колонка `login`), `drivers` (для водителей, логин = `last_name` через `ilike`). Sidebar серверный → `AppShell.tsx` → `Sidebar.tsx`. RLS включён.
 
 ### Домены
 - Рейсы + сегменты + грузы + расходы + документы
@@ -350,6 +395,7 @@ Login через server action + `bcrypt.compare` + httpOnly cookie. Sidebar с�
 - **Геокодирование с postal_code**
 - **Массовый пересчёт координат** (порциями по 20)
 - **Авто-топливо и авто-дата** при добавлении us-сегмента
+- **KPI водителей с прибылью**
 - Бэкапы 19+ таблиц + сторожевой крон
 
 ### Прочее
@@ -414,6 +460,7 @@ Static page generation 60s. Лечится: Redeploy без кэша.
 - При `git push` с ошибкой `rejected` — сделать `git pull`, затем `git push`.
 - Всегда `git commit -m "Текст"` (чтобы не открывался Vim).
 - Если в коммит попал `node_modules` — `git reset HEAD~1`, добавить в `.gitignore`, `git rm -r --cached node_modules`, заново `git add`/`commit`.
+- `.gitignore` в проекте есть.
 
 ### Merge tool клиентов
 SQL-функция `merge_clients(source_id, target_id)` переносит `trips.client_id`, `trip_cargo.client_id`, `forwarding_orders.client_id`, удаляет дубликат. Действие необратимо.
@@ -424,6 +471,16 @@ SQL-функция `merge_clients(source_id, target_id)` переносит `tri
 ### Авто-топливо и авто-дата
 `calcFuelFromPrevTrip` / `tryAutofillFuel` берут последний рейс машины (кроме текущего) и считают `start_fuel_level = max(0, prevStart + totalRefuel - consumed)`. `calcSuggestedStartDate` даёт `date_from` = следующий день после `end_date` последнего рейса. Работают только для us-сегментов с `truck_id`. Если `start_fuel_level` уже > 0 или `date_from` задана вручную — не перезаписывают.
 
+### Секреты (после инцидента 20.10)
+- `TELEGRAM_BOT_TOKEN` перевыпущен в BotFather.
+- `CRON_SECRET`, `TELEGRAM_WEBHOOK_SECRET` — новые.
+- `TELEGRAM_CHAT_ID` = `921520481` (личка).
+- Обновлены в Vercel (Production) + Redeploy.
+- **Не грузить секреты в чат.** Если засветились — сразу перевыпускать.
+
+### DNS Supabase (текущий блокер)
+Домен `smodijsjwvsscfgloh.supabase.co` → NXDOMAIN. Проект Healthy, не на паузе. Открыт тикет `SU-516613`. Прод работает через Supavisor. Локальный `npm run dev` не работает до восстановления DNS.
+
 ---
 
 ## 📋 Шпаргалка
@@ -433,8 +490,9 @@ SQL-функция `merge_clients(source_id, target_id)` переносит `tri
 - `trip_subcontractors`: DROP
 - `counters`: сплошная нумерация
 - Скорость: **94/100** (Speed Insights Desktop)
+- **Supabase тикет:** `SU-516613` (DNS NXDOMAIN)
 
-**Закрыто:** Фазы 3.1–3.6, Фаза 4, Фаза 5 (груз первичен), Фаза 6 (утилиты и защита), `created_at`, нумерация через `counters`, считывание тахографа/карт, визитка водителя, sidebar водителя, дубликаты, онбординг админа, геокодирование с postal_code, фикс `/today`, поиск в «Мои рейсы», таможня, прицеп в сегменте и задании, DOCX на польском, компактные фильтры + клиенты, Speed Insights, индексы БД, `prefetch={false}`, массовый пересчёт координат, превью фото водителей, merge tool клиентов, сторожевой бэкап, авто-топливо, авто-дата старта.
+**Закрыто:** Фазы 3.1–3.6, Фаза 4, Фаза 5 (груз первичен), Фаза 6 (утилиты и защита), Фаза 7 (KPI с прибылью), `created_at`, нумерация через `counters`, считывание тахографа/карт, визитка водителя, sidebar водителя, дубликаты, онбординг админа, геокодирование с postal_code, фикс `/today`, поиск в «Мои рейсы», таможня, прицеп в сегменте и задании, DOCX на польском, компактные фильтры + клиенты, Speed Insights, индексы БД, `prefetch={false}`, массовый пересчёт координат, превью фото водителей, merge tool клиентов, сторожевой бэкап, авто-топливо, авто-дата старта, перевыпуск секретов.
 
 ---
 
@@ -442,7 +500,7 @@ SQL-функция `merge_clients(source_id, target_id)` переносит `tri
 
 **При старте нового чата:**
 1. Полный HANDOVER (один раз)
-2. Что делаем сейчас
+2. Что делаем сейчас (блокер — тикет `SU-516613`)
 3. Сам файл, целиком
 4. Дальше по одному файлу
 
@@ -450,7 +508,7 @@ SQL-функция `merge_clients(source_id, target_id)` переносит `tri
 
 **Сохраняемся на границах блоков.**
 
-**Не грузим:** бэкапы, старые HANDOVER, заменённые файлы, полные логи, огромные JSON.
+**Не грузим:** бэкапы, старые HANDOVER, заменённые файлы, полные логи, огромные JSON, **секреты**.
 
 **Грузим:** HANDOVER, текущий файл, результат grep, короткий скриншот.
 
