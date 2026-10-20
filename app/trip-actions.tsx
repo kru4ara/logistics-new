@@ -394,3 +394,83 @@ export async function recalcTripCoords(tripId: string): Promise<{ success: boole
 
   return { success: true };
 }
+// ============================================================
+// Массовый пересчёт координат (для списка /trips)
+// ============================================================
+const MAX_RECALC_BATCH = 20;
+
+export async function recalcAllTripsCoords(
+  tripIds: string[]
+): Promise<{ success: boolean; updated: number; failed: number; error?: string }> {
+  if (tripIds.length === 0) {
+    return { success: false, updated: 0, failed: 0, error: 'Нет рейсов для пересчёта' };
+  }
+  if (tripIds.length > MAX_RECALC_BATCH) {
+    return {
+      success: false,
+      updated: 0,
+      failed: 0,
+      error: `Слишком много рейсов (${tripIds.length}). Максимум ${MAX_RECALC_BATCH} за раз. Отфильтруйте список.`,
+    };
+  }
+
+  const supabase = await createClient();
+  let updated = 0;
+  let failed = 0;
+
+  for (const tripId of tripIds) {
+    try {
+      // 1. Все сегменты рейса
+      const { data: segments } = await supabase
+        .from('trip_segments')
+        .select('position, from_city, from_country, from_postal_code, to_city, to_country, to_postal_code')
+        .eq('trip_id', tripId)
+        .order('position', { ascending: true });
+
+      if (!segments || segments.length === 0) {
+        failed++;
+        continue;
+      }
+
+      const first = segments[0];
+      const last = segments[segments.length - 1];
+
+      const startCoords = await geocode(first.from_city, first.from_country, first.from_postal_code);
+      const endCoords = await geocode(last.to_city, last.to_country, last.to_postal_code);
+
+      const updateData: Record<string, number> = {};
+      if (startCoords) {
+        updateData.start_lat = startCoords.lat;
+        updateData.start_lng = startCoords.lng;
+      }
+      if (endCoords) {
+        updateData.end_lat = endCoords.lat;
+        updateData.end_lng = endCoords.lng;
+      }
+
+      if (Object.keys(updateData).length === 0) {
+        failed++;
+        continue;
+      }
+
+      const { error } = await supabase
+        .from('trips')
+        .update(updateData)
+        .eq('id', tripId);
+
+      if (error) {
+        failed++;
+      } else {
+        updated++;
+      }
+    } catch (e) {
+      console.error('[recalcAllTripsCoords] exception for trip', tripId, e);
+      failed++;
+    }
+  }
+
+  revalidatePath('/trips');
+  revalidatePath('/map');
+
+  return { success: true, updated, failed };
+}
