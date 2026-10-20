@@ -3,6 +3,18 @@ import { Suspense } from 'react';
 import type { Viewport } from 'next';
 import AppShell from './components/AppShell';
 import Toaster from './components/Toaster';
+import { SpeedInsights } from '@vercel/speed-insights/next';
+
+export default function RootLayout({ children }) {
+  return (
+    <html>
+      <body>
+        {children}
+        <SpeedInsights />
+      </body>
+    </html>
+  );
+}
 
 export const viewport: Viewport = {
   themeColor: '#0f172a',
