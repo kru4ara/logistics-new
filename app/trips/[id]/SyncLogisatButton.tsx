@@ -21,13 +21,22 @@ type Result = {
   deviceId?: string | null;
 };
 
-export default function SyncLogisatButton({ tripId }: { tripId: string }) {
+export default function SyncLogisatButton({
+  tripId,
+  disabled = false,
+  disabledHint,
+}: {
+  tripId: string;
+  disabled?: boolean;
+  disabledHint?: string;
+}) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [result, setResult] = useState<Result | null>(null);
   const [isOpen, setIsOpen] = useState(false);
 
   async function handleSync() {
+    if (disabled) return;
     setResult(null);
     setIsOpen(true);
 
@@ -72,10 +81,13 @@ export default function SyncLogisatButton({ tripId }: { tripId: string }) {
       <button
         type="button"
         onClick={handleSync}
-        disabled={isPending}
-        className="flex-1 sm:flex-none px-4 py-2 rounded-lg border border-emerald-300 text-emerald-700
-                   bg-emerald-50 hover:bg-emerald-100 font-medium text-sm transition-all
-                   disabled:opacity-50 active:scale-[0.98] flex items-center justify-center gap-1.5"
+        disabled={isPending || disabled}
+        title={disabled ? disabledHint : undefined}
+        className={`flex-1 sm:flex-none px-4 py-2 rounded-lg border font-medium text-sm transition-all
+          flex items-center justify-center gap-1.5
+          ${disabled
+            ? 'border-slate-200 text-slate-400 bg-slate-50 cursor-not-allowed'
+            : 'border-emerald-300 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 active:scale-[0.98] disabled:opacity-50'}`}
       >
         <RadioTower className="w-4 h-4" />
         <span>Logisat</span>
