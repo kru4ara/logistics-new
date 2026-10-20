@@ -195,6 +195,31 @@ async function tryAutofillFuel(
   }
 }
 
+// ============================================================
+// Подсказка даты старта: следующий день после end_date последнего рейса
+// ============================================================
+async function calcSuggestedStartDate(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  truckId: string,
+  currentTripId: string
+): Promise<string | null> {
+  const { data: prevTrip } = await supabase
+    .from('trips')
+    .select('end_date, trip_number')
+    .eq('truck_id', truckId)
+    .neq('id', currentTripId)
+    .not('end_date', 'is', null)
+    .order('trip_number', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!prevTrip?.end_date) return null;
+
+  const dt = new Date(prevTrip.end_date);
+  dt.setDate(dt.getDate() + 1);
+  return dt.toISOString().slice(0, 10);
+}
+
 export async function createSegment(tripId: string, formData: FormData) {
   const supabase = await createClient();
 
@@ -203,7 +228,7 @@ export async function createSegment(tripId: string, formData: FormData) {
   const truckId = str(formData, 'truck_id');
   const trailerId = str(formData, 'trailer_id');
   const driverId = str(formData, 'driver_id');
-  const dateFrom = str(formData, 'date_from');
+  const dateFromRaw = str(formData, 'date_from');
   const dateTo = str(formData, 'date_to');
   const notes = str(formData, 'notes');
   const cargoIds = parseCargoIds(formData);
@@ -228,6 +253,12 @@ export async function createSegment(tripId: string, formData: FormData) {
   }
   if (cargoIds.length === 0) {
     throw new Error('Выберите хотя бы один груз');
+  }
+
+  // Подсказка даты старта для нашей машины (если не задана)
+  let dateFrom = dateFromRaw;
+  if (executorType === 'us' && truckId && !dateFrom) {
+    dateFrom = await calcSuggestedStartDate(supabase, truckId, tripId);
   }
 
   const fromCountry = str(formData, 'from_country');
@@ -338,7 +369,7 @@ export async function updateSegment(segmentId: string, tripId: string, formData:
   const truckId = str(formData, 'truck_id');
   const trailerId = str(formData, 'trailer_id');
   const driverId = str(formData, 'driver_id');
-  const dateFrom = str(formData, 'date_from');
+  const dateFromRaw = str(formData, 'date_from');
   const dateTo = str(formData, 'date_to');
   const notes = str(formData, 'notes');
   const cargoIds = parseCargoIds(formData);
@@ -362,6 +393,12 @@ export async function updateSegment(segmentId: string, tripId: string, formData:
   }
   if (cargoIds.length === 0) {
     throw new Error('Выберите хотя бы один груз');
+  }
+
+  // Подсказка даты старта для нашей машины (если не задана)
+  let dateFrom = dateFromRaw;
+  if (executorType === 'us' && truckId && !dateFrom) {
+    dateFrom = await calcSuggestedStartDate(supabase, truckId, tripId);
   }
 
   const fromCountry = str(formData, 'from_country');
