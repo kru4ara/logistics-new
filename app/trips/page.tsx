@@ -5,6 +5,7 @@ import { buildRouteMap, type SegmentRouteRow, type TripRouteInfo } from '../../l
 import DownloadButton from './DownloadButton';
 import SearchInput from './SearchInput';
 import TripsBulkList, { type TripCardData, type MonthGroup } from './TripsBulkList';
+import TripFilters from './TripFilters';
 import {
   Package,
   Plus,
@@ -365,161 +366,19 @@ export default async function TripsPage({
             status={statusFilter}
           />
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-            
-            {/* ЛЕВАЯ КОЛОНКА: Клиент, Водитель, Тягач */}
-            <div className="space-y-4">
-              {/* Клиент */}
-              {clientsList.length > 0 && (
-                <div>
-                  <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2 flex items-center gap-1.5">
-                    <User className="w-3.5 h-3.5" /> Клиент
-                  </div>
-                  <select
-                    className="input text-sm py-2"
-                    value={clientFilter || ''}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      window.location.href = buildUrl({ client: val || null });
-                    }}
-                  >
-                    <option value="">Все клиенты</option>
-                    {clientsList.map((c) => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {/* Водитель */}
-              {driversList.length > 0 && (
-                <div>
-                  <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2 flex items-center gap-1.5">
-                    <User className="w-3.5 h-3.5" /> Водитель
-                  </div>
-                  <select
-                    className="input text-sm py-2"
-                    value={driverFilter || ''}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      window.location.href = buildUrl({ driver: val || null });
-                    }}
-                  >
-                    <option value="">Все водители</option>
-                    {driversList.map((d) => (
-                      <option key={d.id} value={d.id}>{d.first_name} {d.last_name}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {/* Тягач */}
-              {tractorsList.length > 0 && (
-                <div>
-                  <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2 flex items-center gap-1.5">
-                    <Truck className="w-3.5 h-3.5" /> Тягач
-                  </div>
-                  <select
-                    className="input text-sm py-2"
-                    value={truckFilter || ''}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      window.location.href = buildUrl({ truck: val || null });
-                    }}
-                  >
-                    <option value="">Все тягачи</option>
-                    {tractorsList.map((t) => (
-                      <option key={t.id} value={t.id}>{t.registration_number}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-            </div>
-
-            {/* ПРАВАЯ КОЛОНКА: Статус, Год/Месяц, Сортировка */}
-            <div className="space-y-4">
-              {/* Статус */}
-              <div>
-                <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2">Статус</div>
-                <div className="flex flex-wrap gap-1.5 md:gap-2">
-                  <a
-                    href={buildUrl({ status: null })}
-                    className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all
-                      ${!statusFilter
-                        ? 'bg-brand-600 text-white shadow-brand'
-                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
-                  >
-                    Все
-                  </a>
-                  {statusOrder.map((st) => (
-                    <a
-                      key={st}
-                      href={buildUrl({ status: st })}
-                      className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all
-                        ${statusFilter === st
-                          ? 'bg-brand-600 text-white shadow-brand'
-                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
-                    >
-                      <span className={`w-2 h-2 rounded-full ${statusPillColors[st]}`} />
-                      {statusLabels[st]}
-                    </a>
-                  ))}
-                </div>
-              </div>
-
-              {/* Год / Месяц */}
-              <div>
-                <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2 flex items-center gap-1.5">
-                  <Calendar className="w-3.5 h-3.5" /> Год / Месяц
-                </div>
-                <div className="flex gap-2">
-                  <select
-                    className="input text-sm py-2 flex-1"
-                    value={String(year)}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      window.location.href = buildUrl({ year: parseInt(val) });
-                    }}
-                  >
-                    {years.map((y) => (
-                      <option key={y} value={y}>{y}</option>
-                    ))}
-                  </select>
-                  <select
-                    className="input text-sm py-2 flex-1"
-                    value={monthFilter || ''}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      window.location.href = buildUrl({ month: val ? parseInt(val) : null });
-                    }}
-                  >
-                    <option value="">Все месяцы</option>
-                    {monthNames.map((mn, i) => (
-                      <option key={i+1} value={i+1}>{mn}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Сортировка */}
-              <div>
-                <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2 flex items-center gap-1.5">
-                  <ArrowUpDown className="w-3.5 h-3.5" /> Сортировка
-                </div>
-                <select
-                  className="input text-sm py-2"
-                  value={sortBy}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    window.location.href = buildUrl({ sort: val === 'created' ? 'created' : null });
-                  }}
-                >
-                  <option value="start">По дате старта</option>
-                  <option value="created">Последние созданные</option>
-                </select>
-              </div>
-            </div>
-          </div>
+          <TripFilters
+            clients={(clientsList || []).map((c) => ({ id: c.id, label: c.name }))}
+            drivers={(driversList || []).map((d) => ({ id: d.id, label: `${d.first_name} ${d.last_name}` }))}
+            tractors={(tractorsList || []).map((t) => ({ id: t.id, label: t.registration_number }))}
+            years={years}
+            months={monthNames}
+            currentYear={year}
+            currentMonth={monthFilter}
+            currentClient={clientFilter}
+            currentDriver={driverFilter}
+            currentTruck={truckFilter}
+            currentSort={sortBy}
+          />
 
           {/* Сводка по фильтру */}
           <div className="grid grid-cols-3 gap-3 pt-4 border-t border-slate-100">
