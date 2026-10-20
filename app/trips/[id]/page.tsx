@@ -543,6 +543,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
           segments={segments as any}
           contractors={(contractors || []).map((c) => ({ id: c.id, label: c.name }))}
           trucks={(tractorsList || []).map((t) => ({ id: t.id, label: t.registration_number }))}
+          trailers={(trailersList || []).map((t) => ({ id: t.id, label: t.registration_number }))}
           drivers={(driversList || []).map((d) => ({ id: d.id, label: `${d.first_name} ${d.last_name}` }))}
           loadingLocations={(loadingLocations || []) as any}
           unloadingLocations={(unloadingLocations || []) as any}
