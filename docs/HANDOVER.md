@@ -1,4 +1,4 @@
-# HANDOVER — Logistics CRM (20.10.2026)
+# HANDOVER — Logistics CRM (20.10.2026, вечер)
 
 ## Стек и инфраструктура
 - Next.js 14 (App Router) + Supabase + Vercel
@@ -72,12 +72,11 @@
 - Локальный клон `~/projects/logistics-new` отстаёт — перед grep делать `git pull`
 - grep: `https://github.com/kru4ara/logistics-new/search?q=ТЕРМИН&type=code`
 
-### ⚠️ Git и локальная работа
-- В Git Bash настроен `user.name` и `user.email` (глобально).
-- Если `git push` выдаёт `rejected` — сделать `git pull`, решить конфликты (если есть), затем `git push`.
-- Если случайно открылся Vim при коммите без `-m`: `Esc` → `:wq` → `Enter`.
-- **Всегда** пиши `git commit -m "Текст"`, чтобы не открывался редактор.
-- Если в коммит попал `node_modules` — `git reset HEAD~1`, добавить `node_modules/` в `.gitignore`, `git rm -r --cached node_modules`, затем заново `git add` и `git commit`.
+### ⚠️ Git (локально)
+- В Git Bash настроены `user.name` / `user.email`.
+- При `git push` с ошибкой `rejected` — сделать `git pull`, затем `git push`.
+- Всегда `git commit -m "Текст"` (чтобы не открывался Vim).
+- Если в коммит попал `node_modules` — `git reset HEAD~1`, добавить в `.gitignore`, `git rm -r --cached node_modules`, заново `git add`/`commit`.
 
 ### ⚠️ Урок: при миграции колонок — grep всех `.select()`
 После миграции `drivers.phone` → `phone_by`/`phone_pl` (Фаза 4.2) `/today` падал в рантайме: `column drivers_1.phone does not exist`. Билд был зелёным (TS SQL не проверяет).
@@ -149,15 +148,19 @@ Lucide-react `^0.460.0` — везде. Emoji только в `<option>`, лог
 - **`counters` + `next_trip_number()`** — монотонная нумерация без дырок
 - **`assign_trip_number_on_segment()` + `trg_assign_trip_number_on_segment`** — присваивает `trip_number` при появлении us-сегмента с машиной и водителем
 - **`renumber_all_trips()`** — пересчёт при удалении рейса (вызывается из `deleteTrip`)
-- **`sync_trip_from_segment()` + `trg_sync_trip_from_segment`** — синхронизирует `trips.truck_id/driver_id/start_date/end_date` из `trip_segments` (для Logisat/DOCX)
+- **`sync_trip_from_segment()` + `trg_sync_trip_from_segment`** — синхронизирует `trips.truck_id`, `trailer_id`, `driver_id`, `start_date`, `end_date` из `trip_segments` (для Logisat/DOCX)
+- **`merge_clients(source_id, target_id)`** — атомарное объединение клиентов (переносит `trips.client_id`, `trip_cargo.client_id`, `forwarding_orders.client_id`, удаляет дубликат)
 
 ### Хелперы
 - **`lib/trip-route.ts`** — `buildRouteMap(segments)`
 - **`lib/geocode.ts`** — `geocode(city, country, postalCode?)` (postal_code + viewbox + countrycodes + cleanCity)
 - **`lib/trip-renumber.ts`** — `renumberAllTrips()` больше не вызывается (триггер)
-- **`lib/trip-task-text.ts`** — `DriverInfo` с `phone?`, `phone_by?`, `phone_pl?`
+- **`lib/trip-task-text.ts`** — `buildDriverTaskText(...)`, типы `DriverInfo` (с `phone_by?`, `phone_pl?`), `SegmentInfo` (с `truck_reg?`, `trailer_reg?`), `StopItem` (с `'customs'`)
 - **`lib/translate-pl.ts`** — `translateToPl(text)` — словарь перевода на польский (грузы, типы)
 - **`lib/company.ts`** — `COMPANY`, `APP_URL`, `getTerms(paymentDays, docType)` (текст условий на польском)
+- **`lib/audit.ts`** — `AuditAction` = `'create' | 'update' | 'delete' | 'status_change' | 'merge'`; `logAudit`, `diffFields`
+- **`lib/cron-alert.ts`** — `sendCronAlert`, `sendCronSummary` (Telegram)
+- **`lib/telegram.ts`** — `notifyTelegram(text, options)`, `DEFAULT_TELEGRAM_CHAT_ID`
 
 ---
 
@@ -182,14 +185,25 @@ Lucide-react `^0.460.0` — везде. Emoji только в `<option>`, лог
 
 ### Фаза 5 — Переделка создания рейса (груз первичен) — ✅ 20.10
 - Новая модель: заявка создаёт `trip` (обёртка) + `trip_cargo` (груз). Сегмент — потом.
-- `createCargoWithTrip` в `geocode-actions.ts`. Старый `addTripWithAddress` помечен `@deprecated`.
+- `createCargoWithTrip` в `geocode-actions.ts`. Старый `addTripWithAddress` **удалён**.
 - Сплошная нумерация через `counters` (без дырок).
 - `EditTripForm` очищен от транспорта (без дублирования с сегментами).
 - `SegmentForm`: таможня как промежуточная точка, фильтр локаций, польские поля подрядчика, прицеп.
 - `TripCargoBlock` + `CargoForm`: паллеты, таможня, фрахт.
-- Список `/trips`: сортировка по дате (новые сверху), бездатные — в секции «Без номера», фильтры в селектах (компактно), фильтр по клиентам.
+- Список `/trips`: сортировка по дате (новые сверху), бездатные — в секции «Без номера», фильтры в селектах (компактно), фильтр по клиентам, поиск только по `trip_number` и `client_request_number`.
 - DOCX: польский, Palety, Dane pojazdu, `translateToPl`, `getTerms(paymentDays, docType)`.
 - Оптимизация: индексы в БД, `prefetch={false}` для карточек, скелетон загрузки, Speed Insights.
+
+### Фаза 6 — Утилиты и защита — ✅ 20.10 (вечер)
+- Удалён мёртвый код: `addTripWithAddress`, `notifyDriverAboutNewTrip` (в `geocode-actions.ts`).
+- Поиск в `/trips` — только по номеру рейса и номеру заявки.
+- Блокировка `SyncLogisatButton` для рейсов без `trip_number`.
+- Прицеп (`trailer_id`) в задании водителю (`lib/trip-task-text.ts`).
+- Массовый пересчёт координат (`recalcAllTripsCoords` + `RecalcAllCoordsButton` с порциями по 20 и прогрессом).
+- Превью фото паспорта водителя в `/drivers` (signed URLs).
+- Merge tool для клиентов (`merge_clients` SQL + `ClientCardActions` + `MergeClientDialog`).
+- Сторожевой бэкап: `/api/cron/backup` пишет в `audit_log` «Бэкап выполнен»; `/api/cron/backup-watch` (8:00 UTC) проверяет и шлёт алерт, если бэкапа нет.
+- Авто-расчёт топлива (`calcFuelFromPrevTrip`, `tryAutofillFuel`) и даты старта (`calcSuggestedStartDate`) при добавлении us-сегмента.
 
 ---
 
@@ -219,7 +233,7 @@ Lucide-react `^0.460.0` — везде. Emoji только в `<option>`, лог
 12. **Фикс `/today`** — `phone_by, phone_pl` вместо `phone`.
 13. **Поиск + фильтр статуса в `/driver`** — `searchParams.q` + `searchParams.status`.
 
-### 20.10.2026 (главное)
+### 20.10.2026 (день)
 14. **Новая модель создания рейса:**
     - `/trips/new` → заявка/груз (клиент, маршрут, таможня, груз, фрахт).
     - `createCargoWithTrip` — атомарно `trips` + `trip_cargo`, без сегмента.
@@ -230,7 +244,7 @@ Lucide-react `^0.460.0` — везде. Emoji только в `<option>`, лог
     - `locations.type`: добавлен `'customs'`.
     - `counters` + `next_trip_number()` — сплошная нумерация без дырок.
     - `renumber_all_trips()` — вызывается из `deleteTrip`.
-    - `sync_trip_from_segment` — для Logisat/DOCX.
+    - `sync_trip_from_segment` — для Logisat/DOCX (обновлён: добавлен `trailer_id`).
     - Индексы на `trips(client_id)`, `trips(driver_id)`, `trips(truck_id)`, `trips(start_date)`.
 16. **UI:**
     - Список `/trips`: новые сверху, бездатные («Без номера») — отдельно, компактные фильтры (селекты в 2 колонки), фильтр по клиентам.
@@ -248,15 +262,45 @@ Lucide-react `^0.460.0` — везде. Emoji только в `<option>`, лог
     - Speed Insights подключён (`@vercel/speed-insights`).
     - SQL индексы для фильтрации.
 
+### 20.10.2026 (вечер — Фаза 6)
+19. **Мёртвый код:**
+    - Удалён `addTripWithAddress` и `notifyDriverAboutNewTrip` из `geocode-actions.ts`.
+20. **Поиск в `/trips`:**
+    - `matchesSearch` ищет только по `trip_number` и `client_request_number`.
+21. **Logisat:**
+    - `SyncLogisatButton` с пропсами `disabled`/`disabledHint`.
+    - На `/trips/[id]` кнопка блокируется, если `!trip.trip_number`.
+22. **Прицеп в задании:**
+    - `lib/trip-task-text.ts`: `SegmentInfo` с `truck_reg?`, `trailer_reg?`; вывод прицепа в блоке us-сегмента.
+    - `app/trips/[id]/page.tsx`: селект `trailers:trucks!trailer_id(registration_number)`, маппинг `trailer_reg`.
+23. **Массовый пересчёт координат:**
+    - `recalcAllTripsCoords(tripIds)` в `trip-actions.tsx` (макс. 20 за раз).
+    - `app/trips/RecalcAllCoordsButton.tsx` — порции по 20 с прогрессом.
+    - `app/trips/page.tsx` — кнопка в шапке.
+24. **Превью фото водителя:**
+    - `app/drivers/page.tsx`: запрос паспортов из `documents`, `createSignedUrls` (1 час), `<img>` вместо инициалов.
+25. **Merge tool клиентов:**
+    - SQL `merge_clients(source_id, target_id)`.
+    - `mergeClients` в `client-actions.ts`.
+    - `app/clients/MergeClientDialog.tsx`, `app/clients/ClientCardActions.tsx`.
+    - `app/clients/page.tsx`: кнопка «Объединить».
+26. **Сторожевой бэкап:**
+    - `app/api/cron/backup/route.ts`: после успешной отправки пишет в `audit_log` «Бэкап выполнен».
+    - `app/api/cron/backup-watch/route.ts` (8:00 UTC): проверяет наличие записи за сегодня, шлёт алерт, если нет.
+    - `vercel.json`: `backup-watch` в `crons`.
+27. **Топливо и дата старта:**
+    - `calcFuelFromPrevTrip`, `tryAutofillFuel` — подтягивают остаток топлива с последнего рейса машины.
+    - `calcSuggestedStartDate` — подсказывает `date_from` = следующий день после `end_date` последнего рейса.
+    - В `createSegment`/`updateSegment` для us-сегментов вызываются автоматически.
+
 ---
 
 ## 📈 Состояние скорости (20.10.2026)
 
-- **Vercel Speed Insights (Desktop, P75):** **94/100** (зелёная зона, «Great»). Более 75% визитов — отличный опыт.
-- **PageSpeed Insights (Desktop):** 83/100 (хорошо, близко к зелёной зоне).
-- **Главная рекомендация PageSpeed:** «Удалить неиспользуемый JS» (~165 КБ). Это статический вес первого визита, на повторных заходах берётся из кэша (все скрипты `(disk cache)`, время 6–16 мс). **Не критично.**
-- **Регион Vercel:** `Washington, D.C. (iad1)` — не меняли, так как TTFB в норме (Speed Insights 94).
-- **`next.config.js`:** не менялся (только `serverActions.bodySizeLimit`). Опция `optimizePackageImports` не применялась (не требуется).
+- **Vercel Speed Insights (Desktop, P75):** **94/100** (зелёная зона, «Great»).
+- **PageSpeed Insights (Desktop):** 83/100 (хорошо).
+- **Главная рекомендация PageSpeed:** «Удалить неиспользуемый JS» (~165 КБ). Статический вес первого визита, на повторных заходах — из кэша. **Не критично.**
+- **Регион Vercel:** `Washington, D.C. (iad1)` — не меняли (TTFB в норме).
 
 ---
 
@@ -264,30 +308,28 @@ Lucide-react `^0.460.0` — везде. Emoji только в `<option>`, лог
 
 | № | Задача | Размер |
 |---|---|---|
-| 1 | Удалить `addTripWithAddress` (`@deprecated`) из `geocode-actions.ts` | 10 мин |
-| 2 | Поиск в `/trips` по `from_loading_number`, `to_loading_number`, `customs_place` | 30 мин |
-| 3 | Блокировка Logisat-синка для рейсов без `trip_number` | 30 мин |
-| 4 | `trailer_id` в задании водителю (`trip-task-text.ts`) | 30 мин |
-| 5 | Массовый пересчёт координат (кнопка `/trips`) | 1 час |
-| 6 | Слияние дубликатов (merge tool) | Средний |
-| 7 | Фото водителя в `/drivers` — превью в списке | 1 час |
-| 8 | Grep-аудит `.select()` после миграций | 30 мин |
-| 9 | Оптимизация JS-бандла (если захочется дожать PageSpeed до 90+) | 1 час |
+| 1 | Grep-аудит всех `.select()` после миграций | 30 мин |
+| 2 | Сторожевой бэкап — проверить, что сработал (завтра) | 5 мин |
+| 3 | Массовый пересчёт координат — опционально увеличить батч до 40 | 5 мин |
+| 4 | `optimizePackageImports` в `next.config.js` (если хочется дожать PageSpeed) | 10 мин |
+| 5 | Merge tool для подрядчиков (по аналогии с клиентами) | 1 час |
+| 6 | Отчёт «фрахт по грузам» (если понадобится) | Средний |
 
 ---
 
 ## 📊 Состояние данных (20.10.2026)
 
 - `trips`: ~75 (+ `created_at`, `trip_number` через `counters`)
-- `trip_segments`: ~100 (с новыми полями подрядчика и `trailer_id`)
-- `trip_cargo`: ~75 (+ `pallets`, `customs_*`, `freight_*`)
+- `trip_segments`: ~100
+- `trip_cargo`: ~75
 - `trip_segment_cargo`: ~80
-- `trip_expenses`: ~416
+- `trip_expenses`: ~454
 - `driver_transactions`: наполняется
 - `trip_subcontractors`: DROP
 - `counters`: `last_value` для `trip_number`
+- `audit_log`: ~459+ (включая «Бэкап выполнен»)
 
-**Бэкапы:** `backup_2026-10-13_0730.json`, `backup_2026-10-14_0607.json`, `backup_2026-10-14_0730.json`. Cron `/api/cron/backup` — 7:00.
+**Бэкапы:** `backup_2026-10-13_0730.json`, `backup_2026-10-14_0607.json`, `backup_2026-10-14_0730.json`, `backup_2026-10-20_1338.json` (ручной). Cron `/api/cron/backup` — 7:00; `/api/cron/backup-watch` — 8:00.
 
 ---
 
@@ -299,14 +341,16 @@ Login через server action + `bcrypt.compare` + httpOnly cookie. Sidebar с�
 ### Домены
 - Рейсы + сегменты + грузы + расходы + документы
 - Экспедирование (orders + contractors + points + expenses)
-- Клиенты, водители, тягачи, прицепы, локации (с таможней), подрядчики
+- Клиенты (+ merge tool), водители (с превью фото), тягачи, прицепы, локации (с таможней), подрядчики
 - Напоминания + cron Telegram
-- Logisat (синк, bulk-синк)
+- Logisat (синк, bulk-синк, блокировка без номера)
 - Курсы валют, документы
 - **Расчёты с водителями** (`driver_transactions`)
 - **Проверка дубликатов** (`/api/check-duplicates`)
 - **Геокодирование с postal_code**
-- Бэкапы 18 таблиц
+- **Массовый пересчёт координат** (порциями по 20)
+- **Авто-топливо и авто-дата** при добавлении us-сегмента
+- Бэкапы 19+ таблиц + сторожевой крон
 
 ### Прочее
 - `/today` — KPI, события, «Требует внимания»
@@ -316,11 +360,14 @@ Login через server action + `bcrypt.compare` + httpOnly cookie. Sidebar с�
 - **Заявки без номера** (секция в списке)
 - **Документы подрядчику на польском** (ZLECENIE)
 - **Speed Insights** (Vercel)
+- **Merge tool для клиентов**
+- **Превью фото водителей**
 
 ### Cron
 - `/api/update-rates` — `0 6 * * *`
-- `/api/cron/reminders` — `0 9 * * *`
 - `/api/cron/backup` — `0 7 * * *`
+- `/api/cron/backup-watch` — `0 8 * * *`
+- `/api/cron/reminders` — `0 9 * * *`
 
 ---
 
@@ -360,7 +407,7 @@ Static page generation 60s. Лечится: Redeploy без кэша.
 Тип документов (`'originals' | 'scans'`) влияет на текст пункта 1 в WARUNKI ZLECENIA.
 
 ### Speed Insights
-Пакет `@vercel/speed-insights` установлен через `npm i`. Компонент `<SpeedInsights />` в `layout.tsx` (внизу `<body>`). Включён в панели Vercel.
+Пакет `@vercel/speed-insights` установлен через `npm i`. Компонент `<SpeedInsights />` в `layout.tsx`. Включён в панели Vercel.
 
 ### Git (локально)
 - В Git Bash настроены `user.name` / `user.email`.
@@ -368,17 +415,26 @@ Static page generation 60s. Лечится: Redeploy без кэша.
 - Всегда `git commit -m "Текст"` (чтобы не открывался Vim).
 - Если в коммит попал `node_modules` — `git reset HEAD~1`, добавить в `.gitignore`, `git rm -r --cached node_modules`, заново `git add`/`commit`.
 
+### Merge tool клиентов
+SQL-функция `merge_clients(source_id, target_id)` переносит `trips.client_id`, `trip_cargo.client_id`, `forwarding_orders.client_id`, удаляет дубликат. Действие необратимо.
+
+### Сторожевой бэкап
+`/api/cron/backup` пишет в `audit_log` запись с `user_name='Cron'`, `entity_type='trip'`, `summary='Бэкап выполнен: ...'` **после** успешной отправки. `/api/cron/backup-watch` ищет эту запись за сегодня (UTC) и шлёт алерт, если её нет. **Если Vercel не вызвал ни один крон — алерта не будет.** Проверять вручную.
+
+### Авто-топливо и авто-дата
+`calcFuelFromPrevTrip` / `tryAutofillFuel` берут последний рейс машины (кроме текущего) и считают `start_fuel_level = max(0, prevStart + totalRefuel - consumed)`. `calcSuggestedStartDate` даёт `date_from` = следующий день после `end_date` последнего рейса. Работают только для us-сегментов с `truck_id`. Если `start_fuel_level` уже > 0 или `date_from` задана вручную — не перезаписывают.
+
 ---
 
 ## 📋 Шпаргалка
 
-- `trips`: ~75, `trip_segments`: ~100, `trip_cargo`: ~75, `trip_expenses`: ~416
+- `trips`: ~75, `trip_segments`: ~100, `trip_cargo`: ~75, `trip_expenses`: ~454
 - `driver_transactions`: наполняется
 - `trip_subcontractors`: DROP
 - `counters`: сплошная нумерация
 - Скорость: **94/100** (Speed Insights Desktop)
 
-**Закрыто:** Фазы 3.1–3.6, Фаза 4, Фаза 5 (груз первичен), `created_at`, нумерация через `counters`, считывание тахографа/карт, визитка водителя, sidebar водителя, дубликаты, онбординг админа, геокодирование с postal_code, фикс `/today`, поиск в «Мои рейсы», таможня (в карточке и сегментах), прицеп в сегменте, DOCX на польском (Palety, Dane pojazdu, условия под сканы/оригиналы), компактные фильтры + клиенты, Speed Insights, индексы БД, `prefetch={false}`.
+**Закрыто:** Фазы 3.1–3.6, Фаза 4, Фаза 5 (груз первичен), Фаза 6 (утилиты и защита), `created_at`, нумерация через `counters`, считывание тахографа/карт, визитка водителя, sidebar водителя, дубликаты, онбординг админа, геокодирование с postal_code, фикс `/today`, поиск в «Мои рейсы», таможня, прицеп в сегменте и задании, DOCX на польском, компактные фильтры + клиенты, Speed Insights, индексы БД, `prefetch={false}`, массовый пересчёт координат, превью фото водителей, merge tool клиентов, сторожевой бэкап, авто-топливо, авто-дата старта.
 
 ---
 
