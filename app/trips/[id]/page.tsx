@@ -182,7 +182,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
   // ============================================================
   const { data: segmentsRaw } = await supabase
     .from('trip_segments')
-    .select('*, contractors(name), trucks!truck_id(registration_number), drivers!driver_id(first_name, last_name)')
+    .select('*, contractors(name), trucks!truck_id(registration_number), trailers:trucks!trailer_id(registration_number), drivers!driver_id(first_name, last_name)')
     .eq('trip_id', tripId)
     .order('position', { ascending: true });
 
@@ -208,6 +208,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
 
   const segments = (segmentsRaw || []).map((s: any) => {
     const truck = pickOne<{ registration_number: string | null }>(s.trucks);
+    const trailer = pickOne<{ registration_number: string | null }>(s.trailer);
     const driver = pickOne<{ first_name: string | null; last_name: string | null }>(s.drivers);
     const driverName = driver
       ? `${driver.first_name || ''} ${driver.last_name || ''}`.trim() || null
@@ -221,6 +222,8 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
       contractor_name: pickName(s.contractors) || null,
       truck_id: s.truck_id,
       truck_reg: truck?.registration_number || null,
+      trailer_id: s.trailer_id,
+      trailer_reg: trailer?.registration_number || null, // ⬅️ НОВОЕ
       driver_id: s.driver_id,
       driver_name: driverName,
       date_from: s.date_from,
