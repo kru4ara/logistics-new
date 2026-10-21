@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Pencil, Receipt } from 'lucide-react';
+import { Pencil, Trash2, Receipt } from 'lucide-react';
 import EditExpenseDialog from './EditExpenseDialog';
 import { deleteExpenseAction } from './expense-actions';
 
@@ -124,65 +124,62 @@ export default function ExpensesList({
           <div className="hidden md:block overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-slate-100">
-                  <th className="text-left py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Категория</th>
-                  <th className="text-left py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Источник</th>
-                  <th className="text-right py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Оплачено</th>
-                  <th className="text-right py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">EUR</th>
-                  <th className="text-left py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide pl-4">Описание</th>
-                  <th className="text-right py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Дата</th>
-                  <th className="py-3"></th>
+                <tr className="border-b border-slate-200">
+                  <th className="text-left py-3 px-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Категория</th>
+                  <th className="text-right py-3 px-3 text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Оплачено</th>
+                  <th className="text-right py-3 px-3 text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">В EUR</th>
+                  <th className="text-left py-3 px-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Описание</th>
+                  <th className="text-right py-3 px-3 text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Дата</th>
+                  <th className="py-3 pl-2"></th>
                 </tr>
               </thead>
               <tbody>
                 {expenses?.map((exp: any) => {
                   const seg = segments.find((s) => s.id === exp.segment_id);
                   return (
-                    <tr key={exp.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
-                      <td className="py-3 text-sm">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          {categoryLabel(exp.category)}
-                          {exp.paid_by_driver && (
-                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-200 whitespace-nowrap">
-                              🚛 за счёт водителя
+                    <tr key={exp.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
+                      <td className="py-3 px-3 text-sm">
+                        <div className="flex flex-col gap-0.5">
+                          <span className="flex items-center gap-2 flex-wrap font-medium text-slate-800">
+                            {categoryLabel(exp.category)}
+                            {exp.paid_by_driver && (
+                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-200 whitespace-nowrap">
+                                🚛 за счёт водителя
+                              </span>
+                            )}
+                          </span>
+                          {seg && (
+                            <span className="text-[11px] text-brand-600 bg-brand-50 self-start px-1.5 rounded">
+                              #{seg.position} {seg.executor_type === 'us' ? 'Мы' : seg.contractor_name || ''}
                             </span>
                           )}
                         </div>
                       </td>
-                      <td className="py-3 text-xs text-slate-600">
-                        {seg ? (
-                          <span className="text-brand-700 bg-brand-50 px-2 py-0.5 rounded whitespace-nowrap">
-                            #{seg.position} {seg.executor_type === 'us' ? 'Мы' : seg.contractor_name || ''}
-                          </span>
-                        ) : (
-                          <span className="text-slate-300">—</span>
-                        )}
-                      </td>
-                      <td className="py-3 text-right text-sm font-medium tabular-nums whitespace-nowrap">
+                      <td className="py-3 px-3 text-right text-sm font-medium text-slate-600 tabular-nums whitespace-nowrap">
                         {exp.original_amount} {exp.currency}
                       </td>
-                      <td className="py-3 text-right text-sm font-bold text-red-500 tabular-nums whitespace-nowrap">
+                      <td className="py-3 px-3 text-right text-sm font-bold text-red-500 tabular-nums whitespace-nowrap">
                         {exp.amount_eur} €
                       </td>
-                      <td className="py-3 pl-4 text-sm text-slate-600 max-w-[200px] truncate" title={exp.description}>
-                        {exp.description || '-'}
+                      <td className="py-3 px-3 text-sm text-slate-500 max-w-[250px] truncate" title={exp.description}>
+                        {exp.description || '—'}
                       </td>
-                      <td className="py-3 text-right text-xs text-slate-500 tabular-nums whitespace-nowrap">
-                        {exp.expense_date ? new Date(exp.expense_date).toLocaleDateString('ru-RU') : '-'}
+                      <td className="py-3 px-3 text-right text-xs text-slate-400 tabular-nums whitespace-nowrap">
+                        {exp.expense_date ? new Date(exp.expense_date).toLocaleDateString('ru-RU') : '—'}
                       </td>
-                      <td className="py-3 text-right">
+                      <td className="py-3 pl-2 text-right">
                         {!seg && (
-                          <div className="flex items-center justify-end gap-2">
+                          <div className="flex items-center justify-end gap-1">
                             <button
                               onClick={() => setEditingExpense(exp)}
-                              className="text-slate-400 hover:text-brand-600 p-1"
+                              className="text-slate-400 hover:text-brand-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
                               title="Редактировать"
                             >
-                              <Pencil className="w-3.5 h-3.5" />
+                              <Pencil className="w-4 h-4" />
                             </button>
                             <form action={deleteExpenseAction.bind(null, exp.id, tripId)}>
-                              <button type="submit" className="text-red-500 hover:text-red-700 text-xs font-medium px-1">
-                                Удалить
+                              <button type="submit" className="text-slate-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 transition-colors" title="Удалить">
+                                <Trash2 className="w-4 h-4" />
                               </button>
                             </form>
                           </div>
