@@ -1,10 +1,13 @@
-# HANDOVER — Logistics CRM (20.10.2026, вечер)
+# HANDOVER — Logistics CRM (21.10.2026, вечер)
 
 ## Стек и инфраструктура
 - Next.js 14 (App Router) + Supabase + Vercel
 - GitHub: `kru4ara/logistics-new` (master) — автокоммит на каждое изменение
 - Prod: https://logistics-new-ebon.vercel.app
-- Supabase Project: `smodijsjiwcvsscfgloh` (в Supabase Dashboard называется `logistics-core`, org `Raibuilding`)
+- Supabase Project: `logistics-core`, org `Raibuilding`
+  - ⚠️ **ПРАВИЛЬНЫЙ REF:** `smodijsj`**`i`**`wcvsscfgloh` (с буквой `i` после `smodijsj`)
+  - ❌ **ОШИБОЧНЫЙ (частая опечатка):** `smodijsjwvsscfgloh` (без `i`) → NXDOMAIN
+  - **Правило:** копировать ТОЛЬКО кнопкой Copy из Settings → General.
 - Vercel project: `kru4aras-projects/logistics-new`
 
 ### ENV (Vercel → Settings → Environment Variables)
@@ -13,7 +16,7 @@
 - `SUPABASE_SERVICE_ROLE_KEY` — server client, обходит RLS
 - `LOGISAT_SERVER` / `LOGISAT_USERNAME` / `LOGISAT_PASSWORD`
 - `TELEGRAM_BOT_TOKEN` — @raibuilding_bot
-- `TELEGRAM_CHAT_ID` — `921520481` (личка владельца; общего чата офиса нет)
+- `TELEGRAM_CHAT_ID` — `921520481` (личка владельца)
 - `TELEGRAM_WEBHOOK_SECRET`
 - `CRON_SECRET`
 
@@ -21,28 +24,10 @@
 
 ---
 
-## 🚨 Текущий блокер: DNS Supabase
-
-**Симптом:** проект `smodijsjwvsscfgloh` показывает «Healthy» в Dashboard, но домен `smodijsjwvsscfgloh.supabase.co` возвращает **NXDOMAIN** (не резолвится). Локальный `npm run dev` не может подключиться к базе.
-
-**Проверено:**
-- `nslookup ... 8.8.8.8` → `Non-existent domain`
-- `nslookup ... 1.1.1.1` → `Non-existent domain`
-- Проект **не на паузе** (Active), статус Supabase — «fully operational».
-- `.env.local` содержит правильный URL (`smodijsjwvsscfgloh`, не опечатка).
-
-**Что сделано:**
-- Открыт тикет в поддержку Supabase: **`SU-516613`**, conversation ID `cnv_1opuwaji`.
-- В форме привязки выбран проект `logistics-core` (`smodijsjwvsscfgloh`), issue = `Other`.
-- Ожидаем ответа инженера (перерегистрация DNS-записи API-шлюза).
-
-**Прод работает** — Vercel-функции используют альтернативный пул соединений (Supavisor), он резолвится даже при «лежащем» API-домене.
-
-**Что делать завтра:**
-1. Проверить почту / Supabase Dashboard → Support → тикет `SU-516613`.
-2. Если ответили — выполнить инструкцию (перерегистрация DNS или workaround).
-3. Проверить, пришёл ли бэкап в Telegram (`921520481`) в 7:00 UTC.
-4. После восстановления DNS — `npm run dev` заработает локально.
+## ✅ Блокер DNS Supabase — ЗАКРЫТ (21.10.2026)
+**Причина:** опечатка в Project ref (`smodijsjwvsscfgloh` без `i` вместо `smodijsj`**`i`**`wcvsscfgloh`).
+**Решение:** исправлено в `.env.local` и Vercel.
+**Статус:** локальный `npm run dev` работает, прод работает. Тикет `SU-516613` закрыт автоматически (был ложным, не на стороне Supabase).
 
 ---
 
@@ -75,7 +60,7 @@
 
 ### Как начинать новый чат
 1. Полный HANDOVER
-2. Что делаем сейчас (блокер — тикет `SU-516613`)
+2. Что делаем сейчас (см. Очередь задач)
 3. Сам файл
 4. Дальше — по одному файлу
 
@@ -177,6 +162,7 @@ Lucide-react `^0.460.0` — везде. Emoji только в `<option>`, лог
 - **`renumber_all_trips()`** — пересчёт при удалении рейса (вызывается из `deleteTrip`)
 - **`sync_trip_from_segment()` + `trg_sync_trip_from_segment`** — синхронизирует `trips.truck_id`, `trailer_id`, `driver_id`, `start_date`, `end_date` из `trip_segments` (для Logisat/DOCX)
 - **`merge_clients(source_id, target_id)`** — атомарное объединение клиентов (переносит `trips.client_id`, `trip_cargo.client_id`, `forwarding_orders.client_id`, удаляет дубликат)
+- **`merge_contractors(source_id, target_id)`** — атомарное объединение подрядчиков (переносит `trip_segments.contractor_id`, `forwarding_contractors.contractor_id`, удаляет дубликат). `trip_expenses.subcontractor_id` НЕ трогает — висячая колонка.
 
 ### Хелперы
 - **`lib/trip-route.ts`** — `buildRouteMap(segments)`
@@ -239,9 +225,16 @@ Lucide-react `^0.460.0` — везде. Emoji только в `<option>`, лог
 - Desktop: колонки «Фрахт», «Расходы», «Прибыль» (цветная), «ЗП мес», «ЗП всего», «Пробег», «Расход».
 - Сортировка — по прибыли (убывание).
 
+### Фаза 8 — Merge tool для подрядчиков — ✅ 21.10
+- SQL `merge_contractors(source_id, target_id)` — переносит `trip_segments.contractor_id`, `forwarding_contractors.contractor_id`, удаляет дубликат.
+- `mergeContractors` в `app/contractors/actions.ts` (файл называется `actions.ts`, НЕ `contractor-actions.ts`).
+- `MergeContractorDialog.tsx` + `ContractorCardActions.tsx` + кнопка «Объединить» на `/contractors`.
+- `trip_expenses.subcontractor_id` НЕ трогаем — висячая колонка от DROP `trip_subcontractors` (FK нет, UUID-ов в `contractors` нет — проверено).
+- **Тест на проде:** ✅ пройден 21.10 (кнопки видны, модалка работает, список подтягивается).
+
 ---
 
-## ⏭️ Сделано (15.10–20.10.2026)
+## ⏭️ Сделано (15.10–21.10.2026)
 
 ### 15.10.2026
 1. `created_at` в `trips` — SQL.
@@ -338,14 +331,28 @@ Lucide-react `^0.460.0` — везде. Emoji только в `<option>`, лог
     - Восстановлен вебхук: `setWebhook` → `{"ok":true,"description":"Webhook is already set"}`.
     - **Не забыть:** проверить, что завтра бэкап приходит в личку.
 
+### 21.10.2026
+30. **DNS Supabase — закрыт.** Причина — опечатка Project ref (без `i`). Исправлено в `.env.local` + Vercel. Локальный `dev` работает. Тикет `SU-516613` закрыт.
+31. **Бэкап в Telegram — проверен.** `backup_2026-10-21_0731.json` (1751 строка) доставлен в личку. Cron работает.
+32. **Grep-аудит `.select()` — закрыт.** Найден 1 баг: `app/trips/[id]/task-actions.ts:277` — `.select('id, trip_number, route, ...')` падал на удалённой `trips.route`. Исправлено (убрано `route` из селекта).
+33. **`task-actions.ts` — фикс задания водителю.**
+    - Убран мёртвый `route` из `.select()` в `sendSegmentTaskToDriver`.
+    - Добавлены `truck_reg` / `trailer_reg` в сегменты **в обеих функциях** (`sendTaskToDriver` и `sendSegmentTaskToDriver`) — теперь в Telegram-задании выводится блок «🚚 Машина: … / прицеп …», как в превью на странице. Раньше не выводился (расхождение с `page.tsx`).
+    - В `sendTaskToDriver` тягач/прицеп сегмента берутся встроенным join'ом: `select('*, trucks!truck_id(registration_number), trailers:trucks!trailer_id(registration_number)')`.
+34. **`next.config.js` — чистка.**
+    - `optimizePackageImports`: убран `recharts` (не установлен). Осталось: `['lucide-react', 'docx', 'qrcode', 'image-size']`.
+    - `serverActions.bodySizeLimit: '10mb'` — без изменений.
+35. **Merge tool для подрядчиков — Фаза 8.** См. выше.
+
 ---
 
-## 📈 Состояние скорости (20.10.2026)
+## 📈 Состояние скорости (21.10.2026)
 
 - **Vercel Speed Insights (Desktop, P75):** **94/100** (зелёная зона, «Great»).
 - **PageSpeed Insights (Desktop):** 83/100 (хорошо).
 - **Главная рекомендация PageSpeed:** «Удалить неиспользуемый JS» (~165 КБ). Статический вес первого визита, на повторных заходах — из кэша. **Не критично.**
 - **Регион Vercel:** `Washington, D.C. (iad1)` — не меняли (TTFB в норме).
+- **`optimizePackageImports`** включён: `lucide-react`, `docx`, `qrcode`, `image-size`.
 
 ---
 
@@ -353,28 +360,27 @@ Lucide-react `^0.460.0` — везде. Emoji только в `<option>`, лог
 
 | № | Задача | Размер |
 |---|---|---|
-| 1 | Дождаться ответа Supabase по тикету `SU-516613` (DNS) | — |
-| 2 | Проверить бэкап в Telegram завтра в 7:00 UTC | 5 мин |
-| 3 | Grep-аудит всех `.select()` после миграций | 30 мин |
-| 4 | Merge tool для подрядчиков (по аналогии с клиентами) | 1 час |
-| 5 | Отчёт «фрахт по грузам» (если понадобится) | Средний |
-| 6 | `optimizePackageImports` в `next.config.js` (если хочется дожать PageSpeed) | 10 мин |
+| 1 | Отчёт «фрахт по грузам» (по `trip_cargo.freight_amount`) | Средний |
+| 2 | Grep-аудит `.select()` — **ЗАКРЫТ** 21.10 | — |
+| 3 | Merge tool для подрядчиков — **ЗАКРЫТ** 21.10 | — |
+| 4 | `optimizePackageImports` — **ЗАКРЫТ** 21.10 | — |
+| 5 | `SU-516613` — **ЗАКРЫТ** 21.10 | — |
 
 ---
 
-## 📊 Состояние данных (20.10.2026)
+## 📊 Состояние данных (21.10.2026)
 
 - `trips`: ~75 (+ `created_at`, `trip_number` через `counters`)
-- `trip_segments`: ~100
-- `trip_cargo`: ~75
-- `trip_segment_cargo`: ~80
-- `trip_expenses`: ~454
+- `trip_segments`: ~98
+- `trip_cargo`: ~78
+- `trip_segment_cargo`: ~85
+- `trip_expenses`: ~455
 - `driver_transactions`: наполняется
 - `trip_subcontractors`: DROP
 - `counters`: `last_value` для `trip_number`
-- `audit_log`: ~459+ (включая «Бэкап выполнен»)
+- `audit_log`: ~471+ (включая «Бэкап выполнен»)
 
-**Бэкапы:** `backup_2026-10-13_0730.json`, `backup_2026-10-14_0607.json`, `backup_2026-10-14_0730.json`, `backup_2026-10-20_1338.json` (ручной). Cron `/api/cron/backup` — 7:00; `/api/cron/backup-watch` — 8:00.
+**Бэкапы:** `backup_2026-10-13_0730.json`, `backup_2026-10-14_0607.json`, `backup_2026-10-14_0730.json`, `backup_2026-10-20_1338.json` (ручной), `backup_2026-10-21_0731.json` (1751 строка, доставлен в Telegram ✅). Cron `/api/cron/backup` — 7:00; `/api/cron/backup-watch` — 8:00.
 
 ---
 
@@ -386,7 +392,7 @@ Login через server action + `bcrypt.compare` + httpOnly cookie. Табли�
 ### Домены
 - Рейсы + сегменты + грузы + расходы + документы
 - Экспедирование (orders + contractors + points + expenses)
-- Клиенты (+ merge tool), водители (с превью фото), тягачи, прицепы, локации (с таможней), подрядчики
+- Клиенты (+ merge tool), водители (с превью фото), тягачи, прицепы, локации (с таможней), подрядчики (+ merge tool)
 - Напоминания + cron Telegram
 - Logisat (синк, bulk-синк, блокировка без номера)
 - Курсы валют, документы
@@ -396,6 +402,8 @@ Login через server action + `bcrypt.compare` + httpOnly cookie. Табли�
 - **Массовый пересчёт координат** (порциями по 20)
 - **Авто-топливо и авто-дата** при добавлении us-сегмента
 - **KPI водителей с прибылью**
+- **Merge tool клиентов**
+- **Merge tool подрядчиков**
 - Бэкапы 19+ таблиц + сторожевой крон
 
 ### Прочее
@@ -406,7 +414,6 @@ Login через server action + `bcrypt.compare` + httpOnly cookie. Табли�
 - **Заявки без номера** (секция в списке)
 - **Документы подрядчику на польском** (ZLECENIE)
 - **Speed Insights** (Vercel)
-- **Merge tool для клиентов**
 - **Превью фото водителей**
 
 ### Cron
@@ -426,7 +433,13 @@ Login через server action + `bcrypt.compare` + httpOnly cookie. Табли�
 **Не работает**. **Решение:** `DROP COLUMN` перед каждой колонкой.
 
 ### Миграция колонок → grep ВСЕХ `.select()`
-После `drivers.phone` — `/today` падал в рантайме, билд зелёный. **Правило:** при DROP COLUMN — grep во всех `.select()` в `app/` и `lib/`.
+После `drivers.phone` — `/today` падал в рантайме, билд зелёный. **Правило:** при DROP COLUMN — grep во всех `.select()` в `app/` и `lib/`. (21.10 найден и исправлен `trips.route` в `task-actions.ts`.)
+
+### ⚠️ `Project ID` — копировать только Copy
+Опечатка на одну букву (`smodijsjwvsscfgloh` вместо `smodijsj`**`i`**`wcvsscfgloh`) даёт NXDOMAIN, проект при этом Healthy. Выглядит как DNS-блокер Supabase. Перед тикетом в поддержку — сверить ref кнопкой Copy. Тикет `SU-516613` был ложным.
+
+### ⚠️ `trip_expenses.subcontractor_id` — висячая колонка
+Осталась после `DROP trip_subcontractors` (Фаза 3.3). FK на `contractors` нет, UUID-ы из `trip_expenses` в `contractors` не находятся. В merge-функциях (подрядчики) её **не трогать**. Если понадобится — сначала разобраться, куда она должна указывать, или удалить.
 
 ### Геокодирование — Nominatim путается
 «Nola (NA), Italy» → «Nola, Louisiana». **Решение:** `postal_code` + `viewbox` + `countrycodes` + `cleanCity`.
@@ -438,13 +451,16 @@ Login через server action + `bcrypt.compare` + httpOnly cookie. Табли�
 Static page generation 60s. Лечится: Redeploy без кэша.
 
 ### Автокоммит
-Каждое изменение = коммит + билд. **Связанные файлы — один коммит**.
+Каждое изменение = коммит + билд. **Связанные файлы — один коммит** (иначе Vercel упадёт на type-check).
 
 ### Потеря импорта / обрыв при копипасте
 Не удалять существующие импорты. Проверять, что файл дошёл до конца (`}`).
 
 ### `driver.phone` больше нет
 Все `.select()` с `drivers!driver_id(..., phone)` → `phone_by, phone_pl`.
+
+### `trips.route` больше нет
+Использовать `buildRouteMap(segments)` или `buildRouteFromSegments(segments)`.
 
 ### DOCX: перевод на польский
 `lib/translate-pl.ts` — словарь. Если слово не найдено, остаётся как есть. Пополнять по мере необходимости.
@@ -465,6 +481,9 @@ Static page generation 60s. Лечится: Redeploy без кэша.
 ### Merge tool клиентов
 SQL-функция `merge_clients(source_id, target_id)` переносит `trips.client_id`, `trip_cargo.client_id`, `forwarding_orders.client_id`, удаляет дубликат. Действие необратимо.
 
+### Merge tool подрядчиков
+SQL-функция `merge_contractors(source_id, target_id)` переносит `trip_segments.contractor_id`, `forwarding_contractors.contractor_id`, удаляет дубликат. `trip_expenses.subcontractor_id` НЕ трогает (висячая). Файл экшенов — `app/contractors/actions.ts` (НЕ `contractor-actions.ts`). Действие необратимо.
+
 ### Сторожевой бэкап
 `/api/cron/backup` пишет в `audit_log` запись с `user_name='Cron'`, `entity_type='trip'`, `summary='Бэкап выполнен: ...'` **после** успешной отправки. `/api/cron/backup-watch` ищет эту запись за сегодня (UTC) и шлёт алерт, если её нет. **Если Vercel не вызвал ни один крон — алерта не будет.** Проверять вручную.
 
@@ -478,21 +497,22 @@ SQL-функция `merge_clients(source_id, target_id)` переносит `tri
 - Обновлены в Vercel (Production) + Redeploy.
 - **Не грузить секреты в чат.** Если засветились — сразу перевыпускать.
 
-### DNS Supabase (текущий блокер)
-Домен `smodijsjwvsscfgloh.supabase.co` → NXDOMAIN. Проект Healthy, не на паузе. Открыт тикет `SU-516613`. Прод работает через Supavisor. Локальный `npm run dev` не работает до восстановления DNS.
+### Задание водителю — `truck_reg`/`trailer_reg`
+`buildDriverTaskText` выводит блок «🚚 Машина: … / прицеп …» **только если** в объекте сегмента есть `truck_reg`/`trailer_reg`. В `app/trips/[id]/page.tsx` они мапятся из join'а (`trucks!truck_id`, `trailers:trucks!trailer_id`). В `task-actions.ts` — тоже (21.10). Если добавляешь новое место вызова `buildDriverTaskText` — **обязательно** передавай `truck_reg`/`trailer_reg`, иначе блок не отрисуется.
 
 ---
 
 ## 📋 Шпаргалка
 
-- `trips`: ~75, `trip_segments`: ~100, `trip_cargo`: ~75, `trip_expenses`: ~454
+- `trips`: ~75, `trip_segments`: ~98, `trip_cargo`: ~78, `trip_expenses`: ~455
 - `driver_transactions`: наполняется
 - `trip_subcontractors`: DROP
 - `counters`: сплошная нумерация
 - Скорость: **94/100** (Speed Insights Desktop)
-- **Supabase тикет:** `SU-516613` (DNS NXDOMAIN)
+- **Supabase ref:** `smodijsj`**`i`**`wcvsscfgloh` (с буквой `i`!)
+- **Supabase тикет `SU-516613`:** ЗАКРЫТ (ложный, опечатка)
 
-**Закрыто:** Фазы 3.1–3.6, Фаза 4, Фаза 5 (груз первичен), Фаза 6 (утилиты и защита), Фаза 7 (KPI с прибылью), `created_at`, нумерация через `counters`, считывание тахографа/карт, визитка водителя, sidebar водителя, дубликаты, онбординг админа, геокодирование с postal_code, фикс `/today`, поиск в «Мои рейсы», таможня, прицеп в сегменте и задании, DOCX на польском, компактные фильтры + клиенты, Speed Insights, индексы БД, `prefetch={false}`, массовый пересчёт координат, превью фото водителей, merge tool клиентов, сторожевой бэкап, авто-топливо, авто-дата старта, перевыпуск секретов.
+**Закрыто:** Фазы 3.1–3.6, 4, 5 (груз первичен), 6 (утилиты и защита), 7 (KPI с прибылью), **8 (merge tool подрядчиков)**, `created_at`, нумерация через `counters`, считывание тахографа/карт, визитка водителя, sidebar водителя, дубликаты, онбординг админа, геокодирование с postal_code, фикс `/today`, поиск в «Мои рейсы», таможня, прицеп в сегменте и задании, DOCX на польском, компактные фильтры + клиенты, Speed Insights, индексы БД, `prefetch={false}`, массовый пересчёт координат, превью фото водителей, merge tool клиентов, сторожевой бэкап, авто-топливо, авто-дата старта, перевыпуск секретов, **DNS Supabase (опечатка)**, **grep-аудит `.select()`**, **`task-actions.ts` (route + truck_reg/trailer_reg)**, **`optimizePackageImports`**, **бэкап в Telegram**.
 
 ---
 
@@ -500,7 +520,7 @@ SQL-функция `merge_clients(source_id, target_id)` переносит `tri
 
 **При старте нового чата:**
 1. Полный HANDOVER (один раз)
-2. Что делаем сейчас (блокер — тикет `SU-516613`)
+2. Что делаем сейчас (см. Очередь задач — сейчас основное закрыто, следующее по плану — отчёт «фрахт по грузам»)
 3. Сам файл, целиком
 4. Дальше по одному файлу
 
