@@ -40,15 +40,11 @@ export default function EditExpenseDialog({
     
     startTransition(async () => {
       try {
-        const res = await updateExpense(expense.id, formData);
-        if (res.success) {
-          router.refresh();
-          onClose();
-        } else {
-          setError(res.error || 'Ошибка');
-        }
+        await updateExpense(expense.id, formData);
+        router.refresh();
+        onClose();
       } catch (err: any) {
-        setError(err.message);
+        setError(err.message || 'Ошибка сохранения');
       }
     });
   }
