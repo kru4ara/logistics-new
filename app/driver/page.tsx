@@ -30,9 +30,9 @@ type ConsolidationPoint = {
 export default async function DriverPage({
   searchParams,
 }: {
-  searchParams: { q?: string; status?: string };
+  searchParams: Promise<{ q?: string; status?: string }>;
 }) {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const role = cookieStore.get('role')?.value;
   const driverId = cookieStore.get('driver_id')?.value;
   const userName = cookieStore.get('user_name')?.value
@@ -43,6 +43,7 @@ export default async function DriverPage({
     redirect('/login');
   }
 
+  const resolvedParams = await searchParams;
   const supabase = await createClient();
 
   // Профиль водителя — нужен для onboarded_at
@@ -123,9 +124,9 @@ export default async function DriverPage({
   // ============================================================
   // ПОИСК + ФИЛЬТР ПО СТАТУСУ (водитель)
   // ============================================================
-  const q = (searchParams?.q || '').trim();
+  const q = (resolvedParams?.q || '').trim();
   const qLower = q.toLowerCase();
-  const statusFilter = searchParams?.status || null;
+  const statusFilter = resolvedParams?.status || null;
 
   function matchesSearch(t: any): boolean {
     if (!qLower) return true;
