@@ -18,14 +18,16 @@ import {
 
 export const dynamic = 'force-dynamic';
 
-export default async function StatisticsPage({ searchParams }: { searchParams: { year?: string } }) {
-  const role = cookies().get('role')?.value;
+export default async function StatisticsPage({ searchParams }: { searchParams: Promise<{ year?: string }> }) {
+  const cookieStore = await cookies();
+  const role = cookieStore.get('role')?.value;
   if (role === 'driver') redirect('/driver');
 
+  const resolvedParams = await searchParams;
   const supabase = await createClient();
 
   const currentYear = new Date().getFullYear();
-  const year = parseInt(searchParams?.year || String(currentYear));
+  const year = parseInt(resolvedParams?.year || String(currentYear));
 
   // ============================================================
   // РЕЙСЫ
