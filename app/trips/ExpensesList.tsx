@@ -5,18 +5,38 @@ import { Pencil, Receipt } from 'lucide-react';
 import EditExpenseDialog from './EditExpenseDialog';
 import { deleteExpenseAction } from './expense-actions';
 
+const expenseCategories: { value: string; label: string }[] = [
+  { value: 'fuel', label: '⛽ Топливо' },
+  { value: 'epi', label: '📄 EPI' },
+  { value: 'border', label: '🛂 Граница' },
+  { value: 'salary', label: '💶 ЗП водителя' },
+  { value: 'permit', label: '📋 Дозвол' },
+  { value: 'tlc', label: '🏭 ТЛЦ' },
+  { value: 'waiting', label: '⏳ Зона ожидания' },
+  { value: 'repair', label: '🔧 Ремонт' },
+  { value: 'parking', label: '🅿️ Паркинг' },
+  { value: 'disinfection', label: '🧴 Дезинфекция' },
+  { value: 'ex1', label: '🧾 ЕХ-1' },
+  { value: 'otkat', label: '🔄 Откат' },
+  { value: 'gps_seal', label: '📡 GPS пломба' },
+  { value: 'other', label: '📌 Другое' },
+];
+
+function categoryLabel(cat: string): string {
+  return expenseCategories.find((c) => c.value === cat)?.label
+    || (cat === 'contractor' ? '🚛 Подрядчик' : cat);
+}
+
 export default function ExpensesList({
   expenses,
   segments,
   tripId,
   totalExpenses,
-  categoryLabel,
 }: {
   expenses: any[];
   segments: any[];
   tripId: string;
   totalExpenses: number;
-  categoryLabel: (cat: string) => string;
 }) {
   const [editingExpense, setEditingExpense] = useState<any>(null);
 
