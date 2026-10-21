@@ -4,14 +4,26 @@ import { createClient } from '../../lib/supabase-server';
 import { buildRouteMap, type SegmentRouteRow, type TripRouteInfo } from '../../lib/trip-route';
 import DownloadButton from './DownloadButton';
 import SearchInput from './SearchInput';
-import TripsBulkList, { type TripCardData, type MonthGroup } from './TripsBulkList';
 import TripFilters from './TripFilters';
 import RecalcAllCoordsButton from './RecalcAllCoordsButton';
+import dynamic from 'next/dynamic';
+import type { TripCardData, MonthGroup } from './TripsBulkList';
 import {
   Package,
   Plus,
   Inbox,
 } from 'lucide-react';
+
+// ⬅️ Ленивая загрузка тяжелого клиентского списка
+const TripsBulkList = dynamic(() => import('./TripsBulkList'), {
+  ssr: false,
+  loading: () => (
+    <div className="card p-10 md:p-16 text-center animate-fade-in">
+      <div className="w-10 h-10 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin mx-auto mb-4" />
+      <p className="text-slate-500 text-sm">Загружаю список рейсов…</p>
+    </div>
+  ),
+});
 
 export const dynamic = 'force-dynamic';
 
@@ -216,24 +228,6 @@ export default async function TripsPage({
   const years = Array.from(tripYears).sort((a, b) => b - a);
 
   const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
-
-  const statusLabels: Record<string, string> = {
-    planned: 'Планируется',
-    active: 'В пути',
-    completed: 'Завершён',
-    invoiced: 'Выставлен счёт',
-    paid: 'Оплачен',
-  };
-
-  const statusPillColors: Record<string, string> = {
-    planned: 'bg-slate-400',
-    active: 'bg-brand-500',
-    completed: 'bg-green-500',
-    invoiced: 'bg-yellow-500',
-    paid: 'bg-emerald-500',
-  };
-
-  const statusOrder = ['planned', 'active', 'completed', 'invoiced', 'paid'];
 
   const filteredRevenue = filteredTrips.reduce((sum, t) => sum + (t.revenue_eur || 0), 0);
   const filteredExpenses = filteredTrips.reduce((sum, t) => sum + (expensesByTrip[t.id] || 0), 0);
