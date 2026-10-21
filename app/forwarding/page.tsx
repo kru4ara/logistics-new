@@ -49,17 +49,19 @@ function pickName(rel: unknown): string | undefined {
 export default async function ForwardingPage({
   searchParams,
 }: {
-  searchParams: { year?: string; month?: string };
+  searchParams: Promise<{ year?: string; month?: string }>;
 }) {
-  const role = cookies().get('role')?.value;
+  const cookieStore = await cookies();
+  const role = cookieStore.get('role')?.value;
   if (role === 'driver') redirect('/driver');
 
+  const resolvedParams = await searchParams;
   const supabase = await createClient();
 
   const currentYear = new Date().getFullYear();
 
-  const year = parseInt(searchParams.year || '') || currentYear;
-  const monthFilter = searchParams.month ? parseInt(searchParams.month) : null;
+  const year = parseInt(resolvedParams.year || '') || currentYear;
+  const monthFilter = resolvedParams.month ? parseInt(resolvedParams.month) : null;
 
   // Собираем годы из данных (для фильтра) — параллельно с основным запросом
   const [{ data: allDates }, ordersResult] = await Promise.all([
