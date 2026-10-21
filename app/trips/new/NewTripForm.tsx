@@ -205,7 +205,66 @@ export default function NewTripForm({
         </div>
       </div>
 
-      {/* КУДА */}
+      {/* ТАМОЖНЯ (перенесена выше "Куда") */}
+      <div className={sectionClass}>
+        <h2 className={sectionTitleClass}>
+          <ShieldCheck className="w-5 h-5 text-slate-600" strokeWidth={2.2} />
+          Место затаможки
+        </h2>
+        <p className="text-xs text-slate-500 -mt-1">
+          Промежуточная точка между откуда и куда. Необязательно.
+        </p>
+
+        <div>
+          <label className={labelClass}>
+            Выбрать из сохранённых локаций
+            <span className="text-xs text-slate-400 font-normal ml-2 hidden sm:inline">(заполнит поля ниже)</span>
+          </label>
+          <select onChange={(e) => fillCustoms(e.target.value)} className={presetClass} defaultValue="">
+            <option value="">— Выберите локацию —</option>
+            {customsLocations.map((loc) => (
+              <option key={loc.id} value={loc.id}>
+                {loc.name} {loc.city ? `· ${loc.city}` : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2 pt-2 border-t border-slate-100">
+          <div className="md:col-span-2">
+            <label className={labelClass}>Название поста / компании</label>
+            <input type="text" name="customs_place" value={customs.place}
+              onChange={(e) => setCustoms({ ...customs, place: e.target.value })}
+              placeholder="ТЛЦ Брест" className={inputClass} />
+          </div>
+          <div>
+            <label className={labelClass}>Страна</label>
+            <input type="text" name="customs_country" value={customs.country}
+              onChange={(e) => setCustoms({ ...customs, country: e.target.value })}
+              placeholder="Беларусь" className={inputClass} />
+          </div>
+          <div>
+            <label className={labelClass}>Город</label>
+            <input type="text" name="customs_city" value={customs.city}
+              onChange={(e) => setCustoms({ ...customs, city: e.target.value })}
+              placeholder="Брест" className={inputClass} />
+          </div>
+          <div>
+            <label className={labelClass}>Почтовый код</label>
+            <input type="text" name="customs_postal_code" value={customs.postal_code}
+              onChange={(e) => setCustoms({ ...customs, postal_code: e.target.value })}
+              placeholder="224000" className={inputClass} />
+          </div>
+          <div>
+            <label className={labelClass}>Адрес</label>
+            <input type="text" name="customs_address" value={customs.address}
+              onChange={(e) => setCustoms({ ...customs, address: e.target.value })}
+              placeholder="ул. Таможенная 1" className={inputClass} />
+          </div>
+        </div>
+      </div>
+
+      {/* КУДА (перенесена ниже "Таможни") */}
       <div className={sectionClass}>
         <h2 className={sectionTitleClass}>
           <Flag className="w-5 h-5 text-brand-600" strokeWidth={2.2} />
@@ -263,65 +322,6 @@ export default function NewTripForm({
             <input type="text" name="to_loading_number" value={to.loading_number}
               onChange={(e) => setTo({ ...to, loading_number: e.target.value })}
               placeholder="Ramp 1" className={inputClass} />
-          </div>
-        </div>
-      </div>
-
-      {/* ТАМОЖНЯ */}
-      <div className={sectionClass}>
-        <h2 className={sectionTitleClass}>
-          <ShieldCheck className="w-5 h-5 text-brand-600" strokeWidth={2.2} />
-          Место затаможки
-        </h2>
-        <p className="text-xs text-slate-500 -mt-1">
-          Промежуточная точка между откуда и куда. Необязательно.
-        </p>
-
-        <div>
-          <label className={labelClass}>
-            Выбрать из сохранённых локаций
-            <span className="text-xs text-slate-400 font-normal ml-2 hidden sm:inline">(заполнит поля ниже)</span>
-          </label>
-          <select onChange={(e) => fillCustoms(e.target.value)} className={presetClass} defaultValue="">
-            <option value="">— Выберите локацию —</option>
-            {customsLocations.map((loc) => (
-              <option key={loc.id} value={loc.id}>
-                {loc.name} {loc.city ? `· ${loc.city}` : ''}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2 pt-2 border-t border-slate-100">
-          <div className="md:col-span-2">
-            <label className={labelClass}>Название поста / компании</label>
-            <input type="text" name="customs_place" value={customs.place}
-              onChange={(e) => setCustoms({ ...customs, place: e.target.value })}
-              placeholder="ТЛЦ Брест" className={inputClass} />
-          </div>
-          <div>
-            <label className={labelClass}>Страна</label>
-            <input type="text" name="customs_country" value={customs.country}
-              onChange={(e) => setCustoms({ ...customs, country: e.target.value })}
-              placeholder="Беларусь" className={inputClass} />
-          </div>
-          <div>
-            <label className={labelClass}>Город</label>
-            <input type="text" name="customs_city" value={customs.city}
-              onChange={(e) => setCustoms({ ...customs, city: e.target.value })}
-              placeholder="Брест" className={inputClass} />
-          </div>
-          <div>
-            <label className={labelClass}>Почтовый код</label>
-            <input type="text" name="customs_postal_code" value={customs.postal_code}
-              onChange={(e) => setCustoms({ ...customs, postal_code: e.target.value })}
-              placeholder="224000" className={inputClass} />
-          </div>
-          <div>
-            <label className={labelClass}>Адрес</label>
-            <input type="text" name="customs_address" value={customs.address}
-              onChange={(e) => setCustoms({ ...customs, address: e.target.value })}
-              placeholder="ул. Таможенная 1" className={inputClass} />
           </div>
         </div>
       </div>
