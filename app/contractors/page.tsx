@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase-server';
 import { deleteContractor } from './actions';
+import ContractorCardActions from './ContractorCardActions';
 import CountryFlag from '../components/CountryFlag';
 import {
   Building2,
@@ -222,14 +223,15 @@ export default async function ContractorsPage() {
 
                   {/* Кнопки — вне ссылки */}
                   <div className="p-3 border-t border-slate-100 bg-slate-50/40 flex gap-2">
-                    <a
-                      href={`/contractors/${c.id}/edit`}
-                      className="flex-1 inline-flex items-center justify-center gap-1.5 text-center px-3 py-2 rounded-lg border border-slate-300 text-slate-700 text-xs font-medium
-                                 hover:bg-white transition-all"
-                    >
-                      <Pencil className="w-3.5 h-3.5" strokeWidth={2} />
-                      Изменить
-                    </a>
+                    <ContractorCardActions
+                      contractorId={c.id}
+                      contractorName={c.name}
+                      otherContractors={
+                        (contractors || [])
+                          .filter((x) => x.id !== c.id)
+                          .map((x) => ({ id: x.id, label: x.name }))
+                      }
+                    />
                     <form action={deleteContractor.bind(null, c.id)} className="flex-1">
                       <button
                         type="submit"
