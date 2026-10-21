@@ -372,7 +372,8 @@ async function buildClientsSheet(
 }
 
 export async function GET(request: Request) {
-  const role = cookies().get('role')?.value;
+  const cookieStore = await cookies();
+  const role = cookieStore.get('role')?.value;
   if (role !== 'admin') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
