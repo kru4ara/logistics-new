@@ -15,7 +15,7 @@ import {
   PageBreak,
 } from 'docx';
 import QRCode from 'qrcode';
-import imageSize from 'safe-image-size';
+import imageSize from 'image-size';
 import { createClient } from '../../../../../../../lib/supabase-server';
 import { COMPANY, APP_URL, getTerms } from '../../../../../../../lib/company';
 
