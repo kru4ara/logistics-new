@@ -140,7 +140,17 @@ export default async function ContractorCardPage({
       original_price,
       currency,
       payment_days,
-      forwarding_orders(order_number, client_request_number, route_from, route_to, load_date, unload_date)
+      forwarding_orders(
+        order_number,
+        client_request_number,
+        load_date,
+        unload_date,
+        forwarding_points(
+          type,
+          sequence,
+          locations(country, city)
+        )
+      )
     `)
     .eq('contractor_id', id);
 
@@ -177,7 +187,26 @@ export default async function ContractorCardPage({
     if (!fwd) continue;
 
     const numberBase = fwd.client_request_number || (fwd.order_number ? `№${fwd.order_number}` : '—');
-    const route = [fwd.route_from, fwd.route_to].filter(Boolean).join(' → ') || '—';
+
+    // Маршрут из forwarding_points: first loading → last unloading
+    const points = Array.isArray(fwd.forwarding_points) ? fwd.forwarding_points : [];
+    const pickLoc = (rel: unknown): { city?: string; country?: string } => {
+      if (!rel) return {};
+      if (Array.isArray(rel)) return rel[0] || {};
+      return rel as { city?: string; country?: string };
+    };
+    const sortedPoints = [...points].sort((a: any, b: any) => (a.sequence || 0) - (b.sequence || 0));
+    const firstLoad = sortedPoints.find((p: any) => p.type === 'loading');
+    const lastUnload = [...sortedPoints].reverse().find((p: any) => p.type === 'unloading');
+    const locStr = (p: any) => {
+      if (!p) return '';
+      const loc = pickLoc(p.locations);
+      return [loc.city, loc.country].filter(Boolean).join(', ');
+    };
+    const routeFrom = locStr(firstLoad);
+    const routeTo = locStr(lastUnload);
+    const route = routeFrom || routeTo ? `${routeFrom || '—'} → ${routeTo || '—'}` : '—';
+
     const date = fwd.unload_date || fwd.load_date;
 
     works.push({
