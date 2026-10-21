@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { GitMerge, X, Loader2, AlertTriangle } from 'lucide-react';
-import { mergeContractors } from './contractor-actions';
+import { mergeContractors } from './actions';
 
 type Option = { id: string; label: string };
 
