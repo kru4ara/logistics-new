@@ -279,7 +279,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
   const driver = pickOne<{ first_name: string | null; last_name: string | null; phone_by: string | null; phone_pl: string | null; telegram_chat_id: string | null }>(trip.drivers);
   const truck = pickOne<{ registration_number: string | null }>(trip.trucks);
 
-    // ⬅️ НОВОЕ: предупреждение "ЗП не начислена"
+  // ⬅️ НОВОЕ: предупреждение "ЗП не начислена"
   const hasSalaryExpense = (expenses || []).some((e: any) => e.category === 'salary');
   const needsSalary = trip.status === 'completed' && Boolean(driver) && !hasSalaryExpense;
 
@@ -380,7 +380,13 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
             </span>
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          {/* ДЕЙСТВИЯ ПО РЕЙСУ (сжатые) */}
+          <div className="mb-4 pb-4 border-b border-slate-100">
+            <TripStatusButtons tripId={tripId} currentStatus={trip.status} showAdminStatuses={true} />
+          </div>
+
+          {/* КНОПКИ РЕДАКТИРОВАНИЯ */}
+          <div className="flex flex-wrap gap-2 mb-4">
             <a
               href={`/trips/${tripId}/edit`}
               className="btn btn-secondary text-sm flex-1 sm:flex-none"
@@ -400,8 +406,42 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
               </button>
             </form>
           </div>
+
+          {/* ТЕЛЕМЕТРИЯ (Перенесена сюда) */}
+          <div className="bg-slate-50 rounded-xl p-3 md:p-4 mb-4">
+            <form action={async (formData: FormData) => {
+              'use server';
+              const km = parseFloat(formData.get('km') as string) || 0;
+              const liters = parseFloat(formData.get('liters') as string) || 0;
+              await saveTelemetry(tripId, km, liters);
+            }} className="flex flex-wrap gap-3 items-end">
+              <div className="flex-1 min-w-[120px]">
+                <label className="block text-xs font-medium text-slate-500 mb-1">Пробег (км)</label>
+                <input type="number" name="km" step="0.01" placeholder={trip.actual_km?.toString() || '0'} className="input py-1.5 text-sm" />
+              </div>
+              <div className="flex-1 min-w-[120px]">
+                <label className="block text-xs font-medium text-slate-500 mb-1">Топливо (л)</label>
+                <input type="number" name="liters" step="0.01" placeholder={trip.actual_liters?.toString() || '0'} className="input py-1.5 text-sm" />
+              </div>
+              <SubmitButton
+                className="w-full sm:w-auto px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg transition-all"
+                pendingText="…"
+              >
+                Сохранить
+              </SubmitButton>
+            </form>
+            {trip.actual_km && trip.actual_km > 0 && (
+              <div className="text-xs text-slate-500 mt-2 flex items-center gap-2">
+                <span>Текущие: <b className="tabular-nums">{trip.actual_km} км / {trip.actual_liters} л</b></span>
+                <span className={`font-bold ${fuelLeftIsCritical ? 'text-red-600' : fuelLeftIsNegative ? 'text-amber-600' : 'text-brand-600'}`}>
+                  (Остаток: {fuelLeft.toFixed(1)} л)
+                </span>
+              </div>
+            )}
+          </div>
         </div>
-               {/* ⚠️ ЗП не начислена */}
+
+        {/* ⚠️ ЗП не начислена */}
         {needsSalary && (
           <div className="card border-l-4 border-l-amber-500 bg-amber-50/40 p-4 md:p-5">
             <div className="flex items-start gap-3">
@@ -419,6 +459,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
             </div>
           </div>
         )}
+        
         {/* ИНФОРМАЦИЯ */}
         <div className="card p-5 md:p-6">
           <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
@@ -584,75 +625,6 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
           <div className="card p-5 md:p-6">
             <SendTaskButton tripId={tripId} disabled={sendDisabled} disabledHint={sendHint} />
           </div>
-        </div>
-
-        {/* КНОПКИ СТАТУСА */}
-        <div className="card p-5 md:p-6">
-          <h2 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
-            <Settings2 className="w-4 h-4 text-slate-500" strokeWidth={2} />
-            Действия по рейсу
-          </h2>
-          <TripStatusButtons tripId={tripId} currentStatus={trip.status} showAdminStatuses={true} />
-        </div>
-
-        {/* ТЕЛЕМЕТРИЯ */}
-        <div className="card p-5 md:p-6">
-          <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-            <Activity className="w-5 h-5 text-brand-600" strokeWidth={2} />
-            Данные телеметрии
-          </h2>
-          <form action={async (formData: FormData) => {
-            'use server';
-            const km = parseFloat(formData.get('km') as string) || 0;
-            const liters = parseFloat(formData.get('liters') as string) || 0;
-            await saveTelemetry(tripId, km, liters);
-          }} className="flex flex-wrap gap-3 items-end">
-            <div className="flex-1 min-w-[120px]">
-              <label className="block text-sm font-medium text-slate-700 mb-1">Пробег (км)</label>
-              <input type="number" name="km" step="0.01" placeholder={trip.actual_km || '0'} className="input" />
-            </div>
-            <div className="flex-1 min-w-[120px]">
-              <label className="block text-sm font-medium text-slate-700 mb-1">Топливо (л)</label>
-              <input type="number" name="liters" step="0.01" placeholder={trip.actual_liters || '0'} className="input" />
-            </div>
-            <SubmitButton
-              className="w-full sm:w-auto px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-all active:scale-[0.98]"
-              pendingText="Сохраняю…"
-            >
-              Сохранить
-            </SubmitButton>
-          </form>
-
-          {trip.actual_km && trip.actual_km > 0 && (
-            <div className="mt-4 p-4 bg-slate-50 rounded-xl text-sm space-y-2">
-              <div className="flex items-center gap-2 text-slate-700">
-                <Gauge className="w-4 h-4 text-slate-500" strokeWidth={2} />
-                <span><b>Текущие данные:</b> <span className="tabular-nums">{trip.actual_km} км / {trip.actual_liters} л</span></span>
-              </div>
-              <p className="text-emerald-600 font-bold tabular-nums">
-                Средний расход: {((trip.actual_liters / trip.actual_km) * 100).toFixed(1)} л/100 км
-              </p>
-              <p className={`font-bold tabular-nums ${
-                fuelLeftIsCritical ? 'text-red-600' : fuelLeftIsNegative ? 'text-amber-600' : 'text-brand-600'
-              }`}>
-                Остаток в баке: {fuelLeft.toFixed(1)} л
-              </p>
-              {fuelLeftIsNegative && (
-                <div className={`flex items-start gap-2 text-xs font-medium rounded-lg px-3 py-2 ${
-                  fuelLeftIsCritical
-                    ? 'text-red-700 bg-red-50 border border-red-200'
-                    : 'text-amber-700 bg-amber-50 border border-amber-200'
-                }`}>
-                  <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" strokeWidth={2} />
-                  <span>
-                    {fuelLeftIsCritical
-                      ? 'Значительный недостаток топлива. Проверьте заправки и данные о расходе — цифры выглядят недостоверными.'
-                      : 'Остаток отрицательный (в пределах нормы). Расхождение факта и учёта по топливу.'}
-                  </span>
-                </div>
-              )}
-            </div>
-          )}
         </div>
 
         {/* ЗАГРУЗКА ДОКУМЕНТОВ */}
@@ -861,7 +833,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
           </div>
         </div>
 
-               {/* ДОБАВИТЬ РАСХОД */}
+        {/* ДОБАВИТЬ РАСХОД */}
         <div className="card p-5 md:p-6">
           <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
             <PlusCircle className="w-5 h-5 text-brand-600" strokeWidth={2} />
