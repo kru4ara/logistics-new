@@ -274,7 +274,7 @@ export async function sendSegmentTaskToDriver(
   // ============================================================
   const { data: trip, error: tripErr } = await supabase
     .from('trips')
-    .select('id, trip_number, route, start_date, client_id, clients(name)')
+    .select('id, trip_number, start_date, client_id, clients(name)')
     .eq('id', tripId)
     .single();
 
