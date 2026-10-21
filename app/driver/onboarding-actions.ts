@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '../../lib/supabase-server';
 
 export async function markDriverOnboarded() {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const role = cookieStore.get('role')?.value;
   const driverId = cookieStore.get('driver_id')?.value;
 

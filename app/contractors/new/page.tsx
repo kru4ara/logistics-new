@@ -14,8 +14,8 @@ import {
 
 export const dynamic = 'force-dynamic';
 
-export default function NewContractorPage() {
-  const role = cookies().get('role')?.value;
+export default async function NewContractorPage() {
+  const role = (await cookies()).get('role')?.value;
   if (role === 'driver') redirect('/driver');
 
   return (

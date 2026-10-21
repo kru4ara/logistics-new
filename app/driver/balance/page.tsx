@@ -21,7 +21,7 @@ function fmtDate(d: string | null): string {
 }
 
 export default async function DriverBalancePage() {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const role = cookieStore.get('role')?.value;
   const driverId = cookieStore.get('driver_id')?.value;
 

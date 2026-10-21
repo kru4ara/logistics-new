@@ -51,7 +51,7 @@ export async function globalSearch(rawQuery: string): Promise<SearchResult> {
   if (query.length < 2) return empty;
 
   // Только офис
-  const role = cookies().get('role')?.value;
+  const role = (await cookies()).get('role')?.value;
   if (role !== 'admin') return empty;
 
   const supabase = await createClient();

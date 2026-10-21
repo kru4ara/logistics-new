@@ -32,7 +32,7 @@ type LogInput = {
  */
 export async function logAudit(input: LogInput): Promise<void> {
   try {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const role = cookieStore.get('role')?.value || 'unknown';
     const driverId = cookieStore.get('driver_id')?.value || null;
     const rawName = cookieStore.get('user_name')?.value;

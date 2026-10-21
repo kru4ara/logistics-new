@@ -29,7 +29,7 @@ const TACHO_PERIOD = 96;             // тахограф — не реже 96 д
 const TACHO_WARN = 90;               // предупреждение за 6 дней
 
 export default async function DriverRemindersPage() {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const role = cookieStore.get('role')?.value;
   const driverId = cookieStore.get('driver_id')?.value;
 

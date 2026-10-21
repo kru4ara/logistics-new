@@ -22,7 +22,7 @@ function pickName(rel: unknown): string {
  * excludeTripId — исключить из проверки сам редактируемый рейс.
  */
 export async function GET(request: NextRequest) {
-  const role = cookies().get('role')?.value;
+  const role = (await cookies()).get('role')?.value;
   if (role !== 'admin') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }

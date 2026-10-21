@@ -48,11 +48,11 @@ function daysUntil(dateString: string | null): number | null {
 }
 
 export default async function Home() {
-  const role = cookies().get('role')?.value;
-  const userName = cookies().get('user_name')?.value
-    ? decodeURIComponent(cookies().get('user_name')!.value)
+  const role = (await cookies()).get('role')?.value;
+  const userName = (await cookies()).get('user_name')?.value
+    ? decodeURIComponent((await cookies()).get('user_name')!.value)
     : 'Офис';
-  const adminOnboarded = cookies().get('admin_onboarded')?.value === '1'; // ⬅️ НОВОЕ
+  const adminOnboarded = (await cookies()).get('admin_onboarded')?.value === '1'; // ⬅️ НОВОЕ
 
   if (role === 'driver') redirect('/driver');
   if (role !== 'admin') redirect('/login');

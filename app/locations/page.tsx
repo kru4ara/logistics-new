@@ -56,7 +56,7 @@ const typeMeta: Record<LocationType, {
 };
 
 export default async function LocationsPage() {
-  const role = cookies().get('role')?.value;
+  const role = (await cookies()).get('role')?.value;
   if (role === 'driver') redirect('/driver');
 
   const supabase = await createClient();

@@ -9,7 +9,7 @@ export async function checkLogisat(
   fromIso: string,
   toIso: string
 ): Promise<SummaryResult> {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const role = cookieStore.get('role')?.value;
   if (role !== 'driver' && role !== 'admin') {
     return { success: false, stage: 'auth', error: 'Нет доступа' };

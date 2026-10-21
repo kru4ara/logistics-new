@@ -67,7 +67,7 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
   const { id: tripId } = await params;
   if (!tripId) return <div className="p-6">Ошибка: ID рейса не передан</div>;
 
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const role = cookieStore.get('role')?.value;
   if (role !== 'driver') redirect('/login');
 

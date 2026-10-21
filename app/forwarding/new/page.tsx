@@ -7,7 +7,7 @@ import { ArrowLeft, Boxes } from 'lucide-react';
 export const dynamic = 'force-dynamic';
 
 export default async function NewForwardingPage() {
-  const role = cookies().get('role')?.value;
+  const role = (await cookies()).get('role')?.value;
   if (role === 'driver') redirect('/driver');
 
   const supabase = await createClient();

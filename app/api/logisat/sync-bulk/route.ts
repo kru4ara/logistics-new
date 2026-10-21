@@ -44,7 +44,7 @@ async function processBatch(
 }
 
 export async function POST(request: NextRequest) {
-  const role = cookies().get('role')?.value;
+  const role = (await cookies()).get('role')?.value;
   if (role !== 'admin') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }

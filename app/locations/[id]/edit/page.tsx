@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 export default async function EditLocationPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const role = cookies().get('role')?.value;
+  const role = (await cookies()).get('role')?.value;
   if (role === 'driver') redirect('/driver');
 
   const supabase = await createClient();

@@ -150,7 +150,7 @@ export default async function AuditPage({
 }: {
   searchParams: Promise<{ entity?: string }>;
 }) {
-  const role = cookies().get('role')?.value;
+  const role = (await cookies()).get('role')?.value;
   if (role === 'driver') redirect('/driver');
   if (role !== 'admin') redirect('/login');
 

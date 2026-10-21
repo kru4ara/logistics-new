@@ -31,7 +31,7 @@ function pickOne<T>(rel: unknown): T | null {
 }
 
 export default async function LogisatReportPage() {
-  const role = cookies().get('role')?.value;
+  const role = (await cookies()).get('role')?.value;
   if (role === 'driver') redirect('/driver');
   if (role !== 'admin') redirect('/login');
 

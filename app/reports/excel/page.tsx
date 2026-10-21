@@ -4,8 +4,8 @@ import ExportForm from './ExportForm';
 
 export const dynamic = 'force-dynamic';
 
-export default function ExcelExportPage() {
-  const role = cookies().get('role')?.value;
+export default async function ExcelExportPage() {
+  const role = (await cookies()).get('role')?.value;
   if (role === 'driver') redirect('/driver');
   if (role !== 'admin') redirect('/login');
 

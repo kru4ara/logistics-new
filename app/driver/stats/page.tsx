@@ -16,7 +16,7 @@ import { createClient } from '../../../lib/supabase-server';
 export const dynamic = 'force-dynamic';
 
 export default async function DriverStatsPage() {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const role = cookieStore.get('role')?.value;
   const driverId = cookieStore.get('driver_id')?.value;
 

@@ -30,7 +30,7 @@ export async function login(
   }
 
   const supabase = await createClient();
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const isProd = process.env.NODE_ENV === 'production';
 
   // -----------------------------------------------------------------
@@ -107,7 +107,7 @@ export async function login(
 }
 
 export async function logout() {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   cookieStore.delete('role');
   cookieStore.delete('driver_id');
   cookieStore.delete('user_name');

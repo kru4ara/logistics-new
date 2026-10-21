@@ -7,8 +7,8 @@ import { ArrowLeft, MapPin, Globe, Plus } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
-export default function NewLocationPage() {
-  const role = cookies().get('role')?.value;
+export default async function NewLocationPage() {
+  const role = (await cookies()).get('role')?.value;
   if (role === 'driver') redirect('/driver');
 
   return (
