@@ -2,11 +2,13 @@
 
 import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
-import * as XLSX from 'xlsx';
 import type { TripCardData } from './TripsBulkList';
 
 export default function DownloadButton({ data }: { data: TripCardData[] }) {
-  function handleDownload() {
+  async function handleDownload() {
+    // Ленивая загрузка xlsx — только по клику
+    const XLSX = await import('xlsx');
+
     const rows = data.map((trip) => {
       const tripExpenses = trip.expenses || 0;
       const tripProfit = (trip.revenue_eur || 0) - tripExpenses;
