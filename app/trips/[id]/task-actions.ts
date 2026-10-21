@@ -60,7 +60,7 @@ export async function sendTaskToDriver(tripId: string): Promise<SendTaskResult> 
 
   const truck = pickOne<{ registration_number: string | null }>((trip as any).trucks);
 
-  // Прицеп
+  // Прицеп рейса (шапка)
   let trailerNumber: string | null = null;
   if ((trip as any).trailer_id) {
     const { data: trailer } = await supabase
@@ -72,11 +72,11 @@ export async function sendTaskToDriver(tripId: string): Promise<SendTaskResult> 
   }
 
   // ============================================================
-  // Сегменты + грузы сегментов
+  // Сегменты (с тягачом и прицепом) + грузы сегментов
   // ============================================================
   const { data: segmentsRaw } = await supabase
     .from('trip_segments')
-    .select('*')
+    .select('*, trucks!truck_id(registration_number), trailers:trucks!trailer_id(registration_number)')
     .eq('trip_id', tripId)
     .order('position', { ascending: true });
 
@@ -100,25 +100,31 @@ export async function sendTaskToDriver(tripId: string): Promise<SendTaskResult> 
     });
   });
 
-  const segments = (segmentsRaw || []).map((s: any) => ({
-    id: s.id,
-    position: s.position,
-    executor_type: s.executor_type,
-    date_from: s.date_from,
-    date_to: s.date_to,
-    from_country: s.from_country,
-    from_city: s.from_city,
-    from_company: s.from_company,
-    from_address: s.from_address,
-    from_postal_code: s.from_postal_code,
-    to_country: s.to_country,
-    to_city: s.to_city,
-    to_company: s.to_company,
-    to_address: s.to_address,
-    to_postal_code: s.to_postal_code,
-    stops: Array.isArray(s.stops) ? s.stops : [],
-    cargoLinks: cargoLinksBySegment[s.id] || [],
-  }));
+  const segments = (segmentsRaw || []).map((s: any) => {
+    const segTruck = pickOne<{ registration_number: string | null }>(s.trucks);
+    const segTrailer = pickOne<{ registration_number: string | null }>(s.trailer);
+    return {
+      id: s.id,
+      position: s.position,
+      executor_type: s.executor_type,
+      date_from: s.date_from,
+      date_to: s.date_to,
+      truck_reg: segTruck?.registration_number || null,
+      trailer_reg: segTrailer?.registration_number || null,
+      from_country: s.from_country,
+      from_city: s.from_city,
+      from_company: s.from_company,
+      from_address: s.from_address,
+      from_postal_code: s.from_postal_code,
+      to_country: s.to_country,
+      to_city: s.to_city,
+      to_company: s.to_company,
+      to_address: s.to_address,
+      to_postal_code: s.to_postal_code,
+      stops: Array.isArray(s.stops) ? s.stops : [],
+      cargoLinks: cargoLinksBySegment[s.id] || [],
+    };
+  });
 
   // ============================================================
   // Собираем текст
@@ -230,7 +236,7 @@ export async function sendSegmentTaskToDriver(
   };
 
   // ============================================================
-  // Тягач сегмента + прицеп рейса
+  // Тягач сегмента + прицеп сегмента
   // ============================================================
   let truck: { registration_number: string | null } | null = null;
   if (segment.truck_id) {
@@ -270,7 +276,7 @@ export async function sendSegmentTaskToDriver(
   });
 
   // ============================================================
-  // Рейс (для шапки)
+  // Рейс (для шапки) — БЕЗ route (колонка удалена)
   // ============================================================
   const { data: trip, error: tripErr } = await supabase
     .from('trips')
@@ -291,6 +297,8 @@ export async function sendSegmentTaskToDriver(
     executor_type: segment.executor_type,
     date_from: segment.date_from,
     date_to: segment.date_to,
+    truck_reg: truck?.registration_number || null,
+    trailer_reg: trailerNumber,
     from_country: segment.from_country,
     from_city: segment.from_city,
     from_company: segment.from_company,
