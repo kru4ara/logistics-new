@@ -114,7 +114,6 @@ async function createSegmentExpense(
     .insert([{
       trip_id: tripId,
       segment_id: segmentId,
-      subcontractor_id: null,
       category: 'contractor',
       amount_eur: amountEur,
       original_amount: price,
