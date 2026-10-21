@@ -72,12 +72,14 @@ function Section({
 export default async function SearchPage({
   searchParams,
 }: {
-  searchParams: { q?: string };
+  searchParams: Promise<{ q?: string }>;
 }) {
-  const role = cookies().get('role')?.value;
+  const cookieStore = await cookies();
+  const role = cookieStore.get('role')?.value;
   if (role !== 'admin') redirect('/');
 
-  const q = (searchParams.q || '').trim();
+  const resolvedParams = await searchParams;
+  const q = (resolvedParams.q || '').trim();
   const result = await globalSearch(q);
 
   return (
