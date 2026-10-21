@@ -155,3 +155,53 @@ export async function deleteContractor(contractorId: string) {
   revalidatePath('/contractors');
   redirect('/contractors?toast=contractor_deleted');
 }
+
+// ============================================================
+// Merge tool: объединение подрядчиков
+// ============================================================
+export async function mergeContractors(
+  sourceId: string,
+  targetId: string
+): Promise<{ success: true } | { success: false; error: string }> {
+  if (sourceId === targetId) {
+    return { success: false, error: 'Нельзя объединить подрядчика с самим собой' };
+  }
+
+  const supabase = await createClient();
+
+  // Читаем имена до merge — для audit-лога
+  const { data: source } = await supabase
+    .from('contractors')
+    .select('name')
+    .eq('id', sourceId)
+    .maybeSingle();
+  const { data: target } = await supabase
+    .from('contractors')
+    .select('name')
+    .eq('id', targetId)
+    .maybeSingle();
+
+  if (!source || !target) {
+    return { success: false, error: 'Подрядчик не найден' };
+  }
+
+  const { error } = await supabase.rpc('merge_contractors', {
+    source_id: sourceId,
+    target_id: targetId,
+  });
+
+  if (error) {
+    console.error('[mergeContractors]', error);
+    return { success: false, error: error.message };
+  }
+
+  await logAudit({
+    entity_type: 'contractor',
+    entity_id: targetId,
+    action: 'merge',
+    summary: `Объединены подрядчики: «${source.name}» → «${target.name}»`,
+  });
+
+  revalidatePath('/contractors');
+  return { success: true };
+}
