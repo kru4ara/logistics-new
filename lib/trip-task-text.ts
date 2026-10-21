@@ -130,17 +130,8 @@ export function buildDriverTaskText({
   if (trip.clients?.name) {
     lines.push(`${b('Клиент:')} ${trip.clients.name}`);
   }
-  lines.push(`${b('Маршрут:')} ${buildRouteFromSegments(segments)}`);
   if (trip.start_date) {
     lines.push(`${b('Старт:')} ${fmtDate(trip.start_date)}`);
-  }
-
-  // Тягач в шапке — только если он не выводится в сегментах
-  const truckReg = truck?.registration_number || null;
-  if (truckReg) {
-    const tractorTrailer = trailerNumber ? `${truckReg} / ${trailerNumber}` : truckReg;
-    lines.push('');
-    lines.push(`🚚 ${b('Тягач:')} ${tractorTrailer}`);
   }
 
   lines.push('');
@@ -153,7 +144,8 @@ export function buildDriverTaskText({
     .sort((a, b) => a.position - b.position);
 
   if (usSegments.length > 0) {
-    lines.push(`📍 ${b('ТВОЙ МАРШРУТ:')}`);
+    // Общий маршрут крупно (дублирует инфу, но удобно для водителя)
+    lines.push(`${b('МАРШРУТ:')} ${buildRouteFromSegments(usSegments)}`);
     lines.push('');
 
     usSegments.forEach((seg, segIdx) => {
