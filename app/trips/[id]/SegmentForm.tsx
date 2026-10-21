@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useEffect, useTransition } from 'react';
 import {
   Truck,
   Users,
@@ -231,6 +231,64 @@ export default function SegmentForm({
     new Set(initialCargoIds || [])
   );
 
+  // Синхронизация стейтов при открытии модалки для другого сегмента
+  useEffect(() => {
+    if (initialData) {
+      setExecutorType((initialData.executor_type as 'us' | 'contractor') || 'us');
+      setContractorId(initialData.contractor_id || '');
+      setTruckId(initialData.truck_id || '');
+      setTrailerId(initialData.trailer_id || '');
+      setDriverId(initialData.driver_id || '');
+      setDateFrom(initialData.date_from || '');
+      setDateTo(initialData.date_to || '');
+      setNotes(initialData.notes || '');
+      setPrice(initialData.price != null ? String(initialData.price) : '');
+      setCurrency(initialData.currency || 'EUR');
+      setContractorTruckNumber(initialData.contractor_truck_number || '');
+      setContractorDriverName(initialData.contractor_driver_name || '');
+      setContractorPaymentDays(initialData.contractor_payment_days != null ? String(initialData.contractor_payment_days) : '');
+      setContractorPaymentDocType(initialData.contractor_payment_document_type || 'originals');
+      setContractorTransportType(initialData.contractor_transport_type || 'standard');
+      setContractorTransportTemp(initialData.contractor_transport_temperature || '');
+      setContractorTransportHeight(initialData.contractor_transport_height || '');
+      
+      setFrom(toAddr(
+        initialData.from_country ?? null,
+        initialData.from_city ?? null,
+        initialData.from_company ?? null,
+        initialData.from_address ?? null,
+        initialData.from_postal_code ?? null
+      ));
+      
+      setTo(toAddr(
+        initialData.to_country ?? null,
+        initialData.to_city ?? null,
+        initialData.to_company ?? null,
+        initialData.to_address ?? null,
+        initialData.to_postal_code ?? null
+      ));
+      
+      if (initialData.stops && Array.isArray(initialData.stops)) {
+        setStops(initialData.stops.map((s) => ({
+          type: s.type || 'reload',
+          country: s.country || '',
+          city: s.city || '',
+          company: s.company || '',
+          address: s.address || '',
+          postal_code: s.postal_code || '',
+          date: s.date || '',
+        })));
+      } else {
+        setStops([]);
+      }
+    }
+    if (initialCargoIds) {
+      setSelectedCargo(new Set(initialCargoIds));
+    } else {
+      setSelectedCargo(new Set());
+    }
+  }, [initialData, initialCargoIds]);
+
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -386,17 +444,18 @@ export default function SegmentForm({
     formData.set('to_address', to.address);
     formData.set('to_postal_code', to.postal_code);
     formData.set('stops', JSON.stringify(cleanStops));
-if (executorType === 'contractor') {
-  formData.set('price', price);
-  formData.set('currency', currency);
-  formData.set('contractor_truck_number', contractorTruckNumber.trim());
-  formData.set('contractor_driver_name', contractorDriverName.trim());
-  formData.set('contractor_payment_days', contractorPaymentDays);
-  formData.set('contractor_payment_document_type', contractorPaymentDocType);
-  formData.set('contractor_transport_type', contractorTransportType);
-  formData.set('contractor_transport_temperature', contractorTransportType === 'chlodnia' ? contractorTransportTemp.trim() : '');
-  formData.set('contractor_transport_height', contractorTransportType === 'mega' ? contractorTransportHeight.trim() : '');
-}
+    
+    if (executorType === 'contractor') {
+      formData.set('price', price);
+      formData.set('currency', currency);
+      formData.set('contractor_truck_number', contractorTruckNumber.trim());
+      formData.set('contractor_driver_name', contractorDriverName.trim());
+      formData.set('contractor_payment_days', contractorPaymentDays);
+      formData.set('contractor_payment_document_type', contractorPaymentDocType);
+      formData.set('contractor_transport_type', contractorTransportType);
+      formData.set('contractor_transport_temperature', contractorTransportType === 'chlodnia' ? contractorTransportTemp.trim() : '');
+      formData.set('contractor_transport_height', contractorTransportType === 'mega' ? contractorTransportHeight.trim() : '');
+    }
 
     selectedCargo.forEach((cid) => formData.append('cargo_ids', cid));
 
@@ -494,145 +553,140 @@ if (executorType === 'contractor') {
                   </select>
                 </div>
 
+                {/* ЦЕНА ПОДРЯДЧИКУ */}
+                <div className="bg-white rounded-lg border border-amber-200 p-3 space-y-2">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-amber-800">
+                    <Coins className="w-3.5 h-3.5" strokeWidth={2.2} />
+                    Стоимость подрядчику
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Сумма</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={price}
+                        onChange={(e) => setPrice(e.target.value)}
+                        placeholder="1500"
+                        className="input text-base py-2"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Валюта</label>
+                      <select
+                        value={currency}
+                        onChange={(e) => setCurrency(e.target.value)}
+                        className="input text-base py-2"
+                      >
+                        <option value="EUR">EUR €</option>
+                        <option value="PLN">PLN zł</option>
+                        <option value="BYN">BYN Br</option>
+                      </select>
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-amber-700">
+                    Расход по этому участку создастся автоматически.
+                  </p>
+                </div>
 
+                {/* ДАННЫЕ ПОДРЯДЧИКА (на польском) */}
+                <div className="bg-white rounded-lg border border-violet-200 p-3 space-y-2">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-violet-800">
+                    <Truck className="w-3.5 h-3.5" strokeWidth={2.2} />
+                    Dane pojazdu i kierowcy podwykonawcy
+                  </div>
+                  <div className="grid grid-cols-1 gap-2">
+                    <div>
+                      <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Numer auta (ciągnik / naczepa)</label>
+                      <input
+                        type="text"
+                        value={contractorTruckNumber}
+                        onChange={(e) => setContractorTruckNumber(e.target.value)}
+                        placeholder="WS3800K / WS9850C"
+                        className="input text-base py-2"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Kierowca</label>
+                      <input
+                        type="text"
+                        value={contractorDriverName}
+                        onChange={(e) => setContractorDriverName(e.target.value)}
+                        placeholder="Yury Novikau"
+                        className="input text-base py-2"
+                      />
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Rodzaj transportu</label>
+                        <select
+                          value={contractorTransportType}
+                          onChange={(e) => {
+                            setContractorTransportType(e.target.value);
+                            if (e.target.value !== 'chlodnia') setContractorTransportTemp('');
+                            if (e.target.value !== 'mega') setContractorTransportHeight('');
+                          }}
+                          className="input text-base py-2"
+                        >
+                          <option value="standard">Standard / Plandeka</option>
+                          <option value="mega">Mega</option>
+                          <option value="chlodnia">Chłodnia</option>
+                        </select>
+                      </div>
+                      
+                      {contractorTransportType === 'chlodnia' && (
+                        <div>
+                          <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Temperatura</label>
+                          <input
+                            type="text"
+                            value={contractorTransportTemp}
+                            onChange={(e) => setContractorTransportTemp(e.target.value)}
+                            placeholder="+4 / -18"
+                            className="input text-base py-2"
+                          />
+                        </div>
+                      )}
+                      
+                      {contractorTransportType === 'mega' && (
+                        <div>
+                          <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Wysokość załadunku</label>
+                          <input
+                            type="text"
+                            value={contractorTransportHeight}
+                            onChange={(e) => setContractorTransportHeight(e.target.value)}
+                            placeholder="np. 3.0m"
+                            className="input text-base py-2"
+                          />
+                        </div>
+                      )}
+                    </div>
 
-{/* ЦЕНА ПОДРЯДЧИКУ */}
-<div className="bg-white rounded-lg border border-amber-200 p-3 space-y-2">
-  <div className="flex items-center gap-2 text-xs font-semibold text-amber-800">
-    <Coins className="w-3.5 h-3.5" strokeWidth={2.2} />
-    Стоимость подрядчику
-  </div>
-  <div className="grid grid-cols-2 gap-2">
-    <div>
-      <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Сумма</label>
-      <input
-        type="number"
-        step="0.01"
-        value={price}
-        onChange={(e) => setPrice(e.target.value)}
-        placeholder="1500"
-        className="input text-base py-2"
-      />
-    </div>
-    <div>
-      <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Валюта</label>
-      <select
-        value={currency}
-        onChange={(e) => setCurrency(e.target.value)}
-        className="input text-base py-2"
-      >
-        <option value="EUR">EUR €</option>
-        <option value="PLN">PLN zł</option>
-        <option value="BYN">BYN Br</option>
-      </select>
-    </div>
-  </div>
-  <p className="text-[11px] text-amber-700">
-    Расход по этому участку создастся автоматически.
-  </p>
-</div>
-
-{/* ДАННЫЕ ПОДРЯДЧИКА (на польском) */}
-<div className="bg-white rounded-lg border border-violet-200 p-3 space-y-2">
-  <div className="flex items-center gap-2 text-xs font-semibold text-violet-800">
-    <Truck className="w-3.5 h-3.5" strokeWidth={2.2} />
-    Dane pojazdu i kierowcy podwykonawcy
-  </div>
-  <div className="grid grid-cols-1 gap-2">
-    <div>
-      <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Numer auta (ciągnik / naczepa)</label>
-      <input
-        type="text"
-        value={contractorTruckNumber}
-        onChange={(e) => setContractorTruckNumber(e.target.value)}
-        placeholder="WS3800K / WS9850C"
-        className="input text-base py-2"
-      />
-    </div>
-    <div>
-      <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Kierowca</label>
-      <input
-        type="text"
-        value={contractorDriverName}
-        onChange={(e) => setContractorDriverName(e.target.value)}
-        placeholder="Yury Novikau"
-        className="input text-base py-2"
-      />
-    </div>
-    
-    <div className="grid grid-cols-2 gap-2">
-      <div>
-        <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Rodzaj transportu</label>
-        <select
-          value={contractorTransportType}
-          onChange={(e) => {
-            setContractorTransportType(e.target.value);
-            // Сбрасываем лишние поля при смене типа
-            if (e.target.value !== 'chlodnia') setContractorTransportTemp('');
-            if (e.target.value !== 'mega') setContractorTransportHeight('');
-          }}
-          className="input text-base py-2"
-        >
-          <option value="standard">Standard / Plandeka</option>
-          <option value="mega">Mega</option>
-          <option value="chlodnia">Chłodnia</option>
-        </select>
-      </div>
-      
-      {/* Умные поля в зависимости от типа */}
-      {contractorTransportType === 'chlodnia' && (
-        <div>
-          <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Temperatura</label>
-          <input
-            type="text"
-            value={contractorTransportTemp}
-            onChange={(e) => setContractorTransportTemp(e.target.value)}
-            placeholder="+4 / -18"
-            className="input text-base py-2"
-          />
-        </div>
-      )}
-      
-      {contractorTransportType === 'mega' && (
-        <div>
-          <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Wysokość załadunku</label>
-          <input
-            type="text"
-            value={contractorTransportHeight}
-            onChange={(e) => setContractorTransportHeight(e.target.value)}
-            placeholder="np. 3.0m"
-            className="input text-base py-2"
-          />
-        </div>
-      )}
-    </div>
-
-    <div className="grid grid-cols-2 gap-2">
-      <div>
-        <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Płatność (dni)</label>
-        <input
-          type="number"
-          value={contractorPaymentDays}
-          onChange={(e) => setContractorPaymentDays(e.target.value)}
-          placeholder="30"
-          className="input text-base py-2"
-        />
-      </div>
-      <div>
-        <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Dokumenty</label>
-        <select
-          value={contractorPaymentDocType}
-          onChange={(e) => setContractorPaymentDocType(e.target.value)}
-          className="input text-base py-2"
-        >
-          <option value="originals">Oryginały CMR</option>
-          <option value="scans">Skany CMR</option>
-        </select>
-      </div>
-    </div>
-  </div>
-</div>
-
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Płatność (dni)</label>
+                        <input
+                          type="number"
+                          value={contractorPaymentDays}
+                          onChange={(e) => setContractorPaymentDays(e.target.value)}
+                          placeholder="30"
+                          className="input text-base py-2"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Dokumenty</label>
+                        <select
+                          value={contractorPaymentDocType}
+                          onChange={(e) => setContractorPaymentDocType(e.target.value)}
+                          className="input text-base py-2"
+                        >
+                          <option value="originals">Oryginały CMR</option>
+                          <option value="scans">Skany CMR</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </>
             )}
 
@@ -901,7 +955,6 @@ if (executorType === 'contractor') {
                   >
                     <option value="">— Выберите локацию —</option>
                     {(() => {
-                      // Фильтруем локации в зависимости от выбранного типа точки
                       let filtered: Location[] = [];
                       if (stop.type === 'customs') {
                         filtered = customsLocations;
@@ -910,7 +963,6 @@ if (executorType === 'contractor') {
                       } else if (stop.type === 'unload') {
                         filtered = unloadingLocations;
                       } else {
-                        // reload — показываем универсальные (both)
                         filtered = loadingLocations.filter(l => l.type === 'both');
                       }
                       
