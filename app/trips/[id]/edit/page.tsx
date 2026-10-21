@@ -44,9 +44,7 @@ export default async function EditTripPage({ params }: { params: Promise<{ id: s
           trip={trip}
           tripId={tripId}
           clients={(clients || []).map((c) => ({ id: c.id, label: c.name }))}
-          loadingLocations={loadingLocations || []}
-          unloadingLocations={unloadingLocations || []}
-        />
+        />  
       </div>
     </main>
   );
