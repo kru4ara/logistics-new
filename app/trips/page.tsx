@@ -6,7 +6,7 @@ import DownloadButton from './DownloadButton';
 import SearchInput from './SearchInput';
 import TripFilters from './TripFilters';
 import RecalcAllCoordsButton from './RecalcAllCoordsButton';
-import dynamic from 'next/dynamic';
+import nextDynamic from 'next/dynamic';
 import type { TripCardData, MonthGroup } from './TripsBulkList';
 import {
   Package,
@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 
 // ⬅️ Ленивая загрузка тяжелого клиентского списка
-const TripsBulkList = dynamic(() => import('./TripsBulkList'), {
+const TripsBulkList = nextDynamic(() => import('./TripsBulkList'), {
   ssr: false,
   loading: () => (
     <div className="card p-10 md:p-16 text-center animate-fade-in">
