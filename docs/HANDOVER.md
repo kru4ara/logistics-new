@@ -1,7 +1,7 @@
 # HANDOVER — Logistics CRM (21.10.2026, вечер)
 
 ## Стек и инфраструктура
-- Next.js 14 (App Router) + Supabase + Vercel
+- Next.js 14.2.35 (App Router) + Supabase + Vercel
 - GitHub: `kru4ara/logistics-new` (master) — автокоммит на каждое изменение
 - Prod: https://logistics-new-ebon.vercel.app
 - Supabase Project: `logistics-core`, org `Raibuilding`
@@ -28,6 +28,17 @@
 **Причина:** опечатка в Project ref (`smodijsjwvsscfgloh` без `i` вместо `smodijsj`**`i`**`wcvsscfgloh`).
 **Решение:** исправлено в `.env.local` и Vercel.
 **Статус:** локальный `npm run dev` работает, прод работает. Тикет `SU-516613` закрыт автоматически (был ложным, не на стороне Supabase).
+
+---
+
+## ⚠️ Важно: Vercel Hobby Лимит (100 деплоев/сутки)
+Если после `git push` Vercel не запускает билд («спит»), это **исчерпан лимит деплоев** (Hobby план).
+**Решения:**
+1. Ждать 24 часа (лимит сбрасывается).
+2. `git commit --allow-empty -m "trigger"` + `git push`.
+3. Сделать **Redeploy** вручную через GitHub (иконка Vercel у коммита) или в панели Vercel.
+4. Запустить `npx vercel --prod` из Git Bash (иногда обходит лимит Git-интеграции).
+5. **Не делать `npm audit fix --force`** — это может сломать проект.
 
 ---
 
@@ -85,10 +96,11 @@
 
 ### ⚠️ Git (локально)
 - В Git Bash настроены `user.name` / `user.email`.
-- При `git push` с ошибкой `rejected` — сделать `git pull`, затем `git push`.
+- При `git push` с ошибкой `rejected` — сделать `git pull --no-edit`, затем `git push`.
 - Всегда `git commit -m "Текст"` (чтобы не открывался Vim).
+- Если конфликт в `package.json` — **оставлять нашу версию** (с алиасами и обновлениями).
+- Если редактор не сохраняет файл (или остались маркеры `<<<<<<<`) — использовать `cat > file << 'EOF' ... EOF` в Git Bash.
 - Если в коммит попал `node_modules` — `git reset HEAD~1`, добавить в `.gitignore`, `git rm -r --cached node_modules`, заново `git add`/`commit`.
-- `.gitignore` в проекте **есть** (добавлен 20.10). Содержит `node_modules/`, `.next/`, `.env*.local`, `backup_*.json` и т.д.
 
 ### ⚠️ Урок: при миграции колонок — grep всех `.select()`
 После миграции `drivers.phone` → `phone_by`/`phone_pl` (Фаза 4.2) `/today` падал в рантайме: `column drivers_1.phone does not exist`. Билд был зелёным (TS SQL не проверяет).
@@ -144,6 +156,10 @@ Lucide-react `^0.460.0` — везде. Emoji только в `<option>`, лог
 
 ### Удалённые колонки из `drivers` (Фаза 4.2)
 - `phone` → `phone_by`, `phone_pl`
+
+### Удалённые колонки (Фаза 10, 21.10)
+- `trip_expenses.subcontractor_id` — DROP (висячая колонка от `trip_subcontractors`).
+- `forwarding_orders.route_from`, `route_to` — DROP (заменены на `forwarding_points`).
 
 ### Добавленные колонки
 - `trips.created_at` (15.10)
@@ -231,6 +247,26 @@ Lucide-react `^0.460.0` — везде. Emoji только в `<option>`, лог
 - `MergeContractorDialog.tsx` + `ContractorCardActions.tsx` + кнопка «Объединить» на `/contractors`.
 - `trip_expenses.subcontractor_id` НЕ трогаем — висячая колонка от DROP `trip_subcontractors` (FK нет, UUID-ов в `contractors` нет — проверено).
 - **Тест на проде:** ✅ пройден 21.10 (кнопки видны, модалка работает, список подтягивается).
+
+### Фаза 9 — Фильтры на `/reports` — ✅ 21.10
+- Период (с/по), статус (по умолчанию `money` = `paid`+`invoiced`), клиент.
+- Экспорт XLSX учитывает фильтры автоматически.
+- Счётчики и таблица пересчитываются по отфильтрованным.
+
+### Фаза 10 — Оптимизация бандла и аудит безопасности — ✅ 21.10
+- **Next.js:** `14.2.0` → **`14.2.35`** (закрыты критические CVE: Cache Poisoning, SSRF, DoS).
+- **`xlsx`:** `0.18.5` (npm) → **`0.20.3` (CDN SheetJS)** (Prototype Pollution, ReDoS).
+- **`image-size`:** заменён на **`safe-image-size@1.2.1`** через алиас в `dependencies` (DoS). Из-за ошибки `EOVERRIDE` с `overrides` пришлось прописать алиас напрямую.
+- **Ленивый `xlsx`** в `DownloadButton` (reports, routes, trips) — грузится только по клику.
+- **Ленивый `TripsBulkList`** через `nextDynamic` (чтобы не было конфликта с `export const dynamic = 'force-dynamic'`).
+- **`sharp`** установлен (оптимизация картинок).
+- **`SearchInput`** — исправлен плейсхолдер (поиск только по номеру рейса/заявки).
+- **`next.config.js`**: `optimizePackageImports` = `['lucide-react', 'docx', 'qrcode', 'image-size']` (убран `recharts`, его нет в проекте).
+- **Результат бандлов:**
+  - `/trips`: 204 kB → **113 kB**
+  - `/reports`: 190 kB → **97.7 kB**
+  - `/routes`: 190 kB → **97.5 kB**
+- **Аудит:** 20 уязвимостей → **14** (оставшиеся — транзитивные внутри Next 14, уйдут при переходе на 15).
 
 ---
 
@@ -331,7 +367,7 @@ Lucide-react `^0.460.0` — везде. Emoji только в `<option>`, лог
     - Восстановлен вебхук: `setWebhook` → `{"ok":true,"description":"Webhook is already set"}`.
     - **Не забыть:** проверить, что завтра бэкап приходит в личку.
 
-### 21.10.2026
+### 21.10.2026 (день)
 30. **DNS Supabase — закрыт.** Причина — опечатка Project ref (без `i`). Исправлено в `.env.local` + Vercel. Локальный `dev` работает. Тикет `SU-516613` закрыт.
 31. **Бэкап в Telegram — проверен.** `backup_2026-10-21_0731.json` (1751 строка) доставлен в личку. Cron работает.
 32. **Grep-аудит `.select()` — закрыт.** Найден 1 баг: `app/trips/[id]/task-actions.ts:277` — `.select('id, trip_number, route, ...')` падал на удалённой `trips.route`. Исправлено (убрано `route` из селекта).
@@ -343,6 +379,14 @@ Lucide-react `^0.460.0` — везде. Emoji только в `<option>`, лог
     - `optimizePackageImports`: убран `recharts` (не установлен). Осталось: `['lucide-react', 'docx', 'qrcode', 'image-size']`.
     - `serverActions.bodySizeLimit: '10mb'` — без изменений.
 35. **Merge tool для подрядчиков — Фаза 8.** См. выше.
+36. **Фильтры на `/reports` — Фаза 9.** См. выше.
+37. **Оптимизация бандла и аудит безопасности — Фаза 10.** См. выше.
+    - Обновление Next.js до `14.2.35`.
+    - `xlsx` с CDN (`0.20.3`).
+    - `image-size` → `safe-image-size` (алиас).
+    - Ленивые импорты (`xlsx`, `TripsBulkList`).
+    - `sharp`.
+    - Чистка `next.config.js`.
 
 ---
 
@@ -350,186 +394,56 @@ Lucide-react `^0.460.0` — везде. Emoji только в `<option>`, лог
 
 - **Vercel Speed Insights (Desktop, P75):** **94/100** (зелёная зона, «Great»).
 - **PageSpeed Insights (Desktop):** 83/100 (хорошо).
-- **Главная рекомендация PageSpeed:** «Удалить неиспользуемый JS» (~165 КБ). Статический вес первого визита, на повторных заходах — из кэша. **Не критично.**
-- **Регион Vercel:** `Washington, D.C. (iad1)` — не меняли (TTFB в норме).
-- **`optimizePackageImports`** включён: `lucide-react`, `docx`, `qrcode`, `image-size`.
+- **First Load JS shared:** 87.4 kB.
+- **Главная:** 90.8 kB.
+- **`/trips`:** 113 kB (было 204 kB).
+- **`/reports`:** 97.7 kB (было 190 kB).
+- **`/routes`:** 97.5 kB (было 190 kB).
+- **Регион Vercel:** `Washington, D.C. (iad1)`.
 
 ---
 
-## ⏭️ Очередь задач (не срочно)
+## ⏭️ Главная задача: Миграция на Next.js 15
 
-| № | Задача | Размер |
-|---|---|---|
-| 1 | Отчёт «фрахт по грузам» (по `trip_cargo.freight_amount`) | Средний |
-| 2 | Grep-аудит `.select()` — **ЗАКРЫТ** 21.10 | — |
-| 3 | Merge tool для подрядчиков — **ЗАКРЫТ** 21.10 | — |
-| 4 | `optimizePackageImports` — **ЗАКРЫТ** 21.10 | — |
-| 5 | `SU-516613` — **ЗАКРЫТ** 21.10 | — |
+**Почему сейчас:** `react-leaflet@5` и `react-leaflet-cluster@4` обновились и требуют `react@^19`. Блокер снят.
+**План:**
+1. `npm install next@15 react@19 react-dom@19 react-leaflet@5 react-leaflet-cluster@4`
+2. `npm install -D eslint-config-next@15`
+3. `npm run build` — пофиксить breaking changes:
+   - `params` и `searchParams` асинхронные (`await params`). Проверить все `page.tsx`.
+   - `fetch` не кэшируется по умолчанию.
+   - `next/dynamic` с `ssr: false` в серверных компонентах — может ругаться.
+   - API `react-leaflet@5` может отличаться (проверить `MapView.tsx`).
+4. Пуш, проверка на проде (особенно `/map` и `/trips`).
 
 ---
 
 ## 📊 Состояние данных (21.10.2026)
-
-- `trips`: ~75 (+ `created_at`, `trip_number` через `counters`)
-- `trip_segments`: ~98
-- `trip_cargo`: ~78
-- `trip_segment_cargo`: ~85
-- `trip_expenses`: ~455
-- `driver_transactions`: наполняется
-- `trip_subcontractors`: DROP
-- `counters`: `last_value` для `trip_number`
-- `audit_log`: ~471+ (включая «Бэкап выполнен»)
-
-**Бэкапы:** `backup_2026-10-13_0730.json`, `backup_2026-10-14_0607.json`, `backup_2026-10-14_0730.json`, `backup_2026-10-20_1338.json` (ручной), `backup_2026-10-21_0731.json` (1751 строка, доставлен в Telegram ✅). Cron `/api/cron/backup` — 7:00; `/api/cron/backup-watch` — 8:00.
-
----
-
-## Что работает
-
-### Авторизация
-Login через server action + `bcrypt.compare` + httpOnly cookie. Таблица `users` (для офиса, колонка `login`), `drivers` (для водителей, логин = `last_name` через `ilike`). Sidebar серверный → `AppShell.tsx` → `Sidebar.tsx`. RLS включён.
-
-### Домены
-- Рейсы + сегменты + грузы + расходы + документы
-- Экспедирование (orders + contractors + points + expenses)
-- Клиенты (+ merge tool), водители (с превью фото), тягачи, прицепы, локации (с таможней), подрядчики (+ merge tool)
-- Напоминания + cron Telegram
-- Logisat (синк, bulk-синк, блокировка без номера)
-- Курсы валют, документы
-- **Расчёты с водителями** (`driver_transactions`)
-- **Проверка дубликатов** (`/api/check-duplicates`)
-- **Геокодирование с postal_code**
-- **Массовый пересчёт координат** (порциями по 20)
-- **Авто-топливо и авто-дата** при добавлении us-сегмента
-- **KPI водителей с прибылью**
-- **Merge tool клиентов**
-- **Merge tool подрядчиков**
-- Бэкапы 19+ таблиц + сторожевой крон
-
-### Прочее
-- `/today` — KPI, события, «Требует внимания»
-- `/reports/logisat` — ошибки
-- Онбординг водителя + **онбординг админа**
-- Bulk-операции, CSV-экспорт, проверка пересечений
-- **Заявки без номера** (секция в списке)
-- **Документы подрядчику на польском** (ZLECENIE)
-- **Speed Insights** (Vercel)
-- **Превью фото водителей**
-
-### Cron
-- `/api/update-rates` — `0 6 * * *`
-- `/api/cron/backup` — `0 7 * * *`
-- `/api/cron/backup-watch` — `0 8 * * *`
-- `/api/cron/reminders` — `0 9 * * *`
-
----
-
-## Подводные камни
-
-### PostgREST и FK
-У `trips` два FK на `trucks` (`truck_id`, `trailer_id`). Алиасы обязательны: `.select('*, trucks!truck_id(...), trucks!trailer_id(...)')`. То же для `trip_segments` (алиас `trailer:trucks!trailer_id(...)`).
-
-### Supabase SQL Editor: `DROP COLUMN a, b, c`
-**Не работает**. **Решение:** `DROP COLUMN` перед каждой колонкой.
-
-### Миграция колонок → grep ВСЕХ `.select()`
-После `drivers.phone` — `/today` падал в рантайме, билд зелёный. **Правило:** при DROP COLUMN — grep во всех `.select()` в `app/` и `lib/`. (21.10 найден и исправлен `trips.route` в `task-actions.ts`.)
-
-### ⚠️ `Project ID` — копировать только Copy
-Опечатка на одну букву (`smodijsjwvsscfgloh` вместо `smodijsj`**`i`**`wcvsscfgloh`) даёт NXDOMAIN, проект при этом Healthy. Выглядит как DNS-блокер Supabase. Перед тикетом в поддержку — сверить ref кнопкой Copy. Тикет `SU-516613` был ложным.
-
-### ⚠️ `trip_expenses.subcontractor_id` — висячая колонка
-Осталась после `DROP trip_subcontractors` (Фаза 3.3). FK на `contractors` нет, UUID-ы из `trip_expenses` в `contractors` не находятся. В merge-функциях (подрядчики) её **не трогать**. Если понадобится — сначала разобраться, куда она должна указывать, или удалить.
-
-### Геокодирование — Nominatim путается
-«Nola (NA), Italy» → «Nola, Louisiana». **Решение:** `postal_code` + `viewbox` + `countrycodes` + `cleanCity`.
-
-### `recalcTripCoords`
-При пересчёте — селектим `from_postal_code, to_postal_code` в сегментах.
-
-### Таймауты Vercel-билдов
-Static page generation 60s. Лечится: Redeploy без кэша.
-
-### Автокоммит
-Каждое изменение = коммит + билд. **Связанные файлы — один коммит** (иначе Vercel упадёт на type-check).
-
-### Потеря импорта / обрыв при копипасте
-Не удалять существующие импорты. Проверять, что файл дошёл до конца (`}`).
-
-### `driver.phone` больше нет
-Все `.select()` с `drivers!driver_id(..., phone)` → `phone_by, phone_pl`.
-
-### `trips.route` больше нет
-Использовать `buildRouteMap(segments)` или `buildRouteFromSegments(segments)`.
-
-### DOCX: перевод на польский
-`lib/translate-pl.ts` — словарь. Если слово не найдено, остаётся как есть. Пополнять по мере необходимости.
-
-### `getTerms(paymentDays, docType)`
-Тип документов (`'originals' | 'scans'`) влияет на текст пункта 1 в WARUNKI ZLECENIA.
-
-### Speed Insights
-Пакет `@vercel/speed-insights` установлен через `npm i`. Компонент `<SpeedInsights />` в `layout.tsx`. Включён в панели Vercel.
-
-### Git (локально)
-- В Git Bash настроены `user.name` / `user.email`.
-- При `git push` с ошибкой `rejected` — сделать `git pull`, затем `git push`.
-- Всегда `git commit -m "Текст"` (чтобы не открывался Vim).
-- Если в коммит попал `node_modules` — `git reset HEAD~1`, добавить в `.gitignore`, `git rm -r --cached node_modules`, заново `git add`/`commit`.
-- `.gitignore` в проекте есть.
-
-### Merge tool клиентов
-SQL-функция `merge_clients(source_id, target_id)` переносит `trips.client_id`, `trip_cargo.client_id`, `forwarding_orders.client_id`, удаляет дубликат. Действие необратимо.
-
-### Merge tool подрядчиков
-SQL-функция `merge_contractors(source_id, target_id)` переносит `trip_segments.contractor_id`, `forwarding_contractors.contractor_id`, удаляет дубликат. `trip_expenses.subcontractor_id` НЕ трогает (висячая). Файл экшенов — `app/contractors/actions.ts` (НЕ `contractor-actions.ts`). Действие необратимо.
-
-### Сторожевой бэкап
-`/api/cron/backup` пишет в `audit_log` запись с `user_name='Cron'`, `entity_type='trip'`, `summary='Бэкап выполнен: ...'` **после** успешной отправки. `/api/cron/backup-watch` ищет эту запись за сегодня (UTC) и шлёт алерт, если её нет. **Если Vercel не вызвал ни один крон — алерта не будет.** Проверять вручную.
-
-### Авто-топливо и авто-дата
-`calcFuelFromPrevTrip` / `tryAutofillFuel` берут последний рейс машины (кроме текущего) и считают `start_fuel_level = max(0, prevStart + totalRefuel - consumed)`. `calcSuggestedStartDate` даёт `date_from` = следующий день после `end_date` последнего рейса. Работают только для us-сегментов с `truck_id`. Если `start_fuel_level` уже > 0 или `date_from` задана вручную — не перезаписывают.
-
-### Секреты (после инцидента 20.10)
-- `TELEGRAM_BOT_TOKEN` перевыпущен в BotFather.
-- `CRON_SECRET`, `TELEGRAM_WEBHOOK_SECRET` — новые.
-- `TELEGRAM_CHAT_ID` = `921520481` (личка).
-- Обновлены в Vercel (Production) + Redeploy.
-- **Не грузить секреты в чат.** Если засветились — сразу перевыпускать.
-
-### Задание водителю — `truck_reg`/`trailer_reg`
-`buildDriverTaskText` выводит блок «🚚 Машина: … / прицеп …» **только если** в объекте сегмента есть `truck_reg`/`trailer_reg`. В `app/trips/[id]/page.tsx` они мапятся из join'а (`trucks!truck_id`, `trailers:trucks!trailer_id`). В `task-actions.ts` — тоже (21.10). Если добавляешь новое место вызова `buildDriverTaskText` — **обязательно** передавай `truck_reg`/`trailer_reg`, иначе блок не отрисуется.
+- `trips`: ~75, `trip_segments`: ~98, `trip_cargo`: ~78, `trip_expenses`: ~455.
+- `counters`: сплошная нумерация.
+- `audit_log`: ~471+.
+- **Бэкапы:** `backup_2026-10-21_0731.json` — доставлен в Telegram ✅. Cron работает.
 
 ---
 
 ## 📋 Шпаргалка
-
-- `trips`: ~75, `trip_segments`: ~98, `trip_cargo`: ~78, `trip_expenses`: ~455
-- `driver_transactions`: наполняется
-- `trip_subcontractors`: DROP
-- `counters`: сплошная нумерация
-- Скорость: **94/100** (Speed Insights Desktop)
 - **Supabase ref:** `smodijsj`**`i`**`wcvsscfgloh` (с буквой `i`!)
-- **Supabase тикет `SU-516613`:** ЗАКРЫТ (ложный, опечатка)
+- **Тикет `SU-516613`:** ЗАКРЫТ (был ложным).
+- **Аудит:** 14 уязвимостей (транзитивные в Next 14, уйдут при переходе на 15).
+- **Vercel:** лимит деплоев Hobby (100/сутки).
+- **Скорость:** Speed Insights 94/100, shared JS 87.4 kB.
 
-**Закрыто:** Фазы 3.1–3.6, 4, 5 (груз первичен), 6 (утилиты и защита), 7 (KPI с прибылью), **8 (merge tool подрядчиков)**, `created_at`, нумерация через `counters`, считывание тахографа/карт, визитка водителя, sidebar водителя, дубликаты, онбординг админа, геокодирование с postal_code, фикс `/today`, поиск в «Мои рейсы», таможня, прицеп в сегменте и задании, DOCX на польском, компактные фильтры + клиенты, Speed Insights, индексы БД, `prefetch={false}`, массовый пересчёт координат, превью фото водителей, merge tool клиентов, сторожевой бэкап, авто-топливо, авто-дата старта, перевыпуск секретов, **DNS Supabase (опечатка)**, **grep-аудит `.select()`**, **`task-actions.ts` (route + truck_reg/trailer_reg)**, **`optimizePackageImports`**, **бэкап в Telegram**.
+**Закрыто:** Фазы 3.1–3.10, DNS Supabase, merge подрядчиков, фильтры `/reports`, чистка схемы, оптимизация бандлов, аудит и обновление пакетов, ленивые импорты.
 
 ---
 
 ## 🆕 Условие работы с AI-ассистентом
-
 **При старте нового чата:**
-1. Полный HANDOVER (один раз)
-2. Что делаем сейчас (см. Очередь задач — сейчас основное закрыто, следующее по плану — отчёт «фрахт по грузам»)
-3. Сам файл, целиком
-4. Дальше по одному файлу
+1. Полный HANDOVER (этот файл).
+2. Что делаем сейчас (Миграция на Next.js 15).
+3. Сам файл, целиком.
+4. Дальше по одному файлу.
 
 **Сигналы:** 🟡 «~30–40%», 🔴 «сохраняемся».
-
-**Сохраняемся на границах блоков.**
-
 **Не грузим:** бэкапы, старые HANDOVER, заменённые файлы, полные логи, огромные JSON, **секреты**.
-
 **Грузим:** HANDOVER, текущий файл, результат grep, короткий скриншот.
-
-**Цель:** непрерывность через короткие чаты, каждый стартует с полного HANDOVER.
