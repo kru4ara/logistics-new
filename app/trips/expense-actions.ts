@@ -1,8 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createClient } from '../../../lib/supabase-server'; // Проверь путь!
-// ВАЖНО: если файл лежит в app/trips/, то путь к lib будет '../../lib/'
+import { createClient } from '../../lib/supabase-server';
 
 export async function deleteExpenseAction(id: string, tripId: string) {
   const supabase = await createClient();
