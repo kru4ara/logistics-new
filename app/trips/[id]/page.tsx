@@ -319,28 +319,6 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
     paid: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   };
 
-  const expenseCategories: { value: string; label: string }[] = [
-    { value: 'fuel', label: '⛽ Топливо' },
-    { value: 'epi', label: '📄 EPI' },
-    { value: 'border', label: '🛂 Граница' },
-    { value: 'salary', label: '💶 ЗП водителя' },
-    { value: 'permit', label: '📋 Дозвол' },
-    { value: 'tlc', label: '🏭 ТЛЦ' },
-    { value: 'waiting', label: '⏳ Зона ожидания' },
-    { value: 'repair', label: '🔧 Ремонт' },
-    { value: 'parking', label: '🅿️ Паркинг' },
-    { value: 'disinfection', label: '🧴 Дезинфекция' },
-    { value: 'ex1', label: '🧾 ЕХ-1' },
-    { value: 'otkat', label: '🔄 Откат' },
-    { value: 'gps_seal', label: '📡 GPS пломба' },
-    { value: 'other', label: '📌 Другое' },
-  ];
-
-  function categoryLabel(cat: string): string {
-    return expenseCategories.find((c) => c.value === cat)?.label
-      || (cat === 'contractor' ? '🚛 Подрядчик' : cat);
-  }
-
   return (
     <main className="min-h-screen bg-slate-50">
       <div className="max-w-[900px] mx-auto px-4 md:px-6 py-6 md:py-8 space-y-5 md:space-y-6">
@@ -650,7 +628,6 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
           segments={segments}
           tripId={tripId}
           totalExpenses={totalExpenses}
-          categoryLabel={categoryLabel}
         />
 
         {/* ЭКОНОМИКА */}
