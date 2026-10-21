@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import { Pencil, Receipt } from 'lucide-react';
-import { deleteExpense } from '../trip-actions';
 import EditExpenseDialog from './EditExpenseDialog';
+import { deleteExpenseAction } from './expense-actions';
 
 export default function ExpensesList({
   expenses,
@@ -61,10 +61,7 @@ export default function ExpensesList({
                         >
                           <Pencil className="w-4 h-4" />
                         </button>
-                        <form action={async () => {
-                          'use server';
-                          await deleteExpense(exp.id, tripId);
-                        }}>
+                        <form action={deleteExpenseAction.bind(null, exp.id, tripId)}>
                           <button type="submit" className="text-red-500 hover:text-red-700 text-xs font-medium px-1">
                             Удалить
                           </button>
@@ -163,10 +160,7 @@ export default function ExpensesList({
                             >
                               <Pencil className="w-3.5 h-3.5" />
                             </button>
-                            <form action={async () => {
-                              'use server';
-                              await deleteExpense(exp.id, tripId);
-                            }}>
+                            <form action={deleteExpenseAction.bind(null, exp.id, tripId)}>
                               <button type="submit" className="text-red-500 hover:text-red-700 text-xs font-medium px-1">
                                 Удалить
                               </button>
