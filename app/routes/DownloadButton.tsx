@@ -2,7 +2,6 @@
 
 import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
-import * as XLSX from 'xlsx';
 
 export type RouteCardData = {
   route: string;
@@ -13,7 +12,10 @@ export type RouteCardData = {
 };
 
 export default function DownloadButton({ data }: { data: RouteCardData[] }) {
-  function handleDownload() {
+  async function handleDownload() {
+    // Ленивая загрузка xlsx — только по клику
+    const XLSX = await import('xlsx');
+
     const rows = data.map((r) => ({
       'Маршрут': r.route,
       'Фрахт (€)': Math.round((r.revenue || 0) * 100) / 100,
