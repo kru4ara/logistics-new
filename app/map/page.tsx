@@ -1,8 +1,8 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import dynamicImport from 'next/dynamic';
 import { createClient } from '../../lib/supabase-server';
 import { buildRouteMap } from '../../lib/trip-route';
+import MapView from './MapViewWrapper';
 import {
   Map as MapIcon,
   MapPin,
@@ -13,18 +13,6 @@ import {
 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
-
-const MapView = dynamicImport(() => import('./MapView'), {
-  ssr: false,
-  loading: () => (
-    <div className="h-full w-full flex items-center justify-center bg-slate-100 text-slate-400">
-      <div className="flex items-center gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" strokeWidth={2} />
-        Загрузка карты…
-      </div>
-    </div>
-  ),
-});
 
 export default async function MapPage() {
   const role = cookies().get('role')?.value;
