@@ -251,12 +251,25 @@ export default async function Home() {
   // ============================================================
   const monthlyData: { key: string; label: string; profit: number }[] = [];
 
+  // Фиксируем текущую дату в UTC, чтобы сервер и клиент считали одинаково
+  const nowUtc = new Date();
+  const currentYearUtc = nowUtc.getUTCFullYear();
+  const currentMonthUtc = nowUtc.getUTCMonth();
+
+  const monthNamesShort = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+
   for (let i = 11; i >= 0; i--) {
-    const d = new Date(currentYear, currentMonth - i, 1);
-    const y = d.getFullYear();
-    const m = d.getMonth();
+    // Вычисляем год и месяц арифметически, без Date
+    let y = currentYearUtc;
+    let m = currentMonthUtc - i;
+
+    while (m < 0) {
+      m += 12;
+      y -= 1;
+    }
+
     const key = `${y}-${String(m + 1).padStart(2, '0')}`;
-    const label = d.toLocaleDateString('ru-RU', { month: 'short' }).replace('.', '');
+    const label = monthNamesShort[m];
 
     let income = 0;
     let expenses = 0;
@@ -265,7 +278,7 @@ export default async function Home() {
       const dateStr = t.end_date || t.start_date;
       if (!dateStr) return;
       const td = new Date(dateStr);
-      if (td.getFullYear() !== y || td.getMonth() !== m) return;
+      if (td.getUTCFullYear() !== y || td.getUTCMonth() !== m) return;
       income += t.revenue_eur || 0;
       expenses += expensesByTrip[t.id] || 0;
     });
@@ -273,7 +286,7 @@ export default async function Home() {
     forwarding?.forEach((f) => {
       if (!f.load_date) return;
       const fd = new Date(f.load_date);
-      if (fd.getFullYear() !== y || fd.getMonth() !== m) return;
+      if (fd.getUTCFullYear() !== y || fd.getUTCMonth() !== m) return;
       income += f.client_price_eur || 0;
       expenses += (contractorsByForwarding[f.id] || 0) + (expensesByForwarding[f.id] || 0);
     });
@@ -289,10 +302,12 @@ export default async function Home() {
         else if (fc.month_key) startDate = new Date(fc.month_key + '-01');
         if (!startDate) return;
         const monthlyPart = amount / 12;
-        const targetDate = new Date(y, m, 1);
-        const diffMonths =
-          (targetDate.getFullYear() - startDate.getFullYear()) * 12 +
-          (targetDate.getMonth() - startDate.getMonth());
+        
+        // Сравниваем без Date (чистая арифметика)
+        const startY = startDate.getUTCFullYear();
+        const startM = startDate.getUTCMonth();
+        const diffMonths = (y - startY) * 12 + (m - startM);
+        
         if (diffMonths >= 0 && diffMonths < 12) {
           expenses += monthlyPart;
         }
@@ -305,7 +320,6 @@ export default async function Home() {
 
     monthlyData.push({ key, label, profit: Math.round(income - expenses) });
   }
-
   // ============================================================
   // DONUT
   // ============================================================
