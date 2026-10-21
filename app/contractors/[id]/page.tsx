@@ -64,6 +64,18 @@ function fmtEur(n: number): string {
   return n.toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' €';
 }
 
+function pickLoc(rel: unknown): { city?: string; country?: string } {
+  if (!rel) return {};
+  if (Array.isArray(rel)) return (rel[0] || {}) as { city?: string; country?: string };
+  return rel as { city?: string; country?: string };
+}
+
+function locStr(p: any): string {
+  if (!p) return '';
+  const loc = pickLoc(p.locations);
+  return [loc.city, loc.country].filter(Boolean).join(', ');
+}
+
 export default async function ContractorCardPage({
   params,
 }: {
@@ -110,7 +122,7 @@ export default async function ContractorCardPage({
 
   const c = contractor as Contractor;
 
-  // 2. Работы: комбинированные перевозки (trip_segments, executor_type='contractor') ⬅️ ИЗМЕНЕНО (коммент)
+  // 2. Работы: комбинированные перевозки (trip_segments, executor_type='contractor')
   //    Здесь route НЕ тянем из trips — маршрут участка берём из самого сегмента (from_*/to_*).
   const { data: tripSubs } = await supabase
     .from('trip_segments')
@@ -131,6 +143,7 @@ export default async function ContractorCardPage({
     .eq('executor_type', 'contractor');
 
   // 3. Работы: экспедирование (forwarding_contractors)
+  //    Маршрут берём из forwarding_points (loading → unloading), НЕ из route_from/route_to.
   const { data: fwdSubs } = await supabase
     .from('forwarding_contractors')
     .select(`
@@ -164,7 +177,7 @@ export default async function ContractorCardPage({
     const numberBase = trip.client_request_number || (trip.trip_number ? `№${trip.trip_number}` : '—');
     const routeFrom = [s.from_country, s.from_city].filter(Boolean).join(', ') || '—';
     const routeTo = [s.to_country, s.to_city].filter(Boolean).join(', ') || '—';
-    const route = `${routeFrom} → ${routeTo}`; // ⬅️ ИЗМЕНЕНО: только из сегмента, без fallback
+    const route = `${routeFrom} → ${routeTo}`;
     const date = s.date_to || s.date_from;
     const price = Number(s.price) || 0;
 
@@ -188,24 +201,14 @@ export default async function ContractorCardPage({
 
     const numberBase = fwd.client_request_number || (fwd.order_number ? `№${fwd.order_number}` : '—');
 
-    // Маршрут из forwarding_points: first loading → last unloading
+    // Маршрут из forwarding_points: первая загрузка → последняя выгрузка
     const points = Array.isArray(fwd.forwarding_points) ? fwd.forwarding_points : [];
-    const pickLoc = (rel: unknown): { city?: string; country?: string } => {
-      if (!rel) return {};
-      if (Array.isArray(rel)) return rel[0] || {};
-      return rel as { city?: string; country?: string };
-    };
     const sortedPoints = [...points].sort((a: any, b: any) => (a.sequence || 0) - (b.sequence || 0));
     const firstLoad = sortedPoints.find((p: any) => p.type === 'loading');
     const lastUnload = [...sortedPoints].reverse().find((p: any) => p.type === 'unloading');
-    const locStr = (p: any) => {
-      if (!p) return '';
-      const loc = pickLoc(p.locations);
-      return [loc.city, loc.country].filter(Boolean).join(', ');
-    };
     const routeFrom = locStr(firstLoad);
     const routeTo = locStr(lastUnload);
-    const route = routeFrom || routeTo ? `${routeFrom || '—'} → ${routeTo || '—'}` : '—';
+    const route = (routeFrom || routeTo) ? `${routeFrom || '—'} → ${routeTo || '—'}` : '—';
 
     const date = fwd.unload_date || fwd.load_date;
 
