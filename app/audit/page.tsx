@@ -148,15 +148,16 @@ function formatDate(iso: string): string {
 export default async function AuditPage({
   searchParams,
 }: {
-  searchParams: { entity?: string };
+  searchParams: Promise<{ entity?: string }>;
 }) {
   const role = cookies().get('role')?.value;
   if (role === 'driver') redirect('/driver');
   if (role !== 'admin') redirect('/login');
 
-  const supabase = await createClient();
+  const resolvedParams = await searchParams;
+  const entityFilter = resolvedParams.entity || null;
 
-  const entityFilter = searchParams.entity || null;
+  const supabase = await createClient();
 
   let query = supabase
     .from('audit_log')
