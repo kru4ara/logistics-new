@@ -221,8 +221,8 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
       contractor_name: pickName(s.contractors) || null,
       truck_id: s.truck_id,
       truck_reg: truck?.registration_number || null,
-      trailer_id: s.trailer_id,
-      trailer_reg: trailer?.registration_number || null, // ⬅️ НОВОЕ
+      trailer_id: s.trailer_id, // <-- ДОБАВИТЬ ЭТУ СТРОКУ
+      trailer_reg: trailer?.registration_number || null,
       driver_id: s.driver_id,
       driver_name: driverName,
       date_from: s.date_from,
