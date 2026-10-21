@@ -36,7 +36,7 @@ type DriverRel = { first_name: string | null; last_name: string | null };
 export default async function TripsPage({
   searchParams,
 }: {
-  searchParams: {
+  searchParams: Promise<{
     year?: string;
     month?: string;
     q?: string;
@@ -45,25 +45,27 @@ export default async function TripsPage({
     truck?: string;
     client?: string;
     sort?: string;
-  };
+  }>;
 }) {
   const role = cookies().get('role')?.value;
   if (role === 'driver') redirect('/driver');
 
   const supabase = await createClient();
 
+  const resolvedParams = await searchParams;
+
   const now = new Date();
   const currentYear = now.getFullYear();
 
-  const year = parseInt(searchParams?.year || String(currentYear));
-  const monthFilter = searchParams?.month ? parseInt(searchParams.month) : null;
-  const q = (searchParams?.q || '').trim();
+  const year = parseInt(resolvedParams?.year || String(currentYear));
+  const monthFilter = resolvedParams?.month ? parseInt(resolvedParams.month) : null;
+  const q = (resolvedParams?.q || '').trim();
   const qLower = q.toLowerCase();
-  const statusFilter = searchParams?.status || null;
-  const driverFilter = searchParams?.driver || null;
-  const truckFilter = searchParams?.truck || null;
-  const clientFilter = searchParams?.client || null;
-  const sortBy: 'start' | 'created' = searchParams?.sort === 'created' ? 'created' : 'start';
+  const statusFilter = resolvedParams?.status || null;
+  const driverFilter = resolvedParams?.driver || null;
+  const truckFilter = resolvedParams?.truck || null;
+  const clientFilter = resolvedParams?.client || null;
+  const sortBy: 'start' | 'created' = resolvedParams?.sort === 'created' ? 'created' : 'start';
   
   const hasExtraFilter =
     Boolean(q) || Boolean(statusFilter) || Boolean(driverFilter) || Boolean(truckFilter) || Boolean(clientFilter);
