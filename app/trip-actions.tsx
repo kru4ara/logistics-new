@@ -201,6 +201,40 @@ export async function deleteExpense(expenseId: string, tripId: string) {
   redirect(`/trips/${tripId}?toast=expense_deleted`);
 }
 
+export async function updateExpense(expenseId: string, formData: FormData) {
+  const supabase = await createClient();
+  const tripId = formData.get('trip_id') as string;
+  
+  const category = formData.get('category') as string;
+  const original_amount = parseFloat(formData.get('original_amount') as string) || 0;
+  const currency = formData.get('currency') as string;
+  const amount_eur = parseFloat(formData.get('amount_eur') as string) || 0;
+  const description = (formData.get('description') as string)?.trim() || null;
+  const expense_date = (formData.get('expense_date') as string) || null;
+  const paid_by_driver = formData.get('paid_by_driver') === 'on';
+
+  const { error } = await supabase
+    .from('trip_expenses')
+    .update({
+      category,
+      original_amount,
+      currency,
+      amount_eur,
+      description,
+      expense_date,
+      paid_by_driver,
+    })
+    .eq('id', expenseId);
+
+  if (error) throw new Error(`Ошибка обновления расхода: ${error.message}`);
+
+  // Пересчитываем баланс водителя, если это ЗП или оплачено им
+  // (упрощенно: просто ревалидируем пути)
+  revalidatePath(`/trips/${tripId}`);
+  revalidatePath('/drivers');
+  return { success: true };
+}
+
 // ============================================================
 // Редактирование рейса (ЗАЯВКА + МАРШРУТ)
 // Транспорт, даты и фрахт НЕ трогаем — они синхронизируются
