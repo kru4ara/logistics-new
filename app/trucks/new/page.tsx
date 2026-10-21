@@ -5,8 +5,8 @@ import { ArrowLeft, Truck as TruckIcon } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
-export default function NewTruckPage() {
-  const role = cookies().get('role')?.value;
+export default async function NewTruckPage() {
+  const role = (await cookies()).get('role')?.value;
   if (role === 'driver') redirect('/driver');
 
   return (
