@@ -87,18 +87,20 @@ const STATUS_MAP: Record<string, string[]> = {
 export default async function ReportsPage({
   searchParams,
 }: {
-  searchParams: { from?: string; to?: string; status?: string; client?: string };
+  searchParams: Promise<{ from?: string; to?: string; status?: string; client?: string }>;
 }) {
-  const role = cookies().get('role')?.value;
+  const cookieStore = await cookies();
+  const role = cookieStore.get('role')?.value;
   if (role === 'driver') redirect('/driver');
 
+  const resolvedParams = await searchParams;
   const supabase = await createClient();
 
   // Параметры фильтров
-  const from = searchParams.from || '';
-  const to = searchParams.to || '';
-  const statusKey = searchParams.status || 'money';
-  const clientId = searchParams.client || '';
+  const from = resolvedParams.from || '';
+  const to = resolvedParams.to || '';
+  const statusKey = resolvedParams.status || 'money';
+  const clientId = resolvedParams.client || '';
 
   const statuses = STATUS_MAP[statusKey] ?? STATUS_MAP.money;
 
