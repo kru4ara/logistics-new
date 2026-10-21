@@ -14,6 +14,7 @@ import {
   Route as RouteIcon,
   Inbox,
   RadioTower,
+  Filter,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -67,35 +68,66 @@ const QUICK_LINKS: QuickLink[] = [
   },
 ];
 
-export default async function ReportsPage() {
+const STATUS_OPTIONS = [
+  { value: 'money', label: 'Оплаченные + выставленные' },
+  { value: 'completed', label: 'Завершённые + деньги' },
+  { value: 'active', label: 'В пути' },
+  { value: 'planned', label: 'Планируются' },
+  { value: 'all', label: 'Все' },
+];
+
+const STATUS_MAP: Record<string, string[]> = {
+  money: ['paid', 'invoiced'],
+  completed: ['completed', 'invoiced', 'paid'],
+  active: ['active'],
+  planned: ['planned'],
+  all: [],
+};
+
+export default async function ReportsPage({
+  searchParams,
+}: {
+  searchParams: { from?: string; to?: string; status?: string; client?: string };
+}) {
   const role = cookies().get('role')?.value;
   if (role === 'driver') redirect('/driver');
 
   const supabase = await createClient();
 
-  const [tripsResult, segmentsResult] = await Promise.all([
-    supabase
-      .from('trips')
-      .select('*, clients(name)')
-      .order('trip_number', { ascending: false }),
-    supabase
-      .from('trip_segments')
-      .select('trip_id, position, from_city, from_country, to_city, to_country'),
-  ]);
+  // Параметры фильтров
+  const from = searchParams.from || '';
+  const to = searchParams.to || '';
+  const statusKey = searchParams.status || 'money';
+  const clientId = searchParams.client || '';
 
-  const trips = tripsResult.data;
-  const tripsError = tripsResult.error;
+  const statuses = STATUS_MAP[statusKey] ?? STATUS_MAP.money;
+
+  // 1. Запрос рейсов с фильтрами
+  let tripsQuery = supabase
+    .from('trips')
+    .select('*, clients(name)')
+    .order('trip_number', { ascending: false });
+
+  if (from) tripsQuery = tripsQuery.gte('start_date', from);
+  if (to) tripsQuery = tripsQuery.lte('start_date', to);
+  if (statuses.length > 0) tripsQuery = tripsQuery.in('status', statuses);
+  if (clientId) tripsQuery = tripsQuery.eq('client_id', clientId);
+
+  const { data: trips, error: tripsError } = await tripsQuery;
 
   if (tripsError) {
     return <div className="p-8 text-red-500">Ошибка загрузки: {tripsError.message}</div>;
   }
 
-  const segments = (segmentsResult.data || []) as SegmentRouteRow[];
+  // 2. Сегменты для маршрута
+  const { data: segmentsData } = await supabase
+    .from('trip_segments')
+    .select('trip_id, position, from_city, from_country, to_city, to_country');
+
+  const segments = (segmentsData || []) as SegmentRouteRow[];
   const routeByTrip = buildRouteMap(segments);
 
-  // ВАЖНО: тянем расходы ТОЛЬКО по актуальным рейсам.
-  // Иначе PostgREST отдаёт первые 1000 строк из trip_expenses
-  // и старые/новые расходы не попадают в выборку → расходы = 0.
+  // 3. Расходы только по отфильтрованным рейсам
   const tripIds = (trips || []).map((t) => t.id).filter(Boolean) as string[];
 
   let expenses: { trip_id: string | null; amount_eur: number | null }[] = [];
@@ -117,11 +149,12 @@ export default async function ReportsPage() {
     return acc;
   }, {} as Record<string, number>);
 
+  // 4. Итоги
   const totalRevenue = trips?.reduce((sum, t) => sum + (t.revenue_eur || 0), 0) || 0;
   const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount_eur || 0), 0);
   const profit = totalRevenue - totalExpenses;
 
-  // Обогащаем рейсы вычисленным route + expenses + clientName
+  // 5. Строки отчёта
   const reportRows: ReportRow[] = (trips || []).map((trip) => ({
     id: trip.id,
     trip_number: trip.trip_number ?? null,
@@ -131,6 +164,12 @@ export default async function ReportsPage() {
     revenue_eur: trip.revenue_eur || 0,
     expenses: expensesByTrip[trip.id] || 0,
   }));
+
+  // 6. Список клиентов для фильтра
+  const { data: clientsList } = await supabase
+    .from('clients')
+    .select('id, name')
+    .order('name');
 
   const statusLabels: Record<string, string> = {
     planned: 'Планируется',
@@ -148,6 +187,8 @@ export default async function ReportsPage() {
     paid: 'bg-emerald-50 text-emerald-700',
   };
 
+  const hasFilters = Boolean(from || to || clientId || statusKey !== 'money');
+
   return (
     <main className="min-h-screen bg-slate-50">
       <div className="max-w-[1600px] mx-auto px-4 md:px-6 py-6 md:py-8 space-y-5 md:space-y-6">
@@ -159,7 +200,9 @@ export default async function ReportsPage() {
               <Coins className="w-6 h-6 md:w-7 md:h-7 text-brand-600" strokeWidth={2.2} />
               Отчёт о прибыли
             </h1>
-            <p className="text-slate-500 mt-1 text-sm md:text-base">Полная финансовая сводка по всем рейсам</p>
+            <p className="text-slate-500 mt-1 text-sm md:text-base">
+              Полная финансовая сводка по всем рейсам
+            </p>
           </div>
           <DownloadButton data={reportRows} />
         </div>
@@ -187,6 +230,72 @@ export default async function ReportsPage() {
             </a>
           ))}
         </div>
+
+        {/* Фильтры */}
+        <form className="card p-4 md:p-5" method="GET">
+          <div className="flex items-center gap-2 mb-3">
+            <Filter className="w-4 h-4 text-slate-500" strokeWidth={2.2} />
+            <span className="text-sm font-semibold text-slate-700">Фильтры</span>
+            {hasFilters && (
+              <span className="text-xs text-brand-600 bg-brand-50 px-2 py-0.5 rounded-full font-medium">
+                Активны
+              </span>
+            )}
+          </div>
+          <div className="grid gap-3 grid-cols-2 md:grid-cols-4 items-end">
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">С даты</label>
+              <input
+                type="date"
+                name="from"
+                defaultValue={from}
+                className="input"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">По дату</label>
+              <input
+                type="date"
+                name="to"
+                defaultValue={to}
+                className="input"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Статус</label>
+              <select name="status" defaultValue={statusKey} className="input">
+                {STATUS_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Клиент</label>
+              <select name="client" defaultValue={clientId} className="input">
+                <option value="">— Все клиенты —</option>
+                {(clientsList || []).map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="flex gap-2 mt-3">
+            <button
+              type="submit"
+              className="flex-1 md:flex-none md:px-6 bg-brand-600 hover:bg-brand-700 text-white font-semibold py-2.5 rounded-lg transition-all active:scale-[0.98]"
+            >
+              Показать
+            </button>
+            {hasFilters && (
+              <a
+                href="/reports"
+                className="px-4 py-2.5 rounded-lg border border-slate-300 text-slate-700 font-medium hover:bg-slate-100 transition-all whitespace-nowrap"
+              >
+                Сброс
+              </a>
+            )}
+          </div>
+        </form>
 
         {/* Счётчики */}
         <div className="grid gap-3 md:gap-5 grid-cols-2 md:grid-cols-3">
@@ -230,8 +339,13 @@ export default async function ReportsPage() {
 
         {/* Таблица / карточки */}
         <div className="card overflow-hidden">
-          <div className="p-4 md:p-6 border-b border-slate-100">
-            <h2 className="text-base md:text-lg font-bold text-slate-900">Детализация по рейсам</h2>
+          <div className="p-4 md:p-6 border-b border-slate-100 flex items-center justify-between gap-3">
+            <h2 className="text-base md:text-lg font-bold text-slate-900">
+              Детализация по рейсам
+            </h2>
+            <span className="text-xs md:text-sm text-slate-500">
+              Найдено: <b className="text-slate-700">{reportRows.length}</b>
+            </span>
           </div>
 
           {reportRows.length === 0 ? (
@@ -239,7 +353,12 @@ export default async function ReportsPage() {
               <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-brand-50 flex items-center justify-center">
                 <Inbox className="w-8 h-8 text-brand-500" strokeWidth={1.5} />
               </div>
-              <p className="text-slate-500 text-sm">Рейсов пока нет</p>
+              <p className="text-slate-500 text-sm">Нет рейсов по выбранным фильтрам</p>
+              {hasFilters && (
+                <a href="/reports" className="text-brand-600 text-sm font-medium mt-3 inline-block hover:underline">
+                  Сбросить фильтры
+                </a>
+              )}
             </div>
           ) : (
             <>
@@ -266,7 +385,7 @@ export default async function ReportsPage() {
                           {statusLabels[trip.status] || trip.status}
                         </span>
                       </div>
- 
+
                       {trip.route && trip.route !== '—' && (
                         <div className="flex items-start gap-1 text-xs text-slate-500 mb-2 break-words">
                           <RouteIcon className="w-3 h-3 mt-0.5 shrink-0 text-slate-400" strokeWidth={2} />
