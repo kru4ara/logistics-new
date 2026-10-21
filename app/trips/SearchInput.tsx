@@ -64,7 +64,7 @@ export default function SearchInput({
         type="text"
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        placeholder="Поиск: номер заявки, маршрут, клиент, отправитель…"
+        placeholder="Поиск по № рейса или № заявки…"
         className="w-full rounded-xl border border-slate-300 pl-10 pr-12 py-2.5 text-base text-slate-900
                    focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
       />
