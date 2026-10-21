@@ -77,14 +77,16 @@ type TruckRow = {
 export default async function ProfitabilityPage({
   searchParams,
 }: {
-  searchParams: { from?: string; to?: string };
+  searchParams: Promise<{ from?: string; to?: string }>;
 }) {
-  const role = cookies().get('role')?.value;
+  const cookieStore = await cookies();
+  const role = cookieStore.get('role')?.value;
   if (role === 'driver') redirect('/driver');
   if (role !== 'admin') redirect('/login');
 
-  const from = searchParams.from || firstDayOfYearIso();
-  const to = searchParams.to || todayIso();
+  const resolvedParams = await searchParams;
+  const from = resolvedParams.from || firstDayOfYearIso();
+  const to = resolvedParams.to || todayIso();
 
   const supabase = await createClient();
 
