@@ -1,5 +1,5 @@
 import { createClient } from '../../../lib/supabase-server';
-import { deleteExpense, deleteTrip } from '../../trip-actions';
+import { deleteTrip } from '../../trip-actions';
 import AddExpenseForm from '../AddExpenseForm';
 import FileUpload from '../../driver/FileUpload';
 import DocumentList from '../../driver/DocumentList';
@@ -11,6 +11,7 @@ import SubmitButton from '../../components/SubmitButton';
 import SendTaskButton from './SendTaskButton';
 import TripCargoBlock from './TripCargoBlock';
 import TripSegmentsBlock from './TripSegmentsBlock';
+import ExpensesList from '../ExpensesList';
 import { buildRouteMap, type SegmentRouteRow } from '../../../lib/trip-route';
 import { buildDriverTaskText } from '../../../lib/trip-task-text';
 import RecalcCoordsButton from './RecalcCoordsButton';
@@ -23,12 +24,10 @@ import {
   Truck,
   UserCircle,
   Phone,
-  Calendar,
   Gauge,
   Activity,
   Paperclip,
   FolderOpen,
-  Receipt,
   Wallet,
   PlusCircle,
   Settings2,
@@ -645,148 +644,14 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
           <DocumentList documents={documents || []} tripId={tripId} canDelete={true} />
         </div>
 
-        {/* РАСХОДЫ */}
-        <div className="card p-5 md:p-6">
-          <div className="flex items-baseline justify-between gap-2 mb-4 flex-wrap">
-            <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-              <Receipt className="w-5 h-5 text-brand-600" strokeWidth={2} />
-              Расходы по рейсу
-            </h2>
-            {expenses && expenses.length > 0 && (
-              <div className="text-sm text-slate-500">
-                Итого: <b className="text-red-500 tabular-nums">{totalExpenses.toFixed(0)} €</b>
-              </div>
-            )}
-          </div>
-
-          {expenses?.length === 0 ? (
-            <div className="text-center py-8 text-slate-400 text-sm">Пока нет расходов</div>
-          ) : (
-            <>
-              <div className="md:hidden space-y-2">
-                {expenses?.map((exp: any) => {
-                  const seg = segments.find((s) => s.id === exp.segment_id);
-                  return (
-                    <div key={exp.id} className="border border-slate-100 rounded-xl p-3 bg-slate-50/40">
-                      <div className="flex justify-between items-start gap-2 mb-2">
-                        <div className="font-semibold text-slate-800 text-sm flex items-center gap-2 flex-wrap">
-                          {categoryLabel(exp.category)}
-                          {exp.paid_by_driver && (
-                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-200 whitespace-nowrap">
-                              🚛 за счёт водителя
-                            </span>
-                          )}
-                        </div>
-                        {!seg && (
-                          <form action={async () => {
-                            'use server';
-                            await deleteExpense(exp.id, tripId);
-                          }}>
-                            <button type="submit" className="text-red-500 hover:text-red-700 text-xs font-medium px-2 py-1 whitespace-nowrap">
-                              Удалить
-                            </button>
-                          </form>
-                        )}
-                      </div>
-                      {seg && (
-                        <div className="text-[10px] text-brand-600 mb-1">
-                          Участок #{seg.position} · {seg.executor_type === 'us' ? 'Мы' : seg.contractor_name || 'Подрядчик'} · создан автоматически
-                        </div>
-                      )}
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div>
-                          <div className="text-slate-400">Сумма</div>
-                          <div className="font-medium text-slate-700 tabular-nums">
-                            {exp.original_amount} {exp.currency}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-slate-400">В EUR</div>
-                          <div className="font-bold text-red-500 tabular-nums">{exp.amount_eur} €</div>
-                        </div>
-                        {exp.description && (
-                          <div className="col-span-2">
-                            <div className="text-slate-400">Описание</div>
-                            <div className="text-slate-700">{exp.description}</div>
-                          </div>
-                        )}
-                        <div className="col-span-2 text-right text-slate-400">
-                          {exp.expense_date ? new Date(exp.expense_date).toLocaleDateString('ru-RU') : '—'}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="hidden md:block overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-slate-100">
-                      <th className="text-left py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Категория</th>
-                      <th className="text-left py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Источник</th>
-                      <th className="text-right py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Оплачено</th>
-                      <th className="text-right py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">EUR</th>
-                      <th className="text-left py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide pl-4">Описание</th>
-                      <th className="text-right py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Дата</th>
-                      <th className="py-3"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {expenses?.map((exp: any) => {
-                      const seg = segments.find((s) => s.id === exp.segment_id);
-                      return (
-                        <tr key={exp.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
-                          <td className="py-3 text-sm">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              {categoryLabel(exp.category)}
-                              {exp.paid_by_driver && (
-                                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-200 whitespace-nowrap">
-                                  🚛 за счёт водителя
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                          <td className="py-3 text-xs text-slate-600">
-                            {seg ? (
-                              <span className="text-brand-700 bg-brand-50 px-2 py-0.5 rounded whitespace-nowrap">
-                                #{seg.position} {seg.executor_type === 'us' ? 'Мы' : seg.contractor_name || ''}
-                              </span>
-                            ) : (
-                              <span className="text-slate-300">—</span>
-                            )}
-                          </td>
-                          <td className="py-3 text-right text-sm font-medium tabular-nums">
-                            {exp.original_amount} {exp.currency}
-                          </td>
-                          <td className="py-3 text-right text-sm font-bold text-red-500 tabular-nums">
-                            {exp.amount_eur} €
-                          </td>
-                          <td className="py-3 pl-4 text-sm text-slate-600">{exp.description || '-'}</td>
-                          <td className="py-3 text-right text-xs text-slate-500 tabular-nums">
-                            {exp.expense_date ? new Date(exp.expense_date).toLocaleDateString('ru-RU') : '-'}
-                          </td>
-                          <td className="py-3 text-right">
-                            {!seg && (
-                              <form action={async () => {
-                                'use server';
-                                await deleteExpense(exp.id, tripId);
-                              }}>
-                                <button type="submit" className="text-red-500 hover:text-red-700 text-xs font-medium px-2 py-1">
-                                  Удалить
-                                </button>
-                              </form>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </>
-          )}
-        </div>
+        {/* РАСХОДЫ (вынесены в отдельный клиентский компонент) */}
+        <ExpensesList
+          expenses={expenses || []}
+          segments={segments}
+          tripId={tripId}
+          totalExpenses={totalExpenses}
+          categoryLabel={categoryLabel}
+        />
 
         {/* ЭКОНОМИКА */}
         <div className="card p-5 md:p-6">
