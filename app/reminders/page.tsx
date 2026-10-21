@@ -23,14 +23,16 @@ type SearchParams = { show?: string };
 export default async function RemindersPage({
   searchParams,
 }: {
-  searchParams: SearchParams;
+  searchParams: Promise<SearchParams>;
 }) {
-  const role = cookies().get('role')?.value;
+  const cookieStore = await cookies();
+  const role = cookieStore.get('role')?.value;
   if (role === 'driver') redirect('/driver');
 
+  const resolvedParams = await searchParams;
   const supabase = await createClient();
 
-  const show = searchParams.show || 'active';
+  const show = resolvedParams.show || 'active';
 
   const { data: allReminders, error } = await supabase
     .from('reminders')
