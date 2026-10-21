@@ -2,7 +2,6 @@
 
 import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
-import * as XLSX from 'xlsx';
 
 export type ReportRow = {
   id: string;
@@ -27,7 +26,10 @@ function r2(n: number): number {
 }
 
 export default function DownloadButton({ data }: { data: ReportRow[] }) {
-  function handleDownload() {
+  async function handleDownload() {
+    // Ленивая загрузка xlsx — только по клику
+    const XLSX = await import('xlsx');
+
     const rows = data.map((trip) => ({
       '№ рейса': trip.trip_number || '',
       'Клиент': trip.clientName || 'Не указан',
