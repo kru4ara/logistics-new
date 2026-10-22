@@ -184,15 +184,20 @@
 - `app/contractors/[id]/edit/page.tsx` — 2 ссылки `/contractors` → `<Link>`.
 - `app/contractors/new/page.tsx` — 2 ссылки `/contractors` → `<Link>`.
 
-**⏭️ В работе: `drivers` (4 файла) + `error.tsx`:**
-- `app/drivers/page.tsx` — 122, 126, 141 (`/drivers/kpi/`, `/drivers/new/`).
-- `app/drivers/[id]/page.tsx` — 204 (`/drivers/`); **`tel:` на 269, 278 — не трогать**.
-- `app/drivers/kpi/page.tsx` — 138 (`/drivers/`).
-- `app/drivers/new/page.tsx` — 82, 200 (`/drivers/`).
-- `app/error.tsx` — 34 (`/`).
+**✅ `drivers` (4 файла) + `error.tsx` — чисто:**
+- `app/drivers/page.tsx` — 122, 126 (KPI, Добавить), 141 (пустое состояние), карточка `/drivers/${id}` → `<Link>`. Остался warning `<img>` (в очереди).
+- `app/drivers/[id]/page.tsx` — 204, «Редактировать», карточки рейсов → `<Link>`. **`tel:` (269, 278) и `<a target="_blank">` для фото паспорта — оставлены `<a>`**.
+- `app/drivers/kpi/page.tsx` — 138, мобильные карточки, ссылка в таблице → `<Link>`.
+- `app/drivers/new/page.tsx` — 82, 200 → `<Link>`.
+- `app/error.tsx` — 34 → `<Link>`. Добавлен `import Link`.
 
-**⏭️ Осталось после `drivers`:**
-- `forwarding` (4 файла): `page.tsx` (211, 302), `[id]/page.tsx` (148 + `tel:` на 276, 463 — не трогать), `new/NewForwardingForm.tsx` (289, 610), `new/page.tsx` (41).
+**⏭️ В работе: `forwarding` (4 файла):**
+- `app/forwarding/page.tsx` — 211, 302 (`/forwarding/new/`).
+- `app/forwarding/[id]/page.tsx` — 148 (`/forwarding/`); **`tel:` на 276, 463 — не трогать**.
+- `app/forwarding/new/NewForwardingForm.tsx` — 289 (`/contractors/new/`), 441 и 490 (`/locations/new/`), 610 (`/forwarding/`).
+- `app/forwarding/new/page.tsx` — 41 (`/forwarding/`).
+
+**⏭️ Осталось после `forwarding`:**
 - `trips` (5 файлов): `page.tsx` (320, 396), `[id]/page.tsx` (326 + `tel:` на 476, 485 — не трогать), `[id]/edit/page.tsx` (35), `new/NewTripForm.tsx` (390), `new/page.tsx` (37).
 - `trucks` (4 файла): `page.tsx` (221, 240), `[id]/page.tsx` (183), `new/NewTruckForm.tsx` (186), `new/page.tsx` (16).
 - `app/fixed-costs/page.tsx` (131), `app/locations/page.tsx` (101), `app/reminders/page.tsx` (175, 323), `app/reports/page.tsx` (360, 467).
