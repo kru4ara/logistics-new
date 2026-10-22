@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { createForwarding } from '../actions';
 import SubmitButton from '../../components/SubmitButton';
 import {
@@ -286,7 +287,7 @@ export default function NewForwardingForm({
             <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" strokeWidth={2} />
             <span>
               У вас нет подрядчиков. Сначала добавьте в разделе{' '}
-              <a href="/contractors/new" className="font-semibold underline">Подрядчики</a>.
+              <Link href="/contractors/new" className="font-semibold underline">Подрядчики</Link>.
             </span>
           </div>
         )}
@@ -438,7 +439,7 @@ export default function NewForwardingForm({
             <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" strokeWidth={2} />
             <span>
               У вас нет локаций для погрузки. Добавьте в разделе{' '}
-              <a href="/locations/new" className="font-semibold underline">Локации</a>.
+              <Link href="/locations/new" className="font-semibold underline">Локации</Link>.
             </span>
           </div>
         )}
@@ -487,7 +488,7 @@ export default function NewForwardingForm({
             <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" strokeWidth={2} />
             <span>
               У вас нет локаций для выгрузки. Добавьте в разделе{' '}
-              <a href="/locations/new" className="font-semibold underline">Локации</a>.
+              <Link href="/locations/new" className="font-semibold underline">Локации</Link>.
             </span>
           </div>
         )}
@@ -607,13 +608,13 @@ export default function NewForwardingForm({
                       bg-slate-50/95 sm:bg-transparent backdrop-blur-sm sm:backdrop-blur-none
                       -mx-4 px-4 sm:mx-0 sm:px-0 py-3 sm:py-0
                       border-t sm:border-0 border-slate-200">
-        <a
+        <Link
           href="/forwarding"
           className="w-full sm:w-auto text-center px-6 py-3 rounded-xl border border-slate-300 text-slate-700 font-semibold
                      hover:bg-slate-100 transition-all duration-150"
         >
           Отмена
-        </a>
+        </Link>
         <SubmitButton
           className="btn btn-primary w-full sm:flex-1 py-3"
           pendingText="Создаю заявку…"
