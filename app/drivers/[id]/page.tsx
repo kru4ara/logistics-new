@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { createClient } from '../../../lib/supabase-server';
 import { buildRouteMap, type SegmentRouteRow } from '../../../lib/trip-route';
 import { accrueDriverDebt, payOutDriverDebt, deleteDriverTransaction } from '../../driver-debts-actions';
@@ -201,10 +202,10 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
     <main className="min-h-screen bg-slate-50">
       <div className="max-w-[1400px] mx-auto px-4 md:px-6 py-6 md:py-8 space-y-5 md:space-y-6">
 
-        <a href="/drivers" className="inline-flex items-center gap-2 text-slate-600 hover:text-brand-600 transition-colors text-sm font-medium">
+        <Link href="/drivers" className="inline-flex items-center gap-2 text-slate-600 hover:text-brand-600 transition-colors text-sm font-medium">
           <ArrowLeft className="w-4 h-4" strokeWidth={2} />
           Все водители
-        </a>
+        </Link>
 
         {/* ВИЗИТКА ВОДИТЕЛЯ */}
         <div className="card p-5 md:p-6">
@@ -250,13 +251,13 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
                   )}
                 </div>
 
-                <a
+                <Link
                   href={`/drivers/${driverId}/edit`}
                   className="btn btn-primary w-full sm:w-auto text-sm md:text-base shrink-0"
                 >
                   <Pencil className="w-4 h-4" strokeWidth={2} />
                   Редактировать
-                </a>
+                </Link>
               </div>
 
               {/* Телефоны */}
@@ -613,7 +614,7 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
                 const dateStr = t.end_date || t.start_date;
                 const routeDisplay = routeByTrip.get(t.id) || '—';
                 return (
-                  <a
+                  <Link
                     key={t.id}
                     href={`/trips/${t.id}`}
                     className="block border border-slate-100 rounded-xl p-3 md:p-4 bg-slate-50/40
@@ -654,7 +655,7 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
                         )}
                       </div>
                     </div>
-                  </a>
+                  </Link>
                 );
               })}
             </div>
