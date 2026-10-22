@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase-server';
@@ -75,10 +76,10 @@ export default async function ClientsPage() {
             </div>
             <h2 className="text-xl font-bold text-slate-900 mb-2">Клиентов пока нет</h2>
             <p className="text-slate-500 mb-6">Добавьте первого клиента</p>
-            <a href="/clients/new" className="btn btn-primary inline-flex">
+            <Link href="/clients/new" className="btn btn-primary inline-flex">
               <Plus className="w-4 h-4" strokeWidth={2.5} />
               Добавить клиента
-            </a>
+            </Link>
           </div>
         ) : (
           <div className="grid gap-4 md:gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
