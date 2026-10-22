@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../../lib/supabase-server';
@@ -135,10 +136,10 @@ export default async function DriverKpiPage() {
     <main className="min-h-screen bg-slate-50">
       <div className="max-w-[1600px] mx-auto px-4 md:px-6 py-6 md:py-8 space-y-5 md:space-y-6">
 
-        <a href="/drivers" className="inline-flex items-center gap-2 text-slate-600 hover:text-brand-600 transition-colors text-sm font-medium">
+        <Link href="/drivers" className="inline-flex items-center gap-2 text-slate-600 hover:text-brand-600 transition-colors text-sm font-medium">
           <ArrowLeft className="w-4 h-4" strokeWidth={2} />
           Все водители
-        </a>
+        </Link>
 
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2.5 tracking-tight">
@@ -167,7 +168,7 @@ export default async function DriverKpiPage() {
                 const consumptionClr = consumptionColor(item.avgConsumption);
 
                 return (
-                  <a
+                  <Link
                     key={item.driver.id}
                     href={`/drivers/${item.driver.id}`}
                     className="block card card-hover p-4 space-y-3 active:scale-[0.99]"
@@ -257,7 +258,7 @@ export default async function DriverKpiPage() {
                         </div>
                       </div>
                     </div>
-                  </a>
+                  </Link>
                 );
               })}
             </div>
@@ -298,13 +299,13 @@ export default async function DriverKpiPage() {
                                 {initials || <UserIcon className="w-4 h-4" strokeWidth={2} />}
                               </div>
                               <div className="min-w-0">
-                                <a
+                                <Link
                                   href={`/drivers/${item.driver.id}`}
                                   className="font-semibold text-slate-800 hover:text-brand-600 transition-colors block truncate
                                              after:absolute after:inset-0 after:content-['']"
                                 >
                                   {item.driver.first_name} {item.driver.last_name}
-                                </a>
+                                </Link>
                                   <div className="text-xs text-slate-400 truncate">
                                   {item.driver.phone_pl || item.driver.phone_by || '—'}
                                 </div>
