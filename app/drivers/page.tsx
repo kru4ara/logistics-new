@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase-server';
@@ -119,14 +120,14 @@ export default async function DriversPage() {
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 md:gap-3">
-            <a href="/drivers/kpi" className="btn btn-secondary text-sm md:text-base justify-center">
+            <Link href="/drivers/kpi" className="btn btn-secondary text-sm md:text-base justify-center">
               <BarChart3 className="w-4 h-4 md:w-[18px] md:h-[18px]" strokeWidth={2} />
               KPI водителей
-            </a>
-            <a href="/drivers/new" className="btn btn-primary text-sm md:text-base justify-center">
+            </Link>
+            <Link href="/drivers/new" className="btn btn-primary text-sm md:text-base justify-center">
               <UserPlus className="w-4 h-4 md:w-[18px] md:h-[18px]" strokeWidth={2.5} />
               Добавить водителя
-            </a>
+            </Link>
           </div>
         </div>
 
@@ -138,10 +139,10 @@ export default async function DriversPage() {
             </div>
             <h2 className="text-xl font-bold text-slate-900 mb-2">Водителей пока нет</h2>
             <p className="text-slate-500 mb-6">Добавьте первого водителя, чтобы начать работу</p>
-            <a href="/drivers/new" className="btn btn-primary inline-flex">
+            <Link href="/drivers/new" className="btn btn-primary inline-flex">
               <UserPlus className="w-4 h-4" strokeWidth={2.5} />
               Добавить водителя
-            </a>
+            </Link>
           </div>
         ) : (
           <div className="grid gap-4 md:gap-5 md:grid-cols-2 lg:grid-cols-3">
@@ -173,7 +174,7 @@ export default async function DriversPage() {
               const photoUrl = passportUrlByDriver[driver.id];
 
               return (
-                <a
+                <Link
                   key={driver.id}
                   href={`/drivers/${driver.id}`}
                   className="group card card-hover overflow-hidden"
@@ -231,7 +232,7 @@ export default async function DriversPage() {
                       </div>
                     </div>
                   </div>
-                </a>
+                </Link>
               );
             })}
           </div>
