@@ -182,9 +182,12 @@ export default async function DriversPage() {
                   <div className="p-4 md:p-5">
                     <div className="flex items-center gap-4 mb-4">
                       {photoUrl ? (
-                        <img
+                        <Image
                           src={photoUrl}
                           alt={`${driver.first_name} ${driver.last_name}`}
+                          width={56}
+                          height={56}
+                          unoptimized
                           className="w-14 h-14 rounded-full object-cover shrink-0 shadow-brand border border-slate-200"
                         />
                       ) : (
