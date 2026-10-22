@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase-server';
@@ -317,13 +318,13 @@ export default async function TripsPage({
           <div className="flex flex-wrap gap-2 md:gap-3">
             <RecalcAllCoordsButton tripIds={filteredTrips.map((t) => t.id)} />
             <DownloadButton data={filteredTrips.map(prepareTrip)} />
-            <a
+            <Link
               href="/trips/new"
               className="btn btn-primary text-sm md:text-base flex-1 sm:flex-none"
             >
               <Plus className="w-4 h-4 md:w-[18px] md:h-[18px]" strokeWidth={2.5} />
               Создать заявку
-            </a>
+            </Link>
           </div>
         </div>
 
@@ -385,21 +386,21 @@ export default async function TripsPage({
                 : (monthFilter ? `За ${monthNames[monthFilter - 1]} ${year} нет рейсов` : `За ${year} год нет рейсов`)}
             </p>
             {isSearchMode ? (
-              <a
+              <Link
                 href={buildUrl({ q: null, status: null, driver: null, truck: null, client: null })}
                 className="inline-flex items-center gap-2 bg-slate-200 hover:bg-slate-300 text-slate-700
                            font-semibold px-6 py-3 rounded-xl transition-all"
               >
                 Сбросить фильтры
-              </a>
+              </Link>
             ) : (
-              <a
+              <Link
                 href="/trips/new"
                 className="btn btn-primary inline-flex"
               >
                 <Plus className="w-4 h-4" strokeWidth={2.5} />
                 Создать заявку
-              </a>
+              </Link>
             )}
           </div>
         ) : (
