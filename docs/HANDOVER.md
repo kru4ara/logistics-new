@@ -214,7 +214,7 @@
 npm run lint 2>&1 | grep -i "app/<домен>" || echo "<домен> чисто"
 
 (grep -i "app.*contractors" ловит и app/reports/contractors — использовать [\\\\/] для точного совпадения сегмента.)
-
+```
 ## 📈 Состояние скорости (22.10.2026)
 - **Vercel Speed Insights (Desktop, P75):** **94/100** (до миграции).
 - **После Next.js 15:** заметно быстрее.
