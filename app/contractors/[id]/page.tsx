@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../../lib/supabase-server';
@@ -99,13 +100,13 @@ export default async function ContractorCardPage({
     return (
       <main className="min-h-screen bg-slate-50">
         <div className="max-w-[900px] mx-auto px-4 md:px-6 py-8">
-          <a
+          <Link
             href="/contractors"
             className="inline-flex items-center gap-2 text-slate-600 hover:text-brand-600 transition-colors text-sm font-medium mb-6"
           >
             <ArrowLeft className="w-4 h-4" strokeWidth={2} />
             Все подрядчики
-          </a>
+          </Link>
           <div className="card p-10 text-center">
             <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-slate-50 flex items-center justify-center">
               <Inbox className="w-8 h-8 text-slate-300" strokeWidth={1.5} />
@@ -253,13 +254,13 @@ export default async function ContractorCardPage({
     <main className="min-h-screen bg-slate-50">
       <div className="max-w-[900px] mx-auto px-4 md:px-6 py-6 md:py-8 space-y-5 md:space-y-6">
 
-        <a
+        <Link
           href="/contractors"
           className="inline-flex items-center gap-2 text-slate-600 hover:text-brand-600 transition-colors text-sm font-medium"
         >
           <ArrowLeft className="w-4 h-4" strokeWidth={2} />
           Все подрядчики
-        </a>
+        </Link>
 
         {/* ЗАГОЛОВОК */}
         <div className="card p-5 md:p-6">
@@ -287,13 +288,13 @@ export default async function ContractorCardPage({
                 )}
               </div>
             </div>
-            <a
+            <Link
               href={`/contractors/${c.id}/edit`}
               className="btn btn-primary self-start text-sm whitespace-nowrap"
             >
               <Pencil className="w-4 h-4" strokeWidth={2} />
               Редактировать
-            </a>
+            </Link>
           </div>
         </div>
 
@@ -452,7 +453,7 @@ export default async function ContractorCardPage({
               {displayedWorks.map((w) => {
                 const KindIcon = w.kind === 'trip' ? Truck : Package;
                 return (
-                  <a
+                  <Link
                     key={`${w.kind}-${w.id}`}
                     href={w.href}
                     className="block border border-slate-100 rounded-xl p-3 md:p-4 bg-slate-50/40
@@ -491,7 +492,7 @@ export default async function ContractorCardPage({
                         </div>
                       </div>
                     </div>
-                  </a>
+                  </Link>
                 );
               })}
             </div>
