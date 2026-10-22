@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase-server';
@@ -78,13 +79,13 @@ export default async function ContractorsPage() {
               Всего: <b className="text-slate-700">{contractors?.length || 0}</b> фирм
             </p>
           </div>
-          <a
+          <Link
             href="/contractors/new"
             className="btn btn-primary text-sm md:text-base w-full sm:w-auto justify-center"
           >
             <Plus className="w-4 h-4 md:w-[18px] md:h-[18px]" strokeWidth={2.5} />
             Добавить подрядчика
-          </a>
+          </Link>
         </div>
 
         {(!contractors || contractors.length === 0) ? (
@@ -94,10 +95,10 @@ export default async function ContractorsPage() {
             </div>
             <h2 className="text-xl font-bold text-slate-900 mb-2">Подрядчиков пока нет</h2>
             <p className="text-slate-500 mb-6">Добавьте первого, чтобы передавать им грузы</p>
-            <a href="/contractors/new" className="btn btn-primary inline-flex">
+            <Link href="/contractors/new" className="btn btn-primary inline-flex">
               <Plus className="w-4 h-4" strokeWidth={2.5} />
               Добавить подрядчика
-            </a>
+            </Link>
           </div>
         ) : (
           <div className="grid gap-4 md:gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
@@ -112,7 +113,7 @@ export default async function ContractorsPage() {
                   className="group card card-hover overflow-hidden flex flex-col"
                 >
                   {/* Кликабельная часть — переход в карточку */}
-                  <a
+                  <Link
                     href={`/contractors/${c.id}`}
                     className="block flex-1 cursor-pointer"
                     aria-label={`Открыть карточку ${c.name}`}
@@ -219,7 +220,7 @@ export default async function ContractorsPage() {
                         </div>
                       )}
                     </div>
-                  </a>
+                  </Link>
 
                   {/* Кнопки — вне ссылки */}
                   <div className="p-3 border-t border-slate-100 bg-slate-50/40 flex gap-2">
