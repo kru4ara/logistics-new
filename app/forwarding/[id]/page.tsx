@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import {
@@ -145,13 +146,13 @@ export default async function ForwardingDetailPage({ params }: { params: Promise
     <main className="min-h-screen bg-slate-50">
       <div className="max-w-[1000px] mx-auto px-4 md:px-6 py-6 md:py-8 space-y-5 md:space-y-6">
 
-        <a
+        <Link
           href="/forwarding"
           className="inline-flex items-center gap-2 text-slate-600 hover:text-brand-600 transition-colors text-sm font-medium"
         >
           <ArrowLeft className="w-4 h-4" />
           Все заявки
-        </a>
+        </Link>
 
         {/* Заголовок */}
         <div className="card p-5 md:p-6">
@@ -177,14 +178,14 @@ export default async function ForwardingDetailPage({ params }: { params: Promise
               )}
             </div>
             <div className="flex flex-wrap gap-2 sm:gap-3 sm:shrink-0">
-              <a
+              <Link
                 href={`/forwarding/${id}/edit`}
                 className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-slate-300 text-slate-700 font-medium
                            hover:bg-slate-100 transition-all text-sm active:scale-[0.97]"
               >
                 <Pencil className="w-4 h-4" />
                 Редактировать
-              </a>
+              </Link>
               <form action={deleteForwarding.bind(null, id)} className="flex-1 sm:flex-none">
                 <button
                   type="submit"
@@ -430,9 +431,9 @@ export default async function ForwardingDetailPage({ params }: { params: Promise
           {(!contractorsList || contractorsList.length === 0) ? (
             <div className="text-center py-6 text-slate-400 text-sm">
               Подрядчики не указаны.{' '}
-              <a href={`/forwarding/${id}/edit`} className="text-brand-600 hover:underline">
+              <Link href={`/forwarding/${id}/edit`} className="text-brand-600 hover:underline">
                 Добавить
-              </a>
+              </Link>
             </div>
           ) : (
             <div className="space-y-4">
