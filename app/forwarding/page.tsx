@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase-server';
@@ -63,7 +64,6 @@ export default async function ForwardingPage({
   const year = parseInt(resolvedParams.year || '') || currentYear;
   const monthFilter = resolvedParams.month ? parseInt(resolvedParams.month) : null;
 
-  // Собираем годы из данных (для фильтра) — параллельно с основным запросом
   const [{ data: allDates }, ordersResult] = await Promise.all([
     supabase.from('forwarding_orders').select('load_date'),
     (async () => {
@@ -90,7 +90,6 @@ export default async function ForwardingPage({
     return <div className="p-8 text-red-500">Ошибка загрузки: {error.message}</div>;
   }
 
-  // Годы: все из данных + текущий + выбранный
   const yearsSet = new Set<number>();
   yearsSet.add(currentYear);
   yearsSet.add(year);
@@ -208,10 +207,10 @@ export default async function ForwardingPage({
               Заявок: <b className="text-slate-700">{orders?.length || 0}</b>
             </p>
           </div>
-          <a href="/forwarding/new" className="btn btn-primary text-sm md:text-base w-full sm:w-auto justify-center">
+          <Link href="/forwarding/new" className="btn btn-primary text-sm md:text-base w-full sm:w-auto justify-center">
             <Plus className="w-4 h-4 md:w-[18px] md:h-[18px]" strokeWidth={2.5} />
             Новая заявка
-          </a>
+          </Link>
         </div>
 
         {/* Фильтры */}
@@ -220,7 +219,7 @@ export default async function ForwardingPage({
             <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2">Год</div>
             <div className="flex flex-wrap gap-2">
               {years.map((y) => (
-                <a
+                <Link
                   key={y}
                   href={`/forwarding?year=${y}${monthFilter ? `&month=${monthFilter}` : ''}`}
                   className={`px-3 md:px-4 py-2 rounded-lg text-sm font-semibold transition-all tabular-nums
@@ -229,7 +228,7 @@ export default async function ForwardingPage({
                       : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
                 >
                   {y}
-                </a>
+                </Link>
               ))}
             </div>
           </div>
@@ -237,25 +236,25 @@ export default async function ForwardingPage({
           <div>
             <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2">Месяц</div>
             <div className="flex flex-wrap gap-1.5 md:gap-2">
-              <a
+              <Link
                 href={`/forwarding?year=${year}`}
                 className={`px-2.5 md:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all
                   ${!monthFilter ? 'bg-brand-600 text-white shadow-brand' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
               >
                 Все
-              </a>
+              </Link>
               {monthNames.map((name, i) => {
                 const m = i + 1;
                 const isActive = monthFilter === m;
                 return (
-                  <a
+                  <Link
                     key={m}
                     href={`/forwarding?year=${year}&month=${m}`}
                     className={`px-2.5 md:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all
                       ${isActive ? 'bg-brand-600 text-white shadow-brand' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
                   >
                     {name.slice(0, 3)}
-                  </a>
+                  </Link>
                 );
               })}
             </div>
@@ -299,10 +298,10 @@ export default async function ForwardingPage({
             <p className="text-slate-500 mb-6">
               {monthFilter ? `За ${monthNames[monthFilter - 1]} ${year} нет заявок` : `За ${year} год нет заявок`}
             </p>
-            <a href="/forwarding/new" className="btn btn-primary inline-flex">
+            <Link href="/forwarding/new" className="btn btn-primary inline-flex">
               <Plus className="w-4 h-4" strokeWidth={2.5} />
               Создать заявку
-            </a>
+            </Link>
           </div>
         ) : (
           <div className="space-y-6 md:space-y-8">
@@ -366,7 +365,7 @@ export default async function ForwardingPage({
                       const routeText = buildRouteText(o.id);
 
                       return (
-                        <a
+                        <Link
                           key={o.id}
                           href={`/forwarding/${o.id}`}
                           className="group card card-hover overflow-hidden active:scale-[0.99]"
@@ -447,7 +446,7 @@ export default async function ForwardingPage({
                               </div>
                             )}
                           </div>
-                        </a>
+                        </Link>
                       );
                     })}
                   </div>
