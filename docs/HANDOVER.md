@@ -191,14 +191,16 @@
 - `app/drivers/new/page.tsx` — 82, 200 → `<Link>`.
 - `app/error.tsx` — 34 → `<Link>`. Добавлен `import Link`.
 
-**⏭️ В работе: `forwarding` (4 файла):**
-- `app/forwarding/page.tsx` — 211, 302 (`/forwarding/new/`).
-- `app/forwarding/[id]/page.tsx` — 148 (`/forwarding/`); **`tel:` на 276, 463 — не трогать**.
-- `app/forwarding/new/NewForwardingForm.tsx` — 289 (`/contractors/new/`), 441 и 490 (`/locations/new/`), 610 (`/forwarding/`).
-- `app/forwarding/new/page.tsx` — 41 (`/forwarding/`).
+**✅ `forwarding` (4 файла) — чисто:**
+- `app/forwarding/page.tsx` — 211, 302 (`/forwarding/new`), фильтры по годам/месяцам, карточки заявок → `<Link>`.
+- `app/forwarding/[id]/page.tsx` — 148 (`/forwarding`), «Редактировать», «Добавить» подрядчика → `<Link>`. **`tel:` на 276, 463 — оставлены `<a>`**.
+- `app/forwarding/new/NewForwardingForm.tsx` — 289, 441, 490 (ссылки на `/contractors/new` и `/locations/new`), 610 («Отмена») → `<Link>`. `'use client'` сохранён.
+- `app/forwarding/new/page.tsx` — 41 (`/forwarding`) → `<Link>`.
 
-**⏭️ Осталось после `forwarding`:**
+**⏭️ В работе: `trips` (4 файла):**
 - `trips` (5 файлов): `page.tsx` (320, 396), `[id]/page.tsx` (326 + `tel:` на 476, 485 — не трогать), `[id]/edit/page.tsx` (35), `new/NewTripForm.tsx` (390), `new/page.tsx` (37).
+
+**⏭️ Осталось после `trips`:**
 - `trucks` (4 файла): `page.tsx` (221, 240), `[id]/page.tsx` (183), `new/NewTruckForm.tsx` (186), `new/page.tsx` (16).
 - `app/fixed-costs/page.tsx` (131), `app/locations/page.tsx` (101), `app/reminders/page.tsx` (175, 323), `app/reports/page.tsx` (360, 467).
 - **`react/no-unescaped-entities`:** `app/reports/contractors/page.tsx:420` — два апострофа `'contractor'` → `&apos;contractor&apos;`.
