@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import {
   ArrowLeft,
   Pencil,
@@ -102,13 +103,13 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
     <main className="min-h-screen bg-slate-50">
       <div className="max-w-[1400px] mx-auto px-4 md:px-6 py-6 md:py-8 space-y-5 md:space-y-6">
 
-        <a
+        <Link
           href="/clients"
           className="inline-flex items-center gap-2 text-slate-600 hover:text-brand-600 transition-colors text-sm font-medium"
         >
           <ArrowLeft className="w-4 h-4" />
           Все клиенты
-        </a>
+        </Link>
 
         {/* Шапка */}
         <div className="card p-5 md:p-6">
@@ -142,7 +143,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
               </div>
             </div>
 
-            <a
+            <Link
               href={`/clients/${clientId}/edit`}
               className="inline-flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white
                          font-semibold px-5 py-2.5 rounded-xl shadow-brand
@@ -150,7 +151,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
             >
               <Pencil className="w-4 h-4" />
               Редактировать
-            </a>
+            </Link>
           </div>
         </div>
 
@@ -189,7 +190,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
                 const routeDisplay = routeByTrip.get(trip.id) || '—';
 
                 return (
-                  <a
+                  <Link
                     key={trip.id}
                     href={`/trips/${trip.id}`}
                     className="block border border-slate-100 rounded-xl p-4
@@ -241,7 +242,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
                         <span>{driver?.phone_pl || driver?.phone_by || '—'}</span>
                       </div>
                     </div>
-                  </a>
+                  </Link>
                 );
               })}
             </div>
