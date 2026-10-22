@@ -212,7 +212,7 @@
 ### Проверка после каждого блока
 ```bash
 npm run lint 2>&1 | grep -iE "app[\\\\/]<домен>" || echo "<домен> чисто"
-(grep -i "app.*contractors" ловит и app/reports/contractors — использовать [\\\\/] для точного совпадения сегмента.)
+grep -i "app.*contractors" ловит и app/reports/contractors — использовать [\\\\/] для точного совпадения сегмента.
 
 ## 📈 Состояние скорости (22.10.2026)
 - **Vercel Speed Insights (Desktop, P75):** **94/100** (до миграции).
