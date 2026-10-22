@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { createClient } from '../../../lib/supabase-server';
 import { deleteTrip } from '../../trip-actions';
 import AddExpenseForm from '../AddExpenseForm';
@@ -323,10 +324,10 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
     <main className="min-h-screen bg-slate-50">
       <div className="max-w-[900px] mx-auto px-4 md:px-6 py-6 md:py-8 space-y-5 md:space-y-6">
 
-        <a href="/trips" className="inline-flex items-center gap-2 text-slate-600 hover:text-brand-600 transition-colors text-sm font-medium">
+        <Link href="/trips" className="inline-flex items-center gap-2 text-slate-600 hover:text-brand-600 transition-colors text-sm font-medium">
           <ArrowLeft className="w-4 h-4" strokeWidth={2} />
           Все рейсы
-        </a>
+        </Link>
 
         {/* ЗАГОЛОВОК */}
         <div className="card p-5 md:p-6">
@@ -364,13 +365,13 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
 
           {/* КНОПКИ РЕДАКТИРОВАНИЯ */}
           <div className="flex flex-wrap gap-2 mb-4">
-            <a
+            <Link
               href={`/trips/${tripId}/edit`}
               className="btn btn-secondary text-sm flex-1 sm:flex-none"
             >
               <Pencil className="w-4 h-4" strokeWidth={2} />
               Редактировать
-            </a>
+            </Link>
             <SyncLogisatButton
               tripId={tripId}
               disabled={!trip.trip_number}
