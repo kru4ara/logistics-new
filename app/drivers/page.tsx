@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';  // ← добавь эту строку, если её нет
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase-server';
