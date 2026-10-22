@@ -60,13 +60,13 @@ export default async function ClientsPage() {
               Всего клиентов: <b className="text-slate-700">{clients?.length || 0}</b>
             </p>
           </div>
-          <a
+          <Link
             href="/clients/new"
             className="btn btn-primary text-sm md:text-base w-full sm:w-auto justify-center"
           >
             <Plus className="w-4 h-4 md:w-[18px] md:h-[18px]" strokeWidth={2.5} />
             Добавить клиента
-          </a>
+          </Link>
         </div>
 
         {clients?.length === 0 ? (
@@ -98,7 +98,7 @@ export default async function ClientsPage() {
                   className="group card card-hover overflow-hidden flex flex-col"
                 >
                   {/* Кликабельная часть */}
-                  <a
+                  <Link
                     href={`/clients/${client.id}`}
                     className="block flex-1 cursor-pointer"
                     aria-label={`Открыть карточку ${client.name}`}
@@ -142,7 +142,7 @@ export default async function ClientsPage() {
                                                 group-hover:translate-x-0.5 transition-all" strokeWidth={2.5} />
                       </div>
                     </div>
-                  </a>
+                  </Link>
 
                   {/* Кнопки */}
                   <ClientCardActions
