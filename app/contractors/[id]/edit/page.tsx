@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../../../lib/supabase-server';
@@ -37,13 +38,13 @@ export default async function EditContractorPage({ params }: { params: Promise<{
     <main className="min-h-screen bg-slate-50">
       <div className="max-w-[700px] mx-auto px-4 md:px-6 py-6 md:py-8 space-y-5 md:space-y-6">
 
-        <a
+        <Link
           href="/contractors"
           className="inline-flex items-center gap-2 text-slate-600 hover:text-brand-600 transition-colors text-sm font-medium"
         >
           <ArrowLeft className="w-4 h-4" strokeWidth={2} />
           Все подрядчики
-        </a>
+        </Link>
 
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2.5 tracking-tight">
@@ -178,13 +179,13 @@ export default async function EditContractorPage({ params }: { params: Promise<{
                           bg-slate-50/95 sm:bg-transparent backdrop-blur-sm sm:backdrop-blur-none
                           -mx-4 px-4 sm:mx-0 sm:px-0 py-3 sm:py-0
                           border-t sm:border-0 border-slate-200">
-            <a
+            <Link
               href="/contractors"
               className="w-full sm:w-auto text-center px-6 py-3 rounded-xl border border-slate-300 text-slate-700 font-semibold
                          hover:bg-slate-100 transition-all"
             >
               Отмена
-            </a>
+            </Link>
             <SubmitButton
               className="btn btn-primary w-full sm:flex-1 py-3"
               pendingText="Сохраняю…"
