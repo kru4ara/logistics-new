@@ -67,8 +67,10 @@
 ### ⚠️ Git (локально)
 - `git pull --no-edit` (избегаем Vim).
 - При `rejected` — `git pull --no-edit`, потом `git push`.
-- Если конфликт в `package.json` — **всегда оставлять нашу версию** (с алиасами и обновлениями).
+- Если конфликт в `package.json` — **всегда оставлять нашу версию**.
 - Если редактор не сохраняет или остались маркеры `<<<<<<<` — `cat > file << 'EOF' ... EOF` в Git Bash.
+- **Git Bash склеивает команды при вставке** — выполнять строго по одной строке, без вложенных кавычек. Если начал склеивать — закрыть окно, открыть новое.
+- **`sed` на JSX — запрещён.** Ломает парные теги (`<a>...</Link>`). Замены только вручную через GitHub-редактор.
 
 ---
 
@@ -150,62 +152,67 @@
 - **Форма создания заявки (`NewTripForm.tsx`):** блоки «Таможня» и «Куда» поменяны местами (логика: Откуда → Таможня → Куда).
 - **Форма сегмента (`SegmentForm.tsx`):** исправлен пропадающий прицеп (добавлен `useEffect` для синхронизации `initialData`), а также добавлены проверки и поля для типа транспорта подрядчика.
 
----
-
-## ⏭️ Сделано (15.10–22.10.2026)
-
-### 15.10.2026
-1. `created_at` в `trips` — SQL.
-2. Триггер `trip_number` (MAX+1).
-3. Считывание тахографа + карты водителя (напоминания).
-4. Сортировка `/trips` — «Последние созданные».
-5. Миграция `phone` → `phone_by`/`phone_pl`.
-
-### 16.10.2026
-6. Визитка водителя + фото паспорта (`DriverPassportUpload`).
-7. Реорганизация sidebar водителя.
-
-### 18.10.2026
-8. Проверка дубликатов (`check-duplicates`).
-9. Онбординг админа (`AdminOnboardingCard`).
-
-### 19.10.2026
-10. Фикс `/today` (переименование телефонов).
-11. Поиск + фильтр статуса в `/driver`.
-
-### 20.10.2026
-12. Новая модель создания рейса (`createCargoWithTrip`).
-13. SQL: `trip_cargo` (паллеты, фрахт, таможня), `trip_segments` (contractor_*), `counters`.
-14. DOCX для подрядчика (польский, `translateToPl`).
-15. Мёртвый код, поиск, Logisat блокировка, прицеп в задании.
-16. Массовый пересчёт координат.
-17. Превью фото водителей.
-18. Merge tool клиентов.
-19. Сторожевой бэкап.
-20. Авто-топливо и авто-дата старта.
-21. KPI водителей с прибылью.
-22. Перевыпуск секретов (Telegram, Cron).
-
-### 21.10.2026
-23. **DNS Supabase — закрыт** (опечатка в ref).
-24. **Бэкап в Telegram — проверен.**
-25. **Grep-аудит `.select()`** (найден баг `trips.route`).
-26. **`task-actions.ts`** — фикс задания водителю.
-27. **Merge tool подрядчиков (Фаза 8).**
-28. **Фильтры `/reports` (Фаза 9).**
-29. **Оптимизация и аудит (Фаза 10).**
-30. **Миграция на Next.js 15 (Фаза 11).**
-
-### 22.10.2026
-31. **Редактирование расходов:** `ExpensesList`, `EditExpenseDialog`, `expense-actions`.
-32. **Верстка таблицы расходов:** `whitespace-nowrap`, `truncate`, плашки участков.
-33. **Карточка рейса:** перенос кнопок статуса и телеметрии наверх.
-34. **Редактирование рейса:** удалены пустые формы отправителя/получателя.
-35. **Задание водителю:** почищен текст от дублей.
-36. **Создание рейса:** поменяны местами «Таможня» и «Куда» (Загрузка → Таможня → Выгрузка).
-37. **Форма сегмента:** починен пропадающий прицеп (через `useEffect`).
+### Фаза 13 — Аудит зависимостей и миграция линтера — ✅ 22.10 (день)
+- **`npm audit fix`:** закрыл `brace-expansion`, `source-map-js`.
+- **`postcss`:** `overrides` + синхронизация `devDependencies` на `^8.5.23` → резолвится `8.5.31` везде `deduped` (включая `next`). `EOVERRIDE` побеждён через **одинаковую спецификацию** в обоих местах (`$postcss` не сработал, `>=` тоже).
+- **`glob`:** `overrides: "10.5.0"` (прибит, не `>=`, иначе улетает в 13.x и ломает `@next/eslint-plugin-next@14`).
+- **`braces` и `postcss-selector-parser`:** приняты как dev-риски (фикс только в Tailwind 4, breaking).
+- **Миграция линтера:** `next lint` → ESLint CLI + ESLint 9 + flat config.
+  - `npx @next/codemod@latest next-lint-to-eslint-cli .`
+  - `eslint.config.mjs` через `FlatCompat` (`eslint-config-next@14.2.35` не имеет нативного flat-экспорта).
+  - Установлены явно: `eslint-plugin-react-hooks`, `eslint-plugin-react`, `eslint-plugin-jsx-a11y`.
+  - `eslint-config-next@15` **НЕ обновляли** — сначала ESLint 9 с 14.2.35, обновление отдельной задачей.
+- **`next.config.js`:** добавлен `eslint: { ignoreDuringBuilds: true }` — развязывает деплой и линт. Vercel собирает, линт чинится отдельно.
+- **Коммит `4239f29` — зелёный Production.**
 
 ---
+
+## ⏭️ Текущая задача: ремонт линта (полный, не «заметание»)
+
+Пользователь выбрал **полный ремонт и чистый код**. Изначально было 54 ошибки после миграции линтера. Чиним группами, по файлам, через GitHub-редактор, **без `sed`**.
+
+### Прогресс (по блокам)
+
+**✅ `clients` (3 файла) — чисто:**
+- `app/clients/page.tsx` — `<a href="/clients/new"` (строка 63) → `<Link>`.
+- `app/clients/[id]/page.tsx` — `<a href="/clients"` (105), кнопка «Редактировать» (`/clients/${clientId}/edit`), карточка рейса (`/trips/${trip.id}`) → `<Link>`.
+- `app/clients/new/page.tsx` — `<a href="/clients"` (52), «Отмена» (127) → `<Link>`.
+
+**✅ `contractors` (4 файла) — чисто:**
+- `app/contractors/page.tsx` — 2 кнопки `/contractors/new`, карточка `/contractors/${c.id}` → `<Link>`.
+- `app/contractors/[id]/page.tsx` — 2 ссылки `/contractors`, «Редактировать» (`/contractors/${c.id}/edit`), карточка работы (`w.href`) → `<Link>`. **`tel:` (337) и `mailto:` (346) оставлены `<a>`**.
+- `app/contractors/[id]/edit/page.tsx` — 2 ссылки `/contractors` → `<Link>`.
+- `app/contractors/new/page.tsx` — 2 ссылки `/contractors` → `<Link>`.
+
+**⏭️ В работе: `drivers` (4 файла) + `error.tsx`:**
+- `app/drivers/page.tsx` — 122, 126, 141 (`/drivers/kpi/`, `/drivers/new/`).
+- `app/drivers/[id]/page.tsx` — 204 (`/drivers/`); **`tel:` на 269, 278 — не трогать**.
+- `app/drivers/kpi/page.tsx` — 138 (`/drivers/`).
+- `app/drivers/new/page.tsx` — 82, 200 (`/drivers/`).
+- `app/error.tsx` — 34 (`/`).
+
+**⏭️ Осталось после `drivers`:**
+- `forwarding` (4 файла): `page.tsx` (211, 302), `[id]/page.tsx` (148 + `tel:` на 276, 463 — не трогать), `new/NewForwardingForm.tsx` (289, 610), `new/page.tsx` (41).
+- `trips` (5 файлов): `page.tsx` (320, 396), `[id]/page.tsx` (326 + `tel:` на 476, 485 — не трогать), `[id]/edit/page.tsx` (35), `new/NewTripForm.tsx` (390), `new/page.tsx` (37).
+- `trucks` (4 файла): `page.tsx` (221, 240), `[id]/page.tsx` (183), `new/NewTruckForm.tsx` (186), `new/page.tsx` (16).
+- `app/fixed-costs/page.tsx` (131), `app/locations/page.tsx` (101), `app/reminders/page.tsx` (175, 323), `app/reports/page.tsx` (360, 467).
+- **`react/no-unescaped-entities`:** `app/reports/contractors/page.tsx:420` — два апострофа `'contractor'` → `&apos;contractor&apos;`.
+- **`react-hooks/set-state-in-effect`** (6): `AppShellClient`, `DuplicateChecker`, `Toaster`, `OverlapWarning`, `SearchInput`, `SegmentForm`.
+- **`react-hooks/static-components`** (4): `Sidebar.tsx` (`SidebarContent` внутри компонента), `today/page.tsx` (`EmptyBlock` внутри компонента — вынести на уровень модуля).
+- **`react-hooks/purity`** (2): `reports/logisat/page.tsx:90`, `today/page.tsx:317` — `Date.now()` в рендере.
+- **`react-hooks/immutability`** (1): `DashboardCharts.tsx:302` — `cursor += len` в `.map()`.
+- **`@next/next/no-img-element`** (2 warning): `CountryFlag.tsx:119`, `drivers/page.tsx:184`.
+
+### Правила замены `<a>` → `<Link>`
+- Внутренние `href="/..."` и `href={`/...`}` → `<Link>`.
+- **`tel:`, `mailto:`, `https://` — оставить `<a>`**.
+- `import Link from 'next/link'` добавить в начало файла.
+- Карточки-обёртки (`<a className="block ..."><div>...</div></a>`) → `<Link>` тоже (внутренняя навигация), даже если линт не ругается.
+
+### Проверка после каждого блока
+```bash
+npm run lint 2>&1 | grep -iE "app[\\\\/]<домен>" || echo "<домен> чисто"
+(grep -i "app.*contractors" ловит и app/reports/contractors — использовать [\\\\/] для точного совпадения сегмента.)
 
 ## 📈 Состояние скорости (22.10.2026)
 - **Vercel Speed Insights (Desktop, P75):** **94/100** (до миграции).
@@ -218,11 +225,15 @@
 ---
 
 ## ⏭️ Очередь задач (не срочно)
-1. Обновить `eslint-config-next` до 15 (убрать warning `Invalid Options`).
-2. `npm audit` (проверить остатки).
-3. Отчёт «фрахт по грузам» (если понадобится).
-4. `optimizePackageImports` (добавить `react-leaflet`, если нужно).
-5. Переход на `exceljs` (замена `xlsx` для чистого аудита).
+1. **Дочинить линт** (текущая задача, см. выше).
+2. Добавить `.next` в `ignores` в `eslint.config.mjs` (ложная ошибка в сгенерированном чанке).
+3. Обновить `eslint-config-next` до 15.5.x (после линта; уберёт `FlatCompat`-костыль и warning `Invalid Options`).
+4. `npm audit` — остались только `braces` и `postcss-selector-parser` (dev-only, приняты).
+5. Отчёт «фрахт по грузам» (если понадобится).
+6. `optimizePackageImports` (добавить `react-leaflet`, если нужно).
+7. Переход на `exceljs` (замена `xlsx` для чистого аудита).
+8. Миграция на `eslint-config-next@16` + Next 16 (отдельная фаза, breaking).
+9. `<img>` → `<Image>` в `CountryFlag.tsx`, `drivers/page.tsx` (warning).
 
 ---
 
@@ -239,15 +250,18 @@
 - **Тикет `SU-516613`:** ЗАКРЫТ (ложный, опечатка).
 - **Vercel:** лимит Hobby (100/сутки) + GitHub Outage.
 - **Скорость:** 94/100 (до миграции), после Next.js 15 — быстрее.
+- **Линт:** `npm run lint` (ESLint CLI, не `next lint`). При билде отключён через `ignoreDuringBuilds`.
+- **`package.json` overrides:** `postcss: "^8.5.23"`, `glob: "10.5.0"`. `postcss` также в `devDependencies` с той же спецификацией (иначе `EOVERRIDE`).
+- **`eslint.config.mjs`:** `FlatCompat` + `compat.extends('next/core-web-vitals')`. `.next` в ignores **не добавлен** — при следующем заходе добавить.
 
-**Закрыто:** Фазы 3.1–3.12, DNS Supabase, merge подрядчиков, фильтры `/reports`, чистка схемы, оптимизация бандлов, аудит пакетов, миграция на Next.js 15 + React 19, рефакторинг карточки рейса (редактирование расходов, кнопки наверх, чистка форм).
+**Закрыто:** Фазы 3.1–3.12, DNS Supabase, merge подрядчиков, фильтры `/reports`, чистка схемы, оптимизация бандлов, аудит пакетов, миграция на Next.js 15 + React 19, рефакторинг карточки рейса, **Фаза 13 (аудит зависимостей + миграция линтера)**, ремонт `<a>` → `<Link>` в блоках `clients` и `contractors`.
 
 ---
 
 ## 🆕 Условие работы с AI-ассистентом
 **При старте нового чата:**
 1. Полный HANDOVER (этот файл).
-2. Что делаем сейчас.
+2. Что делаем сейчас (текущий блок линта — `drivers` + `error.tsx`).
 3. Сам файл, целиком.
 4. Дальше по одному файлу.
 
