@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { createClient } from '../../../../lib/supabase-server';
 import EditTripForm from './EditTripForm';
 
@@ -32,9 +33,9 @@ export default async function EditTripPage({ params }: { params: Promise<{ id: s
   return (
     <main className="min-h-screen bg-slate-50">
       <div className="max-w-[900px] mx-auto px-6 py-8 space-y-6">
-        <a href={`/trips/${tripId}`} className="inline-flex items-center gap-2 text-slate-600 hover:text-blue-600 transition-colors text-sm font-medium">
+        <Link href={`/trips/${tripId}`} className="inline-flex items-center gap-2 text-slate-600 hover:text-blue-600 transition-colors text-sm font-medium">
           ← Назад к рейсу
-        </a>
+        </Link>
 
         <div>
           <h1 className="text-3xl font-bold text-slate-900">✏️ Редактировать заявку №{trip.trip_number || '—'}</h1>
