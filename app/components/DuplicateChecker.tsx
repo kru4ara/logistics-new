@@ -38,7 +38,10 @@ export default function DuplicateChecker({
     if (!taxIdInputName) return;
     const el = document.querySelector<HTMLInputElement>(`input[name="${taxIdInputName}"]`);
     if (!el) return;
-    const handler = () => setTaxId(el.value);
+    const handler = () => {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setTaxId(el.value);
+    };
     el.addEventListener('input', handler);
     return () => el.removeEventListener('input', handler);
   }, [taxIdInputName]);
@@ -49,11 +52,10 @@ export default function DuplicateChecker({
     if (abortRef.current) abortRef.current.abort();
 
     if (!value || value.trim().length < 2) {
-      setMatches([]);
-      setLoading(false);
       return;
     }
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     timerRef.current = setTimeout(async () => {
       try {
@@ -82,6 +84,16 @@ export default function DuplicateChecker({
     };
   }, [value, taxId, type]);
 
+  // Сброс при вводе пустой строки — в onChange, а не в эффекте
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const next = e.target.value;
+    setValue(next);
+    if (!next || next.trim().length < 2) {
+      setMatches([]);
+      setLoading(false);
+    }
+  }
+
   return (
     <div>
       {label && (
@@ -92,7 +104,7 @@ export default function DuplicateChecker({
         name={inputName}
         required={required}
         value={value}
-        onChange={(e) => setValue(e.target.value)}
+        onChange={handleChange}
         placeholder={placeholder}
         className="input"
       />
