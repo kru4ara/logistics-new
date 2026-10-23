@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase-server';
@@ -82,13 +83,13 @@ export default async function LocationsPage() {
               Всего: <b className="text-slate-700">{locations?.length || 0}</b> типовых адресов
             </p>
           </div>
-          <a
+          <Link
             href="/locations/new"
             className="btn btn-primary text-sm md:text-base w-full sm:w-auto justify-center"
           >
             <Plus className="w-4 h-4 md:w-[18px] md:h-[18px]" strokeWidth={2.5} />
             Добавить локацию
-          </a>
+          </Link>
         </div>
 
         {locations?.length === 0 ? (
@@ -98,10 +99,10 @@ export default async function LocationsPage() {
             </div>
             <h2 className="text-xl font-bold text-slate-900 mb-2">Локаций пока нет</h2>
             <p className="text-slate-500 mb-6">Добавьте типовые адреса, чтобы не вводить их каждый раз</p>
-            <a href="/locations/new" className="btn btn-primary inline-flex">
+            <Link href="/locations/new" className="btn btn-primary inline-flex">
               <Plus className="w-4 h-4" strokeWidth={2.5} />
               Добавить первую локацию
-            </a>
+            </Link>
           </div>
         ) : (
           <div className="grid gap-4 md:gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
@@ -164,14 +165,14 @@ export default async function LocationsPage() {
 
                   {/* Кнопки */}
                   <div className="p-3 border-t border-slate-100 bg-slate-50/40 flex gap-2">
-                    <a
+                    <Link
                       href={`/locations/${loc.id}/edit`}
                       className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-slate-300 text-slate-700 text-xs font-medium
                                  hover:bg-white transition-all"
                     >
                       <Pencil className="w-3.5 h-3.5" strokeWidth={2} />
                       Изменить
-                    </a>
+                    </Link>
                     <form action={deleteLocation.bind(null, loc.id)} className="flex-1">
                       <button
                         type="submit"
