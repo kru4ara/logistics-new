@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase-server';
@@ -128,10 +129,10 @@ export default async function FixedCostsPage() {
               Расходы, не привязанные к конкретному рейсу
             </p>
           </div>
-          <a href="/fixed-costs/new" className="btn btn-primary text-sm md:text-base w-full sm:w-auto justify-center">
+          <Link href="/fixed-costs/new" className="btn btn-primary text-sm md:text-base w-full sm:w-auto justify-center">
             <Plus className="w-4 h-4 md:w-[18px] md:h-[18px]" strokeWidth={2.5} />
             Добавить расход
-          </a>
+          </Link>
         </div>
 
         {/* Счётчики */}
@@ -266,13 +267,13 @@ export default async function FixedCostsPage() {
                         )}
 
                         <div className="flex gap-2 pt-2 border-t border-slate-100">
-                          <a
+                          <Link
                             href={`/fixed-costs/${c.id}/edit`}
                             className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-slate-300 text-slate-700 text-xs font-medium hover:bg-slate-100 transition-all"
                           >
                             <Pencil className="w-3.5 h-3.5" strokeWidth={2} />
                             Изменить
-                          </a>
+                          </Link>
                           <form action={async () => {
                             'use server';
                             await deleteFixedCost(c.id);
@@ -343,13 +344,13 @@ export default async function FixedCostsPage() {
                               {c.amount_eur ? `${Number(c.amount_eur).toFixed(0)} €` : '—'}
                             </td>
                             <td className="px-6 py-4 text-right whitespace-nowrap">
-                              <a
+                              <Link
                                 href={`/fixed-costs/${c.id}/edit`}
                                 className="text-brand-600 hover:text-brand-800 text-xs font-medium px-2 py-1 inline-flex"
                                 title="Изменить"
                               >
                                 <Pencil className="w-3.5 h-3.5" strokeWidth={2} />
-                              </a>
+                              </Link>
                               <form action={async () => {
                                 'use server';
                                 await deleteFixedCost(c.id);
