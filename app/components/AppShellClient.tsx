@@ -6,6 +6,15 @@ import Navbar from './Navbar';
 
 const STORAGE_KEY = 'sidebar-pinned';
 
+function readPinnedFromStorage(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return localStorage.getItem(STORAGE_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
 export default function AppShellClient({
   role,
   userName,
@@ -16,25 +25,16 @@ export default function AppShellClient({
   children: React.ReactNode;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [isPinned, setIsPinned] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  // Ленивая инициализация — выполняется один раз при монтировании.
+  // На сервере вернёт false (typeof window === 'undefined'), на клиенте — из localStorage.
+  const [isPinned, setIsPinned] = useState<boolean>(readPinnedFromStorage);
 
-  // Читаем pin-состояние из localStorage
+  // Сохраняем pin при изменении
   useEffect(() => {
-    setMounted(true);
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved === 'true') setIsPinned(true);
-    } catch {}
-  }, []);
-
-  // Сохраняем pin
-  useEffect(() => {
-    if (!mounted) return;
     try {
       localStorage.setItem(STORAGE_KEY, String(isPinned));
     } catch {}
-  }, [isPinned, mounted]);
+  }, [isPinned]);
 
   function togglePin() {
     setIsPinned((v) => !v);
