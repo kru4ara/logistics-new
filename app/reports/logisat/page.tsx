@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import {
@@ -87,6 +88,7 @@ export default async function LogisatReportPage() {
     });
 
   // 3. КАТЕГОРИИ ПРОБЛЕМ
+  // eslint-disable-next-line react-hooks/purity
   const staleTs = Date.now() - STALE_DAYS * 86400000;
 
   const neverSyncedActive: TripRow[] = [];
@@ -123,13 +125,13 @@ export default async function LogisatReportPage() {
     <main className="min-h-screen bg-slate-50">
       <div className="max-w-[1400px] mx-auto px-4 md:px-6 py-6 md:py-8 space-y-6 md:space-y-8">
 
-        <a
+        <Link
           href="/reports"
           className="inline-flex items-center gap-2 text-slate-600 hover:text-brand-600 transition-colors text-sm font-medium"
         >
           <ArrowLeft className="w-4 h-4" strokeWidth={2} />
           Отчёты
-        </a>
+        </Link>
 
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2.5 tracking-tight">
@@ -206,7 +208,7 @@ export default async function LogisatReportPage() {
             <div className="card p-4">
               <div className="grid gap-2 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                 {tractorsWithoutLogisat.map((t) => (
-                  <a
+                  <Link
                     key={t.id}
                     href={`/trucks/${t.id}`}
                     className="group flex items-center justify-between gap-3 p-3 rounded-lg border border-slate-100 hover:border-brand-200 hover:bg-brand-50/30 transition-colors"
@@ -220,7 +222,7 @@ export default async function LogisatReportPage() {
                       </div>
                     </div>
                     <ExternalLink className="w-4 h-4 text-slate-300 group-hover:text-brand-500 shrink-0 transition-colors" strokeWidth={2.2} />
-                  </a>
+                  </Link>
                 ))}
               </div>
               <p className="text-xs text-slate-500 mt-3">
