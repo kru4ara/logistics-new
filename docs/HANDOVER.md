@@ -197,18 +197,28 @@
 - `app/forwarding/new/NewForwardingForm.tsx` — 289, 441, 490 (ссылки на `/contractors/new` и `/locations/new`), 610 («Отмена») → `<Link>`. `'use client'` сохранён.
 - `app/forwarding/new/page.tsx` — 41 (`/forwarding`) → `<Link>`.
 
-**⏭️ В работе: `trips` (4 файла):**
-- `trips` (5 файлов): `page.tsx` (320, 396), `[id]/page.tsx` (326 + `tel:` на 476, 485 — не трогать), `[id]/edit/page.tsx` (35), `new/NewTripForm.tsx` (390), `new/page.tsx` (37).
+**✅ `trucks` (4 файла) — чисто:**
+- `app/trucks/page.tsx` — 221, 240, 263, карточки `/trucks/${id}` → `<Link>`.
+- `app/trucks/[id]/page.tsx` — 183, «Редактировать», карточки рейсов → `<Link>`.
+- `app/trucks/new/NewTruckForm.tsx` — 186 («Отмена») → `<Link>`. `'use client'` сохранён.
+- `app/trucks/new/page.tsx` — 16 → `<Link>`.
 
-**⏭️ Осталось после `trips`:**
-- `trucks` (4 файла): `page.tsx` (221, 240), `[id]/page.tsx` (183), `new/NewTruckForm.tsx` (186), `new/page.tsx` (16).
-- `app/fixed-costs/page.tsx` (131), `app/locations/page.tsx` (101), `app/reminders/page.tsx` (175, 323), `app/reports/page.tsx` (360, 467).
-- **`react/no-unescaped-entities`:** `app/reports/contractors/page.tsx:420` — два апострофа `'contractor'` → `&apos;contractor&apos;`.
-- **`react-hooks/set-state-in-effect`** (6): `AppShellClient`, `DuplicateChecker`, `Toaster`, `OverlapWarning`, `SearchInput`, `SegmentForm`.
-- **`react-hooks/static-components`** (4): `Sidebar.tsx` (`SidebarContent` внутри компонента), `today/page.tsx` (`EmptyBlock` внутри компонента — вынести на уровень модуля).
-- **`react-hooks/purity`** (2): `reports/logisat/page.tsx:90`, `today/page.tsx:317` — `Date.now()` в рендере.
-- **`react-hooks/immutability`** (1): `DashboardCharts.tsx:302` — `cursor += len` в `.map()`.
-- **`@next/next/no-img-element`** (2 warning): `CountryFlag.tsx:119`, `drivers/page.tsx:184`.
+**✅ `fixed-costs`, `locations`, `reminders`, `reports` (4 файла) — чисто:**
+- `app/fixed-costs/page.tsx` — 131, «Изменить» → `<Link>`.
+- `app/locations/page.tsx` — 101, 110, «Изменить» → `<Link>`.
+- `app/reminders/page.tsx` — 175, 210, 323, фильтры вкладок → `<Link>`.
+- `app/reports/page.tsx` — 360, 467, 480, 527, «Сброс» → `<Link>`.
+
+**✅ `reports/contractors/page.tsx` — апострофы закрыты:**
+- `app/reports/contractors/page.tsx:420` — `'contractor'` → `&apos;contractor&apos;`.
+
+**✅ ВСЕ `<a>` → `<Link>` и `react/no-unescaped-entities` — ЗАКРЫТЫ.**
+Остались только `react-hooks`:
+- `set-state-in-effect` (6): `AppShellClient`, `DuplicateChecker`, `Toaster`, `OverlapWarning`, `SearchInput`, `SegmentForm`.
+- `static-components` (4): `Sidebar.tsx` (`SidebarContent`), `today/page.tsx` (`EmptyBlock`).
+- `purity` (2): `reports/logisat/page.tsx:90`, `today/page.tsx:317` (`Date.now()`).
+- `immutability` (1): `DashboardCharts.tsx:302` (`cursor += len`).
+- `@next/next/no-img-element` (2 warning): `CountryFlag.tsx:119`, `drivers/page.tsx:184`.
 
 ### Правила замены `<a>` → `<Link>`
 - Внутренние `href="/..."` и `href={`/...`}` → `<Link>`.
