@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase-server';
@@ -142,7 +143,7 @@ export default async function TrucksPage() {
     const totalDocs = countTotalDocs(truck);
 
     return (
-      <a
+      <Link
         href={`/trucks/${truck.id}`}
         className="group card card-hover overflow-hidden"
       >
@@ -199,7 +200,7 @@ export default async function TrucksPage() {
             </div>
           </div>
         </div>
-      </a>
+      </Link>
     );
   }
 
@@ -218,10 +219,10 @@ export default async function TrucksPage() {
               Тягачей: <b className="text-slate-700">{tractors.length}</b> · Прицепов: <b className="text-slate-700">{trailers.length}</b>
             </p>
           </div>
-          <a href="/trucks/new" className="btn btn-primary text-sm md:text-base w-full sm:w-auto justify-center">
+          <Link href="/trucks/new" className="btn btn-primary text-sm md:text-base w-full sm:w-auto justify-center">
             <Plus className="w-4 h-4 md:w-[18px] md:h-[18px]" strokeWidth={2.5} />
             Добавить транспорт
-          </a>
+          </Link>
         </div>
 
         {/* Полностью пусто — одна большая empty state */}
@@ -237,10 +238,10 @@ export default async function TrucksPage() {
               Добавьте тягачи и прицепы, чтобы назначать их на рейсы
               и следить за сроками документов.
             </p>
-            <a href="/trucks/new" className="btn btn-primary inline-flex">
+            <Link href="/trucks/new" className="btn btn-primary inline-flex">
               <Plus className="w-4 h-4" strokeWidth={2.5} />
               Добавить транспорт
-            </a>
+            </Link>
           </div>
         ) : (
           <>
