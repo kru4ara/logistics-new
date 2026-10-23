@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase-server';
@@ -212,7 +213,7 @@ export default async function ReportsPage({
         {/* Быстрые ссылки */}
         <div className="grid gap-3 md:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
           {QUICK_LINKS.map(({ href, title, hint, Icon, gradient }) => (
-            <a
+            <Link
               key={href}
               href={href}
               className={`block bg-gradient-to-br ${gradient} rounded-2xl shadow-lg p-5 md:p-6
@@ -229,7 +230,7 @@ export default async function ReportsPage({
                   <div className="text-sm text-white/80 mt-1">{hint}</div>
                 </div>
               </div>
-            </a>
+            </Link>
           ))}
         </div>
 
@@ -289,12 +290,12 @@ export default async function ReportsPage({
               Показать
             </button>
             {hasFilters && (
-              <a
+              <Link
                 href="/reports"
                 className="px-4 py-2.5 rounded-lg border border-slate-300 text-slate-700 font-medium hover:bg-slate-100 transition-all whitespace-nowrap"
               >
                 Сброс
-              </a>
+              </Link>
             )}
           </div>
         </form>
@@ -357,9 +358,9 @@ export default async function ReportsPage({
               </div>
               <p className="text-slate-500 text-sm">Нет рейсов по выбранным фильтрам</p>
               {hasFilters && (
-                <a href="/reports" className="text-brand-600 text-sm font-medium mt-3 inline-block hover:underline">
+                <Link href="/reports" className="text-brand-600 text-sm font-medium mt-3 inline-block hover:underline">
                   Сбросить фильтры
-                </a>
+                </Link>
               )}
             </div>
           ) : (
@@ -369,7 +370,7 @@ export default async function ReportsPage({
                 {reportRows.map((trip) => {
                   const tripProfit = trip.revenue_eur - trip.expenses;
                   return (
-                    <a
+                    <Link
                       key={trip.id}
                       href={`/trips/${trip.id}`}
                       className="block p-4 hover:bg-slate-50 active:bg-brand-50/40 transition-colors"
@@ -415,7 +416,7 @@ export default async function ReportsPage({
                           </div>
                         </div>
                       </div>
-                    </a>
+                    </Link>
                   );
                 })}
 
@@ -464,9 +465,9 @@ export default async function ReportsPage({
                             {trip.trip_number || '—'}
                           </td>
                           <td className="px-6 py-4 font-medium text-slate-800">
-                            <a href={`/trips/${trip.id}`} className="hover:text-brand-600 transition-colors">
+                            <Link href={`/trips/${trip.id}`} className="hover:text-brand-600 transition-colors">
                               {trip.clientName}
-                            </a>
+                            </Link>
                           </td>
                           <td className="px-6 py-4 text-sm text-slate-600">
                             {trip.route}
