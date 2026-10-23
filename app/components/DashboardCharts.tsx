@@ -229,7 +229,15 @@ export function ExpenseDonut({
   const CY = 50;
   const C = 2 * Math.PI * R;
 
-  let cursor = 0;
+  // Предвычисляем offset и len без мутаций
+  const slices = data.reduce<
+    { key: string; color: string; len: number; offset: number }[]
+  >((acc, s) => {
+    const prev = acc.length > 0 ? acc[acc.length - 1] : null;
+    const prevEnd = prev ? -prev.offset + prev.len : 0;
+    const len = (s.amount / total) * C;
+    return [...acc, { key: s.key, color: s.color, len, offset: -prevEnd }];
+  }, []);
 
   const useTwoCols = data.length > 8;
   const half = Math.ceil(data.length / 2);
@@ -294,26 +302,19 @@ export function ExpenseDonut({
               stroke="#f1f5f9"
               strokeWidth="22"
             />
-            {data.map((s) => {
-              const frac = s.amount / total;
-              const len = frac * C;
-              const dash = `${len} ${C - len}`;
-              const offset = -cursor;
-              cursor += len;
-              return (
-                <circle
-                  key={s.key}
-                  cx={CX}
-                  cy={CY}
-                  r={R}
-                  fill="none"
-                  stroke={s.color}
-                  strokeWidth="22"
-                  strokeDasharray={dash}
-                  strokeDashoffset={offset}
-                />
-              );
-            })}
+            {slices.map((s) => (
+              <circle
+                key={s.key}
+                cx={CX}
+                cy={CY}
+                r={R}
+                fill="none"
+                stroke={s.color}
+                strokeWidth="22"
+                strokeDasharray={`${s.len} ${C - s.len}`}
+                strokeDashoffset={s.offset}
+              />
+            ))}
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
             <div className="text-[10px] text-slate-400 uppercase tracking-wide">
