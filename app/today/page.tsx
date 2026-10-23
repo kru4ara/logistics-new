@@ -76,6 +76,97 @@ type EventItem = {
   tripStatus?: string | null;
 };
 
+const statusLabels: Record<string, string> = {
+  planned: 'Планируется',
+  active: 'В пути',
+  completed: 'Завершён',
+  invoiced: 'Выставлен счёт',
+  paid: 'Оплачен',
+};
+
+const statusColors: Record<string, string> = {
+  planned: 'bg-slate-100 text-slate-700 border-slate-200',
+  active: 'bg-brand-50 text-brand-700 border-brand-200',
+  completed: 'bg-green-50 text-green-700 border-green-200',
+  invoiced: 'bg-yellow-50 text-yellow-700 border-yellow-200',
+  paid: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+};
+
+function EventCard({ e, accent }: { e: EventItem; accent: 'load' | 'unload' }) {
+  const accentBorder = accent === 'load' ? 'border-l-green-500' : 'border-l-red-500';
+  const accentBg = accent === 'load' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700';
+  const Icon = accent === 'load' ? MapPin : Flag;
+
+  return (
+    <Link
+      href={e.href}
+      className={`group block card card-hover overflow-hidden border-l-4 ${accentBorder} active:scale-[0.99]`}
+    >
+      <div className="p-4">
+        <div className="flex items-start justify-between gap-2 mb-2">
+          <div className="flex items-center gap-2 min-w-0 flex-wrap">
+            <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${accentBg}`}>
+              <Icon className="w-3 h-3" strokeWidth={2.5} />
+              {e.pointLabel}
+            </span>
+            <span className="text-xs text-slate-400 font-medium tabular-nums">
+              Рейс {e.tripNumber}
+            </span>
+          </div>
+          {e.tripStatus && (
+            <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold border whitespace-nowrap
+                              ${statusColors[e.tripStatus] || 'bg-slate-100 text-slate-700 border-slate-200'}`}>
+              {statusLabels[e.tripStatus] || e.tripStatus}
+            </span>
+          )}
+        </div>
+
+        {e.clientName && (
+          <div className="font-bold text-slate-900 text-sm break-words group-hover:text-brand-600 transition-colors mb-1">
+            {e.clientName}
+          </div>
+        )}
+
+        {e.company && (
+          <div className="text-sm text-slate-700 break-words">{e.company}</div>
+        )}
+
+        <div className="text-xs text-slate-500 mt-1 break-words">
+          {[e.city, e.country].filter(Boolean).join(', ') || '—'}
+        </div>
+
+        {(e.driverName || e.truckNumber) && (
+          <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 pt-2 border-t border-slate-100 text-xs text-slate-500">
+            {e.truckNumber && (
+              <span className="inline-flex items-center gap-1">
+                <Truck className="w-3 h-3" strokeWidth={2} />
+                <b className="text-slate-700">{e.truckNumber}</b>
+              </span>
+            )}
+            {e.driverName && (
+              <span className="inline-flex items-center gap-1">
+                <UserCircle className="w-3 h-3" strokeWidth={2} />
+                {e.driverName}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+    </Link>
+  );
+}
+
+function EmptyBlock({ text }: { text: string }) {
+  return (
+    <div className="card p-6 text-center">
+      <div className="w-12 h-12 mx-auto mb-2 rounded-xl bg-slate-50 flex items-center justify-center">
+        <Inbox className="w-6 h-6 text-slate-300" strokeWidth={1.5} />
+      </div>
+      <div className="text-sm text-slate-400">{text}</div>
+    </div>
+  );
+}
+
 export default async function TodayPage() {
   const role = (await cookies()).get('role')?.value;
   if (role === 'driver') redirect('/driver');
@@ -85,24 +176,24 @@ export default async function TodayPage() {
   const today = todayIso();
 
   // 1. РЕЙСЫ
-const { data: tripsRaw, error: tripsError } = await supabase
-  .from('trips')
-  .select(`
-    id, trip_number, status, start_date, end_date,
-    driver_id, truck_id,
-    clients(name),
-    drivers!driver_id(first_name, last_name, phone_by, phone_pl),
-    trucks!truck_id(registration_number)
-  `);
+  const { data: tripsRaw, error: tripsError } = await supabase
+    .from('trips')
+    .select(`
+      id, trip_number, status, start_date, end_date,
+      driver_id, truck_id,
+      clients(name),
+      drivers!driver_id(first_name, last_name, phone_by, phone_pl),
+      trucks!truck_id(registration_number)
+    `);
 
-if (tripsError) {
-  console.error('[today] trips query error:', tripsError.message);
-  return (
-    <div className="p-8 text-red-500">
-      Ошибка загрузки рейсов: {tripsError.message}
-    </div>
-  );
-}
+  if (tripsError) {
+    console.error('[today] trips query error:', tripsError.message);
+    return (
+      <div className="p-8 text-red-500">
+        Ошибка загрузки рейсов: {tripsError.message}
+      </div>
+    );
+  }
 
   const tripIds = (tripsRaw || []).map((t: any) => t.id);
 
@@ -133,14 +224,14 @@ if (tripsError) {
     tripById[t.id] = t;
   });
 
-function isDateToday(dateStr: string | null): boolean {
-  if (!dateStr) return false;
-  return dateStr.slice(0, 10) === today;
-}
+  function isDateToday(dateStr: string | null): boolean {
+    if (!dateStr) return false;
+    return dateStr.slice(0, 10) === today;
+  }
 
-const todayTripLoadings = allTrips.filter((t) => isDateToday(t.start_date));
-const todayTripUnloadings = allTrips.filter((t) => isDateToday(t.end_date));
-const activeTrips = allTrips.filter((t) => t.status === 'active');
+  const todayTripLoadings = allTrips.filter((t) => isDateToday(t.start_date));
+  const todayTripUnloadings = allTrips.filter((t) => isDateToday(t.end_date));
+  const activeTrips = allTrips.filter((t) => t.status === 'active');
 
   // 2. ПОДРЯДЧИКИ — участки-подрядчики в рейсах
   const { data: subs } = await supabase
@@ -314,6 +405,7 @@ const activeTrips = allTrips.filter((t) => t.status === 'active');
   const overdueReminders: { id: string; title: string; days: number }[] = [];
   (remindersRaw || []).forEach((r) => {
     if (!r.due_date) return;
+    // eslint-disable-next-line react-hooks/purity
     const days = Math.ceil((new Date(r.due_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
     if (days < 0) overdueReminders.push({ id: r.id, title: r.title || '', days });
   });
@@ -337,97 +429,6 @@ const activeTrips = allTrips.filter((t) => t.status === 'active');
     year: 'numeric',
     weekday: 'long',
   });
-
-  const statusLabels: Record<string, string> = {
-    planned: 'Планируется',
-    active: 'В пути',
-    completed: 'Завершён',
-    invoiced: 'Выставлен счёт',
-    paid: 'Оплачен',
-  };
-
-  const statusColors: Record<string, string> = {
-    planned: 'bg-slate-100 text-slate-700 border-slate-200',
-    active: 'bg-brand-50 text-brand-700 border-brand-200',
-    completed: 'bg-green-50 text-green-700 border-green-200',
-    invoiced: 'bg-yellow-50 text-yellow-700 border-yellow-200',
-    paid: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  };
-
-  function EventCard({ e, accent }: { e: EventItem; accent: 'load' | 'unload' }) {
-    const accentBorder = accent === 'load' ? 'border-l-green-500' : 'border-l-red-500';
-    const accentBg = accent === 'load' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700';
-    const Icon = accent === 'load' ? MapPin : Flag;
-
-    return (
-      <Link
-        href={e.href}
-        className={`group block card card-hover overflow-hidden border-l-4 ${accentBorder} active:scale-[0.99]`}
-      >
-        <div className="p-4">
-          <div className="flex items-start justify-between gap-2 mb-2">
-            <div className="flex items-center gap-2 min-w-0 flex-wrap">
-              <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${accentBg}`}>
-                <Icon className="w-3 h-3" strokeWidth={2.5} />
-                {e.pointLabel}
-              </span>
-              <span className="text-xs text-slate-400 font-medium tabular-nums">
-                Рейс {e.tripNumber}
-              </span>
-            </div>
-            {e.tripStatus && (
-              <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold border whitespace-nowrap
-                                ${statusColors[e.tripStatus] || 'bg-slate-100 text-slate-700 border-slate-200'}`}>
-                {statusLabels[e.tripStatus] || e.tripStatus}
-              </span>
-            )}
-          </div>
-
-          {e.clientName && (
-            <div className="font-bold text-slate-900 text-sm break-words group-hover:text-brand-600 transition-colors mb-1">
-              {e.clientName}
-            </div>
-          )}
-
-          {e.company && (
-            <div className="text-sm text-slate-700 break-words">{e.company}</div>
-          )}
-
-          <div className="text-xs text-slate-500 mt-1 break-words">
-            {[e.city, e.country].filter(Boolean).join(', ') || '—'}
-          </div>
-
-          {(e.driverName || e.truckNumber) && (
-            <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 pt-2 border-t border-slate-100 text-xs text-slate-500">
-              {e.truckNumber && (
-                <span className="inline-flex items-center gap-1">
-                  <Truck className="w-3 h-3" strokeWidth={2} />
-                  <b className="text-slate-700">{e.truckNumber}</b>
-                </span>
-              )}
-              {e.driverName && (
-                <span className="inline-flex items-center gap-1">
-                  <UserCircle className="w-3 h-3" strokeWidth={2} />
-                  {e.driverName}
-                </span>
-              )}
-            </div>
-          )}
-        </div>
-      </Link>
-    );
-  }
-
-  function EmptyBlock({ text }: { text: string }) {
-    return (
-      <div className="card p-6 text-center">
-        <div className="w-12 h-12 mx-auto mb-2 rounded-xl bg-slate-50 flex items-center justify-center">
-          <Inbox className="w-6 h-6 text-slate-300" strokeWidth={1.5} />
-        </div>
-        <div className="text-sm text-slate-400">{text}</div>
-      </div>
-    );
-  }
 
   return (
     <main className="min-h-screen bg-slate-50">
