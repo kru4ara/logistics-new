@@ -417,7 +417,7 @@ export default async function ContractorsStatsPage() {
                 (<code className="text-xs bg-blue-100 px-1 rounded">forwarding_contractors</code>),
                 блок «Комбинированные» — из участков рейсов
                 (<code className="text-xs bg-blue-100 px-1 rounded">trip_segments</code>,
-                где <code>executor_type = 'contractor'</code>).
+                где <code>executor_type = &apos;contractor&apos;</code>).
               </p>
               <p className="text-xs text-blue-700">
                 Суммы приведены в EUR (поле <code>price_eur</code> для экспедирования, <code>price</code> для участков рейсов).
