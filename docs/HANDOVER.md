@@ -165,6 +165,48 @@
 - **`next.config.js`:** добавлен `eslint: { ignoreDuringBuilds: true }` — развязывает деплой и линт. Vercel собирает, линт чинится отдельно.
 - **Коммит `4239f29` — зелёный Production.**
 
+## ✅ Фаза 14 — Ремонт линта (54 ошибки) — ЗАКРЫТО (23.10.2026)
+
+**Миграция линтера:**
+- `next lint` → ESLint CLI + ESLint 9 + flat config.
+- `eslint.config.mjs` через `FlatCompat` (`eslint-config-next@14.2.35` не имеет нативного flat-экспорта).
+- `next.config.js`: `eslint: { ignoreDuringBuilds: true }` — развязывает деплой и линт.
+
+**Закрыто (54 ошибки → 0 ошибок, 1 warning):**
+
+**1. `<a>` → `<Link>` (35 ошибок) — все 35 файлов:**
+- `clients` (3), `contractors` (4), `drivers` (4), `forwarding` (4), `trips` (5), `trucks` (4), `fixed-costs` (1), `locations` (1), `reminders` (1), `reports` (1), `today` (1), `Sidebar` (1), `logisat` (1), `error.tsx` (1).
+- `tel:`, `mailto:`, `https://`, `target="_blank"` — оставлены `<a>`.
+- Все `import Link from 'next/link'` добавлены.
+
+**2. `react/no-unescaped-entities` (2 ошибки):**
+- `app/reports/contractors/page.tsx:420` — `'contractor'` → `&apos;contractor&apos;`.
+
+**3. `react-hooks/static-components` (4 ошибки):**
+- `Sidebar.tsx` — `SidebarContent` вынесен на уровень модуля, пропсы передаются явно (`role`, `isAdmin`, `userName`, `isExpanded`, `mobile`, `pathname`, `isPinned`, `onTogglePin`). `isActive` → хелпер `isActivePath`.
+- `today/page.tsx` — `EmptyBlock` и `EventCard` вынесены на уровень модуля.
+
+**4. `react-hooks/purity` (2 ошибки):**
+- `reports/logisat/page.tsx:90` — `Date.now()` → точечный `eslint-disable-next-line react-hooks/purity` (серверный компонент).
+- `today/page.tsx:317` — `Date.now()` → точечный `eslint-disable-next-line react-hooks/purity`.
+
+**5. `react-hooks/immutability` (1 ошибка):**
+- `DashboardCharts.tsx:302` — `cursor += len` заменён на `reduce` с предвычислением массива `slices` (`{ key, color, len, offset }`).
+
+**6. `react-hooks/set-state-in-effect` (6 ошибок):**
+- `AppShellClient.tsx` — ленивая инициализация `useState(readPinnedFromStorage)`, убран `mounted`.
+- `DuplicateChecker.tsx` — `setMatches([])` / `setLoading(false)` перенесены в `onChange`; `setLoading(true)` — точечный `eslint-disable`.
+- `Toaster.tsx` — `setVisible` — точечный `eslint-disable` (синхронизация с URL); `setKey` — без директивы.
+- `OverlapWarning.tsx` — сброс вынесен в `setTimeout`; при отсутствии входных данных `return null` в рендере.
+- `SearchInput.tsx` — `setValue(initialQ)` — точечный `eslint-disable` (синхронизация с URL).
+- `SegmentForm.tsx` — `/* eslint-disable react-hooks/set-state-in-effect */ ... /* eslint-enable */` вокруг `useEffect` синхронизации с `initialData`. TODO: `key={segmentId}` в родителе.
+
+**Остался 1 warning:** `@next/next/no-img-element` в `CountryFlag.tsx:119` (в очереди, не мешает билду).
+
+**Правила на будущее:**
+- **`sed` на JSX — запрещён** (ломает парные теги `<a>...</Link>`).
+- Все замены `<a>` → `<Link>` — только через GitHub-редактор или полные файлы.
+- `react-hooks/set-state-in-effect` — точечный `eslint-disable` только для канонических паттернов (синхронизация с URL, `localStorage`, форма с `initialData`), с комментарием.
 ---
 
 ## ⏭️ Текущая задача: ремонт линта (полный, не «заметание»)
@@ -213,12 +255,31 @@
 - `app/reports/contractors/page.tsx:420` — `'contractor'` → `&apos;contractor&apos;`.
 
 **✅ ВСЕ `<a>` → `<Link>` и `react/no-unescaped-entities` — ЗАКРЫТЫ.**
-Остались только `react-hooks`:
-- `set-state-in-effect` (6): `AppShellClient`, `DuplicateChecker`, `Toaster`, `OverlapWarning`, `SearchInput`, `SegmentForm`.
-- `static-components` (4): `Sidebar.tsx` (`SidebarContent`), `today/page.tsx` (`EmptyBlock`).
-- `purity` (2): `reports/logisat/page.tsx:90`, `today/page.tsx:317` (`Date.now()`).
-- `immutability` (1): `DashboardCharts.tsx:302` (`cursor += len`).
-- `@next/next/no-img-element` (2 warning): `CountryFlag.tsx:119`, `drivers/page.tsx:184`.
+
+**✅ `today/page.tsx` — `static-components` + `purity` закрыты:**
+- `EmptyBlock` и `EventCard` вынесены на уровень модуля.
+- `Date.now()` в `overdueReminders` — точечный `eslint-disable-next-line react-hooks/purity` (серверный компонент).
+
+**✅ `reports/logisat/page.tsx` — `purity` закрыт:**
+- `Date.now()` на строке 90 — точечный `eslint-disable-next-line react-hooks/purity`.
+
+**✅ `Sidebar.tsx` — `static-components` закрыт:**
+- `SidebarContent` вынесен на уровень модуля, все пропсы передаются явно (`role`, `isAdmin`, `userName`, `isExpanded`, `mobile`, `pathname`, `isPinned`, `onTogglePin`).
+- `isActive` вынесена в хелпер модуля `isActivePath`.
+
+**✅ `DashboardCharts.tsx` — `immutability` закрыт:**
+- `cursor += len` заменён на `reduce` с предвычислением массива `slices` (`{ key, color, len, offset }`).  
+
+**✅ `set-state-in-effect` (6 файлов) — закрыты:**
+- `AppShellClient.tsx` — ленивая инициализация `useState(readPinnedFromStorage)`, убран `mounted`.
+- `DuplicateChecker.tsx` — `setMatches([])` / `setLoading(false)` перенесены в `onChange`; `setTaxId` и `setLoading(true)` — точечный `eslint-disable` (внешний DOM / debounce).
+- `Toaster.tsx` — `setVisible` / `setKey` — точечный `eslint-disable` (синхронизация с URL).
+- `OverlapWarning.tsx` — сброс вынесен в `setTimeout`; при отсутствии входных данных `return null` в рендере.
+- `SearchInput.tsx` — `setValue(initialQ)` — точечный `eslint-disable` (синхронизация с URL).
+- `SegmentForm.tsx` — синхронизация с `initialData` — точечный `eslint-disable` с TODO на `key={segmentId}` в родителе.
+
+**✅ `react-hooks` — ВСЕ 15 ошибок закрыты.**
+Остались только `@next/next/no-img-element` (2 warning, в очереди).
 
 ### Правила замены `<a>` → `<Link>`
 - Внутренние `href="/..."` и `href={`/...`}` → `<Link>`.
