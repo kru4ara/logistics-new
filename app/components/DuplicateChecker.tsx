@@ -39,7 +39,6 @@ export default function DuplicateChecker({
     const el = document.querySelector<HTMLInputElement>(`input[name="${taxIdInputName}"]`);
     if (!el) return;
     const handler = () => {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setTaxId(el.value);
     };
     el.addEventListener('input', handler);
