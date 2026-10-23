@@ -231,8 +231,11 @@ export default function SegmentForm({
     new Set(initialCargoIds || [])
   );
 
-  // Синхронизация стейтов при открытии модалки для другого сегмента
+  // Синхронизация стейтов при открытии модалки для другого сегмента.
+  // Это канонический паттерн «форма сбрасывается при смене initialData».
+  // TODO: в будущем заменить на key={segmentId || 'new'} в родителе, чтобы компонент ремоунтился.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (initialData) {
       setExecutorType((initialData.executor_type as 'us' | 'contractor') || 'us');
       setContractorId(initialData.contractor_id || '');
