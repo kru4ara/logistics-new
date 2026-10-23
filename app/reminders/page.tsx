@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase-server';
@@ -172,10 +173,10 @@ export default async function RemindersPage({
               Активных: <b className="text-slate-700">{activeReminders.length}</b> · Выполненных: <b className="text-slate-700">{doneReminders.length}</b>
             </p>
           </div>
-          <a href="/reminders/new" className="btn btn-primary text-sm md:text-base w-full sm:w-auto justify-center">
+          <Link href="/reminders/new" className="btn btn-primary text-sm md:text-base w-full sm:w-auto justify-center">
             <Plus className="w-4 h-4 md:w-[18px] md:h-[18px]" strokeWidth={2.5} />
             Добавить напоминание
-          </a>
+          </Link>
         </div>
 
         {/* Счётчики */}
@@ -244,7 +245,7 @@ export default async function RemindersPage({
                 const kindLabel = row.kind === 'driver' ? 'Карта водителя' : 'Тахограф';
 
                 return (
-                  <a
+                  <Link
                     key={`${row.kind}-${row.id}`}
                     href={row.href}
                     className="flex items-center gap-3 rounded-lg border border-slate-100 p-3 hover:bg-slate-50/60 transition-colors"
@@ -262,7 +263,7 @@ export default async function RemindersPage({
                     <span className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-semibold border whitespace-nowrap tabular-nums ${color}`}>
                       {label}
                     </span>
-                  </a>
+                  </Link>
                 );
               })}
             </div>
@@ -271,7 +272,7 @@ export default async function RemindersPage({
 
         {/* Фильтр */}
         <div className="card p-3 flex flex-wrap gap-2">
-          <a
+          <Link
             href="/reminders?show=active"
             className={`inline-flex items-center gap-1.5 px-3 md:px-4 py-2 rounded-lg text-sm font-semibold transition-all
               ${show === 'active'
@@ -280,8 +281,8 @@ export default async function RemindersPage({
           >
             <Clock className="w-4 h-4" strokeWidth={2.2} />
             Активные ({activeReminders.length})
-          </a>
-          <a
+          </Link>
+          <Link
             href="/reminders?show=done"
             className={`inline-flex items-center gap-1.5 px-3 md:px-4 py-2 rounded-lg text-sm font-semibold transition-all
               ${show === 'done'
@@ -290,8 +291,8 @@ export default async function RemindersPage({
           >
             <Check className="w-4 h-4" strokeWidth={2.2} />
             Выполненные ({doneReminders.length})
-          </a>
-          <a
+          </Link>
+          <Link
             href="/reminders?show=all"
             className={`inline-flex items-center gap-1.5 px-3 md:px-4 py-2 rounded-lg text-sm font-semibold transition-all
               ${show === 'all'
@@ -300,7 +301,7 @@ export default async function RemindersPage({
           >
             <ListIcon className="w-4 h-4" strokeWidth={2.2} />
             Все ({enriched.length})
-          </a>
+          </Link>
         </div>
 
         {/* Список */}
@@ -320,10 +321,10 @@ export default async function RemindersPage({
                 : 'Переключитесь на другую вкладку'}
             </p>
             {show === 'active' && (
-              <a href="/reminders/new" className="btn btn-primary inline-flex">
+              <Link href="/reminders/new" className="btn btn-primary inline-flex">
                 <Plus className="w-4 h-4" strokeWidth={2.5} />
                 Добавить напоминание
-              </a>
+              </Link>
             )}
           </div>
         ) : (
