@@ -121,7 +121,10 @@ export default function Toaster() {
     const msg = buildMessage(toastKey, errorMsg);
     if (!msg) return;
 
+    // Синхронизация с URL — легитимный внешний источник состояния
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setVisible(msg);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setKey((k) => k + 1);
 
     const hideTimer = setTimeout(() => {
