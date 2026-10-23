@@ -51,16 +51,18 @@ export default function OverlapWarning({
   const [isLoading, setIsLoading] = useState(false);
   const [hasChecked, setHasChecked] = useState(false);
 
+  const hasInputs = Boolean(truckId) && Boolean(startDate);
+
   useEffect(() => {
-    // Нет тягача или даты старта — проверять нечего
-    if (!truckId || !startDate) {
-      setConflicts([]);
-      setHasChecked(false);
-      return;
-    }
+    // Нет тягача или даты старта — проверять нечего.
+    // Компонент вернёт null в рендере, поэтому сброс не нужен.
+    if (!hasInputs) return;
 
     let cancelled = false;
     const timer = setTimeout(async () => {
+      if (cancelled) return;
+      // Внутри setTimeout — это не синхронный setState в эффекте.
+      setConflicts([]);
       setIsLoading(true);
       try {
         const params = new URLSearchParams({
@@ -98,7 +100,10 @@ export default function OverlapWarning({
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [truckId, startDate, endDate, excludeTripId]);
+  }, [truckId, startDate, endDate, excludeTripId, hasInputs]);
+
+  // Нет входных данных — ничего не показываем
+  if (!hasInputs) return null;
 
   // Ничего не показываем, если проверка не производилась
   if (!hasChecked && !isLoading) return null;
