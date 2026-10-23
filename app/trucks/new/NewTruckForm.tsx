@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { createTruck } from '../../truck-actions';
 import SubmitButton from '../../components/SubmitButton';
 
@@ -183,13 +184,13 @@ export default function NewTruckForm() {
                       bg-slate-50/95 sm:bg-transparent backdrop-blur-sm sm:backdrop-blur-none
                       -mx-4 px-4 sm:mx-0 sm:px-0 py-3 sm:py-0
                       border-t sm:border-0 border-slate-200">
-        <a
+        <Link
           href="/trucks"
           className="w-full sm:w-auto text-center px-6 py-3 rounded-xl border border-slate-300 text-slate-700 font-semibold
                      hover:bg-slate-100 transition-all duration-150"
         >
           Отмена
-        </a>
+        </Link>
         <SubmitButton
           className="w-full sm:flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed
                      text-white font-semibold py-3 rounded-xl shadow-md shadow-blue-600/20
