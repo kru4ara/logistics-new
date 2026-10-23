@@ -165,48 +165,38 @@
 - **`next.config.js`:** добавлен `eslint: { ignoreDuringBuilds: true }` — развязывает деплой и линт. Vercel собирает, линт чинится отдельно.
 - **Коммит `4239f29` — зелёный Production.**
 
-## ✅ Фаза 14 — Ремонт линта (54 ошибки) — ЗАКРЫТО (23.10.2026)
+## ✅ Фаза 14 — Аудит зависимостей + ремонт линта — ЗАКРЫТО (23.10.2026)
+
+**Аудит зависимостей:**
+- `postcss`: `overrides` + синхронизация `devDependencies` на `^8.5.23` → резолвится `8.5.31` везде `deduped`.
+- `glob`: `overrides: "10.5.0"` (прибит).
+- `brace-expansion`, `source-map-js`: `npm audit fix`.
+- `braces`, `postcss-selector-parser`: приняты как dev-риски (фикс только в Tailwind 4).
 
 **Миграция линтера:**
 - `next lint` → ESLint CLI + ESLint 9 + flat config.
-- `eslint.config.mjs` через `FlatCompat` (`eslint-config-next@14.2.35` не имеет нативного flat-экспорта).
-- `next.config.js`: `eslint: { ignoreDuringBuilds: true }` — развязывает деплой и линт.
+- `eslint.config.mjs` через `FlatCompat` (`eslint-config-next@14.2.35`).
+- `next.config.js`: `eslint: { ignoreDuringBuilds: true }`.
 
-**Закрыто (54 ошибки → 0 ошибок, 1 warning):**
-
-**1. `<a>` → `<Link>` (35 ошибок) — все 35 файлов:**
-- `clients` (3), `contractors` (4), `drivers` (4), `forwarding` (4), `trips` (5), `trucks` (4), `fixed-costs` (1), `locations` (1), `reminders` (1), `reports` (1), `today` (1), `Sidebar` (1), `logisat` (1), `error.tsx` (1).
-- `tel:`, `mailto:`, `https://`, `target="_blank"` — оставлены `<a>`.
-- Все `import Link from 'next/link'` добавлены.
-
-**2. `react/no-unescaped-entities` (2 ошибки):**
-- `app/reports/contractors/page.tsx:420` — `'contractor'` → `&apos;contractor&apos;`.
-
-**3. `react-hooks/static-components` (4 ошибки):**
-- `Sidebar.tsx` — `SidebarContent` вынесен на уровень модуля, пропсы передаются явно (`role`, `isAdmin`, `userName`, `isExpanded`, `mobile`, `pathname`, `isPinned`, `onTogglePin`). `isActive` → хелпер `isActivePath`.
-- `today/page.tsx` — `EmptyBlock` и `EventCard` вынесены на уровень модуля.
-
-**4. `react-hooks/purity` (2 ошибки):**
-- `reports/logisat/page.tsx:90` — `Date.now()` → точечный `eslint-disable-next-line react-hooks/purity` (серверный компонент).
-- `today/page.tsx:317` — `Date.now()` → точечный `eslint-disable-next-line react-hooks/purity`.
-
-**5. `react-hooks/immutability` (1 ошибка):**
-- `DashboardCharts.tsx:302` — `cursor += len` заменён на `reduce` с предвычислением массива `slices` (`{ key, color, len, offset }`).
-
-**6. `react-hooks/set-state-in-effect` (6 ошибок):**
-- `AppShellClient.tsx` — ленивая инициализация `useState(readPinnedFromStorage)`, убран `mounted`.
-- `DuplicateChecker.tsx` — `setMatches([])` / `setLoading(false)` перенесены в `onChange`; `setLoading(true)` — точечный `eslint-disable`.
-- `Toaster.tsx` — `setVisible` — точечный `eslint-disable` (синхронизация с URL); `setKey` — без директивы.
-- `OverlapWarning.tsx` — сброс вынесен в `setTimeout`; при отсутствии входных данных `return null` в рендере.
-- `SearchInput.tsx` — `setValue(initialQ)` — точечный `eslint-disable` (синхронизация с URL).
-- `SegmentForm.tsx` — `/* eslint-disable react-hooks/set-state-in-effect */ ... /* eslint-enable */` вокруг `useEffect` синхронизации с `initialData`. TODO: `key={segmentId}` в родителе.
-
-**Остался 1 warning:** `@next/next/no-img-element` в `CountryFlag.tsx:119` (в очереди, не мешает билду).
+**Ремонт 54 ошибок (0 errors, 0 warnings):**
+- **`<a>` → `<Link>` (35):** все страницы + `Sidebar`. `tel:` / `mailto:` / `https://` / `target="_blank"` — оставлены `<a>`.
+- **`react/no-unescaped-entities` (2):** `reports/contractors/page.tsx:420` → `&apos;`.
+- **`react-hooks/static-components` (4):** `SidebarContent` (Sidebar) и `EmptyBlock` + `EventCard` (today) вынесены на уровень модуля.
+- **`react-hooks/purity` (2):** `Date.now()` в `logisat/page.tsx:90` и `today/page.tsx:317` → точечный `eslint-disable` (серверные компоненты).
+- **`react-hooks/immutability` (1):** `DashboardCharts.tsx:302` → `reduce` с предвычислением `slices`.
+- **`react-hooks/set-state-in-effect` (6):**
+  - `AppShellClient` — ленивая инициализация `useState(readPinnedFromStorage)`.
+  - `DuplicateChecker` — сброс в `onChange`, `setLoading(true)` — disable.
+  - `Toaster` — `setVisible` — disable (URL sync).
+  - `OverlapWarning` — сброс в `setTimeout`, `return null` при отсутствии входных данных.
+  - `SearchInput` — `setValue(initialQ)` — disable (URL sync).
+  - `SegmentForm` — `/* eslint-disable */ ... /* eslint-enable */` вокруг `useEffect` синхронизации с `initialData`. TODO: `key={segmentId}` в родителе.
+- **`@next/next/no-img-element` (1 warning):** `CountryFlag.tsx` — точечный disable (флаг с `flagcdn.com`, `<Image>` не нужен).
 
 **Правила на будущее:**
-- **`sed` на JSX — запрещён** (ломает парные теги `<a>...</Link>`).
+- **`sed` на JSX — запрещён** (ломает парные теги).
 - Все замены `<a>` → `<Link>` — только через GitHub-редактор или полные файлы.
-- `react-hooks/set-state-in-effect` — точечный `eslint-disable` только для канонических паттернов (синхронизация с URL, `localStorage`, форма с `initialData`), с комментарием.
+- Точечный `eslint-disable` — только для канонических паттернов (URL sync, `localStorage`, форма с `initialData`), с комментарием.
 ---
 
 ## ⏭️ Текущая задача: ремонт линта (полный, не «заметание»)
