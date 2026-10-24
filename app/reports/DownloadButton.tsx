@@ -27,17 +27,16 @@ function r2(n: number): number {
 
 export default function DownloadButton({ data }: { data: ReportRow[] }) {
   async function handleDownload() {
-    // Ленивая загрузка xlsx — только по клику
-    const XLSX = await import('xlsx');
+    const ExcelJS = (await import('exceljs')).default;
 
     const rows = data.map((trip) => ({
-      '№ рейса': trip.trip_number || '',
-      'Клиент': trip.clientName || 'Не указан',
-      'Маршрут': trip.route || '',
-      'Статус': STATUS_LABELS[trip.status] || trip.status,
-      'Фрахт (€)': r2(trip.revenue_eur || 0),
-      'Расходы (€)': r2(trip.expenses || 0),
-      'Прибыль (€)': r2((trip.revenue_eur || 0) - (trip.expenses || 0)),
+      tripNumber: trip.trip_number || '',
+      clientName: trip.clientName || 'Не указан',
+      route: trip.route || '',
+      status: STATUS_LABELS[trip.status] || trip.status,
+      revenue: r2(trip.revenue_eur || 0),
+      expenses: r2(trip.expenses || 0),
+      profit: r2((trip.revenue_eur || 0) - (trip.expenses || 0)),
     }));
 
     const totalRevenue = data.reduce((sum, t) => sum + (t.revenue_eur || 0), 0);
@@ -45,23 +44,38 @@ export default function DownloadButton({ data }: { data: ReportRow[] }) {
     const profit = totalRevenue - totalExpenses;
 
     rows.push({
-      '№ рейса': 'ИТОГО',
-      'Клиент': '',
-      'Маршрут': '',
-      'Статус': '',
-      'Фрахт (€)': r2(totalRevenue),
-      'Расходы (€)': r2(totalExpenses),
-      'Прибыль (€)': r2(profit),
+      tripNumber: 'ИТОГО',
+      clientName: '',
+      route: '',
+      status: '',
+      revenue: r2(totalRevenue),
+      expenses: r2(totalExpenses),
+      profit: r2(profit),
     });
 
-    const worksheet = XLSX.utils.json_to_sheet(rows);
-    worksheet['!cols'] = [
-      { wch: 10 }, { wch: 30 }, { wch: 40 }, { wch: 16 },
-      { wch: 14 }, { wch: 14 }, { wch: 14 },
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Рейсы');
+    worksheet.columns = [
+      { header: '№ рейса', key: 'tripNumber', width: 10 },
+      { header: 'Клиент', key: 'clientName', width: 30 },
+      { header: 'Маршрут', key: 'route', width: 40 },
+      { header: 'Статус', key: 'status', width: 16 },
+      { header: 'Фрахт (€)', key: 'revenue', width: 14, style: { numFmt: '0.00' } },
+      { header: 'Расходы (€)', key: 'expenses', width: 14, style: { numFmt: '0.00' } },
+      { header: 'Прибыль (€)', key: 'profit', width: 14, style: { numFmt: '0.00' } },
     ];
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Рейсы');
-    XLSX.writeFile(workbook, 'trips.xlsx');
+    worksheet.addRows(rows);
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'trips.xlsx';
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   return (
