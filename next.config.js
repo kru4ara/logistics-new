@@ -11,18 +11,4 @@ const nextConfig = {
   },
 };
 
-let config = nextConfig;
-
-// Подключаем bundle-analyzer только если он установлен и запрошен
-if (process.env.ANALYZE === 'true') {
-  try {
-    const withBundleAnalyzer = require('@next/bundle-analyzer')({
-      enabled: true,
-    });
-    config = withBundleAnalyzer(nextConfig);
-  } catch (e) {
-    console.warn('[next.config] @next/bundle-analyzer not found, skipping analysis');
-  }
-}
-
-module.exports = config;
+module.exports = nextConfig;
