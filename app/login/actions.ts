@@ -19,13 +19,13 @@ export async function login(
     return { error: 'Введите логин и пароль' };
   }
 
-  // Если ввели email — используем его напрямую
-  let email = loginValue;
   let realEmail = loginValue;
 
   if (!loginValue.includes('@')) {
+    const supabase = await createClient(); // <-- await
+
     // Ищем в таблице users (офис)
-    const adminRes = await createClient()
+    const adminRes = await supabase
       .from('users')
       .select('email')
       .eq('login', loginValue)
@@ -35,7 +35,7 @@ export async function login(
       realEmail = adminRes.data.email;
     } else {
       // Ищем в таблице drivers (по фамилии)
-      const driverRes = await createClient()
+      const driverRes = await supabase
         .from('drivers')
         .select('email')
         .ilike('last_name', loginValue)
@@ -50,12 +50,10 @@ export async function login(
     }
   }
 
-  email = realEmail;
-
-  const supabase = await createClient();
+  const supabase = await createClient(); // <-- await
 
   const { data, error } = await supabase.auth.signInWithPassword({
-    email,
+    email: realEmail,
     password: passwordValue,
   });
 
@@ -82,7 +80,7 @@ export async function login(
 }
 
 export async function logout() {
-  const supabase = await createClient();
+  const supabase = await createClient(); // <-- await
   await supabase.auth.signOut();
   redirect('/login');
 }
