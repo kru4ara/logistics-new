@@ -3,7 +3,7 @@ import { renumberAllTrips } from '../trip-renumber';
 
 // Фабрика для создания фейкового Supabase клиента
 function createMockSupabase(mockTrips: any[]) {
-  const updates: { id: string; trip_number: number }[] = [];
+  const updatesMap = new Map<string, number>();
 
   const mock = {
     from: vi.fn().mockReturnValue({
@@ -15,7 +15,8 @@ function createMockSupabase(mockTrips: any[]) {
       update: vi.fn().mockImplementation((payload: { trip_number: number }) => ({
         eq: vi.fn().mockImplementation((column: string, value: string) => {
           if (column === 'id') {
-            updates.push({ id: value, trip_number: payload.trip_number });
+            // Сохраняем только последнее значение для каждого id
+            updatesMap.set(value, payload.trip_number);
           }
           return Promise.resolve({ error: null });
         }),
@@ -25,7 +26,7 @@ function createMockSupabase(mockTrips: any[]) {
 
   return {
     supabase: mock as any,
-    getUpdates: () => updates,
+    getUpdates: () => Array.from(updatesMap.entries()).map(([id, trip_number]) => ({ id, trip_number })),
   };
 }
 
@@ -56,18 +57,13 @@ describe('renumberAllTrips', () => {
     const { supabase, getUpdates } = createMockSupabase(trips);
     await renumberAllTrips(supabase);
 
-    const updates = getUpdates();
-    // Ожидаем, что t2 и t3 будут обновлены дважды (фаза 1: отрицательные, фаза 2: положительные)
-    // Считаем только финальные положительные обновления
-    const finalUpdates = updates.filter((u) => u.trip_number > 0);
-    
+    const finalUpdates = getUpdates();
     expect(finalUpdates).toHaveLength(2);
     expect(finalUpdates.find((u) => u.id === 't2')?.trip_number).toBe(2);
     expect(finalUpdates.find((u) => u.id === 't3')?.trip_number).toBe(3);
   });
 
   it('перенумеровывает, если номера перепутаны (3, 1, 2 → 1, 2, 3 по дате)', async () => {
-    // Сортируем по start_date: t2 (01-01), t3 (01-02), t1 (01-03)
     const trips = [
       { id: 't1', trip_number: 3, start_date: '2026-01-03' },
       { id: 't2', trip_number: 1, start_date: '2026-01-01' },
@@ -76,11 +72,10 @@ describe('renumberAllTrips', () => {
     const { supabase, getUpdates } = createMockSupabase(trips);
     await renumberAllTrips(supabase);
 
-    const updates = getUpdates().filter((u) => u.trip_number > 0);
-    
-    expect(updates).toHaveLength(3);
-    expect(updates.find((u) => u.id === 't2')?.trip_number).toBe(1);
-    expect(updates.find((u) => u.id === 't3')?.trip_number).toBe(2);
-    expect(updates.find((u) => u.id === 't1')?.trip_number).toBe(3);
+    const finalUpdates = getUpdates();
+    expect(finalUpdates).toHaveLength(3);
+    expect(finalUpdates.find((u) => u.id === 't2')?.trip_number).toBe(1);
+    expect(finalUpdates.find((u) => u.id === 't3')?.trip_number).toBe(2);
+    expect(finalUpdates.find((u) => u.id === 't1')?.trip_number).toBe(3);
   });
 });
