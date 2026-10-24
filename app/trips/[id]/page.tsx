@@ -599,7 +599,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
 
         {/* ЗАДАНИЕ ДЛЯ ВОДИТЕЛЯ */}
         <div className="space-y-3">
-          <CopyBlock text={taskText} phone={driver?.phone_pl || driver?.phone_by} />
+         <CopyBlock text={taskText} phone={driver?.phone_by || driver?.phone_pl} />
           <div className="card p-5 md:p-6">
             <SendTaskButton tripId={tripId} disabled={sendDisabled} disabledHint={sendHint} />
           </div>
