@@ -16,6 +16,7 @@ import {
   Inbox,
   RadioTower,
   Filter,
+  Package,
   type LucideIcon,
 } from 'lucide-react';
 
