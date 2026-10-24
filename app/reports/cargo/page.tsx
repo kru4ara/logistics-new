@@ -21,7 +21,7 @@ export default async function CargoReportPage({
 
   const supabase = await createClient();
 
-  // 1. Получаем грузы с рейсами (добавили revenue_eur из trips)
+  // 1. Получаем грузы с рейсами
   let query = supabase
     .from('trip_cargo')
     .select(`
@@ -29,9 +29,7 @@ export default async function CargoReportPage({
       freight_amount, freight_currency,
       client_id, clients(name),
       trip_id, trips!inner(id, trip_number, start_date, status, revenue_eur)
-    `)
-    .order('start_date', { referencedTable: 'trips', ascending: false })
-    .order('position', { ascending: true });
+    `);
 
   if (from) query = query.gte('trips.start_date', from);
   if (to) query = query.lte('trips.start_date', to);
@@ -65,45 +63,55 @@ export default async function CargoReportPage({
     cargoByTrip[c.trip_id].push(c);
   });
 
-  const reportRows = (cargoRows || []).map((c: any) => {
-    const trip = c.trips;
-    const tripCargo = cargoByTrip[c.trip_id] || [];
-    const tripExpenses = expensesByTrip[c.trip_id] || 0;
+  const reportRows = (cargoRows || [])
+    .filter((c: any) => c.trips && c.trips.trip_number) // убираем грузы без рейса
+    .map((c: any) => {
+      const trip = c.trips;
+      const tripCargo = cargoByTrip[c.trip_id] || [];
+      const tripExpenses = expensesByTrip[c.trip_id] || 0;
 
-    // ЛОГИКА ФРАХТА:
-    // Если у груза есть свой freight_amount — берём его.
-    // Если нет — берём общий revenue_eur рейса и делим на количество грузов в этом рейсе.
-    let freight = c.freight_amount || 0;
-    const isFallback = freight === 0 && (trip.revenue_eur || 0) > 0;
+      // ЛОГИКА ФРАХТА: если у груза нет своего, берём из рейса
+      let freight = c.freight_amount || 0;
+      const isFallback = freight === 0 && (trip.revenue_eur || 0) > 0;
 
-    if (isFallback) {
-      freight = (trip.revenue_eur || 0) / (tripCargo.length || 1);
-    }
+      if (isFallback) {
+        freight = (trip.revenue_eur || 0) / (tripCargo.length || 1);
+      }
 
-    // Распределяем расходы пропорционально фрахту (если фрахт 0, то поровну)
-    const totalTripFreight = tripCargo.reduce((sum, item) => {
-      return sum + (item.freight_amount || (isFallback ? freight : 0));
-    }, 0);
+      const totalTripFreight = tripCargo.reduce((sum, item) => {
+        return sum + (item.freight_amount || (isFallback ? freight : 0));
+      }, 0);
 
-    const share = totalTripFreight > 0 ? freight / totalTripFreight : (1 / (tripCargo.length || 1));
-    const allocatedExpenses = tripExpenses * share;
-    const profit = freight - allocatedExpenses;
+      const share = totalTripFreight > 0 ? freight / totalTripFreight : (1 / (tripCargo.length || 1));
+      const allocatedExpenses = tripExpenses * share;
+      const profit = freight - allocatedExpenses;
 
-    return {
-      id: c.id,
-      tripId: c.trip_id, // для ссылки
-      tripNumber: trip?.trip_number || '—',
-      tripDate: trip?.start_date,
-      clientName: c.clients?.name || '—',
-      cargoLabel: c.label || '—',
-      weight: c.weight_kg,
-      pallets: c.pallets,
-      freight: freight,
-      freightCurrency: c.freight_currency || 'EUR',
-      expenses: allocatedExpenses,
-      profit: profit,
-      isFallback,
-    };
+      return {
+        id: c.id,
+        tripId: c.trip_id,
+        tripNumber: trip?.trip_number || '—',
+        tripDate: trip?.start_date,
+        clientName: c.clients?.name || '—',
+        cargoLabel: c.label || '—',
+        weight: c.weight_kg,
+        pallets: c.pallets,
+        freight: freight,
+        freightCurrency: c.freight_currency || 'EUR',
+        expenses: allocatedExpenses,
+        profit: profit,
+        isFallback,
+      };
+    });
+
+  // Сортируем: сначала новые рейсы, потом по номеру рейса (по убыванию)
+  reportRows.sort((a, b) => {
+    const dateA = a.tripDate ? new Date(a.tripDate).getTime() : 0;
+    const dateB = b.tripDate ? new Date(b.tripDate).getTime() : 0;
+    if (dateA !== dateB) return dateB - dateA;
+
+    const numA = a.tripNumber === '—' ? 0 : Number(a.tripNumber);
+    const numB = b.tripNumber === '—' ? 0 : Number(b.tripNumber);
+    return numB - numA;
   });
 
   // 4. Итоги
