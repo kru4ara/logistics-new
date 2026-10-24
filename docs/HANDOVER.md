@@ -112,16 +112,13 @@
 
 ### Хелперы (`lib/`)
 - `trip-route.ts` — `buildRouteMap(segments)`
-- `geocode.ts` — `geocode(city, country, postalCode?)`
 - `trip-task-text.ts` — `buildDriverTaskText(...)`
-- `translate-pl.ts` — `translateToPl(text)`
-- `company.ts` — `COMPANY`, `getTerms(...)`
-- `audit.ts` — `logAudit`, `diffFields`
-- `cron-alert.ts`, `telegram.ts`
+- `trip-renumber.ts` — `renumberAllTrips(...)`
+- `statistics.ts` — `calculateStatistics(...)`
+- `geocode.ts`, `translate-pl.ts`, `company.ts`, `audit.ts`, `cron-alert.ts`, `telegram.ts`
 - `supabase-server.ts` — admin client (service_role, **только сервер**, защищён `import 'server-only'`)
 - `supabase/server.ts` — ssr клиент с сессией
 - `supabase/client.ts` — браузерный клиент
-- `trip-renumber.ts` — `renumberAllTrips(...)`
 
 ---
 
@@ -142,13 +139,6 @@
 ### Фаза 15 — Миграция на `exceljs` — ✅ 24.10
 ### Фаза 16 — Проверка производительности и безопасности — ✅ 24.10
 ### Фаза 17 — Миграция на Supabase Auth — ✅ 24.10
-- Создана таблица `profiles`, RLS, триггер `handle_new_user`.
-- Middleware с `getUser()`.
-- Логин/логаут через Supabase Auth.
-- Пароли водителей перенесены (bcrypt).
-- Оставлены 1 админ и 2 водителя.
-- Куки `role`, `driver_id` устанавливаются для совместимости со старым UI.
-
 ### Фаза 18 — Улучшения UX/UI и PWA — ✅ 25.10
 - **PWA:** `manifest.webmanifest`, `sw.js`, `ServiceWorkerRegister` в `layout.tsx`. Водители могут установить на телефон.
 - **Массовые статусы:** чекбоксы в `TripsBulkList`, Server Actions `bulkSetStatus` и `bulkDelete`.
@@ -157,12 +147,22 @@
 
 ### Фаза 19 — Инфраструктура и тесты — ✅ 25.10
 - **CI:** `.github/workflows/ci.yml` (lint + tsc + test + build).
-- **Vitest:** настроен (`vitest.config.js`), тесты на `buildRouteMap` (6), `renumberAllTrips` (4), `buildDriverTaskText` (7). Всего 17 тестов.
+- **Vitest:** настроен (`vitest.config.js`), тесты на `buildRouteMap` (6), `renumberAllTrips` (4), `buildDriverTaskText` (7), `calculateStatistics` (6). Всего **23 теста**.
 - **`server-only`:** добавлен в `lib/supabase-server.ts`.
 - **`.env.example`:** создан.
 - **Типы:** `@types/react` и `@types/node` обновлены до 19.x/22.x.
 - **Роли в Middleware:** закрыты админские роуты для водителей.
-- **Отчёт «Фрахт по грузам»:** страница `/reports/cargo`.
+
+### Фаза 20 — Рефакторинг гигантских файлов — ✅ 25.10
+- **`SegmentForm.tsx` (47 КБ):** разбит на:
+  - `SegmentAddressBlock` (Откуда/Куда)
+  - `SegmentStopsBlock` (Промежуточные точки)
+  - `SegmentExecutorBlock` (Кто везёт)
+  - `SegmentCargoSelector` (Грузы)
+  - `types.ts` (общие типы)
+- **`statistics/page.tsx` (48 КБ):** разбит на:
+  - `lib/statistics.ts` (чистые функции расчётов)
+  - `StatisticsHeader`, `StatisticsSummary`, `StatisticsBreakdown`, `StatisticsCapex`, `StatisticsTable`, `StatisticsLegend`.
 
 ---
 
@@ -176,10 +176,9 @@
 ---
 
 ## ⏭️ Очередь задач
-1. **Размер файлов:** `statistics/page.tsx` (48 КБ), `SegmentForm.tsx` (47 КБ) — вынести логику в `data/` и компоненты.
-2. **CI:** починить красный крестик (проблема с кэшем `vitest` в GitHub Actions).
-3. **`eslint-plugin-react`** устарел для React 19 (можно заменить на `@eslint-react/eslint-plugin`).
-4. **Tailwind 4 / Next 16** (breaking).
+1. **CI:** починить красный крестик (проблема с кэшем `vitest` в GitHub Actions).
+2. **`eslint-plugin-react`** устарел для React 19 (можно заменить на `@eslint-react/eslint-plugin`).
+3. **Tailwind 4 / Next 16** (breaking).
 
 ---
 
@@ -192,8 +191,8 @@
 ## 📋 Шпаргалка
 - **Supabase ref:** `smodijsj`**`i`**`wcvsscfgloh` (с буквой `i`!)
 - **Линт:** `npm run lint` (0 errors, 0 warnings).
-- **Тесты:** `npm run test` (Vitest, 17 тестов).
-- **CI:** GitHub Actions (Actions → CI) — сейчас красный, чинится.
+- **Тесты:** `npm run test` (Vitest, 23 теста).
+- **CI:** GitHub Actions (Actions → CI).
 - **`package.json` overrides:** `postcss: "^8.5.23"`, `glob: "10.5.0"`.
 - **`eslint.config.mjs`:** `FlatCompat` + `compat.extends('next/core-web-vitals')`. `.next` в ignores.
 - **`exceljs`:** в `dependencies`, ленивый импорт в клиентах, статический — в API.
@@ -201,7 +200,7 @@
 - **Аккаунты:** админ — `raibuilding.pl@gmail.com`, водители — `vasiliuk@...`, `kavaliou@...`.
 - **PWA:** установка через «Добавить на главный экран» (Chrome/Safari).
 
-**Закрыто:** Фазы 3.1–3.19.
+**Закрыто:** Фазы 3.1–3.20.
 
 ---
 
