@@ -20,7 +20,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --include=dev
 
       - name: Run Linter
         run: npm run lint
@@ -31,7 +31,6 @@ jobs:
       - name: Run Tests
         run: npm run test
         env:
-          # Next.js требует эти переменные для сборки
           NEXT_PUBLIC_SUPABASE_URL: "https://dummy.supabase.co"
           NEXT_PUBLIC_SUPABASE_ANON_KEY: "dummy-anon-key"
 
