@@ -6,21 +6,20 @@ import type { TripCardData } from './TripsBulkList';
 
 export default function DownloadButton({ data }: { data: TripCardData[] }) {
   async function handleDownload() {
-    // Ленивая загрузка xlsx — только по клику
-    const XLSX = await import('xlsx');
+    const ExcelJS = (await import('exceljs')).default;
 
     const rows = data.map((trip) => {
       const tripExpenses = trip.expenses || 0;
       const tripProfit = (trip.revenue_eur || 0) - tripExpenses;
       return {
-        'Рейс №': trip.trip_number || '',
-        'Клиент': trip.clientName || 'Не указан',
-        'Заявка': trip.client_request_number || '',
-        'Маршрут': trip.route || '',
-        'Статус': trip.status,
-        'Фрахт (€)': trip.revenue_eur || 0,
-        'Расходы (€)': Math.round(tripExpenses * 100) / 100,
-        'Прибыль (€)': Math.round(tripProfit * 100) / 100,
+        tripNumber: trip.trip_number || '',
+        clientName: trip.clientName || 'Не указан',
+        clientRequestNumber: trip.client_request_number || '',
+        route: trip.route || '',
+        status: trip.status,
+        revenue: trip.revenue_eur || 0,
+        expenses: Math.round(tripExpenses * 100) / 100,
+        profit: Math.round(tripProfit * 100) / 100,
       };
     });
 
@@ -29,20 +28,40 @@ export default function DownloadButton({ data }: { data: TripCardData[] }) {
     const profit = totalRevenue - totalExpenses;
 
     rows.push({
-      'Рейс №': 'ИТОГО',
-      'Клиент': '',
-      'Заявка': '',
-      'Маршрут': '',
-      'Статус': '',
-      'Фрахт (€)': Math.round(totalRevenue * 100) / 100,
-      'Расходы (€)': Math.round(totalExpenses * 100) / 100,
-      'Прибыль (€)': Math.round(profit * 100) / 100,
+      tripNumber: 'ИТОГО',
+      clientName: '',
+      clientRequestNumber: '',
+      route: '',
+      status: '',
+      revenue: Math.round(totalRevenue * 100) / 100,
+      expenses: Math.round(totalExpenses * 100) / 100,
+      profit: Math.round(profit * 100) / 100,
     });
 
-    const worksheet = XLSX.utils.json_to_sheet(rows);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Рейсы');
-    XLSX.writeFile(workbook, 'trips.xlsx');
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Рейсы');
+    worksheet.columns = [
+      { header: 'Рейс №', key: 'tripNumber', width: 10 },
+      { header: 'Клиент', key: 'clientName', width: 30 },
+      { header: 'Заявка', key: 'clientRequestNumber', width: 16 },
+      { header: 'Маршрут', key: 'route', width: 40 },
+      { header: 'Статус', key: 'status', width: 16 },
+      { header: 'Фрахт (€)', key: 'revenue', width: 14, style: { numFmt: '0.00' } },
+      { header: 'Расходы (€)', key: 'expenses', width: 14, style: { numFmt: '0.00' } },
+      { header: 'Прибыль (€)', key: 'profit', width: 14, style: { numFmt: '0.00' } },
+    ];
+    worksheet.addRows(rows);
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'trips.xlsx';
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   return (
