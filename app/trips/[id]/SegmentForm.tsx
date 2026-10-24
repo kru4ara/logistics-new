@@ -6,13 +6,13 @@ import {
   X,
   Check,
   Loader2,
-  Package,
 } from 'lucide-react';
 import { createSegment, updateSegment } from './segment-actions';
 import type { Location, Option, CargoOption, Addr, Stop, SegmentData } from './types';
 import SegmentAddressBlock from './SegmentAddressBlock';
 import SegmentStopsBlock from './SegmentStopsBlock';
 import SegmentExecutorBlock from './SegmentExecutorBlock';
+import SegmentCargoSelector from './SegmentCargoSelector';
 
 function toAddr(
   country: string | null,
@@ -194,7 +194,6 @@ export default function SegmentForm({
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const inputClass = 'input';
   const labelClass = 'block text-sm font-medium text-slate-700 mb-1';
 
   function fillFromLocation(locId: string) {
@@ -439,43 +438,11 @@ export default function SegmentForm({
           />
 
           {/* ГРУЗЫ */}
-          {cargoList.length > 0 && (
-            <div className="bg-brand-50 rounded-xl p-4 space-y-3 border border-brand-200">
-              <div className="flex items-center gap-2">
-                <Package className="w-4 h-4 text-brand-700" strokeWidth={2.2} />
-                <h4 className="text-sm font-bold text-brand-800">Какие грузы везёт этот участок</h4>
-              </div>
-
-              <div className="space-y-1.5">
-                {cargoList.map((c) => {
-                  const isChecked = selectedCargo.has(c.id);
-                  return (
-                    <label
-                      key={c.id}
-                      className={`flex items-center gap-2.5 p-2 rounded-lg border cursor-pointer transition-colors
-                        ${isChecked ? 'bg-white border-brand-400' : 'bg-white/60 border-brand-100 hover:border-brand-300'}`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        onChange={() => toggleCargo(c.id)}
-                        className="w-4 h-4 accent-brand-600 cursor-pointer"
-                      />
-                      <span className="text-xs font-bold text-brand-700 bg-brand-100 px-1.5 py-0.5 rounded tabular-nums">
-                        {c.position}
-                      </span>
-                      <span className="text-sm text-slate-800 break-words flex-1">
-                        {c.label}
-                      </span>
-                      <span className="text-[10px] text-slate-400 whitespace-nowrap hidden sm:inline tabular-nums">
-                        {c.from_city || c.from_country || '?'} → {c.to_city || c.to_country || '?'}
-                      </span>
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+          <SegmentCargoSelector
+            cargoList={cargoList}
+            selectedCargo={selectedCargo}
+            onToggle={toggleCargo}
+          />
 
           {/* ОТКУДА */}
           <SegmentAddressBlock
@@ -522,7 +489,7 @@ export default function SegmentForm({
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
-              className={inputClass}
+              className="input"
               placeholder="Время прибытия, особенности ..."
             />
           </div>
