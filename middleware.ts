@@ -14,7 +14,7 @@ export async function middleware(request: NextRequest) {
         getAll() {
           return request.cookies.getAll()
         },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet: { name: string; value: string; options?: any }[]) {
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value)
           )
@@ -29,17 +29,17 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // ВАЖНО: используем getUser(), а не getSession() — getSession() можно подделать
+  // Используем getUser(), а не getSession() — getSession() можно подделать
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Защита роутов: если не залогинен и не на /login — редирект на /login
+  // Защита: не залогинен и не на /login → редирект на /login
   if (!user && !request.nextUrl.pathname.startsWith('/login')) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
   }
 
-  // Если залогинен и на /login — редирект на главную
+  // Залогинен и на /login → редирект на главную
   if (user && request.nextUrl.pathname.startsWith('/login')) {
     const url = request.nextUrl.clone()
     url.pathname = '/'
@@ -51,13 +51,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - api (API routes) — если хочешь защищать API, раскомментируй
-     */
     '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
 }
