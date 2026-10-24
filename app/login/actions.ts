@@ -2,6 +2,7 @@
 
 import { createClient } from '../../lib/supabase/server';
 import { redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
 
 export type LoginState = { error?: string } | null;
 
@@ -20,10 +21,9 @@ export async function login(
   }
 
   let realEmail = loginValue;
+  const supabase = await createClient();
 
   if (!loginValue.includes('@')) {
-    const supabase = await createClient(); // <-- await
-
     // Ищем в таблице users (офис)
     const adminRes = await supabase
       .from('users')
@@ -44,13 +44,10 @@ export async function login(
       if (driverRes.data?.email) {
         realEmail = driverRes.data.email;
       } else {
-        // Если не нашли — пробуем как есть (с добавлением @raibuilding.local)
         realEmail = `${loginValue}@raibuilding.local`;
       }
     }
   }
-
-  const supabase = await createClient(); // <-- await
 
   const { data, error } = await supabase.auth.signInWithPassword({
     email: realEmail,
@@ -62,15 +59,48 @@ export async function login(
     return { error: 'Неверный логин или пароль' };
   }
 
-  // Получаем роль из profiles
+  // Получаем роль и driver_id из profiles
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role')
+    .select('role, driver_id, full_name')
     .eq('id', data.user.id)
     .single();
 
-  // Если профиля нет — считаем админом (чтобы не залочиться)
   const role = profile?.role || 'admin';
+  const driverId = profile?.driver_id || '';
+  const userName = profile?.full_name || (role === 'admin' ? 'Офис' : 'Водитель');
+
+  // Устанавливаем старые куки для совместимости (UI)
+  const cookieStore = await cookies();
+  const isProd = process.env.NODE_ENV === 'production';
+  const COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 дней
+
+  cookieStore.set('role', role, {
+    path: '/',
+    httpOnly: true,
+    secure: isProd,
+    sameSite: 'lax',
+    maxAge: COOKIE_MAX_AGE,
+  });
+
+  if (driverId) {
+    cookieStore.set('driver_id', driverId, {
+      path: '/',
+      httpOnly: true,
+      secure: isProd,
+      sameSite: 'lax',
+      maxAge: COOKIE_MAX_AGE,
+    });
+  } else {
+    cookieStore.delete('driver_id');
+  }
+
+  cookieStore.set('user_name', encodeURIComponent(userName), {
+    path: '/',
+    secure: isProd,
+    sameSite: 'lax',
+    maxAge: COOKIE_MAX_AGE,
+  });
 
   if (role === 'driver') {
     redirect('/driver');
@@ -80,7 +110,13 @@ export async function login(
 }
 
 export async function logout() {
-  const supabase = await createClient(); // <-- await
+  const supabase = await createClient();
   await supabase.auth.signOut();
+  
+  const cookieStore = await cookies();
+  cookieStore.delete('role');
+  cookieStore.delete('driver_id');
+  cookieStore.delete('user_name');
+  
   redirect('/login');
 }
