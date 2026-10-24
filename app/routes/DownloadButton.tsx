@@ -13,15 +13,14 @@ export type RouteCardData = {
 
 export default function DownloadButton({ data }: { data: RouteCardData[] }) {
   async function handleDownload() {
-    // Ленивая загрузка xlsx — только по клику
-    const XLSX = await import('xlsx');
+    const ExcelJS = (await import('exceljs')).default;
 
     const rows = data.map((r) => ({
-      'Маршрут': r.route,
-      'Фрахт (€)': Math.round((r.revenue || 0) * 100) / 100,
-      'Расходы (€)': Math.round((r.expenses || 0) * 100) / 100,
-      'Прибыль (€)': Math.round((r.profit || 0) * 100) / 100,
-      'Количество рейсов': r.count || 0,
+      route: r.route,
+      revenue: Math.round((r.revenue || 0) * 100) / 100,
+      expenses: Math.round((r.expenses || 0) * 100) / 100,
+      profit: Math.round((r.profit || 0) * 100) / 100,
+      count: r.count || 0,
     }));
 
     const totalRevenue = data.reduce((sum, r) => sum + (r.revenue || 0), 0);
@@ -30,17 +29,34 @@ export default function DownloadButton({ data }: { data: RouteCardData[] }) {
     const totalCount = data.reduce((sum, r) => sum + (r.count || 0), 0);
 
     rows.push({
-      'Маршрут': 'ИТОГО',
-      'Фрахт (€)': Math.round(totalRevenue * 100) / 100,
-      'Расходы (€)': Math.round(totalExpenses * 100) / 100,
-      'Прибыль (€)': Math.round(totalProfit * 100) / 100,
-      'Количество рейсов': totalCount,
+      route: 'ИТОГО',
+      revenue: Math.round(totalRevenue * 100) / 100,
+      expenses: Math.round(totalExpenses * 100) / 100,
+      profit: Math.round(totalProfit * 100) / 100,
+      count: totalCount,
     });
 
-    const worksheet = XLSX.utils.json_to_sheet(rows);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Маршруты');
-    XLSX.writeFile(workbook, 'routes.xlsx');
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Маршруты');
+    worksheet.columns = [
+      { header: 'Маршрут', key: 'route', width: 50 },
+      { header: 'Фрахт (€)', key: 'revenue', width: 14, style: { numFmt: '0.00' } },
+      { header: 'Расходы (€)', key: 'expenses', width: 14, style: { numFmt: '0.00' } },
+      { header: 'Прибыль (€)', key: 'profit', width: 14, style: { numFmt: '0.00' } },
+      { header: 'Количество рейсов', key: 'count', width: 18 },
+    ];
+    worksheet.addRows(rows);
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'routes.xlsx';
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   return (
