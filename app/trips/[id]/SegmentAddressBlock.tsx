@@ -1,7 +1,7 @@
 'use client';
 
-import { MapPin, Wand2 } from 'lucide-react';
-import type { Location, CargoOption, Addr } from './types'; // <-- нужно будет создать файл с типами
+import { MapPin, Flag, Wand2 } from 'lucide-react';
+import type { Location, CargoOption, Addr } from './types';
 
 export default function SegmentAddressBlock({
   type,
@@ -24,7 +24,7 @@ export default function SegmentAddressBlock({
   onFillFromCargo: (cargoId: string) => void;
   onFillFromLocation: (locId: string) => void;
 }) {
-  const Icon = type === 'from' ? MapPin : MapPin; // можно использовать Flag для 'to'
+  const Icon = type === 'from' ? MapPin : Flag;
   const bgClass = color === 'green' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200';
   const iconColor = color === 'green' ? 'text-green-700' : 'text-red-700';
   const titleColor = color === 'green' ? 'text-green-800' : 'text-red-800';
