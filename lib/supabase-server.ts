@@ -1,3 +1,4 @@
+import 'server-only';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 
 // Серверный клиент работает с service_role: полные права, обходит RLS.
