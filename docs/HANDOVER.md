@@ -199,6 +199,31 @@
 - `@next/bundle-analyzer` (и любые dev-инструменты) **не оборачивать `next.config.js` безусловно** — только через `if (process.env.ANALYZE === 'true')`, иначе Vercel падает (devDependencies не ставятся в проде).
 - Тяжёлые библиотеки (`exceljs`, `docx`, `leaflet`) — только через динамический `import()` или серверные API-роуты.
 
+## ✅ Фаза 17 — Миграция на Supabase Auth — ЗАКРЫТО (24.10.2026)
+
+**Что сделано:**
+- Установлен `@supabase/ssr`.
+- Созданы:
+  - `lib/supabase/server.ts` — серверный клиент с сессией (использует `NEXT_PUBLIC_SUPABASE_ANON_KEY`, подчиняется RLS).
+  - `lib/supabase-browser.ts` — браузерный клиент.
+  - `middleware.ts` — проверяет `supabase.auth.getUser()` на каждом запросе, редиректит неавторизованных на `/login`.
+- Переписан `app/login/actions.ts`:
+  - Вход через `supabase.auth.signInWithPassword()`.
+  - Поиск email по логину в таблицах `users` (офис) и `drivers` (водители).
+  - Установка куки `role`, `driver_id`, `user_name` **для совместимости со старым UI**.
+  - Редирект на `/` (админ) или `/driver` (водитель).
+- В Supabase SQL:
+  - Создана таблица `profiles` (связь `auth.users` с ролью и `driver_id`).
+  - Включён RLS на `profiles`.
+  - Создан триггер `handle_new_user` (автосоздание профиля при регистрации).
+  - Добавлены `email` в `drivers` (для связи).
+- В `profiles` оставлены только: **1 админ** (`raibuilding.pl@gmail.com`) и **2 водителя** (`VASILIUK`, `KAVALIOU`).
+- Пароли водителей обновлены через `auth.users.encrypted_password` (bcrypt), старые пароли сохранены.
+
+**Что осталось (технический долг, не срочно):**
+- Постепенно заменить чтение `cookies().get('role')` в страницах и `AppShellClient` на `supabase.auth.getUser()` + запрос к `profiles`. Тогда куки можно будет убрать.
+- Настроить SMTP для сброса паролей через email (сейчас сброс только вручную).
+
 ---
 
 ## 📈 Состояние скорости (24.10.2026)
