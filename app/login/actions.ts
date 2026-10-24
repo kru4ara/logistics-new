@@ -1,16 +1,7 @@
 'use server';
 
-import { cookies } from 'next/headers';
+import { createClient } from '../../lib/supabase/server';
 import { redirect } from 'next/navigation';
-import bcrypt from 'bcryptjs';
-import { createClient } from '../../lib/supabase-server';
-
-const FAIL_DELAY_MS = 500;
-const COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 дней
-
-function delay(ms: number) {
-  return new Promise((r) => setTimeout(r, ms));
-}
 
 export type LoginState = { error?: string } | null;
 
@@ -25,91 +16,73 @@ export async function login(
   const passwordValue = typeof rawPassword === 'string' ? rawPassword : '';
 
   if (!loginValue || !passwordValue) {
-    await delay(FAIL_DELAY_MS);
     return { error: 'Введите логин и пароль' };
   }
 
+  // Если ввели email — используем его напрямую
+  let email = loginValue;
+  let realEmail = loginValue;
+
+  if (!loginValue.includes('@')) {
+    // Ищем в таблице users (офис)
+    const adminRes = await createClient()
+      .from('users')
+      .select('email')
+      .eq('login', loginValue)
+      .maybeSingle();
+
+    if (adminRes.data?.email) {
+      realEmail = adminRes.data.email;
+    } else {
+      // Ищем в таблице drivers (по фамилии)
+      const driverRes = await createClient()
+        .from('drivers')
+        .select('email')
+        .ilike('last_name', loginValue)
+        .maybeSingle();
+
+      if (driverRes.data?.email) {
+        realEmail = driverRes.data.email;
+      } else {
+        // Если не нашли — пробуем как есть (с добавлением @raibuilding.local)
+        realEmail = `${loginValue}@raibuilding.local`;
+      }
+    }
+  }
+
+  email = realEmail;
+
   const supabase = await createClient();
-  const cookieStore = await cookies();
-  const isProd = process.env.NODE_ENV === 'production';
 
-  // -----------------------------------------------------------------
-  // 1. Офис (таблица users)
-  // -----------------------------------------------------------------
-  const { data: admin } = await supabase
-    .from('users')
-    .select('id, login, password_hash')
-    .eq('login', loginValue)
-    .maybeSingle();
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password: passwordValue,
+  });
 
-  if (admin?.password_hash) {
-    const ok = await bcrypt.compare(passwordValue, admin.password_hash);
-    if (ok) {
-      cookieStore.set('role', 'admin', {
-        path: '/',
-        httpOnly: true,
-        secure: isProd,
-        sameSite: 'lax',
-        maxAge: COOKIE_MAX_AGE,
-      });
-      cookieStore.set('user_name', encodeURIComponent('Офис'), {
-        path: '/',
-        secure: isProd,
-        sameSite: 'lax',
-        maxAge: COOKIE_MAX_AGE,
-      });
-      redirect('/');
-    }
+  if (error) {
+    console.error('[login] error:', error.message);
+    return { error: 'Неверный логин или пароль' };
   }
 
-  // -----------------------------------------------------------------
-  // 2. Водитель (таблица drivers, логин = фамилия, регистр не важен)
-  // -----------------------------------------------------------------
-  const { data: driver } = await supabase
-    .from('drivers')
-    .select('id, first_name, last_name, password_hash')
-    .ilike('last_name', loginValue)
-    .maybeSingle();
+  // Получаем роль из profiles
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', data.user.id)
+    .single();
 
-  if (driver?.password_hash) {
-    const ok = await bcrypt.compare(passwordValue, driver.password_hash);
-    if (ok) {
-      cookieStore.set('role', 'driver', {
-        path: '/',
-        httpOnly: true,
-        secure: isProd,
-        sameSite: 'lax',
-        maxAge: COOKIE_MAX_AGE,
-      });
-      cookieStore.set('driver_id', driver.id, {
-        path: '/',
-        httpOnly: true,
-        secure: isProd,
-        sameSite: 'lax',
-        maxAge: COOKIE_MAX_AGE,
-      });
-      cookieStore.set(
-        'user_name',
-        encodeURIComponent(`${driver.first_name} ${driver.last_name}`),
-        {
-          path: '/',
-          secure: isProd,
-          sameSite: 'lax',
-          maxAge: COOKIE_MAX_AGE,
-        }
-      );
-      redirect('/driver');
-    }
+  // Если профиля нет — считаем админом (чтобы не залочиться)
+  const role = profile?.role || 'admin';
+
+  if (role === 'driver') {
+    redirect('/driver');
+  } else {
+    redirect('/');
   }
-
-  await delay(FAIL_DELAY_MS);
-  return { error: 'Неверный логин или пароль' };
 }
 
 export async function logout() {
-  const cookieStore = await cookies();
-  cookieStore.delete('role');
-  cookieStore.delete('driver_id');
-  cookieStore.delete('user_name');
+  const supabase = await createClient();
+  await supabase.auth.signOut();
   redirect('/login');
 }
