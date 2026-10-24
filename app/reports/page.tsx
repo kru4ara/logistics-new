@@ -47,6 +47,13 @@ const QUICK_LINKS: QuickLink[] = [
     gradient: 'from-brand-600 to-brand-800',
   },
   {
+  href: '/reports/cargo',
+  title: 'Фрахт по грузам',
+  hint: 'Прибыльность каждого груза с распределением расходов',
+  Icon: Package,
+  gradient: 'from-blue-600 to-blue-800',
+  },
+  {
     href: '/reports/logisat',
     title: 'Ошибки Logisat',
     hint: 'Проблемы синхронизации: нет данных, сломан одометр или датчик топлива',
