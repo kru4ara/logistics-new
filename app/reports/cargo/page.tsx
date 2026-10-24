@@ -30,7 +30,8 @@ export default async function CargoReportPage({
       client_id, clients(name),
       trip_id, trips!inner(id, trip_number, start_date, status, revenue_eur)
     `)
-    .order('id', { ascending: false });
+    .order('start_date', { referencedTable: 'trips', ascending: false })
+    .order('position', { ascending: true });
 
   if (from) query = query.gte('trips.start_date', from);
   if (to) query = query.lte('trips.start_date', to);
