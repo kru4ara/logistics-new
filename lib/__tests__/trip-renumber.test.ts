@@ -8,7 +8,13 @@ function createMockSupabase(mockTrips: any[]) {
     from: vi.fn().mockReturnValue({
       select: vi.fn().mockReturnValue({
         order: vi.fn().mockReturnValue({
-          order: vi.fn().mockResolvedValue({ data: mockTrips, error: null }),
+          order: vi.fn().mockResolvedValue({
+            data: [...mockTrips].sort((a, b) => {
+              if (a.start_date === b.start_date) return a.id.localeCompare(b.id);
+              return new Date(a.start_date).getTime() - new Date(b.start_date).getTime();
+            }),
+            error: null,
+          }),
         }),
       }),
       update: vi.fn().mockImplementation((payload: { trip_number: number }) => ({
@@ -62,8 +68,6 @@ describe('renumberAllTrips', () => {
   });
 
   it('перенумеровывает, если номера перепутаны (1, 2, 3 → 3, 1, 2 по дате)', async () => {
-    // После сортировки по дате порядок: t2 (01.01), t3 (01.02), t1 (01.03)
-    // Но номера у них: t2 = 2, t3 = 3, t1 = 1 (то есть перепутаны)
     const trips = [
       { id: 't1', trip_number: 1, start_date: '2026-01-03' },
       { id: 't2', trip_number: 2, start_date: '2026-01-01' },
@@ -74,7 +78,6 @@ describe('renumberAllTrips', () => {
 
     const finalUpdates = getUpdates();
     expect(finalUpdates).toHaveLength(3);
-    // Ожидаем: t2 (первый по дате) → 1, t3 (второй) → 2, t1 (третий) → 3
     expect(finalUpdates.find((u) => u.id === 't2')?.trip_number).toBe(1);
     expect(finalUpdates.find((u) => u.id === 't3')?.trip_number).toBe(2);
     expect(finalUpdates.find((u) => u.id === 't1')?.trip_number).toBe(3);
