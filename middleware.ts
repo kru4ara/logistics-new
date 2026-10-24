@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-// Список путей, куда водителям нельзя
+// Список путей, которые запрещены для водителей
 const ADMIN_ONLY_PATHS = [
   '/reports',
   '/audit',
@@ -16,7 +16,6 @@ const ADMIN_ONLY_PATHS = [
   '/reminders',
   '/api/export',
   '/api/forwarding',
-  '/api/trips',
 ];
 
 export async function middleware(request: NextRequest) {
@@ -65,23 +64,22 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // 2. Проверяем роль (только для залогиненных)
+  // 2. Проверяем роль (только если залогинен)
   if (user) {
-    // Оптимизация: чтобы не делать запрос к БД на каждый статичный файл,
-    // проверяем только страницы и API
-    const isProtected = ADMIN_ONLY_PATHS.some((path) => pathname.startsWith(path));
+    // Проверяем только защищенные пути, чтобы не делать лишний запрос на каждый клик
+    const isAdminPath = ADMIN_ONLY_PATHS.some((path) => pathname.startsWith(path));
 
-    if (isProtected) {
-      // Получаем роль из профиля
+    if (isAdminPath) {
+      // Получаем роль из таблицы profiles
       const { data: profile } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', user.id)
         .single();
 
-      const role = profile?.role || 'driver'; // Если нет профиля, считаем водителем (безопаснее)
+      const role = profile?.role || 'driver'; // Если нет профиля — безопасный дефолт
 
-      // Если водитель лезет на админскую страницу — редирект на /driver
+      // Если это водитель — редирект на его страницу
       if (role === 'driver') {
         const url = request.nextUrl.clone()
         url.pathname = '/driver'
