@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import { cookies } from 'next/headers';
 import { createClient } from '../../../lib/supabase-server';
 import { buildRouteMap } from '../../../lib/trip-route';
@@ -74,7 +74,7 @@ async function buildTripsSheet(
   supabase: Awaited<ReturnType<typeof createClient>>,
   from: string | null,
   to: string | null
-): Promise<XLSX.WorkSheet> {
+): Promise<ExcelJS.Worksheet> {
   let query = supabase
     .from('trips')
     .select(`
@@ -93,7 +93,6 @@ async function buildTripsSheet(
 
   const tripIds = (trips || []).map((t: any) => t.id).filter(Boolean) as string[];
 
-  // Сегменты — для вычисления маршрута
   const { data: segs } = tripIds.length > 0
     ? await supabase
         .from('trip_segments')
@@ -123,48 +122,58 @@ async function buildTripsSheet(
       : '';
     const routeInfo = routeByTrip.get(t.id);
     return {
-      '№ рейса': t.trip_number || '',
-      'Старт': isoDate(t.start_date),
-      'Финиш': isoDate(t.end_date),
-      'Клиент': pickName(t.clients),
-      'Тягач': t.trucks?.registration_number || '',
-      'Водитель': driver,
-      'Маршрут': routeInfo?.route || '',
-      'Фрахт (EUR)': r2(revenue),
-      'Расходы (EUR)': r2(exp),
-      'Прибыль (EUR)': r2(revenue - exp),
-      'Пробег (км)': toNumber(t.actual_km),
-      'Статус': statusLabel(t.status),
+      tripNumber: t.trip_number || '',
+      start: isoDate(t.start_date),
+      end: isoDate(t.end_date),
+      client: pickName(t.clients),
+      truck: t.trucks?.registration_number || '',
+      driver,
+      route: routeInfo?.route || '',
+      revenue: r2(revenue),
+      expenses: r2(exp),
+      profit: r2(revenue - exp),
+      km: toNumber(t.actual_km),
+      status: statusLabel(t.status),
     };
   });
 
-  const totalRevenue = rows.reduce((s, r) => s + (r['Фрахт (EUR)'] as number || 0), 0);
-  const totalExpenses = rows.reduce((s, r) => s + (r['Расходы (EUR)'] as number || 0), 0);
-  const totalKm = rows.reduce((s, r) => s + (r['Пробег (км)'] as number || 0), 0);
+  const totalRevenue = rows.reduce((s, r) => s + (r.revenue as number || 0), 0);
+  const totalExpenses = rows.reduce((s, r) => s + (r.expenses as number || 0), 0);
+  const totalKm = rows.reduce((s, r) => s + (r.km as number || 0), 0);
 
   if (rows.length > 0) {
     rows.push({
-      '№ рейса': 'ИТОГО',
-      'Старт': '',
-      'Финиш': '',
-      'Клиент': '',
-      'Тягач': '',
-      'Водитель': '',
-      'Маршрут': '',
-      'Фрахт (EUR)': r2(totalRevenue),
-      'Расходы (EUR)': r2(totalExpenses),
-      'Прибыль (EUR)': r2(totalRevenue - totalExpenses),
-      'Пробег (км)': r2(totalKm),
-      'Статус': '',
+      tripNumber: 'ИТОГО',
+      start: '',
+      end: '',
+      client: '',
+      truck: '',
+      driver: '',
+      route: '',
+      revenue: r2(totalRevenue),
+      expenses: r2(totalExpenses),
+      profit: r2(totalRevenue - totalExpenses),
+      km: r2(totalKm),
+      status: '',
     });
   }
 
-  const ws = XLSX.utils.json_to_sheet(rows);
-  ws['!cols'] = [
-    { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 25 }, { wch: 12 },
-    { wch: 20 }, { wch: 40 }, { wch: 14 }, { wch: 14 }, { wch: 14 },
-    { wch: 12 }, { wch: 16 },
+  const ws = new ExcelJS.Workbook().addWorksheet('Рейсы');
+  ws.columns = [
+    { header: '№ рейса', key: 'tripNumber', width: 10 },
+    { header: 'Старт', key: 'start', width: 12 },
+    { header: 'Финиш', key: 'end', width: 12 },
+    { header: 'Клиент', key: 'client', width: 25 },
+    { header: 'Тягач', key: 'truck', width: 12 },
+    { header: 'Водитель', key: 'driver', width: 20 },
+    { header: 'Маршрут', key: 'route', width: 40 },
+    { header: 'Фрахт (EUR)', key: 'revenue', width: 14, style: { numFmt: '0.00' } },
+    { header: 'Расходы (EUR)', key: 'expenses', width: 14, style: { numFmt: '0.00' } },
+    { header: 'Прибыль (EUR)', key: 'profit', width: 14, style: { numFmt: '0.00' } },
+    { header: 'Пробег (км)', key: 'km', width: 12 },
+    { header: 'Статус', key: 'status', width: 16 },
   ];
+  ws.addRows(rows);
   return ws;
 }
 
@@ -172,7 +181,7 @@ async function buildExpensesSheet(
   supabase: Awaited<ReturnType<typeof createClient>>,
   from: string | null,
   to: string | null
-): Promise<XLSX.WorkSheet> {
+): Promise<ExcelJS.Worksheet> {
   let query = supabase
     .from('trip_expenses')
     .select(`
@@ -188,37 +197,44 @@ async function buildExpensesSheet(
   if (error) console.error('[export/expenses] error:', error);
 
   const rows: Record<string, unknown>[] = (data || []).map((e: any) => ({
-    'Дата': isoDate(e.expense_date),
-    'Рейс №': e.trips?.trip_number || '',
-    'Категория': categoryLabel(e.category),
-    'Описание': e.description || '',
-    'Сумма': toNumber(e.original_amount),
-    'Валюта': e.currency || '',
-    'В EUR': r2(toNumber(e.amount_eur)),
-    'Литры': e.liters != null ? toNumber(e.liters) : '',
+    date: isoDate(e.expense_date),
+    tripNumber: e.trips?.trip_number || '',
+    category: categoryLabel(e.category),
+    description: e.description || '',
+    amount: toNumber(e.original_amount),
+    currency: e.currency || '',
+    eur: r2(toNumber(e.amount_eur)),
+    liters: e.liters != null ? toNumber(e.liters) : '',
   }));
 
-  const totalEur = rows.reduce((s, r) => s + (r['В EUR'] as number || 0), 0);
-  const totalLiters = rows.reduce((s, r) => s + (typeof r['Литры'] === 'number' ? r['Литры'] : 0), 0);
+  const totalEur = rows.reduce((s, r) => s + (r.eur as number || 0), 0);
+  const totalLiters = rows.reduce((s, r) => s + (typeof r.liters === 'number' ? r.liters : 0), 0);
 
   if (rows.length > 0) {
     rows.push({
-      'Дата': 'ИТОГО',
-      'Рейс №': '',
-      'Категория': '',
-      'Описание': '',
-      'Сумма': '',
-      'Валюта': '',
-      'В EUR': r2(totalEur),
-      'Литры': totalLiters > 0 ? r2(totalLiters) : '',
+      date: 'ИТОГО',
+      tripNumber: '',
+      category: '',
+      description: '',
+      amount: '',
+      currency: '',
+      eur: r2(totalEur),
+      liters: totalLiters > 0 ? r2(totalLiters) : '',
     });
   }
 
-  const ws = XLSX.utils.json_to_sheet(rows);
-  ws['!cols'] = [
-    { wch: 12 }, { wch: 10 }, { wch: 18 }, { wch: 40 },
-    { wch: 12 }, { wch: 8 }, { wch: 12 }, { wch: 10 },
+  const ws = new ExcelJS.Workbook().addWorksheet('Расходы рейсов');
+  ws.columns = [
+    { header: 'Дата', key: 'date', width: 12 },
+    { header: 'Рейс №', key: 'tripNumber', width: 10 },
+    { header: 'Категория', key: 'category', width: 18 },
+    { header: 'Описание', key: 'description', width: 40 },
+    { header: 'Сумма', key: 'amount', width: 12 },
+    { header: 'Валюта', key: 'currency', width: 8 },
+    { header: 'В EUR', key: 'eur', width: 12, style: { numFmt: '0.00' } },
+    { header: 'Литры', key: 'liters', width: 10 },
   ];
+  ws.addRows(rows);
   return ws;
 }
 
@@ -226,7 +242,7 @@ async function buildForwardingSheet(
   supabase: Awaited<ReturnType<typeof createClient>>,
   from: string | null,
   to: string | null
-): Promise<XLSX.WorkSheet> {
+): Promise<ExcelJS.Worksheet> {
   let query = supabase
     .from('forwarding_orders')
     .select(`
@@ -275,47 +291,55 @@ async function buildForwardingSheet(
     const cSum = contractorsByFwd[o.id] || 0;
     const eSum = expensesByFwd[o.id] || 0;
     return {
-      '№ заявки': o.order_number || '',
-      'Дата загрузки': isoDate(o.load_date),
-      'Дата выгрузки': isoDate(o.unload_date),
-      'Клиент': pickName(o.clients),
-      'Клиент платит (EUR)': r2(clientPrice),
-      'Подрядчикам (EUR)': r2(cSum),
-      'Доп. расходы (EUR)': r2(eSum),
-      'Маржа (EUR)': r2(clientPrice - cSum - eSum),
-      'Статус': statusLabel(o.status),
+      orderNumber: o.order_number || '',
+      loadDate: isoDate(o.load_date),
+      unloadDate: isoDate(o.unload_date),
+      client: pickName(o.clients),
+      clientPrice: r2(clientPrice),
+      contractorSum: r2(cSum),
+      extraExpenses: r2(eSum),
+      margin: r2(clientPrice - cSum - eSum),
+      status: statusLabel(o.status),
     };
   });
 
-  const totalClient = rows.reduce((s, r) => s + (r['Клиент платит (EUR)'] as number || 0), 0);
-  const totalContractor = rows.reduce((s, r) => s + (r['Подрядчикам (EUR)'] as number || 0), 0);
-  const totalExtra = rows.reduce((s, r) => s + (r['Доп. расходы (EUR)'] as number || 0), 0);
+  const totalClient = rows.reduce((s, r) => s + (r.clientPrice as number || 0), 0);
+  const totalContractor = rows.reduce((s, r) => s + (r.contractorSum as number || 0), 0);
+  const totalExtra = rows.reduce((s, r) => s + (r.extraExpenses as number || 0), 0);
 
   if (rows.length > 0) {
     rows.push({
-      '№ заявки': 'ИТОГО',
-      'Дата загрузки': '',
-      'Дата выгрузки': '',
-      'Клиент': '',
-      'Клиент платит (EUR)': r2(totalClient),
-      'Подрядчикам (EUR)': r2(totalContractor),
-      'Доп. расходы (EUR)': r2(totalExtra),
-      'Маржа (EUR)': r2(totalClient - totalContractor - totalExtra),
-      'Статус': '',
+      orderNumber: 'ИТОГО',
+      loadDate: '',
+      unloadDate: '',
+      client: '',
+      clientPrice: r2(totalClient),
+      contractorSum: r2(totalContractor),
+      extraExpenses: r2(totalExtra),
+      margin: r2(totalClient - totalContractor - totalExtra),
+      status: '',
     });
   }
 
-  const ws = XLSX.utils.json_to_sheet(rows);
-  ws['!cols'] = [
-    { wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 25 },
-    { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 14 }, { wch: 16 },
+  const ws = new ExcelJS.Workbook().addWorksheet('Экспедирование');
+  ws.columns = [
+    { header: '№ заявки', key: 'orderNumber', width: 12 },
+    { header: 'Дата загрузки', key: 'loadDate', width: 14 },
+    { header: 'Дата выгрузки', key: 'unloadDate', width: 14 },
+    { header: 'Клиент', key: 'client', width: 25 },
+    { header: 'Клиент платит (EUR)', key: 'clientPrice', width: 18, style: { numFmt: '0.00' } },
+    { header: 'Подрядчикам (EUR)', key: 'contractorSum', width: 18, style: { numFmt: '0.00' } },
+    { header: 'Доп. расходы (EUR)', key: 'extraExpenses', width: 18, style: { numFmt: '0.00' } },
+    { header: 'Маржа (EUR)', key: 'margin', width: 14, style: { numFmt: '0.00' } },
+    { header: 'Статус', key: 'status', width: 16 },
   ];
+  ws.addRows(rows);
   return ws;
 }
 
 async function buildClientsSheet(
   supabase: Awaited<ReturnType<typeof createClient>>
-): Promise<XLSX.WorkSheet> {
+): Promise<ExcelJS.Worksheet> {
   const [{ data: trips }, { data: forwarding }] = await Promise.all([
     supabase
       .from('trips')
@@ -348,26 +372,32 @@ async function buildClientsSheet(
   const rows: Record<string, unknown>[] = Object.values(stats)
     .sort((a, b) => b.revenue - a.revenue)
     .map((s) => ({
-      'Клиент': s.name,
-      'Тип': s.type,
-      'Сделок': s.count,
-      'Доход (EUR)': r2(s.revenue),
+      client: s.name,
+      type: s.type,
+      deals: s.count,
+      revenue: r2(s.revenue),
     }));
 
-  const totalRevenue = rows.reduce((s, r) => s + (r['Доход (EUR)'] as number || 0), 0);
-  const totalDeals = rows.reduce((s, r) => s + (r['Сделок'] as number || 0), 0);
+  const totalRevenue = rows.reduce((s, r) => s + (r.revenue as number || 0), 0);
+  const totalDeals = rows.reduce((s, r) => s + (r.deals as number || 0), 0);
 
   if (rows.length > 0) {
     rows.push({
-      'Клиент': 'ИТОГО',
-      'Тип': '',
-      'Сделок': totalDeals,
-      'Доход (EUR)': r2(totalRevenue),
+      client: 'ИТОГО',
+      type: '',
+      deals: totalDeals,
+      revenue: r2(totalRevenue),
     });
   }
 
-  const ws = XLSX.utils.json_to_sheet(rows);
-  ws['!cols'] = [{ wch: 35 }, { wch: 16 }, { wch: 10 }, { wch: 16 }];
+  const ws = new ExcelJS.Workbook().addWorksheet('Прибыльность клиентов');
+  ws.columns = [
+    { header: 'Клиент', key: 'client', width: 35 },
+    { header: 'Тип', key: 'type', width: 16 },
+    { header: 'Сделок', key: 'deals', width: 10 },
+    { header: 'Доход (EUR)', key: 'revenue', width: 16, style: { numFmt: '0.00' } },
+  ];
+  ws.addRows(rows);
   return ws;
 }
 
@@ -386,7 +416,7 @@ export async function GET(request: Request) {
 
   const supabase = await createClient();
 
-  let sheet: XLSX.WorkSheet;
+  let sheet: ExcelJS.Worksheet;
   let sheetName: string;
   let baseName: string;
 
@@ -412,8 +442,11 @@ export async function GET(request: Request) {
     }
 
     if (format === 'csv') {
-      const csvBody = XLSX.utils.sheet_to_csv(sheet, { FS: ';' });
-      const csvWithBom = '\uFEFF' + csvBody;
+      const csvBuffer = await sheet.workbook.csv.writeBuffer({
+        sheetName,
+        formatterOptions: { delimiter: ';' },
+      });
+      const csvWithBom = '\uFEFF' + Buffer.from(csvBuffer).toString('utf-8');
 
       return new NextResponse(csvWithBom, {
         status: 200,
@@ -424,11 +457,9 @@ export async function GET(request: Request) {
       });
     }
 
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, sheet, sheetName);
-    const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    const buffer = await sheet.workbook.xlsx.writeBuffer();
 
-    return new NextResponse(buf, {
+    return new NextResponse(buffer, {
       status: 200,
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
