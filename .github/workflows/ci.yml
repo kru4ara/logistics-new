@@ -30,12 +30,13 @@ jobs:
 
       - name: Run Tests
         run: npm run test
+        env:
+          # Next.js требует эти переменные для сборки
+          NEXT_PUBLIC_SUPABASE_URL: "https://dummy.supabase.co"
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: "dummy-anon-key"
 
       - name: Build Next.js
         run: npm run build
         env:
-          # Next.js требует эти переменные для сборки, даже если они не используются в CI
           NEXT_PUBLIC_SUPABASE_URL: "https://dummy.supabase.co"
           NEXT_PUBLIC_SUPABASE_ANON_KEY: "dummy-anon-key"
-          
- 
