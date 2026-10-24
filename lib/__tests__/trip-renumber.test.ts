@@ -1,7 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renumberAllTrips } from '../trip-renumber';
 
-// Фабрика для создания фейкового Supabase клиента
 function createMockSupabase(mockTrips: any[]) {
   const updatesMap = new Map<string, number>();
 
@@ -15,7 +14,6 @@ function createMockSupabase(mockTrips: any[]) {
       update: vi.fn().mockImplementation((payload: { trip_number: number }) => ({
         eq: vi.fn().mockImplementation((column: string, value: string) => {
           if (column === 'id') {
-            // Сохраняем только последнее значение для каждого id
             updatesMap.set(value, payload.trip_number);
           }
           return Promise.resolve({ error: null });
@@ -63,17 +61,20 @@ describe('renumberAllTrips', () => {
     expect(finalUpdates.find((u) => u.id === 't3')?.trip_number).toBe(3);
   });
 
-  it('перенумеровывает, если номера перепутаны (3, 1, 2 → 1, 2, 3 по дате)', async () => {
+  it('перенумеровывает, если номера перепутаны (1, 2, 3 → 3, 1, 2 по дате)', async () => {
+    // После сортировки по дате порядок: t2 (01.01), t3 (01.02), t1 (01.03)
+    // Но номера у них: t2 = 2, t3 = 3, t1 = 1 (то есть перепутаны)
     const trips = [
-      { id: 't1', trip_number: 3, start_date: '2026-01-03' },
-      { id: 't2', trip_number: 1, start_date: '2026-01-01' },
-      { id: 't3', trip_number: 2, start_date: '2026-01-02' },
+      { id: 't1', trip_number: 1, start_date: '2026-01-03' },
+      { id: 't2', trip_number: 2, start_date: '2026-01-01' },
+      { id: 't3', trip_number: 3, start_date: '2026-01-02' },
     ];
     const { supabase, getUpdates } = createMockSupabase(trips);
     await renumberAllTrips(supabase);
 
     const finalUpdates = getUpdates();
     expect(finalUpdates).toHaveLength(3);
+    // Ожидаем: t2 (первый по дате) → 1, t3 (второй) → 2, t1 (третий) → 3
     expect(finalUpdates.find((u) => u.id === 't2')?.trip_number).toBe(1);
     expect(finalUpdates.find((u) => u.id === 't3')?.trip_number).toBe(2);
     expect(finalUpdates.find((u) => u.id === 't1')?.trip_number).toBe(3);
