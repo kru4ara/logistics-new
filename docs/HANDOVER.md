@@ -271,6 +271,8 @@
 **✅ `react-hooks` — ВСЕ 15 ошибок закрыты.**
 Остались только `@next/next/no-img-element` (2 warning, в очереди).
 
+**`postcss-selector-parser` (3 moderate):** dev-only (Tailwind 3 → postcss-nested → postcss-selector-parser). Override на `postcss-nested@7.0.2` не применился: `tailwindcss@3.4.19` жёстко требует `^6.2.0`, npm не подставляет мажор. Принято как риск: уязвимость только при сборке CSS на своём конфиге Tailwind, атака требует вредоносного CSS извне. Фикс — только в Tailwind 4 (breaking).
+
 ### Правила замены `<a>` → `<Link>`
 - Внутренние `href="/..."` и `href={`/...`}` → `<Link>`.
 - **`tel:`, `mailto:`, `https://` — оставить `<a>`**.
