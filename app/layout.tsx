@@ -3,6 +3,7 @@ import { Suspense } from 'react';
 import './globals.css';
 import AppShell from './components/AppShell';
 import Toaster from './components/Toaster';
+import ServiceWorkerRegister from './components/ServiceWorkerRegister';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 
 export const viewport: Viewport = {
@@ -39,6 +40,7 @@ export default async function RootLayout({
           <Toaster />
         </Suspense>
         <AppShell>{children}</AppShell>
+        <ServiceWorkerRegister />
         <SpeedInsights />
       </body>
     </html>
