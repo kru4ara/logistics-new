@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../../lib/supabase-server';
-import { Package, ArrowLeft, TrendingUp, Wallet, Filter, Inbox } from 'lucide-react';
+import { Package, ArrowLeft, Inbox } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,14 +21,14 @@ export default async function CargoReportPage({
 
   const supabase = await createClient();
 
-  // 1. Получаем грузы с рейсами
+  // 1. Получаем грузы с рейсами (добавили revenue_eur из trips)
   let query = supabase
     .from('trip_cargo')
     .select(`
       id, label, cargo_type, weight_kg, pallets,
       freight_amount, freight_currency,
       client_id, clients(name),
-      trip_id, trips!inner(id, trip_number, start_date, status)
+      trip_id, trips!inner(id, trip_number, start_date, status, revenue_eur)
     `)
     .order('id', { ascending: false });
 
@@ -41,7 +41,7 @@ export default async function CargoReportPage({
     return <div className="p-8 text-red-500">Ошибка: {error.message}</div>;
   }
 
-  // 2. Считаем расходы по рейсам (для распределения)
+  // 2. Считаем расходы по рейсам
   const tripIds = Array.from(new Set((cargoRows || []).map((c: any) => c.trip_id)));
   const expensesByTrip: Record<string, number> = {};
 
@@ -57,7 +57,7 @@ export default async function CargoReportPage({
     });
   }
 
-  // 3. Группируем грузы по рейсу, чтобы распределить расходы пропорционально фрахту
+  // 3. Группируем грузы по рейсу
   const cargoByTrip: Record<string, any[]> = {};
   (cargoRows || []).forEach((c: any) => {
     if (!cargoByTrip[c.trip_id]) cargoByTrip[c.trip_id] = [];
@@ -67,24 +67,30 @@ export default async function CargoReportPage({
   const reportRows = (cargoRows || []).map((c: any) => {
     const trip = c.trips;
     const tripCargo = cargoByTrip[c.trip_id] || [];
-    
-    // Общий фрахт рейса (в EUR) — для пропорции
+    const tripExpenses = expensesByTrip[c.trip_id] || 0;
+
+    // ЛОГИКА ФРАХТА:
+    // Если у груза есть свой freight_amount — берём его.
+    // Если нет — берём общий revenue_eur рейса и делим на количество грузов в этом рейсе.
+    let freight = c.freight_amount || 0;
+    const isFallback = freight === 0 && (trip.revenue_eur || 0) > 0;
+
+    if (isFallback) {
+      freight = (trip.revenue_eur || 0) / (tripCargo.length || 1);
+    }
+
+    // Распределяем расходы пропорционально фрахту (если фрахт 0, то поровну)
     const totalTripFreight = tripCargo.reduce((sum, item) => {
-      // Упрощение: считаем, что все фрахты в EUR (или уже пересчитаны)
-      return sum + (item.freight_amount || 0);
+      return sum + (item.freight_amount || (isFallback ? freight : 0));
     }, 0);
 
-    const tripExpenses = expensesByTrip[c.trip_id] || 0;
-    
-    // Доля расходов, приходящаяся на этот груз
-    const share = totalTripFreight > 0 ? (c.freight_amount || 0) / totalTripFreight : 0;
+    const share = totalTripFreight > 0 ? freight / totalTripFreight : (1 / (tripCargo.length || 1));
     const allocatedExpenses = tripExpenses * share;
-
-    const freight = c.freight_amount || 0;
     const profit = freight - allocatedExpenses;
 
     return {
       id: c.id,
+      tripId: c.trip_id, // для ссылки
       tripNumber: trip?.trip_number || '—',
       tripDate: trip?.start_date,
       clientName: c.clients?.name || '—',
@@ -95,6 +101,7 @@ export default async function CargoReportPage({
       freightCurrency: c.freight_currency || 'EUR',
       expenses: allocatedExpenses,
       profit: profit,
+      isFallback,
     };
   });
 
@@ -121,7 +128,10 @@ export default async function CargoReportPage({
             <Package className="w-6 h-6 text-brand-600" />
             Фрахт по грузам
           </h1>
-          <p className="text-slate-500 mt-1 text-sm">Прибыльность каждого груза (расходы распределены пропорционально)</p>
+          <p className="text-slate-500 mt-1 text-sm">
+            Прибыльность каждого груза. <br/>
+            <span className="text-xs text-slate-400">* Если фрахт не указан в грузе, он берётся из суммы рейса и делится поровну.</span>
+          </p>
         </div>
 
         {/* Фильтры */}
@@ -192,7 +202,7 @@ export default async function CargoReportPage({
                   {reportRows.map((r) => (
                     <tr key={r.id} className="border-b hover:bg-slate-50">
                       <td className="px-4 py-3 font-medium tabular-nums">
-                        <Link href={`/trips/${r.id}`} className="text-brand-600 hover:underline">
+                        <Link href={`/trips/${r.tripId}`} className="text-brand-600 hover:underline">
                           № {r.tripNumber}
                         </Link>
                       </td>
@@ -202,6 +212,7 @@ export default async function CargoReportPage({
                       <td className="px-4 py-3 text-sm">{r.clientName}</td>
                       <td className="px-4 py-3 text-sm max-w-[200px] truncate" title={r.cargoLabel}>
                         {r.cargoLabel}
+                        {r.isFallback && <span className="ml-1 text-[10px] text-amber-600 bg-amber-50 px-1 rounded border border-amber-200" title="Фрахт взят из суммы рейса">*</span>}
                       </td>
                       <td className="px-4 py-3 text-right text-xs text-slate-500 tabular-nums">
                         {r.weight ? `${r.weight} кг` : '—'} / {r.pallets ? `${r.pallets} пал.` : '—'}
