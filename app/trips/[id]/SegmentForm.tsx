@@ -4,8 +4,6 @@ import { useState, useEffect, useTransition } from 'react';
 import {
   Truck,
   Users,
-  MapPin,
-  Flag,
   X,
   Check,
   Loader2,
@@ -14,89 +12,10 @@ import {
   Trash2,
   ArrowRight,
   Coins,
-  Wand2,
 } from 'lucide-react';
 import { createSegment, updateSegment } from './segment-actions';
-
-type Location = {
-  id: string;
-  name: string;
-  type: string;
-  country: string | null;
-  company_name: string | null;
-  postal_code: string | null;
-  city: string | null;
-  address: string | null;
-  default_loading_number: string | null;
-};
-
-type Option = { id: string; label: string };
-
-type CargoOption = {
-  id: string;
-  position: number;
-  label: string;
-  from_country: string | null;
-  from_city: string | null;
-  from_company: string | null;
-  from_address: string | null;
-  from_postal_code: string | null;
-  to_country: string | null;
-  to_city: string | null;
-  to_company: string | null;
-  to_address: string | null;
-  to_postal_code: string | null;
-};
-
-type Addr = {
-  country: string;
-  city: string;
-  company: string;
-  address: string;
-  postal_code: string;
-};
-
-type Stop = {
-  type: 'load' | 'reload' | 'unload' | 'customs';
-  country: string;
-  city: string;
-  company: string;
-  address: string;
-  postal_code: string;
-  date: string;
-};
-
-type SegmentData = {
-  id?: string;
-  executor_type: string;
-  contractor_id: string | null;
-  truck_id: string | null;
-  trailer_id?: string | null;
-  driver_id: string | null;
-  date_from: string | null;
-  date_to: string | null;
-  notes: string | null;
-  from_country: string | null;
-  from_city: string | null;
-  from_company: string | null;
-  from_address: string | null;
-  from_postal_code: string | null;
-  to_country: string | null;
-  to_city: string | null;
-  to_company: string | null;
-  to_address: string | null;
-  to_postal_code: string | null;
-  stops?: Stop[] | null;
-  price?: number | null;
-  currency?: string | null;
-  contractor_truck_number?: string | null;
-  contractor_driver_name?: string | null;
-  contractor_payment_days?: number | null;
-  contractor_payment_document_type?: string | null;
-  contractor_transport_type?: string | null;
-  contractor_transport_temperature?: string | null;
-  contractor_transport_height?: string | null;
-};
+import type { Location, Option, CargoOption, Addr, Stop, SegmentData } from './types';
+import SegmentAddressBlock from './SegmentAddressBlock';
 
 function toAddr(
   country: string | null,
@@ -118,13 +37,6 @@ function stopIsEmpty(s: Stop): boolean {
   return !s.country && !s.city && !s.company && !s.address && !s.postal_code;
 }
 
-const STOP_TYPE_LABELS: Record<Stop['type'], string> = {
-  load: 'Загрузка',
-  reload: 'Догруз / перегруз',
-  unload: 'Выгрузка',
-  customs: 'Таможня',
-};
-
 const STOP_TYPE_COLORS: Record<Stop['type'], string> = {
   load: 'bg-green-100 text-green-800 border-green-300',
   reload: 'bg-amber-100 text-amber-800 border-amber-300',
@@ -139,7 +51,7 @@ export default function SegmentForm({
   initialCargoIds,
   contractors,
   trucks,
-  trailers, // <-- добавлено
+  trailers,
   drivers,
   loadingLocations,
   unloadingLocations,
@@ -154,7 +66,7 @@ export default function SegmentForm({
   initialCargoIds?: string[];
   contractors: Option[];
   trucks: Option[];
-  trailers: Option[]; // <-- добавлено
+  trailers: Option[];
   drivers: Option[];
   loadingLocations: Location[];
   unloadingLocations: Location[];
@@ -170,7 +82,7 @@ export default function SegmentForm({
   );
   const [contractorId, setContractorId] = useState(initialData?.contractor_id || '');
   const [truckId, setTruckId] = useState(initialData?.truck_id || '');
-  const [trailerId, setTrailerId] = useState(initialData?.trailer_id || ''); // <-- добавлено
+  const [trailerId, setTrailerId] = useState(initialData?.trailer_id || '');
   const [driverId, setDriverId] = useState(initialData?.driver_id || '');
   const [dateFrom, setDateFrom] = useState(initialData?.date_from || '');
   const [dateTo, setDateTo] = useState(initialData?.date_to || '');
@@ -188,7 +100,6 @@ export default function SegmentForm({
      initialData?.contractor_payment_document_type || 'originals'
   );
   
-  // Умный тип транспорта
   const [contractorTransportType, setContractorTransportType] = useState(initialData?.contractor_transport_type || 'standard');
   const [contractorTransportTemp, setContractorTransportTemp] = useState(initialData?.contractor_transport_temperature || '');
   const [contractorTransportHeight, setContractorTransportHeight] = useState(initialData?.contractor_transport_height || '');
@@ -231,9 +142,6 @@ export default function SegmentForm({
     new Set(initialCargoIds || [])
   );
 
-  // Синхронизация стейтов при открытии модалки для другого сегмента.
-  // Это канонический паттерн «форма сбрасывается при смене initialData».
-  // TODO: в будущем заменить на key={segmentId || 'new'} в родителе, чтобы компонент ремоунтился.
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (initialData) {
@@ -298,9 +206,6 @@ export default function SegmentForm({
 
   const inputClass = 'input';
   const labelClass = 'block text-sm font-medium text-slate-700 mb-1';
-  const presetClass =
-    'w-full rounded-lg border-2 border-dashed border-brand-300 bg-brand-50 px-3 py-2.5 text-base text-slate-900 font-medium ' +
-    'focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-solid focus:border-brand-500 transition-all';
 
   function fillFromLocation(locId: string) {
     if (!locId) return;
@@ -432,7 +337,7 @@ export default function SegmentForm({
     formData.set('executor_type', executorType);
     formData.set('contractor_id', contractorId);
     formData.set('truck_id', truckId);
-    formData.set('trailer_id', trailerId); // <-- добавлено
+    formData.set('trailer_id', trailerId);
     formData.set('driver_id', driverId);
     formData.set('date_from', dateFrom);
     formData.set('date_to', dateTo);
@@ -557,7 +462,6 @@ export default function SegmentForm({
                   </select>
                 </div>
 
-                {/* ЦЕНА ПОДРЯДЧИКУ */}
                 <div className="bg-white rounded-lg border border-amber-200 p-3 space-y-2">
                   <div className="flex items-center gap-2 text-xs font-semibold text-amber-800">
                     <Coins className="w-3.5 h-3.5" strokeWidth={2.2} />
@@ -593,7 +497,6 @@ export default function SegmentForm({
                   </p>
                 </div>
 
-                {/* ДАННЫЕ ПОДРЯДЧИКА (на польском) */}
                 <div className="bg-white rounded-lg border border-violet-200 p-3 space-y-2">
                   <div className="flex items-center gap-2 text-xs font-semibold text-violet-800">
                     <Truck className="w-3.5 h-3.5" strokeWidth={2.2} />
@@ -800,103 +703,17 @@ export default function SegmentForm({
           )}
 
           {/* ОТКУДА */}
-          <div className="bg-green-50 rounded-xl p-4 space-y-3 border border-green-200">
-            <div className="flex items-center gap-2">
-              <MapPin className="w-4 h-4 text-green-700" strokeWidth={2.2} />
-              <h4 className="text-sm font-bold text-green-800">Откуда</h4>
-            </div>
-
-            {cargoList.length > 0 && (
-              <div>
-                <label className="text-xs font-semibold text-green-800 mb-1 flex items-center gap-1.5">
-                  <Wand2 className="w-3.5 h-3.5" strokeWidth={2.2} />
-                  Подставить из груза
-                </label>
-                <select
-                  onChange={(e) => {
-                    fillFromCargo(e.target.value);
-                    e.target.value = '';
-                  }}
-                  className="input bg-white mb-2"
-                  defaultValue=""
-                >
-                  <option value="">— Выберите груз —</option>
-                  {cargoList.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      #{c.position} · {c.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            <div>
-              <label className={labelClass}>Подставить из справочника</label>
-              <select
-                onChange={(e) => {
-                  fillFromLocation(e.target.value);
-                  e.target.value = '';
-                }}
-                className={presetClass}
-                defaultValue=""
-              >
-                <option value="">— Выберите локацию —</option>
-                {loadingLocations.map((loc) => (
-                  <option key={loc.id} value={loc.id}>
-                    {loc.name} {loc.city ? `· ${loc.city}` : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-green-100">
-              <div>
-                <label className={labelClass}>Компания</label>
-                <input
-                  type="text"
-                  value={from.company}
-                  onChange={(e) => setFrom({ ...from, company: e.target.value })}
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label className={labelClass}>Страна</label>
-                <input
-                  type="text"
-                  value={from.country}
-                  onChange={(e) => setFrom({ ...from, country: e.target.value })}
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label className={labelClass}>Город</label>
-                <input
-                  type="text"
-                  value={from.city}
-                  onChange={(e) => setFrom({ ...from, city: e.target.value })}
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label className={labelClass}>Почтовый код</label>
-                <input
-                  type="text"
-                  value={from.postal_code}
-                  onChange={(e) => setFrom({ ...from, postal_code: e.target.value })}
-                  className={inputClass}
-                />
-              </div>
-              <div className="md:col-span-2">
-                <label className={labelClass}>Адрес</label>
-                <input
-                  type="text"
-                  value={from.address}
-                  onChange={(e) => setFrom({ ...from, address: e.target.value })}
-                  className={inputClass}
-                />
-              </div>
-            </div>
-          </div>
+          <SegmentAddressBlock
+            type="from"
+            title="Откуда"
+            color="green"
+            data={from}
+            onChange={setFrom}
+            locations={loadingLocations}
+            cargoList={cargoList}
+            onFillFromCargo={fillFromCargo}
+            onFillFromLocation={fillFromLocation}
+          />
 
           {/* ПРОМЕЖУТОЧНЫЕ ТОЧКИ */}
           <div className="bg-amber-50 rounded-xl p-4 space-y-3 border border-amber-200">
@@ -1052,103 +869,17 @@ export default function SegmentForm({
           </div>
 
           {/* КУДА */}
-          <div className="bg-red-50 rounded-xl p-4 space-y-3 border border-red-200">
-            <div className="flex items-center gap-2">
-              <Flag className="w-4 h-4 text-red-700" strokeWidth={2.2} />
-              <h4 className="text-sm font-bold text-red-800">Куда</h4>
-            </div>
-
-            {cargoList.length > 0 && (
-              <div>
-                <label className="text-xs font-semibold text-red-800 mb-1 flex items-center gap-1.5">
-                  <Wand2 className="w-3.5 h-3.5" strokeWidth={2.2} />
-                  Подставить из груза
-                </label>
-                <select
-                  onChange={(e) => {
-                    fillToCargo(e.target.value);
-                    e.target.value = '';
-                  }}
-                  className="input bg-white mb-2"
-                  defaultValue=""
-                >
-                  <option value="">— Выберите груз —</option>
-                  {cargoList.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      #{c.position} · {c.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            <div>
-              <label className={labelClass}>Подставить из справочника</label>
-              <select
-                onChange={(e) => {
-                  fillToLocation(e.target.value);
-                  e.target.value = '';
-                }}
-                className={presetClass}
-                defaultValue=""
-              >
-                <option value="">— Выберите локацию —</option>
-                {unloadingLocations.map((loc) => (
-                  <option key={loc.id} value={loc.id}>
-                    {loc.name} {loc.city ? `· ${loc.city}` : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-red-100">
-              <div>
-                <label className={labelClass}>Компания</label>
-                <input
-                  type="text"
-                  value={to.company}
-                  onChange={(e) => setTo({ ...to, company: e.target.value })}
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label className={labelClass}>Страна</label>
-                <input
-                  type="text"
-                  value={to.country}
-                  onChange={(e) => setTo({ ...to, country: e.target.value })}
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label className={labelClass}>Город</label>
-                <input
-                  type="text"
-                  value={to.city}
-                  onChange={(e) => setTo({ ...to, city: e.target.value })}
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label className={labelClass}>Почтовый код</label>
-                <input
-                  type="text"
-                  value={to.postal_code}
-                  onChange={(e) => setTo({ ...to, postal_code: e.target.value })}
-                  className={inputClass}
-                />
-              </div>
-              <div className="md:col-span-2">
-                <label className={labelClass}>Адрес</label>
-                <input
-                  type="text"
-                  value={to.address}
-                  onChange={(e) => setTo({ ...to, address: e.target.value })}
-                  className={inputClass}
-                />
-              </div>
-            </div>
-          </div>
+          <SegmentAddressBlock
+            type="to"
+            title="Куда"
+            color="red"
+            data={to}
+            onChange={setTo}
+            locations={unloadingLocations}
+            cargoList={cargoList}
+            onFillFromCargo={fillToCargo}
+            onFillFromLocation={fillToLocation}
+          />
 
           {/* ЗАМЕТКИ */}
           <div>
