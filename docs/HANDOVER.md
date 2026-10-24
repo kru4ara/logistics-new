@@ -181,6 +181,24 @@
 - В клиентских файлах `exceljs` загружается **лениво** (динамический импорт).
 - `api/export` использует **статический** импорт (серверный роут).
 
+## ✅ Фаза 16 — Проверка производительности и безопасности — ЗАКРЫТО (24.10.2026)
+
+**Безопасность:**
+- `SUPABASE_SERVICE_ROLE_KEY` используется **только** в `lib/supabase-server.ts` (серверный хелпер).
+- `process.env` в клиентских компонентах — нет (только `NEXT_PUBLIC_*`).
+- Файлов с `'use client'`, импортирующих `supabase-server`, нет.
+- RLS включён (`rowsecurity = true`) на `trip_cargo`, `trip_segments`, `trip_segment_cargo`, `trip_expenses`, `driver_transactions`.
+
+**Бандл (после всех миграций):**
+- `First Load JS shared by all`: **103 kB** (не вырос после `exceljs`).
+- `exceljs`, `leaflet`, `docx` — ленивые, в shared не входят.
+- Самые тяжёлые страницы: `/trips/[id]` 133 kB (20.8 kB своего), `/trips` 121 kB, `/reports` 117 kB. Все — в пределах нормы для насыщенных интерактивных страниц.
+- `@next/bundle-analyzer` удалён после проверки.
+
+**Правила на будущее:**
+- `@next/bundle-analyzer` (и любые dev-инструменты) **не оборачивать `next.config.js` безусловно** — только через `if (process.env.ANALYZE === 'true')`, иначе Vercel падает (devDependencies не ставятся в проде).
+- Тяжёлые библиотеки (`exceljs`, `docx`, `leaflet`) — только через динамический `import()` или серверные API-роуты.
+
 ---
 
 ## 📈 Состояние скорости (24.10.2026)
