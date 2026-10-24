@@ -45,3 +45,35 @@ export type Stop = {
   postal_code: string;
   date: string;
 };
+
+export type SegmentData = {
+  id?: string;
+  executor_type: string;
+  contractor_id: string | null;
+  truck_id: string | null;
+  trailer_id?: string | null;
+  driver_id: string | null;
+  date_from: string | null;
+  date_to: string | null;
+  notes: string | null;
+  from_country: string | null;
+  from_city: string | null;
+  from_company: string | null;
+  from_address: string | null;
+  from_postal_code: string | null;
+  to_country: string | null;
+  to_city: string | null;
+  to_company: string | null;
+  to_address: string | null;
+  to_postal_code: string | null;
+  stops?: Stop[] | null;
+  price?: number | null;
+  currency?: string | null;
+  contractor_truck_number?: string | null;
+  contractor_driver_name?: string | null;
+  contractor_payment_days?: number | null;
+  contractor_payment_document_type?: string | null;
+  contractor_transport_type?: string | null;
+  contractor_transport_temperature?: string | null;
+  contractor_transport_height?: string | null;
+};
