@@ -56,12 +56,17 @@ async function sendTelegram(text: string): Promise<boolean> {
 }
 
 export async function GET(request: NextRequest) {
-  // Защита: если CRON_SECRET задан — проверяем заголовок
-  if (CRON_SECRET) {
-    const auth = request.headers.get('authorization');
-    if (auth !== `Bearer ${CRON_SECRET}`) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-    }
+  // Защита: CRON_SECRET обязателен
+  if (!CRON_SECRET) {
+    return NextResponse.json(
+      { success: false, error: 'CRON_SECRET is not configured on the server' },
+      { status: 500 }
+    );
+  }
+
+  const auth = request.headers.get('authorization');
+  if (auth !== `Bearer ${CRON_SECRET}`) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
   }
 
   if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
