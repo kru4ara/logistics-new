@@ -6,13 +6,18 @@ export const dynamic = 'force-dynamic';
 const WEBHOOK_SECRET = process.env.TELEGRAM_WEBHOOK_SECRET;
 
 export async function POST(request: Request) {
-  // 1. Проверка секрета от Telegram
-  if (WEBHOOK_SECRET) {
-    const incoming = request.headers.get('x-telegram-bot-api-secret-token');
-    if (incoming !== WEBHOOK_SECRET) {
-      console.warn('[telegram/webhook] Unauthorized: bad secret');
-      return NextResponse.json({ ok: false }, { status: 401 });
-    }
+  // 1. Проверка секрета от Telegram (обязательно)
+  if (!WEBHOOK_SECRET) {
+    return NextResponse.json(
+      { ok: false, error: 'TELEGRAM_WEBHOOK_SECRET is not configured' },
+      { status: 500 }
+    );
+  }
+
+  const incoming = request.headers.get('x-telegram-bot-api-secret-token');
+  if (incoming !== WEBHOOK_SECRET) {
+    console.warn('[telegram/webhook] Unauthorized: bad secret');
+    return NextResponse.json({ ok: false }, { status: 401 });
   }
 
   let update: any;
