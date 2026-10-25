@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-// Список путей, которые запрещены для водителей
+// Пути, которые закрыты для водителей
 const ADMIN_ONLY_PATHS = [
   '/reports',
   '/audit',
@@ -50,23 +50,22 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   const pathname = request.nextUrl.pathname
 
-  // Если не залогинен и не на /login — редирект на /login
+  // Не залогинен и не на /login — редирект на /login
   if (!user && !pathname.startsWith('/login')) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
   }
 
-  // Если залогинен и на /login — редирект на главную
+  // Залогинен и на /login — редирект на главную
   if (user && pathname.startsWith('/login')) {
     const url = request.nextUrl.clone()
     url.pathname = '/'
     return NextResponse.redirect(url)
   }
 
-  // 2. Проверяем роль (только если залогинен)
+  // 2. Проверяем роль (только для залогиненных)
   if (user) {
-    // Проверяем только защищенные пути, чтобы не делать лишний запрос на каждый клик
     const isAdminPath = ADMIN_ONLY_PATHS.some((path) => pathname.startsWith(path));
 
     if (isAdminPath) {
