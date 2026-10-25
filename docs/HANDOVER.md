@@ -93,7 +93,7 @@
 **`trip_expenses`**: `segment_id` (FK).
 **`driver_transactions`**: начисления и выплаты.
 **`counters`**: для нумерации рейсов.
-**`profiles`** (НОВОЕ): `id` (FK к `auth.users`), `role` ('admin' | 'driver'), `driver_id` (FK к `drivers`), `full_name`, `created_at`.
+**`profiles`**: `id` (FK к `auth.users`), `role` ('admin' | 'driver'), `driver_id` (FK к `drivers`), `full_name`, `created_at`.
 
 ### Удалённые таблицы/колонки
 - `trip_subcontractors` — DROP.
@@ -115,6 +115,7 @@
 - `trip-task-text.ts` — `buildDriverTaskText(...)`
 - `trip-renumber.ts` — `renumberAllTrips(...)`
 - `statistics.ts` — `calculateStatistics(...)`
+- `profitability.ts` — `calculateProfitability(...)`
 - `geocode.ts`, `translate-pl.ts`, `company.ts`, `audit.ts`, `cron-alert.ts`, `telegram.ts`
 - `supabase-server.ts` — admin client (service_role, **только сервер**, защищён `import 'server-only'`)
 - `supabase/server.ts` — ssr клиент с сессией
@@ -140,29 +141,11 @@
 ### Фаза 16 — Проверка производительности и безопасности — ✅ 24.10
 ### Фаза 17 — Миграция на Supabase Auth — ✅ 24.10
 ### Фаза 18 — Улучшения UX/UI и PWA — ✅ 25.10
-- **PWA:** `manifest.webmanifest`, `sw.js`, `ServiceWorkerRegister` в `layout.tsx`. Водители могут установить на телефон.
-- **Массовые статусы:** чекбоксы в `TripsBulkList`, Server Actions `bulkSetStatus` и `bulkDelete`.
-- **WhatsApp-кнопка:** в `CopyBlock` добавлена кнопка, открывающая чат с водителем (использует `phone_by`).
-- **Отчёт «Фрахт по грузам»:** страница `/reports/cargo`. Распределяет расходы рейса пропорционально фрахту груза. Если у груза нет фрахта, берёт сумму рейса (с пометкой `*`). Сортировка по дате.
-
 ### Фаза 19 — Инфраструктура и тесты — ✅ 25.10
-- **CI:** `.github/workflows/ci.yml` (lint + tsc + test + build).
-- **Vitest:** настроен (`vitest.config.js`), тесты на `buildRouteMap` (6), `renumberAllTrips` (4), `buildDriverTaskText` (7), `calculateStatistics` (6). Всего **23 теста**.
-- **`server-only`:** добавлен в `lib/supabase-server.ts`.
-- **`.env.example`:** создан.
-- **Типы:** `@types/react` и `@types/node` обновлены до 19.x/22.x.
-- **Роли в Middleware:** закрыты админские роуты для водителей.
-
 ### Фаза 20 — Рефакторинг гигантских файлов — ✅ 25.10
-- **`SegmentForm.tsx` (47 КБ):** разбит на:
-  - `SegmentAddressBlock` (Откуда/Куда)
-  - `SegmentStopsBlock` (Промежуточные точки)
-  - `SegmentExecutorBlock` (Кто везёт)
-  - `SegmentCargoSelector` (Грузы)
-  - `types.ts` (общие типы)
-- **`statistics/page.tsx` (48 КБ):** разбит на:
-  - `lib/statistics.ts` (чистые функции расчётов)
-  - `StatisticsHeader`, `StatisticsSummary`, `StatisticsBreakdown`, `StatisticsCapex`, `StatisticsTable`, `StatisticsLegend`.
+- `SegmentForm.tsx` разбит на компоненты (`SegmentAddressBlock`, `SegmentStopsBlock`, `SegmentExecutorBlock`, `SegmentCargoSelector`).
+- `statistics/page.tsx` разбит на компоненты и `lib/statistics.ts`.
+- `profitability/page.tsx` разбит на `lib/profitability.ts` + тесты.
 
 ---
 
@@ -176,9 +159,10 @@
 ---
 
 ## ⏭️ Очередь задач
-1. **CI:** починить красный крестик (проблема с кэшем `vitest` в GitHub Actions).
-2. **`eslint-plugin-react`** устарел для React 19 (можно заменить на `@eslint-react/eslint-plugin`).
-3. **Tailwind 4 / Next 16** (breaking).
+1. **Защита ветки `master`** (Settings → Branches → Require status checks).
+2. **Рефакторинг оставшихся гигантов:** `drivers/[id]` (34 КБ), `trips/[id]` (32 КБ), `forwarding/[id]` (31 КБ), DOCX-роуты (30 и 28 КБ).
+3. **`eslint-plugin-react`** устарел для React 19 (можно заменить на `@eslint-react/eslint-plugin`).
+4. **Tailwind 4 / Next 16** (breaking).
 
 ---
 
@@ -191,7 +175,7 @@
 ## 📋 Шпаргалка
 - **Supabase ref:** `smodijsj`**`i`**`wcvsscfgloh` (с буквой `i`!)
 - **Линт:** `npm run lint` (0 errors, 0 warnings).
-- **Тесты:** `npm run test` (Vitest, 23 теста).
+- **Тесты:** `npm run test` (Vitest, **28 тестов**).
 - **CI:** GitHub Actions (Actions → CI).
 - **`package.json` overrides:** `postcss: "^8.5.23"`, `glob: "10.5.0"`.
 - **`eslint.config.mjs`:** `FlatCompat` + `compat.extends('next/core-web-vitals')`. `.next` в ignores.
