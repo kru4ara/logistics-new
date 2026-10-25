@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
 import {
   ArrowLeft,
   Coins,
@@ -7,31 +8,9 @@ import {
   Truck,
 } from 'lucide-react';
 import { createClient } from '../../../lib/supabase-server';
+import { calculateProfitability, toNum } from '../../../lib/profitability';
 
 export const dynamic = 'force-dynamic';
-
-function pickName(rel: unknown): string {
-  if (!rel) return '';
-  if (Array.isArray(rel)) return rel[0]?.name || '';
-  if (typeof rel === 'object' && 'name' in rel) {
-    return (rel as { name?: string }).name || '';
-  }
-  return '';
-}
-
-function pickTruck(rel: unknown): string {
-  if (!rel) return '';
-  if (Array.isArray(rel)) return rel[0]?.registration_number || '';
-  if (typeof rel === 'object' && 'registration_number' in rel) {
-    return (rel as { registration_number?: string }).registration_number || '';
-  }
-  return '';
-}
-
-function toNum(v: unknown): number {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
-}
 
 function fmt(n: number, digits = 0): string {
   return n.toLocaleString('ru-RU', {
@@ -52,27 +31,6 @@ function firstDayOfYearIso(): string {
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
 }
-
-type ClientRow = {
-  name: string;
-  type: 'Рейсы' | 'Экспедирование';
-  count: number;
-  revenue: number;
-  expenses: number;
-  profit: number;
-  margin: number;
-};
-
-type TruckRow = {
-  id: string;
-  registration: string;
-  count: number;
-  km: number;
-  revenue: number;
-  expenses: number;
-  profit: number;
-  margin: number;
-};
 
 export default async function ProfitabilityPage({
   searchParams,
@@ -151,97 +109,21 @@ export default async function ProfitabilityPage({
     });
   }
 
-  // АГРЕГАЦИЯ ПО КЛИЕНТАМ
-  const clientRows: ClientRow[] = [];
-
-  const byClientTrips: Record<string, { name: string; count: number; revenue: number; expenses: number }> = {};
-  for (const t of trips || []) {
-    const name = pickName((t as any).clients);
-    if (!name) continue;
-    if (!byClientTrips[name]) byClientTrips[name] = { name, count: 0, revenue: 0, expenses: 0 };
-    byClientTrips[name].count += 1;
-    byClientTrips[name].revenue += toNum((t as any).revenue_eur);
-    byClientTrips[name].expenses += expensesByTrip[(t as any).id] || 0;
-  }
-  for (const r of Object.values(byClientTrips)) {
-    const profit = r.revenue - r.expenses;
-    const margin = r.revenue > 0 ? (profit / r.revenue) * 100 : 0;
-    clientRows.push({
-      name: r.name,
-      type: 'Рейсы',
-      count: r.count,
-      revenue: r.revenue,
-      expenses: r.expenses,
-      profit,
-      margin,
-    });
-  }
-
-  const byClientFwd: Record<string, { name: string; count: number; revenue: number; expenses: number }> = {};
-  for (const f of forwarding || []) {
-    const name = pickName((f as any).clients);
-    if (!name) continue;
-    if (!byClientFwd[name]) byClientFwd[name] = { name, count: 0, revenue: 0, expenses: 0 };
-    byClientFwd[name].count += 1;
-    byClientFwd[name].revenue += toNum((f as any).client_price_eur);
-    byClientFwd[name].expenses +=
-      (contractorsByFwd[(f as any).id] || 0) + (expensesByFwd[(f as any).id] || 0);
-  }
-  for (const r of Object.values(byClientFwd)) {
-    const profit = r.revenue - r.expenses;
-    const margin = r.revenue > 0 ? (profit / r.revenue) * 100 : 0;
-    clientRows.push({
-      name: r.name,
-      type: 'Экспедирование',
-      count: r.count,
-      revenue: r.revenue,
-      expenses: r.expenses,
-      profit,
-      margin,
-    });
-  }
-
-  clientRows.sort((a, b) => b.profit - a.profit);
-
-  // АГРЕГАЦИЯ ПО МАШИНАМ
-  const byTruck: Record<
-    string,
-    { id: string; registration: string; count: number; km: number; revenue: number; expenses: number }
-  > = {};
-
-  for (const t of trips || []) {
-    const truckId = (t as any).truck_id;
-    if (!truckId) continue;
-    const registration = pickTruck((t as any).trucks) || '—';
-
-    if (!byTruck[truckId]) {
-      byTruck[truckId] = {
-        id: truckId,
-        registration,
-        count: 0,
-        km: 0,
-        revenue: 0,
-        expenses: 0,
-      };
-    }
-    byTruck[truckId].count += 1;
-    byTruck[truckId].km += toNum((t as any).actual_km);
-    byTruck[truckId].revenue += toNum((t as any).revenue_eur);
-    byTruck[truckId].expenses += expensesByTrip[(t as any).id] || 0;
-  }
-
-  const truckRows: TruckRow[] = Object.values(byTruck).map((t) => {
-    const profit = t.revenue - t.expenses;
-    const margin = t.revenue > 0 ? (profit / t.revenue) * 100 : 0;
-    return { ...t, profit, margin };
+  // РАСЧЁТ
+  const {
+    clientRows,
+    truckRows,
+    totalRevenue,
+    totalExpenses,
+    totalProfit,
+    totalMargin,
+  } = calculateProfitability({
+    trips,
+    forwarding,
+    expensesByTrip,
+    contractorsByFwd,
+    expensesByFwd,
   });
-  truckRows.sort((a, b) => b.profit - a.profit);
-
-  // ИТОГИ
-  const totalRevenue = clientRows.reduce((s, r) => s + r.revenue, 0);
-  const totalExpenses = clientRows.reduce((s, r) => s + r.expenses, 0);
-  const totalProfit = totalRevenue - totalExpenses;
-  const totalMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
 
   const inputClass = 'input';
   const labelClass = 'block text-sm font-medium text-slate-700 mb-1';
@@ -250,13 +132,13 @@ export default async function ProfitabilityPage({
     <main className="min-h-screen bg-slate-50">
       <div className="max-w-[1600px] mx-auto px-4 md:px-6 py-6 md:py-8 space-y-5 md:space-y-6">
 
-        <a
+        <Link
           href="/reports"
           className="inline-flex items-center gap-2 text-slate-600 hover:text-brand-600 transition-colors text-sm font-medium"
         >
           <ArrowLeft className="w-4 h-4" />
           Отчёты
-        </a>
+        </Link>
 
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2">
@@ -286,12 +168,12 @@ export default async function ProfitabilityPage({
               >
                 Показать
               </button>
-              <a
+              <Link
                 href="/reports/profitability"
                 className="px-4 py-2.5 rounded-lg border border-slate-300 text-slate-700 font-medium hover:bg-slate-100 transition-all whitespace-nowrap"
               >
                 Сброс
-              </a>
+              </Link>
             </div>
           </div>
           <div className="text-xs text-slate-400 mt-3">
