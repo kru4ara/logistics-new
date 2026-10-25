@@ -182,6 +182,22 @@ export async function GET(
   const { id: tripId, segId: segmentId } = await params;
   const supabase = await createClient();
 
+  // 1. Проверяем авторизацию и права
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('driver_id, role')
+    .eq('id', user.id)
+    .single();
+
+  const role = String(profile?.role || 'driver').trim().toLowerCase();
+  const isAdmin = role === 'admin' || role === 'manager';
+
+  // 2. Получаем рейс
   const { data: trip, error: tripErr } = await supabase
     .from('trips')
     .select('id, trip_number, client_request_number, trailer_id')
@@ -192,6 +208,7 @@ export async function GET(
     return NextResponse.json({ error: 'Рейс не найден' }, { status: 404 });
   }
 
+  // 3. Получаем сегмент
   const { data: segment, error: segErr } = await supabase
     .from('trip_segments')
     .select('*')
@@ -200,6 +217,13 @@ export async function GET(
 
   if (segErr || !segment) {
     return NextResponse.json({ error: 'Участок не найден' }, { status: 404 });
+  }
+
+  // 4. ПРОВЕРКА ВЛАДЕЛЬЦА (защита от IDOR)
+  // Водитель может скачать только свой сегмент.
+  // Админ/менеджер — любой.
+  if (!isAdmin && segment.driver_id !== profile?.driver_id) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
   if (segment.executor_type !== 'us') {
