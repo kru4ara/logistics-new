@@ -20,3 +20,10 @@ export async function saveTelemetry(tripId: string, km: number, liters: number) 
   revalidatePath('/trips');
   revalidatePath('/driver');
 }
+
+// Серверное действие для формы телеметрии
+export async function handleSaveTelemetry(tripId: string, formData: FormData) {
+  const km = parseFloat(formData.get('km') as string) || 0;
+  const liters = parseFloat(formData.get('liters') as string) || 0;
+  await saveTelemetry(tripId, km, liters);
+}
