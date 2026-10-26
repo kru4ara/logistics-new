@@ -32,7 +32,6 @@ export default function DriverHeader({
               className="block w-56 h-40 md:w-64 md:h-44 rounded-2xl overflow-hidden border-2 border-slate-200 shadow-soft hover:shadow-soft-lg transition-shadow"
               title="Открыть фото паспорта"
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={passportPhotoUrl}
                 alt={`Фото паспорта — ${driver.first_name} ${driver.last_name}`}
