@@ -18,7 +18,6 @@ import {
   ClipboardCheck,
   Globe,
   FileCheck,
-  Inbox,
   Download,
   AlertTriangle,
 } from 'lucide-react';
