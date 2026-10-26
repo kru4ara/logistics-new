@@ -14,7 +14,6 @@ import {
   Mail,
   BarChart3,
   TrendingUp,
-  Wallet,
   CreditCard,
   Package,
   Truck,
