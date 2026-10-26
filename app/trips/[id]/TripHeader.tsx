@@ -5,7 +5,7 @@ import { Pencil, Trash2, FileText, ArrowLeft } from 'lucide-react';
 import TripStatusButtons from '../../driver/TripStatusButtons';
 import SyncLogisatButton from './SyncLogisatButton';
 import SubmitButton from '../../components/SubmitButton';
-import { saveTelemetry } from '../../telemetry-actions';
+import { saveTelemetry } from '../../telemetry-actions'; // <-- импорт
 import { deleteTrip } from '../../trip-actions';
 
 export default function TripHeader({
@@ -29,6 +29,14 @@ export default function TripHeader({
   statusLabels: Record<string, string>;
   statusColors: Record<string, string>;
 }) {
+  // Создаём Server Action с привязкой tripId
+  async function handleSaveTelemetry(formData: FormData) {
+    'use server';
+    const km = parseFloat(formData.get('km') as string) || 0;
+    const liters = parseFloat(formData.get('liters') as string) || 0;
+    await saveTelemetry(tripId, km, liters);
+  }
+
   return (
     <div className="space-y-5 md:space-y-6">
       <Link href="/trips" className="inline-flex items-center gap-2 text-slate-600 hover:text-brand-600 transition-colors text-sm font-medium">
@@ -93,12 +101,7 @@ export default function TripHeader({
 
         {/* ТЕЛЕМЕТРИЯ (Перенесена сюда) */}
         <div className="bg-slate-50 rounded-xl p-3 md:p-4 mb-4">
-          <form action={async (formData: FormData) => {
-            'use server';
-            const km = parseFloat(formData.get('km') as string) || 0;
-            const liters = parseFloat(formData.get('liters') as string) || 0;
-            await saveTelemetry(tripId, km, liters);
-          }} className="flex flex-wrap gap-3 items-end">
+          <form action={handleSaveTelemetry} className="flex flex-wrap gap-3 items-end">
             <div className="flex-1 min-w-[120px]">
               <label className="block text-xs font-medium text-slate-500 mb-1">Пробег (км)</label>
               <input type="number" name="km" step="0.01" placeholder={trip.actual_km?.toString() || '0'} className="input py-1.5 text-sm" />
