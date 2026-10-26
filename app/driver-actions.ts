@@ -148,7 +148,7 @@ export async function replaceDriverPassport(
   }
 
   // 3. Загрузить новый файл
-  const safeName = file.name.replace(/[^\w.\-]+/g, '_');
+  const safeName = file.name.replace(/[^\w.-]+/g, '_');
   const filePath = `driver/${driverId}/passport-${Date.now()}-${safeName}`;
   const arrayBuffer = await file.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
