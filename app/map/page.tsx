@@ -9,7 +9,6 @@ import {
   Package,
   ArrowRight,
   Inbox,
-  Loader2,
 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
