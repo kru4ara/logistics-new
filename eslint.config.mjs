@@ -24,7 +24,6 @@ export default [
       '@typescript-eslint/no-unused-vars': 'warn',
     },
   },
-  // Node-окружение для конфигов в корне
   {
     files: [
       'next.config.js',
@@ -33,15 +32,10 @@ export default [
       'vitest.config.js',
       'eslint.config.mjs',
     ],
-    languageOptions: {
-      globals: { ...globals.node },
-    },
+    languageOptions: { globals: { ...globals.node } },
   },
-  // Service worker
   {
     files: ['public/sw.js'],
-    languageOptions: {
-      globals: { ...globals.serviceworker, ...globals.browser },
-    },
+    languageOptions: { globals: { ...globals.serviceworker, ...globals.browser } },
   },
 ];
