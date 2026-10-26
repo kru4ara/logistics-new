@@ -88,7 +88,7 @@ export default async function Home() {
 
   const forwardingIds = forwarding?.map((f) => f.id) || [];
 
-  let contractorsByForwarding: Record<string, number> = {};
+  const contractorsByForwarding: Record<string, number> = {};
   if (forwardingIds.length > 0) {
     const { data: allContractors } = await supabase
       .from('forwarding_contractors')
@@ -102,7 +102,7 @@ export default async function Home() {
     });
   }
 
-  let expensesByForwarding: Record<string, number> = {};
+  const expensesByForwarding: Record<string, number> = {};
   if (forwardingIds.length > 0) {
     const { data: allFExp } = await supabase
       .from('forwarding_expenses')
