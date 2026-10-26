@@ -16,7 +16,6 @@ import {
   Package,
   Truck,
   ArrowRight,
-  Pencil,
   Trash2,
   Inbox,
 } from 'lucide-react';
