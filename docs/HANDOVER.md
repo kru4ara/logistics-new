@@ -61,7 +61,7 @@
 **`counters`** — нумерация.
 **`profiles`** — роль (`admin` | `driver`) и `driver_id`.
 
-### Supabase Auth (НОВОЕ)
+### Supabase Auth
 - `lib/supabase-server.ts` (admin, `server-only`)
 - `lib/supabase/server.ts` (с сессией)
 - `lib/supabase/client.ts` (браузерный)
@@ -91,14 +91,9 @@
 ### Фаза 16 — Проверка производительности и безопасности — ✅ 24.10
 ### Фаза 17 — Миграция на Supabase Auth — ✅ 24.10
 ### Фаза 18 — Улучшения UX/UI и PWA — ✅ 25.10
-- PWA (`manifest.webmanifest`, `sw.js`, `ServiceWorkerRegister`).
-- Массовые статусы (`TripsBulkList`, `bulkSetStatus`, `bulkDelete`).
-- WhatsApp-кнопка в `CopyBlock`.
-- Отчёт `/reports/cargo` (фрахт по грузам).
-
 ### Фаза 19 — Инфраструктура и тесты — ✅ 25.10
 - CI (`.github/workflows/ci.yml`).
-- Vitest: `buildRouteMap` (6), `renumberAllTrips` (4), `buildDriverTaskText` (7), `calculateStatistics` (6). Всего 23 теста.
+- Vitest: `buildRouteMap` (6), `renumberAllTrips` (4), `buildDriverTaskText` (7), `calculateStatistics` (6), `calculateProfitability` (5). Всего 28 тестов.
 - `server-only` в `lib/supabase-server.ts`.
 - `.env.example`.
 - `@types/react` и `@types/node` обновлены.
@@ -114,7 +109,7 @@
 - `/today`, `/map` закрыты для водителей.
 - `driver-docx` проверяет `segment.driver_id === profile.driver_id` (IDOR закрыт).
 - `CRON_SECRET` и `TELEGRAM_WEBHOOK_SECRET` обязательны (500 если нет).
-- `app/driver/trips/[id]` проверяет доступ через Supabase Auth и `trip_segments.driver_id`.
+- `app/driver/trips/[id]` использует `service_role` (как список), проверка владения: `trip.driver_id === driverId || segment.driver_id === driverId`.
 
 ---
 
@@ -128,10 +123,10 @@
 ---
 
 ## ⏭️ Очередь задач
-1. **`cron/backup` и `cron/backup-watch`** — проверить `CRON_SECRET` (если `if (CRON_SECRET)`, заменить на обязательную проверку).
+1. **`cron/backup` и `cron/backup-watch`** — проверить `CRON_SECRET`.
 2. **Защита ветки `master`** (Settings → Branches → Require status checks).
 3. **Рефакторинг оставшихся гигантов:** `drivers/[id]` (34 КБ), `trips/[id]` (32 КБ), `forwarding/[id]` (31 КБ), DOCX-роуты.
-4. **`eslint-plugin-react`** устарел для React 19 (заменить на `@eslint-react/eslint-plugin`).
+4. **`eslint-plugin-react`** устарел для React 19.
 5. **Tailwind 4 / Next 16** (breaking).
 
 ---
