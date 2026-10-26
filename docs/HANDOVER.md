@@ -96,7 +96,8 @@
 ### Фаза 21 — Аудит безопасности (закрытие дыр) — ✅ 26.10
 ### Фаза 22 — Рефакторинг карточки рейса — ✅ 26.10
 ### Фаза 23 — Рефакторинг карточки водителя — ✅ 26.10
-- `app/drivers/[id]/page.tsx` разбит на `DriverHeader`, `DriverFinance`, `DriverCardDownload`, `DriverStats`, `DriverTrips`.
+### Фаза 24 — Рефакторинг карточки экспедирования — ✅ 26.10
+- `app/forwarding/[id]/page.tsx` разбит на `ForwardingHeader`, `ForwardingStatusBlock`, `ForwardingEconomics`, `ForwardingClient`, `ForwardingPoints`, `ForwardingContractors`, `ForwardingDetails`, `ForwardingExpenses`.
 
 ---
 
@@ -107,10 +108,9 @@
 ---
 
 ## ⏭️ Очередь задач
-1. **Рефакторинг `app/forwarding/[id]/page.tsx`** (31 КБ) — последний гигант.
-2. **`eslint-plugin-react`** устарел для React 19.
-3. **Tailwind 4 / Next 16** (breaking).
-4. **Проверить, что `CRON_SECRET` и `TELEGRAM_WEBHOOK_SECRET` заданы в Vercel.**
+1. **`eslint-plugin-react`** устарел для React 19.
+2. **Tailwind 4 / Next 16** (breaking).
+3. **Проверить, что `CRON_SECRET` и `TELEGRAM_WEBHOOK_SECRET` заданы в Vercel.**
 
 ---
 
@@ -132,7 +132,7 @@
 - **Аккаунты:** админ — `raibuilding.pl@gmail.com`, водители — `vasiliuk@...`, `kavaliou@...`.
 - **PWA:** установка через «Добавить на главный экран».
 
-**Закрыто:** Фазы 3.1–3.23.
+**Закрыто:** Фазы 3.1–3.24.
 
 ---
 
