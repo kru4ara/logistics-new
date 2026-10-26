@@ -118,7 +118,6 @@ export default function CountryFlag({ country, size = 'sm', className = '' }: Pr
   return (
     // Флаг с внешнего CDN (flagcdn.com) уже оптимизирован по размеру и srcSet.
     // next/image не нужен: он добавит лишний прокси-слой и сломает srcSet.
-    // eslint-disable-next-line @next/next/no-img-element
     <img
       src={`https://flagcdn.com/${width}x${height}/${iso}.png`}
       srcSet={`https://flagcdn.com/${width * 2}x${height * 2}/${iso}.png 2x`}
