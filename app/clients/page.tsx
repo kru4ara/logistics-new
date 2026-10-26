@@ -12,8 +12,6 @@ import {
   Mail,
   Truck,
   ArrowRight,
-  Pencil,
-  Trash2,
   Inbox,
 } from 'lucide-react';
 
