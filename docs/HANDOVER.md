@@ -127,6 +127,12 @@
 - Восстановлен случайно удалённый `app/lib/supabase-server.ts`.
 - Ветка `feat/next-16` успешно смержена в `master`.
 
+### Фаза 27 — Миграция на Tailwind 4 — ✅ 26.10
+- Обновлены пакеты: `tailwindcss@4.3.3`, `@tailwindcss/postcss`.
+- Удалён `tailwind.config.js` (кастомные цвета `brand`, `accent`, `ink`, тени и анимации перенесены в `app/globals.css` через `@theme`).
+- `postcss.config.js` переведён на плагин `@tailwindcss/postcss`.
+- В CSS директива `@tailwind base;` заменена на `@import "tailwindcss";`.
+
 ---
 
 ## 📈 Состояние скорости (26.10.2026)
