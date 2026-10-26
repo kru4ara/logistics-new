@@ -34,7 +34,7 @@ export default function AppShellClient({
     try {
       localStorage.setItem(STORAGE_KEY, String(isPinned));
     } catch {
-      /* игнорируем: localStorage может быть недоступен (приватный режим) */
+      // Игнорируем: localStorage может быть недоступен
     }
   }, [isPinned]);
 
