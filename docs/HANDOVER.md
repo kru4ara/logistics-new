@@ -1,7 +1,7 @@
 # HANDOVER — Logistics CRM (26.10.2026)
 
 ## Стек и инфраструктура
-- Next.js 15.5.28 (App Router) + React 19.3.1 + Supabase + Vercel
+- **Next.js 16.4.3** (App Router, Turbopack) + React 19.3.1 + Supabase + Vercel
 - GitHub: `kru4ara/logistics-new` (master) — автокоммит на каждое изменение
 - Prod: https://logistics-new-ebon.vercel.app
 - Supabase Project: `logistics-core`, org `Raibuilding`
@@ -35,13 +35,15 @@
 ### Контекст чата — не бесконечный
 Не грузить бэкапы, старые HANDOVER, заменённые файлы, полные логи, огромные JSON, **секреты**.
 
-### Рабочий процесс (Next.js 15)
+### Рабочий процесс (Next.js 16)
 - Полные файлы на замену, не куски.
 - 1 шаг за раз.
 - Server components → `createClient()` из `lib/supabase-server` (admin) или `lib/supabase/server` (с сессией).
 - **ВСЕГДА** `await cookies()` и `await searchParams`.
 - **Один коммит = связанные файлы.**
 - **`import` должны быть в начале файла.**
+- **`middleware.ts` переименован в `proxy.ts`** (Next 16). В `next.config.js` **нет** ключа `eslint`.
+- **Линт** — отдельный файл `eslint.config.mjs` на чистых плагинах (`@eslint/js`, `typescript-eslint`, `react`, `react-hooks`). **`eslint-config-next` больше не используется** (ломается в CI на Next 16).
 
 ### ⚠️ Git (локально)
 - `git pull --no-edit`.
@@ -49,6 +51,7 @@
 - Конфликт в `package.json` — **наша версия**.
 - **Git Bash склеивает команды** — по одной строке.
 - **`sed` на JSX — запрещён.**
+- Ветка `feat/next-16` смержена в `master` (Next 16). При новых правках работать в `master` или создавать ветки.
 
 ---
 
@@ -65,11 +68,19 @@
 - `lib/supabase-server.ts` (admin, `server-only`)
 - `lib/supabase/server.ts` (с сессией)
 - `lib/supabase/client.ts` (браузерный)
-- `middleware.ts` — белый список ролей (`admin`, `manager`), cron и вебхуки — публичные.
+- `proxy.ts` (бывший middleware) — белый список ролей (`admin`, `manager`), cron и вебхуки — публичные.
 - `app/login/actions.ts` — вход через `signInWithPassword`.
 
 ### Хелперы (`lib/`)
 - `trip-route.ts`, `trip-task-text.ts`, `trip-renumber.ts`, `statistics.ts`, `profitability.ts`, `geocode.ts`, `translate-pl.ts`, `company.ts`, `audit.ts`, `cron-alert.ts`, `telegram.ts`.
+
+### Разбитые гиганты
+- `SegmentForm.tsx` → `SegmentAddressBlock`, `SegmentStopsBlock`, `SegmentExecutorBlock`, `SegmentCargoSelector`, `types.ts`.
+- `statistics/page.tsx` → `lib/statistics.ts` + 6 компонентов.
+- `profitability/page.tsx` → `lib/profitability.ts` + тесты.
+- `trips/[id]/page.tsx` → `TripHeader`, `TripInfo`, `TripEconomics`.
+- `drivers/[id]/page.tsx` → `DriverHeader`, `DriverFinance`, `DriverCardDownload`, `DriverStats`, `DriverTrips`.
+- `forwarding/[id]/page.tsx` → `ForwardingHeader`, `ForwardingStatusBlock`, `ForwardingEconomics`, `ForwardingClient`, `ForwardingPoints`, `ForwardingContractors`, `ForwardingDetails`, `ForwardingExpenses`.
 
 ---
 
@@ -94,28 +105,31 @@
 ### Фаза 19 — Инфраструктура и тесты — ✅ 25.10
 ### Фаза 20 — Рефакторинг гигантских файлов — ✅ 25.10
 ### Фаза 21 — Аудит безопасности (закрытие дыр) — ✅ 26.10
-- `/api/trips` возвращён в `ADMIN_ONLY_PATHS`.
-- `/today`, `/map` закрыты для водителей.
-- `driver-docx` проверяет `segment.driver_id === profile.driver_id` (IDOR закрыт).
-- `CRON_SECRET` и `TELEGRAM_WEBHOOK_SECRET` обязательны (500 если нет).
-- `app/driver/trips/[id]` использует `service_role` (как список), проверка владения: `trip.driver_id === driverId || segment.driver_id === driverId`.
+### Фаза 22 — Рефакторинг карточки рейса — ✅ 26.10
+### Фаза 23 — Рефакторинг карточки водителя — ✅ 26.10
+### Фаза 24 — Рефакторинг карточки экспедирования — ✅ 26.10
+### Фаза 25 — Миграция на Next.js 16 — ✅ 26.10
+- `next@15.5.28` → **`16.4.3`** (Turbopack по умолчанию).
+- `middleware.ts` → **`proxy.ts`** (кодмод).
+- `next.config.js`: убран ключ `eslint`.
+- `eslint.config.mjs`: отказ от `eslint-config-next` (ломается в CI), переход на чистые плагины (`@eslint/js`, `typescript-eslint`, `react`, `react-hooks`).
+- `sharp@0.35.5` — безопасная версия (проверено).
+- `revalidateTag` — breaking change (пока не используется в проекте).
 
 ---
 
 ## 📈 Состояние скорости (26.10.2026)
 - **Vercel Speed Insights (Desktop, P75):** **94/100**.
 - **First Load JS shared:** 103 kB.
-- **`/map`:** 105 kB.
-- **`/trips`:** 118 kB.
-- **`/reports`:** 114 kB.
+- **Turbopack** собирает проект за ~7–8 секунд (было ~11 на webpack).
 
 ---
 
 ## ⏭️ Очередь задач
-1. **Защита ветки `master`** (Settings → Branches → Require status checks).
-2. **Рефакторинг оставшихся гигантов:** `drivers/[id]` (34 КБ), `trips/[id]` (32 КБ), `forwarding/[id]` (31 КБ), DOCX-роуты.
-3. **`eslint-plugin-react`** устарел для React 19.
-4. **Tailwind 4 / Next 16** (breaking).
+1. **Tailwind 4** (breaking, отдельная фаза).
+2. **Проверить, что `CRON_SECRET` и `TELEGRAM_WEBHOOK_SECRET` заданы в Vercel** (если нет — cron и вебхук вернут 500).
+3. **`revalidateTag`** — если где-то используется, добавить второй аргумент (профиль кэша) при необходимости.
+4. **Защита ветки `master`** (если ещё не настроена).
 
 ---
 
@@ -127,17 +141,18 @@
 
 ## 📋 Шпаргалка
 - **Supabase ref:** `smodijsj`**`i`**`wcvsscfgloh` (с буквой `i`!)
-- **Линт:** `npm run lint` (0 errors, 0 warnings).
+- **Линт:** `npm run lint` (ESLint 9 + чистые плагины, без `eslint-config-next`).
 - **Тесты:** `npm run test` (Vitest, **28 тестов**).
 - **CI:** GitHub Actions (Actions → CI).
 - **`package.json` overrides:** `postcss: "^8.5.23"`, `glob: "10.5.0"`.
-- **`eslint.config.mjs`:** `FlatCompat` + `compat.extends('next/core-web-vitals')`. `.next` в ignores.
+- **`next.config.js`:** без `eslint`, только `experimental` (serverActions, optimizePackageImports).
+- **`eslint.config.mjs`:** `@eslint/js` + `typescript-eslint` + `react` + `react-hooks` (без `eslint-config-next`).
 - **`exceljs`:** в `dependencies`, ленивый импорт в клиентах, статический — в API.
-- **`npm audit`:** 3 moderate (`postcss-selector-parser` через Tailwind 3) — принятый dev-риск.
-- **Аккаунты:** админ — `raibuilding.pl@gmail.com`, водители — `vasiliuk@...`, `kavaliou@...`.
+- **`npm audit`:** 5 moderate (`postcss-selector-parser` через Tailwind 3 + что-то ещё) — принятый dev-риск.
+- **Аккаунты:** админ — `raibuilding@gmail.com`, водители — `vasiliuk@...`, `kavaliou@...`.
 - **PWA:** установка через «Добавить на главный экран».
 
-**Закрыто:** Фазы 3.1–3.21.
+**Закрыто:** Фазы 3.1–3.25.
 
 ---
 
