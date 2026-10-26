@@ -4,7 +4,7 @@ import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet'
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import { MapPin, Inbox } from 'lucide-react';
+import { MapPin } from 'lucide-react';
 
 // ============================================================
 // Кастомные иконки — цветной кружок с номером рейса
