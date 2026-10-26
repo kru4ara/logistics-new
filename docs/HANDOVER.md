@@ -2,7 +2,7 @@
 
 ## Стек и инфраструктура
 - **Next.js 16.4.3** (App Router, Turbopack) + React 19.3.1 + Supabase + Vercel
-- GitHub: `kru4ara/logistics-new` (master) — автокоммит на каждое изменение
+- GitHub: `kru4ara/logistics-new` (master) 
 - Prod: https://logistics-new-ebon.vercel.app
 - Supabase Project: `logistics-core`, org `Raibuilding`
   - ⚠️ **ПРАВИЛЬНЫЙ REF:** `smodijsj`**`i`**`wcvsscfgloh` (с буквой `i` после `smodijsj`)
@@ -17,8 +17,8 @@
 - `LOGISAT_SERVER` / `LOGISAT_USERNAME` / `LOGISAT_PASSWORD`
 - `TELEGRAM_BOT_TOKEN` — @raibuilding_bot
 - `TELEGRAM_CHAT_ID` — `921520481`
-- `TELEGRAM_WEBHOOK_SECRET` — **обязателен** (если нет, вебхук вернёт 500)
-- `CRON_SECRET` — **обязателен** (если нет, cron вернёт 500)
+- `TELEGRAM_WEBHOOK_SECRET` — ✅ **задан** (проверено 26.10)
+- `CRON_SECRET` — ✅ **задан** (проверено 26.10)
 
 ---
 
@@ -30,12 +30,12 @@
 
 ---
 
-### ⚠️ Строгое правило работы с кодом
+## ⚠️ Строгое правило работы с кодом (Важно!)
 - **Изменения в коде вносятся ТОЛЬКО через веб-интерфейс GitHub.**
 - Локальный VS Code не используется для правок (файлы не сохраняются/не применяются).
-- Терминал используется только для: `git pull`, `git push`, `git merge`, `npm run lint`, `npm run test`.
-- После любых правок на GitHub — **обязательно** делать `git pull` локально.
-- Ветка `feat/next-16` содержит миграцию Next 16 и **не смержена** в `master`. Работать только в ней. `master` отстаёт.
+- Терминал используется **ТОЛЬКО** для команд: `git pull`, `git push`, `git merge`, `npm run lint`, `npm run test`, `git status`, `git log`.
+- Любые инструкции от AI должны содержать **точный путь к файлу** и **точные строки**, которые нужно заменить, чтобы их можно было применить в веб-редакторе GitHub.
+- После правок на GitHub, перед запуском тестов/линта локально, **всегда** делать `git pull`.
 
 ### Контекст чата — не бесконечный
 Не грузить бэкапы, старые HANDOVER, заменённые файлы, полные логи, огромные JSON, **секреты**.
@@ -48,7 +48,7 @@
 - **Один коммит = связанные файлы.**
 - **`import` должны быть в начале файла.**
 - **`middleware.ts` переименован в `proxy.ts`** (Next 16). В `next.config.js` **нет** ключа `eslint`.
-- **Линт** — отдельный файл `eslint.config.mjs` на чистых плагинах (`@eslint/js`, `typescript-eslint`, `react`, `react-hooks`). **`eslint-config-next` больше не используется** (ломается в CI на Next 16).
+- **Линт** — отдельный файл `eslint.config.mjs` на чистых плагинах (`@eslint/js`, `typescript-eslint`, `react`, `react-hooks`, `globals`). **`eslint-config-next` больше не используется.**
 
 ### ⚠️ Git (локально)
 - `git pull --no-edit`.
@@ -56,7 +56,7 @@
 - Конфликт в `package.json` — **наша версия**.
 - **Git Bash склеивает команды** — по одной строке.
 - **`sed` на JSX — запрещён.**
-- Ветка `feat/next-16` смержена в `master` (Next 16). При новых правках работать в `master` или создавать ветки.
+- Защита ветки `master` **не настроена** (осознанное решение для удобства).
 
 ---
 
@@ -117,9 +117,15 @@
 - `next@15.5.28` → **`16.4.3`** (Turbopack по умолчанию).
 - `middleware.ts` → **`proxy.ts`** (кодмод).
 - `next.config.js`: убран ключ `eslint`.
-- `eslint.config.mjs`: отказ от `eslint-config-next` (ломается в CI), переход на чистые плагины (`@eslint/js`, `typescript-eslint`, `react`, `react-hooks`).
 - `sharp@0.35.5` — безопасная версия (проверено).
 - `revalidateTag` — breaking change (пока не используется в проекте).
+
+### Фаза 26 — Наведение порядка в линтере — ✅ 26.10
+- Удалён `eslint-config-next` (ломается в CI на Next 16).
+- `eslint.config.mjs` переведён на чистые плагины + `globals` (Node + Service Worker).
+- Исправлены все 30 ошибок линта (0 errors, 54 warnings).
+- Восстановлен случайно удалённый `app/lib/supabase-server.ts`.
+- Ветка `feat/next-16` успешно смержена в `master`.
 
 ---
 
@@ -132,9 +138,8 @@
 
 ## ⏭️ Очередь задач
 1. **Tailwind 4** (breaking, отдельная фаза).
-2. **Проверить, что `CRON_SECRET` и `TELEGRAM_WEBHOOK_SECRET` заданы в Vercel** (если нет — cron и вебхук вернут 500).
-3. **`revalidateTag`** — если где-то используется, добавить второй аргумент (профиль кэша) при необходимости.
-4. **Защита ветки `master`** (если ещё не настроена).
+2. **`revalidateTag`** — если где-то используется, добавить второй аргумент (профиль кэша) при необходимости.
+3. **Очистка 54 warnings** (неиспользуемые импорты и мёртвые `eslint-disable`). Не критично, можно сделать в любой момент (опция `--fix`).
 
 ---
 
@@ -151,13 +156,13 @@
 - **CI:** GitHub Actions (Actions → CI).
 - **`package.json` overrides:** `postcss: "^8.5.23"`, `glob: "10.5.0"`.
 - **`next.config.js`:** без `eslint`, только `experimental` (serverActions, optimizePackageImports).
-- **`eslint.config.mjs`:** `@eslint/js` + `typescript-eslint` + `react` + `react-hooks` (без `eslint-config-next`).
+- **`eslint.config.mjs`:** `@eslint/js` + `typescript-eslint` + `react` + `react-hooks` + `globals`.
 - **`exceljs`:** в `dependencies`, ленивый импорт в клиентах, статический — в API.
 - **`npm audit`:** 5 moderate (`postcss-selector-parser` через Tailwind 3 + что-то ещё) — принятый dev-риск.
 - **Аккаунты:** админ — `raibuilding@gmail.com`, водители — `vasiliuk@...`, `kavaliou@...`.
 - **PWA:** установка через «Добавить на главный экран».
 
-**Закрыто:** Фазы 3.1–3.25.
+**Закрыто:** Фазы 3.1–3.26.
 
 ---
 
