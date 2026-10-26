@@ -1,15 +1,41 @@
-import { FlatCompat } from '@eslint/eslintrc'
-import { dirname } from 'path'
-import { fileURLToPath } from 'url'
+import js from '@eslint/js';
+import tseslint from 'typescript-eslint';
+import react from 'eslint-plugin-react';
+import reactHooks from 'eslint-plugin-react-hooks';
+import globals from 'globals';
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
-
-const compat = new FlatCompat({ baseDirectory: __dirname })
-
-const eslintConfig = [
-  { ignores: ['.next/**', 'node_modules/**'] },
-  ...compat.extends('next/core-web-vitals'),
-]
-
-export default eslintConfig
+export default [
+  {
+    ignores: ['.next/**', 'node_modules/**', 'out/**', 'build/**', 'next-env.d.ts'],
+  },
+  js.configs.recommended,
+  ...tseslint.configs.recommended,
+  {
+    files: ['**/*.{ts,tsx,js,jsx}'],
+    plugins: {
+      react,
+      'react-hooks': reactHooks,
+    },
+    rules: {
+      'react/react-in-jsx-scope': 'off',
+      'react-hooks/rules-of-hooks': 'error',
+      'react-hooks/exhaustive-deps': 'warn',
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-unused-vars': 'warn',
+    },
+  },
+  {
+    files: [
+      'next.config.js',
+      'postcss.config.js',
+      'tailwind.config.js',
+      'vitest.config.js',
+      'eslint.config.mjs',
+    ],
+    languageOptions: { globals: { ...globals.node } },
+  },
+  {
+    files: ['public/sw.js'],
+    languageOptions: { globals: { ...globals.serviceworker, ...globals.browser } },
+  },
+];
