@@ -100,11 +100,11 @@ export default async function ForwardingPage({
 
   const orderIds = orders?.map((o) => o.id) || [];
 
-  let contractorsByOrder: Record<string, number> = {};
-  let contractorNamesByOrder: Record<string, string[]> = {};
-  let loadingCitiesByOrder: Record<string, string[]> = {};
-  let unloadingCitiesByOrder: Record<string, string[]> = {};
-  let expensesByOrder: Record<string, number> = {};
+  const contractorsByOrder: Record<string, number> = {};
+  const contractorNamesByOrder: Record<string, string[]> = {};
+  const loadingCitiesByOrder: Record<string, string[]> = {};
+  const unloadingCitiesByOrder: Record<string, string[]> = {};
+  const expensesByOrder: Record<string, number> = {};
 
   if (orderIds.length > 0) {
     const [allContractors, allPoints, allExp] = await Promise.all([
