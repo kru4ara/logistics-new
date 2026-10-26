@@ -43,7 +43,7 @@ export async function uploadDocument(formData: FormData): Promise<UploadResult> 
 
   const supabase = await createClient();
 
-  const safeName = file.name.replace(/[^\w.\-]+/g, '_');
+  const safeName = file.name.replace(/[^\w.-]+/g, '_');
   const filePath = `${entityType}/${entityId}/${documentType}-${Date.now()}-${safeName}`;
 
   const arrayBuffer = await file.arrayBuffer();

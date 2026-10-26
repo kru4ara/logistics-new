@@ -53,7 +53,7 @@ export default async function StatisticsPage({ searchParams }: { searchParams: P
   const forwardingIds = forwarding?.map((f) => f.id) || [];
 
   // 5. Подрядчики экспедиций
-  let contractorsByForwarding: Record<string, number> = {};
+  const contractorsByForwarding: Record<string, number> = {};
   if (forwardingIds.length > 0) {
     const { data: allContractors } = await supabase
       .from('forwarding_contractors')
@@ -68,7 +68,7 @@ export default async function StatisticsPage({ searchParams }: { searchParams: P
   }
 
   // 6. Расходы экспедиций
-  let expensesByForwarding: Record<string, number> = {};
+  const expensesByForwarding: Record<string, number> = {};
   if (forwardingIds.length > 0) {
     const { data: allFExp } = await supabase
       .from('forwarding_expenses')

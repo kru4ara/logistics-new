@@ -80,7 +80,7 @@ export function translateToPl(text: string | null | undefined): string {
   }
   
   // 2. Попробовать перевести по словам (если текст длинный)
-  let result = trimmed;
+  const result = trimmed;
   const words = trimmed.split(/(\s+|,|-)/);
   
   for (let i = 0; i < words.length; i++) {
