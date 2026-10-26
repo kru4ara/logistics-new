@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-// Пути, которые закрыты для водителей
+// Пути, которые закрыты для водителей (админские)
 const ADMIN_ONLY_PATHS = [
   '/reports',
   '/audit',
@@ -14,14 +14,37 @@ const ADMIN_ONLY_PATHS = [
   '/forwarding',
   '/fixed-costs',
   '/reminders',
+  '/today',
+  '/map',
   '/api/export',
   '/api/forwarding',
+  '/api/logisat',
+  '/api/backfill-rates',
+  '/api/check-duplicates',
+  '/api/update-rates',
+  '/api/trips',
 ];
+
+// Исключения: эти пути не требуют сессии (cron, вебхуки, публичные API)
+const PUBLIC_API_PATHS = [
+  '/api/cron',
+  '/api/telegram/webhook',
+];
+
+// Роли, которым разрешён доступ к админским страницам
+const ADMIN_ROLES = ['admin', 'manager'];
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({
     request,
   })
+
+  const pathname = request.nextUrl.pathname;
+
+  // 1. Пропускаем публичные API (cron, вебхуки) без проверки сессии
+  if (PUBLIC_API_PATHS.some((path) => pathname.startsWith(path))) {
+    return response;
+  }
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -46,12 +69,14 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // 1. Проверяем сессию
+  // 2. Проверяем сессию
   const { data: { user } } = await supabase.auth.getUser()
-  const pathname = request.nextUrl.pathname
 
-  // Не залогинен и не на /login — редирект на /login
+  // Не залогинен и не на /login — редирект на /login (или 401 для API)
   if (!user && !pathname.startsWith('/login')) {
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
@@ -64,8 +89,14 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // 2. Проверяем роль (только для залогиненных)
+  // 3. Проверяем роль (только для залогиненных и админских путей)
   if (user) {
+    // Исключение для driver-docx: пропускаем водителя, 
+    // но проверка владельца будет внутри роута!
+    if (pathname.startsWith('/api/trips/') && pathname.includes('/driver-docx')) {
+      return response;
+    }
+
     const isAdminPath = ADMIN_ONLY_PATHS.some((path) => pathname.startsWith(path));
 
     if (isAdminPath) {
@@ -76,10 +107,14 @@ export async function middleware(request: NextRequest) {
         .eq('id', user.id)
         .single();
 
-      const role = profile?.role || 'driver'; // Если нет профиля — безопасный дефолт
+      const rawRole = profile?.role || 'driver';
+      const role = String(rawRole).trim().toLowerCase();
 
-      // Если это водитель — редирект на его страницу
-      if (role === 'driver') {
+      // Если роль не в белом списке — редирект (или 403 для API)
+      if (!ADMIN_ROLES.includes(role)) {
+        if (pathname.startsWith('/api/')) {
+          return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+        }
         const url = request.nextUrl.clone()
         url.pathname = '/driver'
         return NextResponse.redirect(url)
