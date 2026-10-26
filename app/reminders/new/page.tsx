@@ -1,6 +1,6 @@
 import { createReminder } from '../actions';
 import SubmitButton from '../../components/SubmitButton';
-import { ArrowLeft, Bell, Calendar, Save } from 'lucide-react';
+import { ArrowLeft, Bell, Save } from 'lucide-react';
 
 export default function NewReminderPage() {
   return (
