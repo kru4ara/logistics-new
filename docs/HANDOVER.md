@@ -94,28 +94,23 @@
 ### Фаза 19 — Инфраструктура и тесты — ✅ 25.10
 ### Фаза 20 — Рефакторинг гигантских файлов — ✅ 25.10
 ### Фаза 21 — Аудит безопасности (закрытие дыр) — ✅ 26.10
-- `/api/trips` возвращён в `ADMIN_ONLY_PATHS`.
-- `/today`, `/map` закрыты для водителей.
-- `driver-docx` проверяет `segment.driver_id === profile.driver_id` (IDOR закрыт).
-- `CRON_SECRET` и `TELEGRAM_WEBHOOK_SECRET` обязательны (500 если нет).
-- `app/driver/trips/[id]` использует `service_role` (как список), проверка владения: `trip.driver_id === driverId || segment.driver_id === driverId`.
+### Фаза 22 — Рефакторинг карточки рейса — ✅ 26.10
+### Фаза 23 — Рефакторинг карточки водителя — ✅ 26.10
+- `app/drivers/[id]/page.tsx` разбит на `DriverHeader`, `DriverFinance`, `DriverCardDownload`, `DriverStats`, `DriverTrips`.
 
 ---
 
 ## 📈 Состояние скорости (26.10.2026)
 - **Vercel Speed Insights (Desktop, P75):** **94/100**.
 - **First Load JS shared:** 103 kB.
-- **`/map`:** 105 kB.
-- **`/trips`:** 118 kB.
-- **`/reports`:** 114 kB.
 
 ---
 
 ## ⏭️ Очередь задач
-1. **Защита ветки `master`** (Settings → Branches → Require status checks).
-2. **Рефакторинг оставшихся гигантов:** `drivers/[id]` (34 КБ), `trips/[id]` (32 КБ), `forwarding/[id]` (31 КБ), DOCX-роуты.
-3. **`eslint-plugin-react`** устарел для React 19.
-4. **Tailwind 4 / Next 16** (breaking).
+1. **Рефакторинг `app/forwarding/[id]/page.tsx`** (31 КБ) — последний гигант.
+2. **`eslint-plugin-react`** устарел для React 19.
+3. **Tailwind 4 / Next 16** (breaking).
+4. **Проверить, что `CRON_SECRET` и `TELEGRAM_WEBHOOK_SECRET` заданы в Vercel.**
 
 ---
 
@@ -137,7 +132,7 @@
 - **Аккаунты:** админ — `raibuilding.pl@gmail.com`, водители — `vasiliuk@...`, `kavaliou@...`.
 - **PWA:** установка через «Добавить на главный экран».
 
-**Закрыто:** Фазы 3.1–3.21.
+**Закрыто:** Фазы 3.1–3.23.
 
 ---
 
