@@ -92,18 +92,7 @@
 ### Фаза 17 — Миграция на Supabase Auth — ✅ 24.10
 ### Фаза 18 — Улучшения UX/UI и PWA — ✅ 25.10
 ### Фаза 19 — Инфраструктура и тесты — ✅ 25.10
-- CI (`.github/workflows/ci.yml`).
-- Vitest: `buildRouteMap` (6), `renumberAllTrips` (4), `buildDriverTaskText` (7), `calculateStatistics` (6), `calculateProfitability` (5). Всего 28 тестов.
-- `server-only` в `lib/supabase-server.ts`.
-- `.env.example`.
-- `@types/react` и `@types/node` обновлены.
-- Роли в Middleware.
-
 ### Фаза 20 — Рефакторинг гигантских файлов — ✅ 25.10
-- `SegmentForm.tsx` → `SegmentAddressBlock`, `SegmentStopsBlock`, `SegmentExecutorBlock`, `SegmentCargoSelector`, `types.ts`.
-- `statistics/page.tsx` → `lib/statistics.ts` + 6 компонентов.
-- `profitability/page.tsx` → `lib/profitability.ts` + 5 тестов.
-
 ### Фаза 21 — Аудит безопасности (закрытие дыр) — ✅ 26.10
 - `/api/trips` возвращён в `ADMIN_ONLY_PATHS`.
 - `/today`, `/map` закрыты для водителей.
@@ -123,11 +112,10 @@
 ---
 
 ## ⏭️ Очередь задач
-1. **`cron/backup` и `cron/backup-watch`** — проверить `CRON_SECRET`.
-2. **Защита ветки `master`** (Settings → Branches → Require status checks).
-3. **Рефакторинг оставшихся гигантов:** `drivers/[id]` (34 КБ), `trips/[id]` (32 КБ), `forwarding/[id]` (31 КБ), DOCX-роуты.
-4. **`eslint-plugin-react`** устарел для React 19.
-5. **Tailwind 4 / Next 16** (breaking).
+1. **Защита ветки `master`** (Settings → Branches → Require status checks).
+2. **Рефакторинг оставшихся гигантов:** `drivers/[id]` (34 КБ), `trips/[id]` (32 КБ), `forwarding/[id]` (31 КБ), DOCX-роуты.
+3. **`eslint-plugin-react`** устарел для React 19.
+4. **Tailwind 4 / Next 16** (breaking).
 
 ---
 
