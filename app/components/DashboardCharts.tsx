@@ -1,4 +1,4 @@
-import { TrendingUp, TrendingDown, PieChart } from 'lucide-react';
+import { TrendingUp, PieChart } from 'lucide-react';
 
 type MonthPoint = {
   key: string;
