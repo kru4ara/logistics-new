@@ -1,6 +1,6 @@
 import { createFixedCost } from '../../fixed-cost-actions';
 import SubmitButton from '../../components/SubmitButton';
-import { ArrowLeft, Banknote, Save, Briefcase, Info } from 'lucide-react';
+import { ArrowLeft, Banknote, Save, Info } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
