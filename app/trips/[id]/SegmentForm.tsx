@@ -132,7 +132,7 @@ export default function SegmentForm({
     new Set(initialCargoIds || [])
   );
 
-  /* eslint-disable react-hooks/set-state-in-effect */
+   
   useEffect(() => {
     if (initialData) {
       setExecutorType((initialData.executor_type as 'us' | 'contractor') || 'us');
@@ -189,7 +189,7 @@ export default function SegmentForm({
       setSelectedCargo(new Set());
     }
   }, [initialData, initialCargoIds]);
-  /* eslint-enable react-hooks/set-state-in-effect */
+   
 
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();

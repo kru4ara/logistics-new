@@ -122,7 +122,7 @@ export default function Toaster() {
     if (!msg) return;
 
     // Синхронизация с URL — легитимный внешний источник состояния
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     setVisible(msg);
     setKey((k) => k + 1);
 

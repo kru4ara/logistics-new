@@ -54,7 +54,7 @@ export default function DuplicateChecker({
       return;
     }
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     setLoading(true);
     timerRef.current = setTimeout(async () => {
       try {

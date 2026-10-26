@@ -22,7 +22,7 @@ export default function SearchInput({
   // Синхронизация с внешним значением (переход по ссылке / back / прямое открытие).
   // Это внешний источник состояния (URL), а не каскадный рендер.
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     setValue(initialQ);
   }, [initialQ]);
 

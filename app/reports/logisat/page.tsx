@@ -88,7 +88,7 @@ export default async function LogisatReportPage() {
     });
 
   // 3. КАТЕГОРИИ ПРОБЛЕМ
-  // eslint-disable-next-line react-hooks/purity
+   
   const staleTs = Date.now() - STALE_DAYS * 86400000;
 
   const neverSyncedActive: TripRow[] = [];

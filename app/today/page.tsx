@@ -405,7 +405,7 @@ export default async function TodayPage() {
   const overdueReminders: { id: string; title: string; days: number }[] = [];
   (remindersRaw || []).forEach((r) => {
     if (!r.due_date) return;
-    // eslint-disable-next-line react-hooks/purity
+     
     const days = Math.ceil((new Date(r.due_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
     if (days < 0) overdueReminders.push({ id: r.id, title: r.title || '', days });
   });
