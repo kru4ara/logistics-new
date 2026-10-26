@@ -2,7 +2,7 @@
 
 import { useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { MapPin, Loader2, AlertTriangle } from 'lucide-react';
+import { MapPin, Loader2 } from 'lucide-react';
 import { recalcTripCoords } from '../../trip-actions';
 
 export default function RecalcCoordsButton({ tripId }: { tripId: string }) {
