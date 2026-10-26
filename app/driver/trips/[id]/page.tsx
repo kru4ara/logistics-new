@@ -19,7 +19,7 @@ import {
   DoorOpen,
   ArrowRight,
 } from 'lucide-react';
-import { createClient } from '../../../../lib/supabase/server';
+import { createClient } from '../../../../lib/supabase-server'; // <-- service_role
 import { buildRouteMap, type SegmentRouteRow } from '../../../../lib/trip-route';
 import { deleteExpense } from '../../../trip-actions';
 import AddExpenseForm from '../../../trips/AddExpenseForm';
@@ -68,40 +68,49 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
 
   const supabase = await createClient();
 
-  // 1. Проверка авторизации через Supabase Auth
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect('/login');
+  // 1. Получаем водителя из куки (как в списке, через service_role)
+  //    (В будущем заменим на Supabase Auth + profiles, но сейчас
+  //     для единообразия с app/driver/page.tsx используем куки)
+  const { cookies } = await import('next/headers');
+  const cookieStore = await cookies();
+  const driverId = cookieStore.get('driver_id')?.value;
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role, driver_id')
-    .eq('id', user.id)
-    .single();
-
-  if (profile?.role !== 'driver' || !profile.driver_id) {
-    redirect('/login');
+  if (!driverId) {
+    return <div className="p-6 text-red-500">Ошибка: вы не авторизованы как водитель</div>;
   }
-
-  const driverId = profile.driver_id;
 
   // 2. Получаем рейс
   const { data: trip, error: tripError } = await supabase
     .from('trips')
     .select('*, clients(name)')
     .eq('id', tripId)
-    .single();
+    .maybeSingle(); // <-- maybeSingle вместо single
 
-  if (tripError) return <div className="p-6 text-red-500">Ошибка: {tripError.message}</div>;
+  if (tripError) {
+    return <div className="p-6 text-red-500">Ошибка: {tripError.message}</div>;
+  }
 
-  // 3. Проверяем, что водитель назначен на этот рейс (через segments)
-  const { data: driverSegments } = await supabase
-    .from('trip_segments')
-    .select('id')
-    .eq('trip_id', tripId)
-    .eq('driver_id', driverId)
-    .limit(1);
+  if (!trip) {
+    return <div className="p-6 text-red-500">Рейс не найден</div>;
+  }
 
-  if (!driverSegments || driverSegments.length === 0) {
+  // 3. УНИФИЦИРОВАННАЯ проверка владения:
+  //    водитель владеет рейсом, если trips.driver_id = его driver_id
+  //    ИЛИ он назначен хотя бы на один сегмент.
+  const isTripOwner = trip.driver_id === driverId;
+
+  let isSegmentOwner = false;
+  if (!isTripOwner) {
+    const { data: segs } = await supabase
+      .from('trip_segments')
+      .select('id')
+      .eq('trip_id', tripId)
+      .eq('driver_id', driverId)
+      .limit(1);
+    isSegmentOwner = Boolean(segs && segs.length > 0);
+  }
+
+  if (!isTripOwner && !isSegmentOwner) {
     return <div className="p-6 text-red-500">У вас нет доступа к этому рейсу</div>;
   }
 
