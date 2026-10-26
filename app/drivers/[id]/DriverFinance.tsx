@@ -148,10 +148,7 @@ export default function DriverFinance({
                   }`}>
                     {t.type === 'accrual' ? '+' : '−'}{Number(t.amount_eur).toFixed(2)} €
                   </div>
-                  <form action={async () => {
-                    'use server';
-                    await deleteDriverTransaction(t.id, driverId);
-                  }}>
+                  <form action={deleteDriverTransaction.bind(null, t.id, driverId)}>
                     <button
                       type="submit"
                       className="text-slate-400 hover:text-red-600 transition-colors p-1"
