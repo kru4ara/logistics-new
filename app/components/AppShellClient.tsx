@@ -33,7 +33,9 @@ export default function AppShellClient({
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, String(isPinned));
-    } catch {}
+    } catch {
+      // Игнорируем: localStorage может быть недоступен
+    }
   }, [isPinned]);
 
   function togglePin() {
