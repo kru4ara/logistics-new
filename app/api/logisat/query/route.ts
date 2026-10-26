@@ -1,5 +1,4 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { createClient } from '../../../../lib/supabase-server';
 
 const SERVER = process.env.LOGISAT_SERVER;
 const USERNAME = process.env.LOGISAT_USERNAME;
