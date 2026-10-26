@@ -9,12 +9,6 @@ import {
   Inbox,
   Search,
   X,
-  Clock,
-  CheckCircle2,
-  FileText,
-  Wallet,
-  Truck as TruckIcon,
-  Route as RouteIcon,
 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
