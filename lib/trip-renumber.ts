@@ -1,4 +1,4 @@
-import type { createClient } from './supabase-server';
+import type { createClient } from './supabase/admin';
 
 /**
  * Перенумеровывает все рейсы по start_date ASC.

@@ -1,4 +1,4 @@
-import { createClient } from './supabase-server';
+import { createClient } from './supabase/admin';
 import { getSessionContext } from './session';
 
 export type AuditAction = 'create' | 'update' | 'delete' | 'status_change' | 'merge';

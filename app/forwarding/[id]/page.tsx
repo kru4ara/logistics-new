@@ -1,6 +1,6 @@
 import { getSessionContext } from '../../../lib/session';
 import { redirect } from 'next/navigation';
-import { createClient } from '../../../lib/supabase-server';
+import { createClient } from '../../../lib/supabase/admin';
 import ForwardingHeader from './ForwardingHeader';
 import ForwardingStatusBlock from './ForwardingStatusBlock';
 import ForwardingEconomics from './ForwardingEconomics';

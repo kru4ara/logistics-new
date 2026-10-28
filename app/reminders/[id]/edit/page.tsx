@@ -1,4 +1,4 @@
-import { createClient } from '../../../../lib/supabase-server';
+import { createClient } from '../../../../lib/supabase/admin';
 import { updateReminder } from '../../actions';
 import { redirect } from 'next/navigation';
 import { getSessionContext } from '../../../../lib/session';

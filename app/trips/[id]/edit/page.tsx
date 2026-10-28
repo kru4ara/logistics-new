@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { createClient } from '../../../../lib/supabase-server';
+import { createClient } from '../../../../lib/supabase/admin';
 import EditTripForm from './EditTripForm';
 
 export const dynamic = 'force-dynamic';
