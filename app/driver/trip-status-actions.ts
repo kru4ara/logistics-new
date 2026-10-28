@@ -1,6 +1,6 @@
 'use server';
 
-import { createClient } from '../../lib/supabase-server';
+import { createClient } from '../../lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
 import { logAudit } from '../../lib/audit';
 import { buildRouteMap, type SegmentRouteRow } from '../../lib/trip-route'; // ⬅️ ИЗМЕНЕНО

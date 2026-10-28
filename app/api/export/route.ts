@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import ExcelJS from 'exceljs';
 import { getSessionContext } from '../../../lib/session';
-import { createClient } from '../../../lib/supabase-server';
+import { createClient } from '../../../lib/supabase/admin';
 import { buildRouteMap } from '../../../lib/trip-route';
 
 export const dynamic = 'force-dynamic';

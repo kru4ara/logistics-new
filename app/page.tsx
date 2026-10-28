@@ -1,7 +1,7 @@
 import { getSessionContext } from '../lib/session';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { createClient } from '../lib/supabase-server';
+import { createClient } from '../lib/supabase/admin';
 import { MonthlyBars, ExpenseDonut } from './components/DashboardCharts';
 import AdminOnboardingCard from './components/AdminOnboardingCard';
 import {

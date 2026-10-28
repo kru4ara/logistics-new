@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { createClient as createAdminClient } from '../../lib/supabase-server';
+import { createClient as createAdminClient } from '../../lib/supabase/admin';
 import { createClient as createServerClient } from '../../lib/supabase/server';
 import { buildRouteMap, type SegmentRouteRow, type TripRouteInfo } from '../../lib/trip-route';
 import TripsList from './TripsList';

@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { getSessionContext } from '../../../../lib/session';
 import { redirect } from 'next/navigation';
-import { createClient } from '../../../../lib/supabase-server';
+import { createClient } from '../../../../lib/supabase/admin';
 import { updateContractor } from '../../actions';
 import { EUROPEAN_COUNTRIES } from '../../../../lib/countries';
 import SubmitButton from '../../../components/SubmitButton';

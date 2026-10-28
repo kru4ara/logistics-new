@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createClient } from '../../lib/supabase-server';
+import { createClient } from '../../lib/supabase/admin';
 
 export async function deleteExpenseAction(id: string, tripId: string) {
   const supabase = await createClient();

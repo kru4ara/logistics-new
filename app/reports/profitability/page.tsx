@@ -7,7 +7,7 @@ import {
   Handshake,
   Truck,
 } from 'lucide-react';
-import { createClient } from '../../../lib/supabase-server';
+import { createClient } from '../../../lib/supabase/admin';
 import { calculateProfitability, toNum } from '../../../lib/profitability';
 
 export const dynamic = 'force-dynamic';

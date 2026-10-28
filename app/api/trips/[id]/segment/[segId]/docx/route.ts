@@ -17,7 +17,7 @@ import {
 } from 'docx';
 import QRCode from 'qrcode';
 import { imageSize } from 'image-size';
-import { createClient } from '../../../../../../../lib/supabase-server';
+import { createClient } from '../../../../../../../lib/supabase/admin';
 import { COMPANY, APP_URL, getTerms } from '../../../../../../../lib/company';
 
 export const dynamic = 'force-dynamic';

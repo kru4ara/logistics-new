@@ -1,4 +1,4 @@
-import { createClient } from './supabase-server';
+import { createClient } from './supabase/admin';
 
 const SERVER = process.env.LOGISAT_SERVER;
 const USERNAME = process.env.LOGISAT_USERNAME;

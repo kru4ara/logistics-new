@@ -1,6 +1,6 @@
 'use server';
 
-import { createClient } from '../lib/supabase-server';
+import { createClient } from '../lib/supabase/admin';
 import { logAudit, type AuditEntityType } from '../lib/audit';
 
 export type UploadResult = { success: true } | { success: false; error: string };

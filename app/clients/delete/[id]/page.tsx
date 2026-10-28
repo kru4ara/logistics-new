@@ -1,4 +1,4 @@
-import { createClient } from '../../../../lib/supabase-server';
+import { createClient } from '../../../../lib/supabase/admin';
 import { redirect } from 'next/navigation';
 
 export default async function DeleteClientPage({ params }: { params: Promise<{ id: string }> }) {

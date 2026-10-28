@@ -1,6 +1,6 @@
 import 'server-only';
 import { createClient } from './supabase/server';
-import { createClient as createAdminClient } from './supabase-server';
+import { createClient as createAdminClient } from './supabase/admin';
 
 export type SessionContext = {
   userId: string | null;

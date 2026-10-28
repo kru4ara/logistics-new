@@ -1,6 +1,6 @@
 import { getSessionContext } from '../../lib/session';
 import { redirect } from 'next/navigation';
-import { createClient } from '../../lib/supabase-server';
+import { createClient } from '../../lib/supabase/admin';
 import { calculateStatistics } from '../../lib/statistics';
 import StatisticsHeader from './StatisticsHeader';
 import StatisticsSummary from './StatisticsSummary';

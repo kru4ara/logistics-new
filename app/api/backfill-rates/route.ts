@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '../../../lib/supabase-server';
+import { createClient } from '../../../lib/supabase/admin';
 
 // Получить PLN → EUR на конкретную дату (frankfurter.app — данные ЕЦБ)
 async function fetchPlnToEur(date: string): Promise<number | null> {

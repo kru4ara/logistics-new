@@ -2,7 +2,7 @@ import Link from 'next/link';
 import Image from 'next/image';  // ← добавь эту строку, если её нет
 import { getSessionContext } from '../../lib/session';
 import { redirect } from 'next/navigation';
-import { createClient } from '../../lib/supabase-server';
+import { createClient } from '../../lib/supabase/admin';
 import {
   UserCircle,
   UserPlus,

@@ -9,7 +9,7 @@ import {
   Inbox,
   CheckCircle2,
 } from 'lucide-react';
-import { createClient } from '../../../lib/supabase-server';
+import { createClient } from '../../../lib/supabase/admin';
 import LogisatProblemsList, { type TripRow } from './LogisatProblemsList';
 
 export const dynamic = 'force-dynamic';

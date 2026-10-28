@@ -12,7 +12,7 @@ import {
   BorderStyle,
   VerticalAlign,
 } from 'docx';
-import { createClient } from '../../../../../../../lib/supabase-server';
+import { createClient } from '../../../../../../../lib/supabase/admin';
 import { COMPANY } from '../../../../../../../lib/company';
 
 export const dynamic = 'force-dynamic';
