@@ -20,6 +20,7 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import { createClient } from '../../../../lib/supabase-server'; // <-- service_role
+import { createClient as createAuthClient } from '../../../../lib/supabase/server'; // <-- user session (RLS)
 import { buildRouteMap, type SegmentRouteRow } from '../../../../lib/trip-route';
 import { deleteExpense } from '../../../trip-actions';
 import AddExpenseForm from '../../../trips/AddExpenseForm';
@@ -68,16 +69,25 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
 
   const supabase = await createClient();
 
-  // 1. Получаем водителя из куки (как в списке, через service_role)
-  //    (В будущем заменим на Supabase Auth + profiles, но сейчас
-  //     для единообразия с app/driver/page.tsx используем куки)
-  const { cookies } = await import('next/headers');
-  const cookieStore = await cookies();
-  const driverId = cookieStore.get('driver_id')?.value;
+  // 1. Определяем водителя через Supabase Auth + profiles.
+  //    Источник правды — profiles.driver_id (как в app/driver/page.tsx),
+  //    а не cookie 'driver_id': значение в куке могло разойтись с базой.
+  const authClient = await createAuthClient();
+  const { data: { user } } = await authClient.auth.getUser();
 
-  if (!driverId) {
-    return <div className="p-6 text-red-500">Ошибка: вы не авторизованы как водитель</div>;
+  if (!user) redirect('/login');
+
+  const { data: profile } = await authClient
+    .from('profiles')
+    .select('role, driver_id')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  if (profile?.role !== 'driver' || !profile.driver_id) {
+    redirect('/login');
   }
+
+  const driverId = profile.driver_id;
 
   // 2. Получаем рейс
   const { data: trip, error: tripError } = await supabase
