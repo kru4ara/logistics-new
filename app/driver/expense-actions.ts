@@ -1,6 +1,6 @@
 'use server';
 
-import { createClient } from '../../lib/supabase-server';
+import { createClient } from '../../lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
 
 export async function addDriverExpense(formData: FormData) {

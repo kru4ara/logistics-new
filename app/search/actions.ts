@@ -1,6 +1,6 @@
 'use server';
 
-import { createClient } from '../../lib/supabase-server';
+import { createClient } from '../../lib/supabase/admin';
 import { getSessionContext } from '../../lib/session';
 import { buildRouteMap, type SegmentRouteRow } from '../../lib/trip-route';
 

@@ -1,6 +1,6 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { getSessionContext } from '../../../../lib/session';
-import { createClient } from '../../../../lib/supabase-server';
+import { createClient } from '../../../../lib/supabase/admin';
 import { buildRouteMap, type SegmentRouteRow } from '../../../../lib/trip-route';
 
 export const dynamic = 'force-dynamic';

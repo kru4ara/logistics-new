@@ -1,6 +1,6 @@
 'use server';
 
-import { createClient } from '../lib/supabase-server'; // <-- исправлено
+import { createClient } from '../lib/supabase/admin'; // <-- исправлено
 import { revalidatePath } from 'next/cache';
 
 export async function saveTelemetry(tripId: string, km: number, liters: number) {

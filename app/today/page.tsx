@@ -13,7 +13,7 @@ import {
   Inbox,
   Route as RouteIcon,
 } from 'lucide-react';
-import { createClient } from '../../lib/supabase-server';
+import { createClient } from '../../lib/supabase/admin';
 import { buildRouteMap } from '../../lib/trip-route';
 
 export const dynamic = 'force-dynamic';

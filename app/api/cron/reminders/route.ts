@@ -1,5 +1,5 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { createClient } from '../../../../lib/supabase-server';
+import { createClient } from '../../../../lib/supabase/admin';
 import { sendCronAlert, sendCronSummary } from '../../../../lib/cron-alert';
 
 export const dynamic = 'force-dynamic';
