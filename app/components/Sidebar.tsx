@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import {
   Package,
@@ -118,11 +118,15 @@ function SidebarContent({
     .slice(0, 2)
     .toUpperCase();
 
+  const router = useRouter();
+
   async function handleLogout() {
     try {
       await logout();
     } catch {
-      window.location.href = '/login';
+      // logout() сам делает redirect('/login'). Сюда попадаем, если redirect
+      // не сработал (например, сессия уже истекла) — уходим через роутер.
+      router.replace('/login');
     }
   }
 
