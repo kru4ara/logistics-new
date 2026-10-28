@@ -1,5 +1,5 @@
-import { cookies } from 'next/headers';
 import { createClient } from './supabase-server';
+import { getSessionContext } from './session';
 
 export type AuditAction = 'create' | 'update' | 'delete' | 'status_change' | 'merge';
 
@@ -32,18 +32,12 @@ type LogInput = {
  */
 export async function logAudit(input: LogInput): Promise<void> {
   try {
-    const cookieStore = await cookies();
-    const role = cookieStore.get('role')?.value || 'unknown';
-    const driverId = cookieStore.get('driver_id')?.value || null;
-    const rawName = cookieStore.get('user_name')?.value;
-
-    const userName = rawName
-      ? decodeURIComponent(rawName)
-      : role === 'admin'
-        ? 'Офис'
-        : role === 'driver'
-          ? 'Водитель'
-          : 'Неизвестно';
+    const session = await getSessionContext();
+    const role = session.role || 'unknown';
+    const driverId = session.driverId || null;
+    const userName =
+      session.userName ||
+      (role === 'admin' ? 'Офис' : role === 'driver' ? 'Водитель' : 'Неизвестно');
 
     const supabase = await createClient();
 

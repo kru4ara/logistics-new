@@ -1,5 +1,5 @@
-import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { getSessionContext } from '../../../lib/session';
 import {
   Clock,
   User as UserIcon,
@@ -29,9 +29,7 @@ const TACHO_PERIOD = 96;             // тахограф — не реже 96 д
 const TACHO_WARN = 90;               // предупреждение за 6 дней
 
 export default async function DriverRemindersPage() {
-  const cookieStore = await cookies();
-  const role = cookieStore.get('role')?.value;
-  const driverId = cookieStore.get('driver_id')?.value;
+  const { role, driverId } = await getSessionContext();
 
   if (role !== 'driver' || !driverId) redirect('/login');
 
