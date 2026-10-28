@@ -473,6 +473,7 @@ export default function TripSegmentsBlock({
 
       {isFormOpen && (
         <SegmentForm
+          key={editingId || 'new'}
           tripId={tripId}
           segmentId={editingId || undefined}
           initialData={editingInitialData}

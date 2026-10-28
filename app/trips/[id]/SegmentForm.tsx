@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import {
   Truck,
   X,
@@ -132,63 +132,11 @@ export default function SegmentForm({
     new Set(initialCargoIds || [])
   );
 
-   
-  useEffect(() => {
-    if (initialData) {
-      setExecutorType((initialData.executor_type as 'us' | 'contractor') || 'us');
-      setContractorId(initialData.contractor_id || '');
-      setTruckId(initialData.truck_id || '');
-      setTrailerId(initialData.trailer_id || '');
-      setDriverId(initialData.driver_id || '');
-      setDateFrom(initialData.date_from || '');
-      setDateTo(initialData.date_to || '');
-      setNotes(initialData.notes || '');
-      setPrice(initialData.price != null ? String(initialData.price) : '');
-      setCurrency(initialData.currency || 'EUR');
-      setContractorTruckNumber(initialData.contractor_truck_number || '');
-      setContractorDriverName(initialData.contractor_driver_name || '');
-      setContractorPaymentDays(initialData.contractor_payment_days != null ? String(initialData.contractor_payment_days) : '');
-      setContractorPaymentDocType(initialData.contractor_payment_document_type || 'originals');
-      setContractorTransportType(initialData.contractor_transport_type || 'standard');
-      setContractorTransportTemp(initialData.contractor_transport_temperature || '');
-      setContractorTransportHeight(initialData.contractor_transport_height || '');
-      
-      setFrom(toAddr(
-        initialData.from_country ?? null,
-        initialData.from_city ?? null,
-        initialData.from_company ?? null,
-        initialData.from_address ?? null,
-        initialData.from_postal_code ?? null
-      ));
-      
-      setTo(toAddr(
-        initialData.to_country ?? null,
-        initialData.to_city ?? null,
-        initialData.to_company ?? null,
-        initialData.to_address ?? null,
-        initialData.to_postal_code ?? null
-      ));
-      
-      if (initialData.stops && Array.isArray(initialData.stops)) {
-        setStops(initialData.stops.map((s) => ({
-          type: s.type || 'reload',
-          country: s.country || '',
-          city: s.city || '',
-          company: s.company || '',
-          address: s.address || '',
-          postal_code: s.postal_code || '',
-          date: s.date || '',
-        })));
-      } else {
-        setStops([]);
-      }
-    }
-    if (initialCargoIds) {
-      setSelectedCargo(new Set(initialCargoIds));
-    } else {
-      setSelectedCargo(new Set());
-    }
-  }, [initialData, initialCargoIds]);
+  // Синхронизация с initialData делается НЕ через эффект.
+  // initialData всегда соответствует segmentId, поэтому форма
+  // перемонтируется при смене сегмента (см. key в TripSegmentsBlock) —
+  // начальные значения берутся прямо из useState, без каскадного рендера
+  // (react-hooks/set-state-in-effect).
    
 
   const [error, setError] = useState<string | null>(null);
