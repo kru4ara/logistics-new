@@ -29,7 +29,6 @@ export default function DuplicateChecker({
   const [value, setValue] = useState('');
   const [taxId, setTaxId] = useState('');
   const [matches, setMatches] = useState<Match[]>([]);
-  const [, setLoading] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -54,8 +53,6 @@ export default function DuplicateChecker({
       return;
     }
 
-     
-    setLoading(true);
     timerRef.current = setTimeout(async () => {
       try {
         const controller = new AbortController();
@@ -73,8 +70,6 @@ export default function DuplicateChecker({
         if ((e as Error).name !== 'AbortError') {
           console.error('[DuplicateChecker] fetch error:', e);
         }
-      } finally {
-        setLoading(false);
       }
     }, 500);
 
@@ -89,7 +84,6 @@ export default function DuplicateChecker({
     setValue(next);
     if (!next || next.trim().length < 2) {
       setMatches([]);
-      setLoading(false);
     }
   }
 

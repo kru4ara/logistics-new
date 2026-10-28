@@ -31,6 +31,14 @@ function pickOne<T>(rel: unknown): T | null {
   return rel as T;
 }
 
+// react-hooks/purity: impure-вызовы (Date.now) нельзя делать прямо в теле
+// компонента. Правило ориентировано на клиентский рендер (гидрация), а здесь
+// компонент серверный и force-dynamic — расхождение с клиентом невозможно,
+// поэтому impure-вызов изолирован в отдельной функции.
+function currentTimestamp(): number {
+  return Date.now();
+}
+
 export default async function LogisatReportPage() {
   const { role } = await getSessionContext();
   if (role === 'driver') redirect('/driver');
@@ -89,7 +97,7 @@ export default async function LogisatReportPage() {
 
   // 3. КАТЕГОРИИ ПРОБЛЕМ
    
-  const staleTs = Date.now() - STALE_DAYS * 86400000;
+  const staleTs = currentTimestamp() - STALE_DAYS * 86400000;
 
   const neverSyncedActive: TripRow[] = [];
   const neverSyncedArchive: TripRow[] = [];

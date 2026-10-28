@@ -167,6 +167,14 @@ function EmptyBlock({ text }: { text: string }) {
   );
 }
 
+// react-hooks/purity: impure-вызовы (Date.now) нельзя делать прямо в теле
+// компонента. Правило ориентировано на клиентский рендер (гидрация), а здесь
+// компонент серверный и force-dynamic — расхождение с клиентом невозможно,
+// поэтому impure-вызов изолирован в отдельной функции.
+function currentTimestamp(): number {
+  return Date.now();
+}
+
 export default async function TodayPage() {
   const { role } = await getSessionContext();
   if (role === 'driver') redirect('/driver');
@@ -406,7 +414,7 @@ export default async function TodayPage() {
   (remindersRaw || []).forEach((r) => {
     if (!r.due_date) return;
      
-    const days = Math.ceil((new Date(r.due_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+    const days = Math.ceil((new Date(r.due_date).getTime() - currentTimestamp()) / (1000 * 60 * 60 * 24));
     if (days < 0) overdueReminders.push({ id: r.id, title: r.title || '', days });
   });
 

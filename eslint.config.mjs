@@ -22,13 +22,8 @@ const eslintConfig = [
       '@typescript-eslint/no-unused-vars': 'warn',
 
       // Правила включены в eslint-config-next, но требуют отдельного рефакторинга.
-      // Каждое чинится своей маленькой правкой:
       //   react-hooks/set-state-in-effect — setState синхронно в эффекте
-      //   react-hooks/purity — impure-вызов во время рендера
-      //   @next/next/no-location-assign-relative-destination — window.location.href
       'react-hooks/set-state-in-effect': 'off',
-      'react-hooks/purity': 'off',
-      '@next/next/no-location-assign-relative-destination': 'off',
     },
   },
   {
