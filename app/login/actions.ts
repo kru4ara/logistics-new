@@ -66,11 +66,18 @@ export async function login(
     .eq('id', data.user.id)
     .single();
 
-  const role = profile?.role || 'admin';
+  // Роль берём только из profiles и только из известного набора.
+  // Раньше здесь был fallback на 'admin' — это значило, что пользователь
+  // без профиля получал админскую роль и админские куки.
+  const KNOWN_ROLES = ['admin', 'manager', 'driver'];
+  const rawRole = String(profile?.role || '').trim().toLowerCase();
+  const role = KNOWN_ROLES.includes(rawRole) ? rawRole : 'driver';
   const driverId = profile?.driver_id || '';
-  const userName = profile?.full_name || (role === 'admin' ? 'Офис' : 'Водитель');
+  const userName = profile?.full_name || (role === 'driver' ? 'Водитель' : 'Офис');
 
-  // Устанавливаем старые куки для совместимости (UI)
+  // Куки роли и driver_id — быстрый путь для UI и старых страниц,
+  // которые читают роль из куки. Источник правды — profiles
+  // (см. lib/session.ts), поэтому значения берём именно оттуда.
   const cookieStore = await cookies();
   const isProd = process.env.NODE_ENV === 'production';
   const COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 дней
@@ -81,6 +88,24 @@ export async function login(
     sameSite: 'lax',
     maxAge: COOKIE_MAX_AGE,
   });
+
+  cookieStore.set('role', role, {
+    path: '/',
+    secure: isProd,
+    sameSite: 'lax',
+    httpOnly: true,
+    maxAge: COOKIE_MAX_AGE,
+  });
+
+  if (driverId) {
+    cookieStore.set('driver_id', driverId, {
+      path: '/',
+      secure: isProd,
+      sameSite: 'lax',
+      httpOnly: true,
+      maxAge: COOKIE_MAX_AGE,
+    });
+  }
 
   if (role === 'driver') {
     redirect('/driver');
@@ -95,6 +120,8 @@ export async function logout() {
   
   const cookieStore = await cookies();
   cookieStore.delete('user_name');
+  cookieStore.delete('role');
+  cookieStore.delete('driver_id');
   
   redirect('/login');
 }
