@@ -1,7 +1,7 @@
 import { createClient } from '../../../../lib/supabase-server';
 import { updateReminder } from '../../actions';
 import { redirect } from 'next/navigation';
-import { cookies } from 'next/headers';
+import { getSessionContext } from '../../../../lib/session';
 import SubmitButton from '../../../components/SubmitButton';
 import { ArrowLeft, Bell, Pencil, Lock, Save } from 'lucide-react';
 
@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 export default async function EditReminderPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const role = (await cookies()).get('role')?.value;
+  const { role } = await getSessionContext();
   if (role === 'driver') redirect('/driver');
 
   const supabase = await createClient();

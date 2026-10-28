@@ -1,10 +1,11 @@
+import { getSessionContext } from '../../lib/session';
 import { cookies } from 'next/headers';
 import AppShellClient from './AppShellClient';
 
 export default async function AppShell({ children }: { children: React.ReactNode }) {
+  const { role } = await getSessionContext();
   const cookieStore = await cookies();
 
-  const role = cookieStore.get('role')?.value ?? null;
   const rawName = cookieStore.get('user_name')?.value;
   const userName = rawName ? decodeURIComponent(rawName) : '';
 

@@ -1,4 +1,4 @@
-import { cookies } from 'next/headers';
+import { getSessionContext } from '../../lib/session';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase-server';
 import {
@@ -150,7 +150,7 @@ export default async function AuditPage({
 }: {
   searchParams: Promise<{ entity?: string }>;
 }) {
-  const role = (await cookies()).get('role')?.value;
+  const { role } = await getSessionContext();
   if (role === 'driver') redirect('/driver');
   if (role !== 'admin') redirect('/login');
 

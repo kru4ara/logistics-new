@@ -1,3 +1,4 @@
+import { getSessionContext } from '../lib/session';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '../lib/supabase-server';
@@ -48,7 +49,7 @@ function daysUntil(dateString: string | null): number | null {
 }
 
 export default async function Home() {
-  const role = (await cookies()).get('role')?.value;
+  const { role } = await getSessionContext();
   const userName = (await cookies()).get('user_name')?.value
     ? decodeURIComponent((await cookies()).get('user_name')!.value)
     : 'Офис';
