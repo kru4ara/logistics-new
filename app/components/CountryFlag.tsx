@@ -1,3 +1,5 @@
+import Image from 'next/image';
+
 // Флаг страны через flagcdn.com — работает на всех платформах, включая Windows.
 // Использование:
 //   <CountryFlag country="Poland" />           // 20x15 (маленький, для inline)
@@ -116,9 +118,8 @@ export default function CountryFlag({ country, size = 'sm', className = '' }: Pr
   const height = size === 'md' ? 18 : 15;
 
   return (
-    <img
+    <Image
       src={`https://flagcdn.com/${width}x${height}/${iso}.png`}
-      srcSet={`https://flagcdn.com/${width * 2}x${height * 2}/${iso}.png 2x`}
       width={width}
       height={height}
       alt={country || iso.toUpperCase()}
