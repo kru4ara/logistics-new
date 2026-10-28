@@ -1,4 +1,4 @@
-import { cookies } from 'next/headers';
+import { getSessionContext } from '../../lib/session';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase-server';
 import { buildRouteMap } from '../../lib/trip-route';
@@ -14,7 +14,7 @@ import {
 export const dynamic = 'force-dynamic';
 
 export default async function MapPage() {
-  const role = (await cookies()).get('role')?.value;
+  const { role } = await getSessionContext();
   if (role === 'driver') redirect('/driver');
 
   const supabase = await createClient();
