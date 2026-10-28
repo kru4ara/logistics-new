@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { cookies } from 'next/headers';
+import { getSessionContext } from '../../lib/session';
 import Link from 'next/link';
 import { globalSearch, type SearchHit } from './actions';
 import {
@@ -74,8 +74,7 @@ export default async function SearchPage({
 }: {
   searchParams: Promise<{ q?: string }>;
 }) {
-  const cookieStore = await cookies();
-  const role = cookieStore.get('role')?.value;
+  const { role } = await getSessionContext();
   if (role !== 'admin') redirect('/');
 
   const resolvedParams = await searchParams;
