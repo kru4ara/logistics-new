@@ -20,11 +20,14 @@ export default function SearchInput({
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Синхронизация с внешним значением (переход по ссылке / back / прямое открытие).
-  // Это внешний источник состояния (URL), а не каскадный рендер.
-  useEffect(() => {
-     
+  // Это внешний источник состояния (URL). Обновляем значение прямо во время
+  // рендера, а не в эффекте: setState в эффекте вызывает лишний каскадный
+  // рендер (react-hooks/set-state-in-effect).
+  const [syncedQ, setSyncedQ] = useState(initialQ);
+  if (initialQ !== syncedQ) {
+    setSyncedQ(initialQ);
     setValue(initialQ);
-  }, [initialQ]);
+  }
 
   // Debounce: 400мс после последнего нажатия
   useEffect(() => {
