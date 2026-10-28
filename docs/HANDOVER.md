@@ -1,4 +1,4 @@
-# HANDOVER — Logistics CRM (26.10.2026)
+# HANDOVER — Logistics CRM (29.10.2026)
 
 ## Стек и инфраструктура
 - **Next.js 16.4.3** (App Router, Turbopack) + React 19.3.1 + Supabase + Vercel
@@ -71,11 +71,19 @@
 **`profiles`** — роль (`admin` | `driver`) и `driver_id`.
 
 ### Supabase Auth
-- `lib/supabase-server.ts` (admin, `server-only`)
-- `lib/supabase/server.ts` (с сессией)
-- `lib/supabase/client.ts` (браузерный)
-- `proxy.ts` (бывший middleware) — белый список ролей (`admin`, `manager`), cron и вебхуки — публичные.
-- `app/login/actions.ts` — вход через `signInWithPassword`.
+- `lib/supabase/admin.ts` (admin, `service_role`, `server-only`) — обходит RLS
+- `lib/supabase/server.ts` (с сессией, anon + cookies) — RLS действует
+- `lib/supabase/client.ts` — **удалён**, браузерных запросов к Supabase нет
+- `lib/session.ts` — `getSessionContext()`: единый источник роли и `driver_id` (таблица `profiles`, куки только для совместимости с UI)
+- `proxy.ts` (бывший middleware) — **проверка прав по capability**, не белый список ролей; cron и вебхуки — публичные
+- `app/login/actions.ts` — вход через `signInWithPassword`
+
+### Права доступа (`lib/roles.ts`)
+- **37 capability**, матрица роль → права: `office` (все), `driver` (5).
+- Проверка — только `can(role, 'cap.capability')`. Путь → право — `capabilityForRequest(pathname, method)` (отдельно на чтение и запись).
+- `ROLE_ALIASES`: `admin`/`manager` из старых профилей БД → `office`, миграция не нужна.
+- `/trips` и `/routes` прикрыты централизованно через `proxy.ts` (включая `/trips/[id]`, `/trips/new`, `/trips/[id]/edit`, `/routes/export` — раньше они были без единой проверки).
+- Роли `logistics`, `accountant`, `client` заведены в коде, но не выдаются никому — правила доступа для них не определены (п. «Очередь задач»).
 
 ### Хелперы (`lib/`)
 - `trip-route.ts`, `trip-task-text.ts`, `trip-renumber.ts`, `statistics.ts`, `profitability.ts`, `geocode.ts`, `translate-pl.ts`, `company.ts`, `audit.ts`, `cron-alert.ts`, `telegram.ts`.
@@ -128,6 +136,15 @@
 - Восстановлен случайно удалённый `app/lib/supabase-server.ts`.
 - Ветка `feat/next-16` успешно смержена в `master`.
 
+### Фаза 28 — Матрица прав вместо проверок роли — ✅ 29.10
+- Новый `lib/roles.ts`: 37 capability, матрица `office`/`driver`, `PATH_CAPABILITIES` (право отдельно на чтение и запись), `ROLE_ALIASES`.
+- `proxy.ts` переписан на `capabilityForRequest(pathname, method)`; списки `ADMIN_ONLY_PATHS` и `ADMIN_ROLES` удалены.
+- 13 файлов переведены с `role !== 'admin'` на `can(role, ...)`: главная, поиск (страница + actions), экспорт, logisat sync-bulk, trips/routes/logisat/today, check-overlap, driver-docx, Sidebar.
+- **Закрыты дыры:** `/trips/[id]`, `/trips/new`, `/trips/[id]/edit`, `/routes/export` не имели ни одной проверки доступа и читали через `admin.ts` (service_role, RLS обходится).
+- `manager` больше не в неоднозначном состоянии (проходил proxy, но отлетал на страницах).
+- PR #31 смержен в `master` (коммит `0c4ce2a`).
+- **Не сделано:** `tsc --noEmit` не прогонялся, ручная проверка ролей не сделана, `AGENTS.md` обновлён только в части прав.
+
 ### Фаза 27 — Миграция на Tailwind 4 — ✅ 26.10
 - Обновлены пакеты: `tailwindcss@4.3.3`, `@tailwindcss/postcss`.
 - Удалён `tailwind.config.js` (кастомные цвета `brand`, `accent`, `ink`, тени и анимации перенесены в `app/globals.css` через `@theme`).
@@ -145,12 +162,18 @@
 ---
 
 ## ⏭️ Очередь задач
-1. **`revalidateTag`** — если где-то используется, добавить второй аргумент (профиль кэша) при необходимости.
-2. **Очистка 48 warnings** (неиспользуемые импорты и переменные). Не критично, можно сделать в любой момент (через ручную правку или `--fix`).
+1. **Проверить руками роли** после фазы 28: водитель по прямым ссылкам на `/trips`, `/trips/new`, `/trips/[id]/edit`, `/routes/export`, `/search` → редирект; админ → всё как раньше. Отдельно водительский `/driver/logisat`: префикс `/api/logisat` требует `logisat.sync`, которого у водителя нет.
+2. **Гарды в `app/api/logisat/query|sync|test`** — внутри роутов авторизации нет вовсе, держатся только на префиксе в `proxy.ts`.
+3. **Прогнать `npx tsc --noEmit`** — за все фазы ни разу не запускался, отдаём по зелёной сборке Vercel. Один промах с относительными путями импорта уже стоил красного билда.
+4. **CI** — добавить `tsc --noEmit` и `npm run test` в GitHub Actions, чтобы это проверялось автоматически.
+5. **`revalidateTag`** — если где-то используется, добавить второй аргумент (профиль кэша) при необходимости.
+6. **Очистка 48 warnings** (неиспользуемые импорты и переменные). Не критично, можно сделать в любой момент (через ручную правку или `--fix`).
+7. **Правила доступа для новых ролей** — когда понадобится: логист, бухгалтерия, клиент. Матрица готова, менять только `ROLE_CAPABILITIES`.
+8. **Миграция на RLS** — политики под роли, чтобы совпадали с матрицей прав из фазы 28. Порядок: `profiles` → `drivers` → `trips` → `trip_segments`.
 
 ---
 
-## 📊 Состояние данных (26.10.2026)
+## 📊 Состояние данных (29.10.2026)
 - `trips`: ~75, `trip_segments`: ~98, `trip_cargo`: ~78, `trip_expenses`: ~455.
 - `profiles`: 3 записи (1 admin, 2 driver).
 
@@ -160,7 +183,8 @@
 - **Supabase ref:** `smodijsj`**`i`**`wcvsscfgloh` (с буквой `i`!)
 - **Линт:** `npm run lint` (ESLint 9 + чистые плагины, без `eslint-config-next`).
 - **Тесты:** `npm run test` (Vitest, **28 тестов**).
-- **CI:** GitHub Actions (Actions → CI).
+- **CI:** GitHub Actions (Actions → CI) — пока только lint.
+- **Права:** `can(role, 'cap')` из `lib/roles.ts`; путь → право через `capabilityForRequest(pathname, method)`.
 - **`next.config.js`:** без `eslint`, только `experimental` (serverActions, optimizePackageImports).
 - **`eslint.config.mjs`:** `@eslint/js` + `typescript-eslint` + `react` + `react-hooks` + `globals`.
 - **`postcss.config.js`:** только `@tailwindcss/postcss`.
@@ -169,7 +193,7 @@
 - **Аккаунты:** админ — `raibuilding@gmail.com`, водители — `vasiliuk@...`, `kavaliou@...`.
 - **PWA:** установка через «Добавить на главный экран».
 
-**Закрыто:** Фазы 3.1–3.27.
+**Закрыто:** Фазы 3.1–3.28.
 
 ---
 
