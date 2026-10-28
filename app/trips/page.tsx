@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { cookies } from 'next/headers';
+import { getSessionContext } from '../../lib/session';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase-server';
 import { buildRouteMap, type SegmentRouteRow, type TripRouteInfo } from '../../lib/trip-route';
@@ -48,7 +48,7 @@ export default async function TripsPage({
     sort?: string;
   }>;
 }) {
-  const role = (await cookies()).get('role')?.value;
+  const { role } = await getSessionContext();
   if (role === 'driver') redirect('/driver');
 
   const supabase = await createClient();
