@@ -1,4 +1,4 @@
-import { getSessionContext } from '../../lib/session';
+import { getSessionContext } from '../../../lib/session';
 import { redirect } from 'next/navigation';
 import { createLocation } from '../actions';
 import { EUROPEAN_COUNTRIES } from '../../../lib/countries';
