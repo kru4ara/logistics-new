@@ -66,9 +66,14 @@ export async function login(
     .eq('id', data.user.id)
     .single();
 
-  const role = profile?.role || 'admin';
+  // Роль берём только из profiles и только из известного набора.
+  // Раньше здесь был fallback на 'admin' — это значило, что пользователь
+  // без профиля получал админскую роль и админские куки.
+  const KNOWN_ROLES = ['admin', 'manager', 'driver'];
+  const rawRole = String(profile?.role || '').trim().toLowerCase();
+  const role = KNOWN_ROLES.includes(rawRole) ? rawRole : 'driver';
   const driverId = profile?.driver_id || '';
-  const userName = profile?.full_name || (role === 'admin' ? 'Офис' : 'Водитель');
+  const userName = profile?.full_name || (role === 'driver' ? 'Водитель' : 'Офис');
 
   // Куки роли и driver_id — быстрый путь для UI и старых страниц,
   // которые читают роль из куки. Источник правды — profiles
