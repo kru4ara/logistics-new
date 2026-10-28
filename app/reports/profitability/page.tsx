@@ -1,4 +1,4 @@
-import { cookies } from 'next/headers';
+import { getSessionContext } from '../../../lib/session';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -37,8 +37,7 @@ export default async function ProfitabilityPage({
 }: {
   searchParams: Promise<{ from?: string; to?: string }>;
 }) {
-  const cookieStore = await cookies();
-  const role = cookieStore.get('role')?.value;
+  const { role } = await getSessionContext();
   if (role === 'driver') redirect('/driver');
   if (role !== 'admin') redirect('/login');
 
