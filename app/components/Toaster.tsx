@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import {
   CheckCircle2,
@@ -114,21 +114,24 @@ export default function Toaster() {
   const toastKey = searchParams.get('toast');
   const errorMsg = searchParams.get('msg');
 
-  const [visible, setVisible] = useState<ToastConfig | null>(null);
-  const [key, setKey] = useState(0);
+  // Сообщение — чистая функция от URL, поэтому состояние для него не нужно.
+  // setState в эффекте вызывал бы лишний каскадный рендер
+  // (react-hooks/set-state-in-effect).
+  const visible = useMemo(
+    () => buildMessage(toastKey, errorMsg),
+    [toastKey, errorMsg]
+  );
 
   useEffect(() => {
-    const msg = buildMessage(toastKey, errorMsg);
-    if (!msg) return;
+    if (!visible) return;
 
-    // Синхронизация с URL — легитимный внешний источник состояния
-     
-    setVisible(msg);
-    setKey((k) => k + 1);
-
+    // Скрываем тост: убираем toast/msg из URL — сообщение перестаёт
+    // существовать как чистая функция от query-параметров.
     const hideTimer = setTimeout(() => {
-      setVisible(null);
-      const params = new URLSearchParams(searchParams.toString());
+      // Читаем актуальные query-параметры из адресной строки прямо в
+      // колбэке таймера: это всегда текущее состояние URL, и эффекту не
+      // нужно перезапускаться на каждый чужой параметр.
+      const params = new URLSearchParams(window.location.search);
       params.delete('toast');
       params.delete('msg');
       const query = params.toString();
@@ -136,8 +139,7 @@ export default function Toaster() {
     }, 3000);
 
     return () => clearTimeout(hideTimer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [toastKey, errorMsg]);
+  }, [visible, pathname, router]);
 
   if (!visible) return null;
 
@@ -146,7 +148,7 @@ export default function Toaster() {
 
   return (
     <div
-      key={key}
+      key={`${toastKey}|${errorMsg}`}
       className="fixed top-4 right-4 z-[100] max-w-[380px] pointer-events-none animate-slide-down"
       role="status"
       aria-live="polite"
