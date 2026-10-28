@@ -1,5 +1,5 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { cookies } from 'next/headers';
+import { getSessionContext } from '../../../../lib/session';
 import { createClient } from '../../../../lib/supabase-server';
 import { buildRouteMap, type SegmentRouteRow } from '../../../../lib/trip-route';
 
@@ -22,7 +22,7 @@ function pickName(rel: unknown): string {
  * excludeTripId — исключить из проверки сам редактируемый рейс.
  */
 export async function GET(request: NextRequest) {
-  const role = (await cookies()).get('role')?.value;
+  const { role } = await getSessionContext();
   if (role !== 'admin') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }

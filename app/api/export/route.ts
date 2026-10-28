@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import ExcelJS from 'exceljs';
-import { cookies } from 'next/headers';
+import { getSessionContext } from '../../../lib/session';
 import { createClient } from '../../../lib/supabase-server';
 import { buildRouteMap } from '../../../lib/trip-route';
 
@@ -402,8 +402,7 @@ async function buildClientsSheet(
 }
 
 export async function GET(request: Request) {
-  const cookieStore = await cookies();
-  const role = cookieStore.get('role')?.value;
+  const { role } = await getSessionContext();
   if (role !== 'admin') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }

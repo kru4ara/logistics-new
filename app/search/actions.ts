@@ -1,7 +1,7 @@
 'use server';
 
 import { createClient } from '../../lib/supabase-server';
-import { cookies } from 'next/headers';
+import { getSessionContext } from '../../lib/session';
 import { buildRouteMap, type SegmentRouteRow } from '../../lib/trip-route';
 
 export type SearchHit = {
@@ -51,7 +51,7 @@ export async function globalSearch(rawQuery: string): Promise<SearchResult> {
   if (query.length < 2) return empty;
 
   // Только офис
-  const role = (await cookies()).get('role')?.value;
+  const { role } = await getSessionContext();
   if (role !== 'admin') return empty;
 
   const supabase = await createClient();
