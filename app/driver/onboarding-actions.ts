@@ -1,13 +1,11 @@
 'use server';
 
-import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '../../lib/supabase-server';
+import { getSessionContext } from '../../lib/session';
 
 export async function markDriverOnboarded() {
-  const cookieStore = await cookies();
-  const role = cookieStore.get('role')?.value;
-  const driverId = cookieStore.get('driver_id')?.value;
+  const { role, driverId } = await getSessionContext();
 
   if (role !== 'driver' || !driverId) {
     return { success: false, error: 'Не водитель' };
