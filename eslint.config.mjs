@@ -21,9 +21,6 @@ const eslintConfig = [
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-unused-vars': 'warn',
 
-      // Правила включены в eslint-config-next, но требуют отдельного рефакторинга.
-      //   react-hooks/set-state-in-effect — setState синхронно в эффекте
-      'react-hooks/set-state-in-effect': 'off',
     },
   },
   {
