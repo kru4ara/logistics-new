@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { can, isDriverRole } from '../lib/roles';
+import { can, isDriverRole } from '../../lib/roles';
 import { useEffect, useState } from 'react';
 import {
   Package,
