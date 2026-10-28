@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createClient } from '../../../lib/supabase-server';
+import { createClient } from '../../../lib/supabase/admin';
 import { logAudit } from '../../../lib/audit';
 
 function str(formData: FormData, key: string): string | null {

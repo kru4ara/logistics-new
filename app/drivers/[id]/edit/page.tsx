@@ -1,4 +1,4 @@
-import { createClient } from '../../../../lib/supabase-server';
+import { createClient } from '../../../../lib/supabase/admin';
 import { updateDriver } from '../../../driver-actions';
 import SubmitButton from '../../../components/SubmitButton';
 import {

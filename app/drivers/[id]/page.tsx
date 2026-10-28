@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { createClient } from '../../../lib/supabase-server';
+import { createClient } from '../../../lib/supabase/admin';
 import { buildRouteMap, type SegmentRouteRow } from '../../../lib/trip-route';
 import TelegramLinkCard from './TelegramLinkCard';
 import DriverHeader from './DriverHeader';

@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getSessionContext } from '../../../lib/session';
-import { createClient } from '../../../lib/supabase-server';
+import { createClient } from '../../../lib/supabase/admin';
 import LogisatForm from './LogisatForm';
 
 export const dynamic = 'force-dynamic';

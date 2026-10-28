@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { createClient as createSupabaseClient } from '../../../lib/supabase-server';
+import { createClient as createSupabaseClient } from '../../../lib/supabase/admin';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import SubmitButton from '../../components/SubmitButton';

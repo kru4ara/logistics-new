@@ -1,4 +1,4 @@
-import { createClient } from '../../../../lib/supabase-server';
+import { createClient } from '../../../../lib/supabase/admin';
 import EditTruckForm from './EditTruckForm';
 import { ArrowLeft, Pencil } from 'lucide-react';
 

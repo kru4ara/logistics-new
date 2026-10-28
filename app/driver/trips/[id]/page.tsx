@@ -18,7 +18,7 @@ import {
   Globe,
   ArrowRight,
 } from 'lucide-react';
-import { createClient } from '../../../../lib/supabase-server'; // <-- service_role
+import { createClient } from '../../../../lib/supabase/admin'; // <-- service_role
 import { createClient as createAuthClient } from '../../../../lib/supabase/server'; // <-- user session (RLS)
 import { buildRouteMap, type SegmentRouteRow } from '../../../../lib/trip-route';
 import { deleteExpense } from '../../../trip-actions';

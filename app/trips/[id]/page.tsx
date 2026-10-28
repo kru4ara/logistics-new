@@ -1,4 +1,4 @@
-import { createClient } from '../../../lib/supabase-server';
+import { createClient } from '../../../lib/supabase/admin';
 import AddExpenseForm from '../AddExpenseForm';
 import FileUpload from '../../driver/FileUpload';
 import DocumentList from '../../driver/DocumentList';

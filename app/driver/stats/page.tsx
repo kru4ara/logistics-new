@@ -11,7 +11,7 @@ import {
   Route as RouteIcon,
   Wallet,
 } from 'lucide-react';
-import { createClient } from '../../../lib/supabase-server';
+import { createClient } from '../../../lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
 

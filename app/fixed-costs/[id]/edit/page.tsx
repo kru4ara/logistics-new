@@ -1,4 +1,4 @@
-import { createClient } from '../../../../lib/supabase-server';
+import { createClient } from '../../../../lib/supabase/admin';
 import { updateFixedCost } from '../../../fixed-cost-actions';
 import SubmitButton from '../../../components/SubmitButton';
 import { ArrowLeft, Banknote, Pencil, Save } from 'lucide-react';
