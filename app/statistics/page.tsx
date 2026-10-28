@@ -1,4 +1,4 @@
-import { cookies } from 'next/headers';
+import { getSessionContext } from '../../lib/session';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase-server';
 import { calculateStatistics } from '../../lib/statistics';
@@ -12,8 +12,7 @@ import StatisticsLegend from './StatisticsLegend';
 export const dynamic = 'force-dynamic';
 
 export default async function StatisticsPage({ searchParams }: { searchParams: Promise<{ year?: string }> }) {
-  const cookieStore = await cookies();
-  const role = cookieStore.get('role')?.value;
+  const { role } = await getSessionContext();
   if (role === 'driver') redirect('/driver');
 
   const resolvedParams = await searchParams;
