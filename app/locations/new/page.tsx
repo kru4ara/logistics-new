@@ -1,4 +1,4 @@
-import { cookies } from 'next/headers';
+import { getSessionContext } from '../../lib/session';
 import { redirect } from 'next/navigation';
 import { createLocation } from '../actions';
 import { EUROPEAN_COUNTRIES } from '../../../lib/countries';
@@ -8,7 +8,7 @@ import { ArrowLeft, MapPin, Globe, Plus } from 'lucide-react';
 export const dynamic = 'force-dynamic';
 
 export default async function NewLocationPage() {
-  const role = (await cookies()).get('role')?.value;
+  const { role } = await getSessionContext();
   if (role === 'driver') redirect('/driver');
 
   return (
