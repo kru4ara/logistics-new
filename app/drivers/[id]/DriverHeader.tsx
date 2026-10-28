@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import Link from 'next/link';
 import { Pencil, User as UserIcon, Phone, Truck, Container } from 'lucide-react';
 import DriverPassportUpload from '../../components/DriverPassportUpload';
@@ -32,9 +33,12 @@ export default function DriverHeader({
               className="block w-56 h-40 md:w-64 md:h-44 rounded-2xl overflow-hidden border-2 border-slate-200 shadow-soft hover:shadow-soft-lg transition-shadow"
               title="Открыть фото паспорта"
             >
-              <img
+              <Image
                 src={passportPhotoUrl}
                 alt={`Фото паспорта — ${driver.first_name} ${driver.last_name}`}
+                width={256}
+                height={176}
+                sizes="(min-width: 768px) 256px, 224px"
                 className="w-full h-full object-cover"
               />
             </a>
