@@ -46,7 +46,7 @@ export default function DocumentList({
     );
   }
 
-  function handleDelete(id: string, name: string) {
+  function handleDelete(id: string) {
     if (confirmId !== id) {
       setConfirmId(id);
       setTimeout(() => {
@@ -123,7 +123,7 @@ export default function DocumentList({
               {canDelete && (
                 <button
                   type="button"
-                  onClick={() => handleDelete(doc.id, doc.original_name || '')}
+                  onClick={() => handleDelete(doc.id)}
                   disabled={isPending}
                   className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap
                     ${isConfirming

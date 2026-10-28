@@ -7,39 +7,6 @@ import { logAudit, diffFields } from '../lib/audit';
 import { geocode } from '../lib/geocode';
 
 // ============================================================
-// Конвертация в EUR по курсу на дату
-// ============================================================
-async function toEur(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  amount: number,
-  currency: string,
-  date: string
-): Promise<number> {
-  if (currency === 'EUR' || !currency) return amount;
-  if (currency === 'PLN') {
-    const { data: rate } = await supabase
-      .from('rates')
-      .select('pln_to_eur')
-      .lte('rate_date', date)
-      .order('rate_date', { ascending: false })
-      .limit(1)
-      .single();
-    return amount * (rate?.pln_to_eur ?? 0.23);
-  }
-  if (currency === 'BYN') {
-    const { data: rate } = await supabase
-      .from('rates')
-      .select('byn_to_eur')
-      .lte('rate_date', date)
-      .order('rate_date', { ascending: false })
-      .limit(1)
-      .single();
-    return amount * (rate?.byn_to_eur ?? 0.30);
-  }
-  return amount;
-}
-
-// ============================================================
 // Добавление расхода
 // ============================================================
 export async function addExpense(formData: FormData) {
@@ -250,18 +217,12 @@ export async function updateTrip(tripId: string, formData: FormData) {
   const clientRequestDate = formData.get('client_request_date') as string;
 
   const fromCountry = formData.get('from_country') as string;
-  const fromName = formData.get('from_name') as string;
   const fromPostalCode = formData.get('from_postal_code') as string;
   const fromCity = formData.get('from_city') as string;
-  const fromAddress = formData.get('from_address') as string;
-  const fromLoadingNumber = formData.get('from_loading_number') as string;
 
   const toCountry = formData.get('to_country') as string;
-  const toName = formData.get('to_name') as string;
   const toPostalCode = formData.get('to_postal_code') as string;
   const toCity = formData.get('to_city') as string;
-  const toAddress = formData.get('to_address') as string;
-  const toLoadingNumber = formData.get('to_loading_number') as string;
 
   const { data: before } = await supabase
     .from('trips')

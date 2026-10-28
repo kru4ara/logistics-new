@@ -1,5 +1,4 @@
 import { createClient } from '../../../lib/supabase-server';
-import { deleteTrip } from '../../trip-actions';
 import AddExpenseForm from '../AddExpenseForm';
 import FileUpload from '../../driver/FileUpload';
 import DocumentList from '../../driver/DocumentList';

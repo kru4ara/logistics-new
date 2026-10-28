@@ -11,8 +11,6 @@ import { deleteTrip } from '../../trip-actions';
 export default function TripHeader({
   tripId,
   trip,
-  driver,
-  trailerNumber,
   fuelLeft,
   fuelLeftIsNegative,
   fuelLeftIsCritical,

@@ -32,7 +32,7 @@ export default [
       'next.config.js',
       'postcss.config.js',
       'tailwind.config.js',
-      'vitest.config.js',
+      'vitest.config.mjs',
       'eslint.config.mjs',
     ],
     languageOptions: { globals: { ...globals.node } },
