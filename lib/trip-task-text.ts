@@ -112,9 +112,6 @@ const STOP_LABEL: Record<StopItem['type'], string> = {
 
 export function buildDriverTaskText({
   trip,
-  driver,
-  truck,
-  trailerNumber,
   segments,
   markdown = false,
 }: BuildTaskParams): string {

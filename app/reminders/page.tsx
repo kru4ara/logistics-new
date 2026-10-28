@@ -228,7 +228,6 @@ export default async function RemindersPage({
               {downloadRows.map((row) => {
                 const isOverdue = row.daysAgo !== null && row.daysAgo > row.maxDays;
                 const isNever = row.daysAgo === null;
-                const isWarn = !isOverdue && !isNever;
 
                 const color = isOverdue || isNever
                   ? 'bg-red-50 text-red-700 border-red-200'

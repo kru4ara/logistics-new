@@ -5,9 +5,6 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { logAudit, diffFields } from '../../lib/audit';
 
-const TRACKED_FIELDS = [
-  'title', 'category', 'due_date', 'amount', 'status',
-] as const;
 
 export async function deleteReminder(id: string) {
   const supabase = await createClient();

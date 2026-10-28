@@ -63,7 +63,6 @@ export async function createCargoWithTrip(formData: FormData) {
   const fromPostalCode = ((formData.get('from_postal_code') as string) || '').trim() || null;
   const fromCity = ((formData.get('from_city') as string) || '').trim() || null;
   const fromAddress = ((formData.get('from_address') as string) || '').trim() || null;
-  const fromLoadingNumber = ((formData.get('from_loading_number') as string) || '').trim() || null;
 
   // ---- Маршрут: куда ----
   const toCountry = ((formData.get('to_country') as string) || '').trim() || null;
@@ -71,7 +70,6 @@ export async function createCargoWithTrip(formData: FormData) {
   const toPostalCode = ((formData.get('to_postal_code') as string) || '').trim() || null;
   const toCity = ((formData.get('to_city') as string) || '').trim() || null;
   const toAddress = ((formData.get('to_address') as string) || '').trim() || null;
-  const toLoadingNumber = ((formData.get('to_loading_number') as string) || '').trim() || null;
 
   // ---- Таможня (промежуточная точка) ----
   const customsPlace = ((formData.get('customs_place') as string) || '').trim() || null;

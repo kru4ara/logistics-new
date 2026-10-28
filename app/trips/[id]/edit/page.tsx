@@ -16,17 +16,7 @@ export default async function EditTripPage({ params }: { params: Promise<{ id: s
 
   const { data: clients } = await supabase.from('clients').select('id, name').order('name');
 
-  const { data: loadingLocations } = await supabase
-    .from('locations')
-    .select('*')
-    .in('type', ['loading', 'both'])
-    .order('name');
 
-  const { data: unloadingLocations } = await supabase
-    .from('locations')
-    .select('*')
-    .in('type', ['unloading', 'both'])
-    .order('name');
 
   if (error) return <div className="p-8 text-red-500">Ошибка загрузки: {error.message}</div>;
 

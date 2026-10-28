@@ -16,7 +16,6 @@ import {
   Trash2,
   Calendar,
   Globe,
-  DoorOpen,
   ArrowRight,
 } from 'lucide-react';
 import { createClient } from '../../../../lib/supabase-server'; // <-- service_role
@@ -241,8 +240,6 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
     return expenseCategories.find((c) => c.value === cat)?.label || cat;
   }
 
-  const inputClass = 'input';
-  const labelClass = 'block text-sm font-medium text-slate-700 mb-1';
 
   const fuelCardClass = fuelLeftIsCritical
     ? 'bg-gradient-to-br from-red-600 to-red-800'

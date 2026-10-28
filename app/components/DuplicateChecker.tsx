@@ -29,7 +29,7 @@ export default function DuplicateChecker({
   const [value, setValue] = useState('');
   const [taxId, setTaxId] = useState('');
   const [matches, setMatches] = useState<Match[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [, setLoading] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
