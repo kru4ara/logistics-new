@@ -1,11 +1,11 @@
-import { cookies } from 'next/headers';
+import { getSessionContext } from '../../../lib/session';
 import { redirect } from 'next/navigation';
 import ExportForm from './ExportForm';
 
 export const dynamic = 'force-dynamic';
 
 export default async function ExcelExportPage() {
-  const role = (await cookies()).get('role')?.value;
+  const { role } = await getSessionContext();
   if (role === 'driver') redirect('/driver');
   if (role !== 'admin') redirect('/login');
 

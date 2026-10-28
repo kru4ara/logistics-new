@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { cookies } from 'next/headers';
+import { getSessionContext } from '../../../lib/session';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../../lib/supabase-server';
 import { Package, ArrowLeft, Inbox } from 'lucide-react';
@@ -11,7 +11,7 @@ export default async function CargoReportPage({
 }: {
   searchParams: Promise<{ from?: string; to?: string; client?: string }>;
 }) {
-  const role = (await cookies()).get('role')?.value;
+  const { role } = await getSessionContext();
   if (role === 'driver') redirect('/driver');
 
   const resolvedParams = await searchParams;

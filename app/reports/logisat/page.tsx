@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { cookies } from 'next/headers';
+import { getSessionContext } from '../../../lib/session';
 import { redirect } from 'next/navigation';
 import {
   ArrowLeft,
@@ -32,7 +32,7 @@ function pickOne<T>(rel: unknown): T | null {
 }
 
 export default async function LogisatReportPage() {
-  const role = (await cookies()).get('role')?.value;
+  const { role } = await getSessionContext();
   if (role === 'driver') redirect('/driver');
   if (role !== 'admin') redirect('/login');
 

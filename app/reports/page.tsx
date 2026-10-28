@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { cookies } from 'next/headers';
+import { getSessionContext } from '../../lib/session';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase-server';
 import { buildRouteMap, type SegmentRouteRow } from '../../lib/trip-route';
@@ -98,8 +98,7 @@ export default async function ReportsPage({
 }: {
   searchParams: Promise<{ from?: string; to?: string; status?: string; client?: string }>;
 }) {
-  const cookieStore = await cookies();
-  const role = cookieStore.get('role')?.value;
+  const { role } = await getSessionContext();
   if (role === 'driver') redirect('/driver');
 
   const resolvedParams = await searchParams;
