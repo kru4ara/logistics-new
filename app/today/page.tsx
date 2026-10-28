@@ -1,4 +1,5 @@
 import { getSessionContext } from '../../lib/session';
+import { can } from '../../lib/roles';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -177,8 +178,8 @@ function currentTimestamp(): number {
 
 export default async function TodayPage() {
   const { role } = await getSessionContext();
-  if (role === 'driver') redirect('/driver');
-  if (role !== 'admin') redirect('/login');
+  if (!can(role, 'today.view')) redirect('/driver');
+  if (!can(role, 'today.view')) redirect('/login');
 
   const supabase = await createClient();
   const today = todayIso();

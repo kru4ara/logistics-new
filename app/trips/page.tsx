@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { getSessionContext } from '../../lib/session';
+import { can } from '../../lib/roles';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase/admin';
 import { buildRouteMap, type SegmentRouteRow, type TripRouteInfo } from '../../lib/trip-route';
@@ -49,7 +50,7 @@ export default async function TripsPage({
   }>;
 }) {
   const { role } = await getSessionContext();
-  if (role === 'driver') redirect('/driver');
+  if (!can(role, 'trips.viewAll')) redirect('/driver');
 
   const supabase = await createClient();
 

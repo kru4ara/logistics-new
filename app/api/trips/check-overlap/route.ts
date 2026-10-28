@@ -1,5 +1,6 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { getSessionContext } from '../../../../lib/session';
+import { can } from '../../../../lib/roles';
 import { createClient } from '../../../../lib/supabase/admin';
 import { buildRouteMap, type SegmentRouteRow } from '../../../../lib/trip-route';
 
@@ -23,7 +24,7 @@ function pickName(rel: unknown): string {
  */
 export async function GET(request: NextRequest) {
   const { role } = await getSessionContext();
-  if (role !== 'admin') {
+  if (!can(role, 'trips.viewAll')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

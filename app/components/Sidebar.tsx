@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { can, isDriverRole } from '../lib/roles';
 import { useEffect, useState } from 'react';
 import {
   Package,
@@ -109,7 +110,7 @@ function SidebarContent({
   onTogglePin: () => void;
 }) {
   const expanded = mobile || isExpanded;
-  const sections = role === 'driver' ? driverSections : adminSections;
+  const sections = isDriverRole(role) ? driverSections : adminSections;
   const displayName = userName || (isAdmin ? 'Офис' : 'Водитель');
   const initials = displayName
     .split(' ')
@@ -130,12 +131,12 @@ function SidebarContent({
     }
   }
 
-  const remindersHref = role === 'driver' ? '/driver/reminders' : '/reminders';
+  const remindersHref = isDriverRole(role) ? '/driver/reminders' : '/reminders';
 
   return (
     <div className="flex flex-col h-full">
       <Link
-        href={role === 'driver' ? '/driver' : '/'}
+        href={isDriverRole(role) ? '/driver' : '/'}
         className={`flex items-center gap-3 px-4 h-14 shrink-0 border-b border-white/5
                    hover:bg-white/5 transition-colors ${expanded ? '' : 'justify-center px-0'}`}
       >
@@ -318,7 +319,7 @@ export default function Sidebar({
 
   if (!role) return null;
 
-  const isAdmin = role === 'admin';
+  const isAdmin = can(role, 'trips.viewAll');
   const isExpanded = isPinned || isHovered;
 
   return (

@@ -1,5 +1,6 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { getSessionContext } from '../../../../lib/session';
+import { can } from '../../../../lib/roles';
 import { syncTripFromLogisat } from '../../../../lib/logisat';
 
 export const dynamic = 'force-dynamic';
@@ -45,7 +46,7 @@ async function processBatch(
 
 export async function POST(request: NextRequest) {
   const { role } = await getSessionContext();
-  if (role !== 'admin') {
+  if (!can(role, 'logisat.sync')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

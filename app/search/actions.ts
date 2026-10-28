@@ -2,6 +2,7 @@
 
 import { createClient } from '../../lib/supabase/admin';
 import { getSessionContext } from '../../lib/session';
+import { can } from '../../lib/roles';
 import { buildRouteMap, type SegmentRouteRow } from '../../lib/trip-route';
 
 export type SearchHit = {
@@ -52,7 +53,7 @@ export async function globalSearch(rawQuery: string): Promise<SearchResult> {
 
   // Только офис
   const { role } = await getSessionContext();
-  if (role !== 'admin') return empty;
+  if (!can(role, 'search.view')) return empty;
 
   const supabase = await createClient();
   const q = query;
