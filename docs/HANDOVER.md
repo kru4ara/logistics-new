@@ -136,6 +136,13 @@
 - Восстановлен случайно удалённый `app/lib/supabase-server.ts`.
 - Ветка `feat/next-16` успешно смержена в `master`.
 
+### Фаза 27 — Миграция на Tailwind 4 — ✅ 26.10
+- Обновлены пакеты: `tailwindcss@4.3.3`, `@tailwindcss/postcss`.
+- Удалён `tailwind.config.js` (кастомные цвета `brand`, `accent`, `ink`, тени и анимации перенесены в `app/globals.css` через `@theme`).
+- `postcss.config.js` переведён на плагин `@tailwindcss/postcss`.
+- В `globals.css` директива `@tailwind base;` заменена на `@import "tailwindcss";`.
+- Синхронизирован `package-lock.json` (удалены старые `overrides`).
+
 ### Фаза 28 — Матрица прав вместо проверок роли — ✅ 29.10
 - Новый `lib/roles.ts`: 37 capability, матрица `office`/`driver`, `PATH_CAPABILITIES` (право отдельно на чтение и запись), `ROLE_ALIASES`.
 - `proxy.ts` переписан на `capabilityForRequest(pathname, method)`; списки `ADMIN_ONLY_PATHS` и `ADMIN_ROLES` удалены.
@@ -144,13 +151,6 @@
 - `manager` больше не в неоднозначном состоянии (проходил proxy, но отлетал на страницах).
 - PR #31 смержен в `master` (коммит `0c4ce2a`).
 - **Не сделано:** `tsc --noEmit` не прогонялся, ручная проверка ролей не сделана, `AGENTS.md` обновлён только в части прав.
-
-### Фаза 27 — Миграция на Tailwind 4 — ✅ 26.10
-- Обновлены пакеты: `tailwindcss@4.3.3`, `@tailwindcss/postcss`.
-- Удалён `tailwind.config.js` (кастомные цвета `brand`, `accent`, `ink`, тени и анимации перенесены в `app/globals.css` через `@theme`).
-- `postcss.config.js` переведён на плагин `@tailwindcss/postcss`.
-- В `globals.css` директива `@tailwind base;` заменена на `@import "tailwindcss";`.
-- Синхронизирован `package-lock.json` (удалены старые `overrides`).
 
 ---
 
