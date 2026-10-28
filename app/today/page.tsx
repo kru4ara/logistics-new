@@ -1,4 +1,4 @@
-import { cookies } from 'next/headers';
+import { getSessionContext } from '../../lib/session';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -168,7 +168,7 @@ function EmptyBlock({ text }: { text: string }) {
 }
 
 export default async function TodayPage() {
-  const role = (await cookies()).get('role')?.value;
+  const { role } = await getSessionContext();
   if (role === 'driver') redirect('/driver');
   if (role !== 'admin') redirect('/login');
 

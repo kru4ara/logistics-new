@@ -1,4 +1,4 @@
-import { cookies } from 'next/headers';
+import { getSessionContext } from '../../../lib/session';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../../lib/supabase-server';
 import ForwardingHeader from './ForwardingHeader';
@@ -33,7 +33,7 @@ function pickField(rel: unknown, field: string): string | undefined {
 export default async function ForwardingDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const role = (await cookies()).get('role')?.value;
+  const { role } = await getSessionContext();
   if (role === 'driver') redirect('/driver');
 
   const supabase = await createClient();
