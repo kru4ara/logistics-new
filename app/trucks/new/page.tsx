@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { getSessionContext } from '../../lib/session';
+import { getSessionContext } from '../../../lib/session';
 import { redirect } from 'next/navigation';
 import NewTruckForm from './NewTruckForm';
 import { ArrowLeft, Truck as TruckIcon } from 'lucide-react';
