@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { cookies } from 'next/headers';
+import { getSessionContext } from '../../lib/session';
 import { redirect } from 'next/navigation';
 import { createContractor } from '../actions';
 import { EUROPEAN_COUNTRIES } from '../../../lib/countries';
@@ -16,7 +16,7 @@ import {
 export const dynamic = 'force-dynamic';
 
 export default async function NewContractorPage() {
-  const role = (await cookies()).get('role')?.value;
+  const { role } = await getSessionContext();
   if (role === 'driver') redirect('/driver');
 
   return (
