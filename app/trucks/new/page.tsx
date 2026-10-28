@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { cookies } from 'next/headers';
+import { getSessionContext } from '../../../lib/session';
 import { redirect } from 'next/navigation';
 import NewTruckForm from './NewTruckForm';
 import { ArrowLeft, Truck as TruckIcon } from 'lucide-react';
@@ -7,7 +7,7 @@ import { ArrowLeft, Truck as TruckIcon } from 'lucide-react';
 export const dynamic = 'force-dynamic';
 
 export default async function NewTruckPage() {
-  const role = (await cookies()).get('role')?.value;
+  const { role } = await getSessionContext();
   if (role === 'driver') redirect('/driver');
 
   return (

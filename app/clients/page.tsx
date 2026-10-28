@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { cookies } from 'next/headers';
+import { getSessionContext } from '../../lib/session';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase-server';
 import { deleteClient } from '../client-actions';
@@ -18,7 +18,7 @@ import {
 export const dynamic = 'force-dynamic';
 
 export default async function ClientsPage() {
-  const role = (await cookies()).get('role')?.value;
+  const { role } = await getSessionContext();
   if (role === 'driver') redirect('/driver');
 
   const supabase = await createClient();
