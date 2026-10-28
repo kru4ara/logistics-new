@@ -1,38 +1,12 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-
-// Пути, которые закрыты для водителей (админские)
-const ADMIN_ONLY_PATHS = [
-  '/reports',
-  '/audit',
-  '/statistics',
-  '/clients',
-  '/contractors',
-  '/drivers',
-  '/trucks',
-  '/locations',
-  '/forwarding',
-  '/fixed-costs',
-  '/reminders',
-  '/today',
-  '/map',
-  '/api/export',
-  '/api/forwarding',
-  '/api/logisat',
-  '/api/backfill-rates',
-  '/api/check-duplicates',
-  '/api/update-rates',
-  '/api/trips',
-];
+import { can, isDriverRole, capabilityForRequest } from './lib/roles'
 
 // Исключения: эти пути не требуют сессии (cron, вебхуки, публичные API)
 const PUBLIC_API_PATHS = [
   '/api/cron',
   '/api/telegram/webhook',
 ];
-
-// Роли, которым разрешён доступ к админским страницам
-const ADMIN_ROLES = ['admin', 'manager'];
 
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({
@@ -89,17 +63,19 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // 3. Проверяем роль (только для залогиненных и админских путей)
+  // 3. Проверяем право доступа к пути.
+  //    Требуемое право определяется по префиксу пути и методу запроса —
+  //    см. PATH_CAPABILITIES в lib/roles.ts.
   if (user) {
-    // Исключение для driver-docx: пропускаем водителя, 
+    // Исключение для driver-docx: пропускаем водителя,
     // но проверка владельца будет внутри роута!
     if (pathname.startsWith('/api/trips/') && pathname.includes('/driver-docx')) {
       return response;
     }
 
-    const isAdminPath = ADMIN_ONLY_PATHS.some((path) => pathname.startsWith(path));
+    const capability = capabilityForRequest(pathname, request.method)
 
-    if (isAdminPath) {
+    if (capability) {
       // Получаем роль из таблицы profiles
       const { data: profile } = await supabase
         .from('profiles')
@@ -107,16 +83,16 @@ export async function proxy(request: NextRequest) {
         .eq('id', user.id)
         .single();
 
-      const rawRole = profile?.role || 'driver';
-      const role = String(rawRole).trim().toLowerCase();
+      const role = profile?.role || 'driver';
 
-      // Если роль не в белом списке — редирект (или 403 для API)
-      if (!ADMIN_ROLES.includes(role)) {
+      // Нет права — редирект (или 403 для API)
+      if (!can(role, capability)) {
         if (pathname.startsWith('/api/')) {
           return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
         }
         const url = request.nextUrl.clone()
-        url.pathname = '/driver'
+        // Водителя — в его раздел, остальных — на главную
+        url.pathname = isDriverRole(role) ? '/driver' : '/'
         return NextResponse.redirect(url)
       }
     }

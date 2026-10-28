@@ -1,4 +1,5 @@
 import { getSessionContext } from '../lib/session';
+import { can, isDriverRole } from '../lib/roles';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '../lib/supabase/admin';
@@ -55,8 +56,8 @@ export default async function Home() {
     : 'Офис';
   const adminOnboarded = (await cookies()).get('admin_onboarded')?.value === '1'; // ⬅️ НОВОЕ
 
-  if (role === 'driver') redirect('/driver');
-  if (role !== 'admin') redirect('/login');
+  if (!can(role, 'trips.viewAll')) redirect('/driver');
+  if (!can(role, 'trips.viewAll')) redirect('/login');
 
   const supabase = await createClient();
 

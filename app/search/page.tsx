@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getSessionContext } from '../../lib/session';
+import { can } from '../../lib/roles';
 import Link from 'next/link';
 import { globalSearch, type SearchHit } from './actions';
 import {
@@ -75,7 +76,7 @@ export default async function SearchPage({
   searchParams: Promise<{ q?: string }>;
 }) {
   const { role } = await getSessionContext();
-  if (role !== 'admin') redirect('/');
+  if (!can(role, 'search.view')) redirect('/');
 
   const resolvedParams = await searchParams;
   const q = (resolvedParams.q || '').trim();

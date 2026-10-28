@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import ExcelJS from 'exceljs';
 import { getSessionContext } from '../../../lib/session';
+import { can } from '../../../lib/roles';
 import { createClient } from '../../../lib/supabase/admin';
 import { buildRouteMap } from '../../../lib/trip-route';
 
@@ -403,7 +404,7 @@ async function buildClientsSheet(
 
 export async function GET(request: Request) {
   const { role } = await getSessionContext();
-  if (role !== 'admin') {
+  if (!can(role, 'export.view')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

@@ -1,4 +1,5 @@
 import { getSessionContext } from '../../lib/session';
+import { can } from '../../lib/roles';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase/admin';
 import LogisatTestForm from './LogisatTestForm';
@@ -13,7 +14,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function LogisatPage() {
   const { role } = await getSessionContext();
-  if (role === 'driver') redirect('/driver');
+  if (!can(role, 'logisat.sync')) redirect('/driver');
 
   const supabase = await createClient();
 
