@@ -75,26 +75,6 @@ export async function login(
   const isProd = process.env.NODE_ENV === 'production';
   const COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 дней
 
-  cookieStore.set('role', role, {
-    path: '/',
-    httpOnly: true,
-    secure: isProd,
-    sameSite: 'lax',
-    maxAge: COOKIE_MAX_AGE,
-  });
-
-  if (driverId) {
-    cookieStore.set('driver_id', driverId, {
-      path: '/',
-      httpOnly: true,
-      secure: isProd,
-      sameSite: 'lax',
-      maxAge: COOKIE_MAX_AGE,
-    });
-  } else {
-    cookieStore.delete('driver_id');
-  }
-
   cookieStore.set('user_name', encodeURIComponent(userName), {
     path: '/',
     secure: isProd,
@@ -114,8 +94,6 @@ export async function logout() {
   await supabase.auth.signOut();
   
   const cookieStore = await cookies();
-  cookieStore.delete('role');
-  cookieStore.delete('driver_id');
   cookieStore.delete('user_name');
   
   redirect('/login');
