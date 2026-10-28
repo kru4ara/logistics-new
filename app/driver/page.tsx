@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { createClient } from '../../lib/supabase-server';
+import { createClient as createAdminClient } from '../../lib/supabase-server';
+import { createClient as createServerClient } from '../../lib/supabase/server';
 import { buildRouteMap, type SegmentRouteRow, type TripRouteInfo } from '../../lib/trip-route';
 import TripsList from './TripsList';
 import OnboardingCard from './OnboardingCard';
@@ -27,18 +28,37 @@ export default async function DriverPage({
   searchParams: Promise<{ q?: string; status?: string }>;
 }) {
   const cookieStore = await cookies();
-  const role = cookieStore.get('role')?.value;
-  const driverId = cookieStore.get('driver_id')?.value;
   const userName = cookieStore.get('user_name')?.value
     ? decodeURIComponent(cookieStore.get('user_name')!.value)
     : 'Водитель';
+
+  // 1. ПРОВЕРКА АВТОРИЗАЦИИ ЧЕРЕЗ СЕССИЮ (безопасно)
+  const authClient = await createServerClient();
+  const { data: { user } } = await authClient.auth.getUser();
+
+  if (!user) {
+    redirect('/login');
+  }
+
+  // 2. БЕРЕМ РОЛЬ И DRIVER_ID ИЗ БАЗЫ (источник правды)
+  const adminClient = await createAdminClient();
+  const { data: profile } = await adminClient
+    .from('profiles')
+    .select('role, driver_id')
+    .eq('id', user.id)
+    .single();
+
+  const role = profile?.role;
+  const driverId = profile?.driver_id;
 
   if (role !== 'driver' || !driverId) {
     redirect('/login');
   }
 
+  // Дальше используем adminClient для запросов к данным (trips, expenses и т.д.)
+  const supabase = adminClient;
+
   const resolvedParams = await searchParams;
-  const supabase = await createClient();
 
   // Профиль водителя — нужен для onboarded_at
   const { data: driver } = await supabase
