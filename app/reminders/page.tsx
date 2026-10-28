@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { cookies } from 'next/headers';
+import { getSessionContext } from '../../lib/session';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase-server';
 import ReminderCard, { ReminderCardData } from './ReminderCard';
@@ -26,8 +26,7 @@ export default async function RemindersPage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
-  const cookieStore = await cookies();
-  const role = cookieStore.get('role')?.value;
+  const { role } = await getSessionContext();
   if (role === 'driver') redirect('/driver');
 
   const resolvedParams = await searchParams;
