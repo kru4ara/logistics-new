@@ -1,7 +1,7 @@
 'use server';
 
-import { cookies } from 'next/headers';
 import { createClient } from '../../../lib/supabase-server';
+import { getSessionContext } from '../../../lib/session';
 import { fetchLogisatSummary, type SummaryResult } from '../../../lib/logisat';
 
 export async function checkLogisat(
@@ -9,8 +9,7 @@ export async function checkLogisat(
   fromIso: string,
   toIso: string
 ): Promise<SummaryResult> {
-  const cookieStore = await cookies();
-  const role = cookieStore.get('role')?.value;
+  const { role } = await getSessionContext();
   if (role !== 'driver' && role !== 'admin') {
     return { success: false, stage: 'auth', error: 'Нет доступа' };
   }
