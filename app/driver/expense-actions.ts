@@ -2,11 +2,18 @@
 
 import { createClient } from '../../lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
+import { requireTripAccess } from '../../lib/driver-access';
 
 export async function addDriverExpense(formData: FormData) {
-  const supabase = await createClient();
-
   const tripId = formData.get('trip_id') as string;
+
+  // trip_id приходит от клиента — проверяем, что рейс принадлежит водителю.
+  const access = await requireTripAccess(tripId);
+  if (!access.ok) {
+    return { success: false, error: access.reason };
+  }
+
+  const supabase = await createClient();
   const category = formData.get('category') as string;
   const amount = parseFloat(formData.get('amount') as string) || 0;
   const currency = formData.get('currency') as string;
