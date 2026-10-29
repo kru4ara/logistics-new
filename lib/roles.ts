@@ -131,6 +131,7 @@ export const PATH_CAPABILITIES: PathRule[] = [
   { prefix: '/map', capability: 'map.view' },
   { prefix: '/api/export', capability: 'export.view' },
   { prefix: '/api/forwarding', capability: 'forwarding.view', writeCapability: 'forwarding.edit' },
+  { prefix: '/api/logisat/query', capability: 'logisat.view' },
   { prefix: '/api/logisat', capability: 'logisat.sync' },
   { prefix: '/api/backfill-rates', capability: 'rates.manage' },
   { prefix: '/api/update-rates', capability: 'rates.manage' },
