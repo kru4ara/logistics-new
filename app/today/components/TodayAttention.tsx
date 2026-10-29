@@ -34,7 +34,6 @@ export default function TodayAttention({
   if (count === 0) return null;
 
   return (
-attentionCount > 0 && (
           <div className="card border-l-4 border-l-amber-500 p-5 md:p-6">
             <h2 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2 mb-4">
               <AlertTriangle className="w-5 h-5 text-amber-600" strokeWidth={2.2} />
@@ -136,6 +135,5 @@ attentionCount > 0 && (
               )}
             </div>
           </div>
-        )
   );
 }
