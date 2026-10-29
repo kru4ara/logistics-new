@@ -2,7 +2,12 @@ import 'server-only';
 
 import { getSessionContext } from './session';
 import { normalizeRole } from './roles';
-import { createClient } from './supabase/admin';
+import { createClient as createRlsClient } from './supabase/server';
+import {
+  evaluateTripAccess,
+  evaluateExpenseAccess,
+  type ActorState,
+} from './access-rules';
 
 export type ActorContext = {
   role: string;
@@ -29,8 +34,26 @@ export async function getActorContext(): Promise<ActorContext> {
 }
 
 /**
+ * Приводит контекст актора к форме, которую ждут чистые правила
+ * из lib/access-rules.ts.
+ */
+function toActorState(actor: ActorContext): ActorState {
+  const role =
+    actor.role === 'office' ? 'office' : actor.role === 'driver' ? 'driver' : null;
+  return { role, driverId: actor.driverId };
+}
+
+/**
  * Владеет ли водитель рейсом.
- * В БД водитель рейса лежит в trips.driver_id -> drivers.id.
+ *
+ * Фаза 38: водитель читает рейс через RLS-клиент, поэтому сама БД решает,
+ * виден ли рейс. Политика trips_select_own_or_office опирается на
+ * public.driver_owns_trip(), которая считает владением и рейс целиком,
+ * и назначение хотя бы на один сегмент.
+ *
+ * Прежняя проверка в коде смотрела только на trips.driver_id и не знала
+ * про сегментный случай — из-за этого водитель, назначенный на один
+ * сегмент чужого рейса, получал отказ, хотя по БД рейс ему виден.
  */
 export async function driverOwnsTrip(
   tripId: string,
@@ -38,15 +61,22 @@ export async function driverOwnsTrip(
 ): Promise<boolean> {
   if (!tripId || !driverId) return false;
 
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const rls = await createRlsClient();
+  const { data, error } = await rls
     .from('trips')
-    .select('driver_id')
+    .select('id')
     .eq('id', tripId)
     .maybeSingle();
 
-  if (error || !data) return false;
-  return data.driver_id === driverId;
+  if (error) {
+    console.error(
+      '[driver-access] чтение trips через RLS не удалось:',
+      error.message
+    );
+    return false;
+  }
+
+  return Boolean(data);
 }
 
 export type AccessResult =
@@ -64,48 +94,51 @@ export type AccessResult =
  */
 export async function requireTripAccess(tripId: string): Promise<AccessResult> {
   const actor = await getActorContext();
+  const state = toActorState(actor);
 
-  if (actor.isOffice) return { ok: true };
+  if (state.role === 'office') return { ok: true };
 
-  if (!actor.isDriver || !actor.driverId) {
+  if (state.role !== 'driver' || !state.driverId) {
     return { ok: false, reason: 'Нет доступа' };
   }
 
-  const owns = await driverOwnsTrip(tripId, actor.driverId);
-  if (!owns) {
-    return { ok: false, reason: 'Рейс не принадлежит вам' };
-  }
-
-  return { ok: true };
+  const owns = await driverOwnsTrip(tripId, state.driverId);
+  return evaluateTripAccess(state, owns);
 }
 
 /**
  * Проверка доступа к расходу: расход принадлежит рейсу, а рейс — водителю.
  */
-export async function requireExpenseAccess(expenseId: string): Promise<AccessResult> {
+export async function requireExpenseAccess(
+  expenseId: string
+): Promise<AccessResult> {
   const actor = await getActorContext();
+  const state = toActorState(actor);
 
-  if (actor.isOffice) return { ok: true };
+  if (state.role === 'office') return { ok: true };
 
-  if (!actor.isDriver || !actor.driverId) {
+  if (state.role !== 'driver' || !state.driverId) {
     return { ok: false, reason: 'Нет доступа' };
   }
 
-  const supabase = await createClient();
-  const { data: expense, error } = await supabase
+  const rls = await createRlsClient();
+  const { data: expense, error } = await rls
     .from('trip_expenses')
-    .select('trip_id')
+    .select('id')
     .eq('id', expenseId)
     .maybeSingle();
 
-  if (error || !expense?.trip_id) {
+  if (error) {
+    console.error(
+      '[driver-access] чтение trip_expenses через RLS не удалось:',
+      error.message
+    );
     return { ok: false, reason: 'Расход не найден' };
   }
 
-  const owns = await driverOwnsTrip(expense.trip_id as string, actor.driverId);
-  if (!owns) {
-    return { ok: false, reason: 'Расход не принадлежит вам' };
+  if (!expense) {
+    return { ok: false, reason: 'Расход не найден' };
   }
 
-  return { ok: true };
+  return evaluateExpenseAccess(state, true);
 }
