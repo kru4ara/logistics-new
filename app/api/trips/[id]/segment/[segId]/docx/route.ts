@@ -1,5 +1,3 @@
-import { NextResponse } from 'next/server';
-import { translateToPl } from '../../../../../../../lib/translate-pl';
 import {
   Document,
   Packer,
@@ -15,161 +13,13 @@ import {
   VerticalAlign,
   PageBreak,
 } from 'docx';
-import QRCode from 'qrcode';
-import { imageSize } from 'image-size';
+import { fmtDate, txt, divider, cellLabel, cellValue, FONT, LINE, BLUE, RED, GREEN, GRAY, AMBER } from '../../../../../../../lib/docx/helpers';
+import { getImageDimensions, scaleImage, downloadAsset, generateQrBuffer } from '../../../../../../../lib/docx/assets';
 import { createClient } from '../../../../../../../lib/supabase/admin';
 import { COMPANY, APP_URL, getTerms } from '../../../../../../../lib/company';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
-
-function fmtDate(d: string | null): string {
-  if (!d) return '—';
-  const dt = new Date(d);
-  return `${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')}/${dt.getFullYear()}`;
-}
-
-function getImageDimensions(buffer: Buffer): { width: number; height: number } | null {
-  try {
-    const dims = imageSize(buffer);
-    if (dims.width && dims.height) return { width: dims.width, height: dims.height };
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-function scaleImage(
-  dims: { width: number; height: number } | null,
-  maxWidth: number,
-  maxHeight: number,
-  fallback: { width: number; height: number }
-): { width: number; height: number } {
-  if (!dims || dims.width === 0 || dims.height === 0) return fallback;
-  const ratio = dims.width / dims.height;
-  let w = maxWidth;
-  let h = Math.round(maxWidth / ratio);
-  if (h > maxHeight) {
-    h = maxHeight;
-    w = Math.round(maxHeight * ratio);
-  }
-  return { width: w, height: h };
-}
-
-async function downloadAsset(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  path: string,
-  label: string
-): Promise<Buffer | null> {
-  try {
-    const { data, error } = await supabase.storage.from('documents').download(path);
-    if (error || !data) {
-      console.error(`[DOCX-SEG] ${label} download error:`, error);
-      return null;
-    }
-    const ab = await data.arrayBuffer();
-    return Buffer.from(ab);
-  } catch (e) {
-    console.error(`[DOCX-SEG] ${label} exception:`, e);
-    return null;
-  }
-}
-
-async function generateQrBuffer(text: string): Promise<Buffer | null> {
-  try {
-    return await QRCode.toBuffer(text, {
-      type: 'png',
-      width: 400,
-      margin: 1,
-      errorCorrectionLevel: 'M',
-      color: { dark: '#1E40AF', light: '#FFFFFF' },
-    });
-  } catch (e) {
-    console.error('[DOCX-SEG] QR generation error:', e);
-    return null;
-  }
-}
-
-const FONT = 'Calibri';
-const LINE = 240;
-const BLUE = '1E40AF';
-const RED = 'B91C1C';
-const GREEN = '15803D';
-const GRAY = '6B7280';
-const AMBER = 'D97706';
-
-type TextOpts = {
-  bold?: boolean;
-  size?: number;
-  before?: number;
-  after?: number;
-  align?: (typeof AlignmentType)[keyof typeof AlignmentType];
-  color?: string;
-};
-
-function txt(text: string, opts?: TextOpts): Paragraph {
-  return new Paragraph({
-    alignment: opts?.align,
-    spacing: { line: LINE, before: opts?.before ?? 0, after: opts?.after ?? 40 },
-    children: [
-      new TextRun({
-        text,
-        bold: opts?.bold,
-        size: opts?.size ?? 22,
-        font: FONT,
-        color: opts?.color,
-      }),
-    ],
-  });
-}
-
-function divider(): Paragraph {
-  return new Paragraph({
-    spacing: { line: LINE, before: 80, after: 80 },
-    border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: 'CBD5E1', space: 1 } },
-    children: [new TextRun({ text: '', size: 4 })],
-  });
-}
-
-function cellLabel(text: string, width = 38): TableCell {
-  return new TableCell({
-    width: { size: width, type: WidthType.PERCENTAGE },
-    verticalAlign: VerticalAlign.CENTER,
-    margins: { top: 80, bottom: 80, left: 120, right: 80 },
-    shading: { fill: 'F1F5F9' },
-    children: [
-      new Paragraph({
-        spacing: { line: LINE, after: 0, before: 0 },
-        children: [new TextRun({ text, bold: true, size: 22, font: FONT, color: '334155' })],
-      }),
-    ],
-  });
-}
-
-function cellValue(
-  text: string,
-  opts?: { bold?: boolean; size?: number; color?: string; width?: number }
-): TableCell {
-  return new TableCell({
-    width: { size: opts?.width ?? 62, type: WidthType.PERCENTAGE },
-    verticalAlign: VerticalAlign.CENTER,
-    margins: { top: 80, bottom: 80, left: 120, right: 80 },
-    children: [
-      new Paragraph({
-        spacing: { line: LINE, after: 0, before: 0 },
-        children: [
-          new TextRun({
-            text,
-            bold: opts?.bold,
-            size: opts?.size ?? 22,
-            font: FONT,
-            color: opts?.color,
-          }),
-        ],
-      }),
-    ],
-  });
-}
 
 function buildPointChildren(params: {
   idx: number;

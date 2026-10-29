@@ -1,4 +1,3 @@
-import { NextResponse } from 'next/server';
 import {
   Document,
   Packer,
@@ -10,102 +9,13 @@ import {
   WidthType,
   AlignmentType,
   BorderStyle,
-  VerticalAlign,
 } from 'docx';
+import { fmtDate, txt, divider, cellLabel, cellValue, FONT, LINE, BLUE, RED, GREEN, GRAY, AMBER } from '../../../../../../../lib/docx/helpers';
 import { createClient } from '../../../../../../../lib/supabase/admin';
 import { COMPANY } from '../../../../../../../lib/company';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
-
-const FONT = 'Calibri';
-const LINE = 240;
-const BLUE = '1E40AF';
-const RED = 'B91C1C';
-const GREEN = '15803D';
-const GRAY = '6B7280';
-const AMBER = 'D97706';
-
-function fmtDate(d: string | null): string {
-  if (!d) return '—';
-  const dt = new Date(d);
-  return `${String(dt.getDate()).padStart(2, '0')}.${String(dt.getMonth() + 1).padStart(2, '0')}.${dt.getFullYear()}`;
-}
-
-type TextOpts = {
-  bold?: boolean;
-  italics?: boolean;
-  size?: number;
-  before?: number;
-  after?: number;
-  align?: (typeof AlignmentType)[keyof typeof AlignmentType];
-  color?: string;
-};
-
-function txt(text: string, opts?: TextOpts): Paragraph {
-  return new Paragraph({
-    alignment: opts?.align,
-    spacing: { line: LINE, before: opts?.before ?? 0, after: opts?.after ?? 40 },
-    children: [
-      new TextRun({
-        text,
-        bold: opts?.bold,
-        italics: opts?.italics,
-        size: opts?.size ?? 22,
-        font: FONT,
-        color: opts?.color,
-      }),
-    ],
-  });
-}
-
-function divider(): Paragraph {
-  return new Paragraph({
-    spacing: { line: LINE, before: 80, after: 80 },
-    border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: 'CBD5E1', space: 1 } },
-    children: [new TextRun({ text: '', size: 4 })],
-  });
-}
-
-function cellLabel(text: string, width = 38): TableCell {
-  return new TableCell({
-    width: { size: width, type: WidthType.PERCENTAGE },
-    verticalAlign: VerticalAlign.CENTER,
-    margins: { top: 80, bottom: 80, left: 120, right: 80 },
-    shading: { fill: 'F1F5F9' },
-    children: [
-      new Paragraph({
-        spacing: { line: LINE, after: 0, before: 0 },
-        children: [new TextRun({ text, bold: true, size: 22, font: FONT, color: '334155' })],
-      }),
-    ],
-  });
-}
-
-function cellValue(
-  text: string,
-  opts?: { bold?: boolean; size?: number; color?: string; width?: number }
-): TableCell {
-  return new TableCell({
-    width: { size: opts?.width ?? 62, type: WidthType.PERCENTAGE },
-    verticalAlign: VerticalAlign.CENTER,
-    margins: { top: 80, bottom: 80, left: 120, right: 80 },
-    children: [
-      new Paragraph({
-        spacing: { line: LINE, after: 0, before: 0 },
-        children: [
-          new TextRun({
-            text,
-            bold: opts?.bold,
-            size: opts?.size ?? 22,
-            font: FONT,
-            color: opts?.color,
-          }),
-        ],
-      }),
-    ],
-  });
-}
 
 function buildPointParagraphs(params: {
   idx: number;
@@ -129,7 +39,7 @@ function buildPointParagraphs(params: {
       spacing: { line: LINE, after: 20, before: 0 },
       children: [
         new TextRun({ text: `#${idx}   `, bold: true, size: 22, font: FONT, color: numberColor }),
-        new TextRun({ text: date ? fmtDate(date) : '—', bold: true, size: 22, font: FONT, color: BLUE }),
+        new TextRun({ text: date ? fmtDate(date, '.') : '—', bold: true, size: 22, font: FONT, color: BLUE }),
         new TextRun({ text: '   ', size: 22, font: FONT }),
         new TextRun({ text: company || '—', bold: true, size: 22, font: FONT, color: '0F172A' }),
         ...(label
@@ -306,7 +216,7 @@ export async function GET(
   );
   children.push(divider());
 
-  children.push(txt(`Дата формирования: ${fmtDate(new Date().toISOString())}`, { size: 18, after: 0, color: GRAY }));
+  children.push(txt(`Дата формирования: ${fmtDate(new Date().toISOString(), '.')}`, { size: 18, after: 0, color: GRAY }));
 
   children.push(
     new Paragraph({
