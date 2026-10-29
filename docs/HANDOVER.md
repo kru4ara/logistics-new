@@ -49,7 +49,7 @@
 - **Один коммит = связанные файлы.**
 - **`import` должны быть в начале файла.**
 - **`middleware.ts` переименован в `proxy.ts`** (Next 16). В `next.config.js` **нет** ключа `eslint`.
-- **Линт** — отдельный файл `eslint.config.mjs` на чистых плагинах (`@eslint/js`, `typescript-eslint`, `react`, `react-hooks`, `globals`). **`eslint-config-next` больше не используется.**
+- **Линт** — отдельный файл `eslint.config.mjs`: `@eslint/js` + `typescript-eslint` + готовый flat-конфиг **`eslint-config-next`** (`...next`), который подключает `react`, `react-hooks`, `jsx-a11y`, `import` и `@next/next` вместе с их recommended-правилами. Ручного подключения react-плагинов в devDependencies нет — они приезжают транзитивно.
 
 ### ⚠️ Git (локально)
 - `git pull --no-edit`.
@@ -130,7 +130,7 @@
 - `revalidateTag` — breaking change (пока не используется в проекте).
 
 ### Фаза 26 — Наведение порядка в линтере — ✅ 26.10
-- Удалён `eslint-config-next` (ломается в CI на Next 16).
+- `eslint-config-next` **подключён** (PR #16): раньше конфиг был собран вручную, поэтому ни одно правило `@next/next-*` не работало (17 warn + 7 error).
 - `eslint.config.mjs` переведён на чистые плагины + `globals` (Node + Service Worker).
 - Исправлены все 30 ошибок линта (0 errors, 48 warnings).
 - Восстановлен случайно удалённый `app/lib/supabase-server.ts`.
@@ -264,7 +264,7 @@
 ## ⏭️ Очередь задач
 1. **Закрыть PR #40 и проверить Production-деплой** — после мжера убедиться, что на `694e0ae` вышел деплой, а не только Preview (автор коммита должен остаться `Anatoli`).
 2. **Перевести остальные страницы на RLS-клиент** — ~88 файлов всё ещё идут через `service_role`, и через них водитель видит больше, чем должен. По приоритету чувствительных данных: водители, документы, расчёты. Проверено в Фазе 38: страницы офиса удобно оставить на admin-клиенте, ограничение нужно там, где доступ различается.
-3. **Разбивка гигантских файлов** — `statistics/page.tsx` (48 КБ), `SegmentForm.tsx` (47 КБ), `drivers/[id]/page.tsx` (1000+ строк) → компоненты + серверные функции.
+3. **Разбивка гигантских файлов** — актуальный список из issue #13: два docx-роута (`app/api/trips/[id]/segment/[segId]/docx/route.ts` — 29.9 КБ / 1010 строк, `app/api/forwarding/[id]/contractor/[cid]/docx/route.ts` — 27.9 КБ / 993 строки), домен forwarding (5 файлов 20–26 КБ), `app/today/page.tsx` (27.9 КБ), `app/page.tsx` (25.9 КБ), `CargoForm.tsx` (23.3 КБ). Ориентир — до ~500 строк / 15 КБ. Файлов крупнее 20 КБ всего 13.
 4. **Правила доступа для новых ролей** — когда понадобится: логист, бухгалтерия, клиент. Матрица готова, менять только `ROLE_CAPABILITIES`.
 5. **Базовая миграция с полной схемой** — чтобы `supabase/stubs/schema.sql` можно было удалить, а `supabase db push` работал по-настоящему.
 
@@ -277,7 +277,7 @@
 - **`lib/access-rules.ts` (новый):** чистые правила `actorOwnsTrip` / `evaluateTripAccess` / `evaluateExpenseAccess` без Supabase и без `server-only` — только их можно покрыть юнит-тестами.
 - **Исправлено расхождение кода и БД.** Старая `driverOwnsTrip()` смотрела только на `trips.driver_id === driverId` и не знала про сегментный случай, хотя политика `public.driver_owns_trip()` считает владением и рейс целиком, и назначение хотя бы на один сегмент. Водитель, назначенный на один сегмент чужого рейса, по БД владеет рейсом, а по коду получал отказ «Рейс не принадлежит вам».
 - **Сигнатуры не менялись** (`getSessionContext` / `getActorContext` / `requireTripAccess` / `requireExpenseAccess`) — 48 потребителей правок не требуют.
-- **Тесты:** `lib/__tests__/access-rules.test.ts` — 15 тестов на матрицу ролей, владение рейсом и расходом, тексты причин отказа. Всего 43.
+- **Тесты:** `lib/__tests__/access-rules.test.ts` — 14 тестов на матрицу ролей, владение рейсом и расходом, тексты причин отказа. Всего 42.
 - **PR #40** (`feature/phase-38-rls-session` → `master`), коммит `694e0ae`. Автор коммита — `Anatoli <78858463+kru4ara@users.noreply.github.com>`, иначе Vercel не свяжет коммит с проектом и Production-деплой не выкатится.
 
 ---
@@ -291,8 +291,8 @@
 ## 📋 Шпаргалка
 - **Supabase-клиенты:** `lib/supabase/admin.ts` (service_role, обходит RLS, `server-only` ✅) · `lib/supabase/server.ts` (anon+куки, `server-only` ✅) · `proxy.ts` (свой `createServerClient`, намеренно — `request.cookies` vs `cookies()`).
 - **Supabase ref:** `smodijsj`**`i`**`wcvsscfgloh` (с буквой `i`!)
-- **Линт:** `npm run lint` (ESLint 9 + чистые плагины, без `eslint-config-next`).
-- **Тесты:** `npm run test` (Vitest, **43 теста**).
+- **Линт:** `npm run lint` (ESLint 9 + `eslint-config-next`, 0 warnings / 0 errors).
+- **Тесты:** `npm run test` (Vitest, **42 теста**).
 - **CI:** GitHub Actions (Actions → CI) — lint → `tsc --noEmit` → test → build. Работает, покрывает всё.
 - **Права:** `can(role, 'cap')` из `lib/roles.ts`; путь → право через `capabilityForRequest(pathname, method)`.
 - **Доступ к рейсу/расходу:** `requireTripAccess` / `requireExpenseAccess` из `lib/driver-access.ts`; чистые правила — в `lib/access-rules.ts`; владение решает БД (политика `driver_owns_trip`), в коде его не дублировать.
