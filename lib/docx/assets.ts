@@ -1,9 +1,9 @@
 import { imageSize } from 'image-size';
 import QRCode from 'qrcode';
-import type { createClient } from '../supabase/admin';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 // Тип admin-клиента Supabase — тот же, что и в исходных роутах.
-type SupabaseAdmin = Awaited<ReturnType<typeof createClient>>;
+type SupabaseAdmin = SupabaseClient;
 
 export function getImageDimensions(buffer: Buffer): { width: number; height: number } | null {
   try {
