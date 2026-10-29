@@ -45,6 +45,7 @@ language sql
 stable
 security definer
 set search_path = public
+set row_security = off
 as $$
   select exists (
     select 1 from public.trips t
@@ -65,6 +66,7 @@ language sql
 stable
 security definer
 set search_path = public
+set row_security = off
 as $$
   select exists (
     select 1 from public.trip_segments s
@@ -80,6 +82,7 @@ language sql
 stable
 security definer
 set search_path = public
+set row_security = off
 as $$
   select exists (
     select 1
@@ -100,6 +103,7 @@ language sql
 stable
 security definer
 set search_path = public
+set row_security = off
 as $$
   select exists (
     select 1
@@ -117,6 +121,7 @@ language sql
 stable
 security definer
 set search_path = public
+set row_security = off
 as $$
   select exists (
     select 1
@@ -204,6 +209,20 @@ create policy contractors_select_own_or_office on public.contractors
     public.is_office()
     or public.driver_uses_contractor(contractors.id)
   );
+
+
+-- ============================================================
+-- Права на функции-владельцы
+-- ============================================================
+-- Политики вызывают эти функции от имени ВОДИТЕЛЯ, поэтому явные
+-- grant execute обязательны: без них вызов падает с
+-- "permission denied for function driver_owns_trip", и политика
+-- молча отсекает все строки (и офис, и водитель видят ноль).
+grant execute on function public.driver_owns_trip(uuid) to anon, authenticated, service_role;
+grant execute on function public.driver_owns_segment(uuid) to anon, authenticated, service_role;
+grant execute on function public.driver_owns_segment_cargo(uuid) to anon, authenticated, service_role;
+grant execute on function public.driver_has_client(uuid) to anon, authenticated, service_role;
+grant execute on function public.driver_uses_contractor(uuid) to anon, authenticated, service_role;
 
 
 -- ============================================================

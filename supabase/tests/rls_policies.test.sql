@@ -119,6 +119,11 @@ insert into public.reminders (id, title, entity_type, entity_id, status) values
 set role authenticated;
 select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', false);
 
+-- Сначала убеждаемся, что офис вообще опознан: если is_office() вернул
+-- false, все офисные проверки упадут одинаково и замаскируют причину.
+select public.assert_count('office: is_office() is true', 1,
+  'select case when public.is_office() then 1 else 0 end');
+
 select public.assert_count('office: trips', 2, 'select count(*) from public.trips');
 select public.assert_count('office: expenses', 2, 'select count(*) from public.trip_expenses');
 select public.assert_count('office: cargo', 2, 'select count(*) from public.trip_cargo');
