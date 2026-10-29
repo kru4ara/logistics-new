@@ -174,7 +174,42 @@ create policy contractors_select_own_or_office on public.contractors
 
 
 -- ============================================================
--- ROLLBACK
+-- Страховка: после всех drop/create политики чтения должны существовать
+-- ============================================================
+-- Раньше ошибка была неочевидной: миграция отрабатывала с кодом 0, но
+-- политики исчезали, и таблица оставалась без доступа на чтение.
+-- Теперь это проверяется прямо здесь, на этапе применения миграции.
+do $$
+declare
+  t text;
+  missing text;
+begin
+  missing := '';
+  foreach t in array array[
+    'trips', 'trip_segments', 'trip_expenses', 'trip_cargo',
+    'trip_segment_cargo', 'trip_documents', 'clients', 'contractors'
+  ] loop
+    if not exists (
+      select 1 from pg_policies
+      where schemaname = 'public'
+        and tablename = t
+        and policyname like '%_select_own_or_office'
+    ) then
+      missing := missing || t || ' ';
+    end if;
+  end loop;
+
+  if missing <> '' then
+    raise exception 'RLS: нет политики чтения для: %', missing;
+  end if;
+end;
+$$;
+
+-- ROLLBACK (выполнять вручную, если что-то пошло не так)
+-- ВАЖНО: весь ROLLBACK закомментирован. Нераскомментированные drop policy
+-- выполняются как обычный SQL в конце миграции и сносят политики, которые
+-- эта же миграция только что создала: у clients и contractors не оставалось
+-- НИ ОДНОЙ политики на SELECT, и офис видел 0 клиентов и 0 подрядчиков.
 -- ============================================================
 -- drop policy if exists trips_select_own_or_office on public.trips;
 -- drop policy if exists trip_segments_select_own_or_office on public.trip_segments;
@@ -184,10 +219,10 @@ create policy contractors_select_own_or_office on public.contractors
 -- drop policy if exists trip_documents_select_own_or_office on public.trip_documents;
 -- -- В 002 клиенты были строго для офиса (clients_office_select) — снимаем
 -- её, иначе она перекроет новую политику.
-drop policy if exists clients_office_select on public.clients;
-drop policy if exists clients_select_own_or_office on public.clients;
+-- drop policy if exists clients_office_select on public.clients;
+-- drop policy if exists clients_select_own_or_office on public.clients;
 -- -- Аналогично для подрядчиков.
-drop policy if exists contractors_office_select on public.contractors;
-drop policy if exists contractors_select_own_or_office on public.contractors;
+-- drop policy if exists contractors_office_select on public.contractors;
+-- drop policy if exists contractors_select_own_or_office on public.contractors;
 -- drop function if exists public.driver_owns_trip(uuid);
 -- drop function if exists public.driver_owns_segment(uuid);
