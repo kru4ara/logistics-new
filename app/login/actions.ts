@@ -24,28 +24,27 @@ export async function login(
   const supabase = await createClient();
 
   if (!loginValue.includes('@')) {
-    // Ищем в таблице users (офис)
-    const adminRes = await supabase
-      .from('users')
-      .select('email')
-      .eq('login', loginValue)
-      .maybeSingle();
+    // Ищем e-mail по логину через security-definer функцию.
+    //
+    // Раньше здесь был прямой SELECT из users/drivers под anon-ключом.
+    // Это работало только потому, что RLS на этих таблицах был
+    // ВЫКЛЮЧЕН: anon-ключ публичный, лежит в клиентском бандле, и
+    // читать мог кто угодно из интернета. Теперь прямой доступ закрыт
+    // политиками RLS, а нужный e-mail отдаёт функция
+    // lookup_login_email (миграция 20261029_002).
+    const { data: foundEmail, error: lookupError } = await supabase.rpc(
+      'lookup_login_email',
+      { p_login: loginValue }
+    );
 
-    if (adminRes.data?.email) {
-      realEmail = adminRes.data.email;
+    if (lookupError) {
+      console.error('[login] lookup_login_email failed:', lookupError.message);
+    }
+
+    if (foundEmail) {
+      realEmail = foundEmail as string;
     } else {
-      // Ищем в таблице drivers (по фамилии)
-      const driverRes = await supabase
-        .from('drivers')
-        .select('email')
-        .ilike('last_name', loginValue)
-        .maybeSingle();
-
-      if (driverRes.data?.email) {
-        realEmail = driverRes.data.email;
-      } else {
-        realEmail = `${loginValue}@raibuilding.local`;
-      }
+      realEmail = `${loginValue}@raibuilding.local`;
     }
   }
 
