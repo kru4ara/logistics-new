@@ -1,0 +1,85 @@
+name: RLS
+
+# Проверка миграций RLS на чистом Postgres.
+#
+# Зачем: миграции применяются вручную через Supabase SQL Editor.
+# Пока так — ошибка в SQL обнаруживается только на проде. Этот job
+# ловит её на каждом PR: гоняет миграции на чистой базе и проверяет
+# ПОВЕДЕНИЕ политик (водитель не видит чужой рейс), а не только
+# синтаксис.
+#
+# Схема в supabase/stubs/ — упрощённый каркас таблиц, на которые
+# ссылаются политики. Это НЕ реальная схема проекта.
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'supabase/**'
+      - '.github/workflows/rls.yml'
+  push:
+    branches: [master]
+    paths:
+      - 'supabase/**'
+      - '.github/workflows/rls.yml'
+
+jobs:
+  rls:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: rls_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      PGPASSWORD: postgres
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGDATABASE: rls_test
+      PGUSER: postgres
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Подготовить роли и схему auth
+        run: psql -v ON_ERROR_STOP=1 -f supabase/stubs/prepare.sql
+
+      - name: Создать каркас схемы
+        run: psql -v ON_ERROR_STOP=1 -f supabase/stubs/schema.sql
+
+      - name: Снять старые политики (чистая база — no-op)
+        run: psql -v ON_ERROR_STOP=1 -f supabase/stubs/reset_policies.sql
+
+      - name: Применить миграции
+        run: |
+          set -euo pipefail
+          for f in $(ls -1 supabase/migrations/*.sql | sort); do
+            echo "::group::$f"
+            psql -v ON_ERROR_STOP=1 -f "$f"
+            echo "::endgroup::"
+          done
+
+      - name: Проверить идемпотентность (миграции можно применить повторно)
+        run: |
+          set -euo pipefail
+          for f in $(ls -1 supabase/migrations/*.sql | sort); do
+            echo "::group::повторно $f"
+            psql -v ON_ERROR_STOP=1 -f "$f"
+            echo "::endgroup::"
+          done
+
+      - name: Диагностика окружения RLS
+        run: psql -v ON_ERROR_STOP=1 -f supabase/tests/diagnostics.sql
+
+      - name: Проверить поведение политик
+        run: psql -v ON_ERROR_STOP=1 -f supabase/tests/rls_policies.test.sql
