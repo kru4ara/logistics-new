@@ -1,11 +1,11 @@
 import { getSessionContext } from '../lib/session';
+import { can } from '../lib/roles';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '../lib/supabase/admin';
 import { MonthlyBars, ExpenseDonut } from './components/DashboardCharts';
 import AdminOnboardingCard from './components/AdminOnboardingCard';
 import {
-import { can } from '../lib/roles';
   TrendingUp,
   TrendingDown,
   Package,
