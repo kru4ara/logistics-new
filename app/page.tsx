@@ -5,6 +5,7 @@ import { createClient } from '../lib/supabase/admin';
 import { MonthlyBars, ExpenseDonut } from './components/DashboardCharts';
 import AdminOnboardingCard from './components/AdminOnboardingCard';
 import {
+import { can } from '../lib/roles';
   TrendingUp,
   TrendingDown,
   Package,
