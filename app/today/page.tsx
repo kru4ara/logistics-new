@@ -1,181 +1,28 @@
 import { getSessionContext } from '../../lib/session';
 import { can } from '../../lib/roles';
 import { redirect } from 'next/navigation';
-import Link from 'next/link';
 import {
   Calendar,
   MapPin,
   Flag,
-  Truck,
-  AlertTriangle,
-  Clock,
-  ArrowRight,
-  UserCircle,
-  Inbox,
   Route as RouteIcon,
 } from 'lucide-react';
 import { createClient } from '../../lib/supabase/admin';
 import { buildRouteMap } from '../../lib/trip-route';
+import EventCard from './components/EventCard';
+import EmptyBlock from './components/EmptyBlock';
+import TodayStats from './components/TodayStats';
+import ActiveTripCard from './components/ActiveTripCard';
+import TodayAttention from './components/TodayAttention';
+import { todayIso, currentTimestamp } from './lib/dates';
+import { pickName, pickOne, getDriverName, getTruckNumber } from './lib/relations';
+import { type EventItem } from './lib/events';
 
 export const dynamic = 'force-dynamic';
-
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function fmtDateRu(d: string | null | undefined): string {
-  if (!d) return '—';
-  try {
-    return new Date(d).toLocaleDateString('ru-RU');
-  } catch {
-    return d;
-  }
-}
-
-function pickName(rel: unknown): string | undefined {
-  if (!rel) return undefined;
-  if (Array.isArray(rel)) return rel[0]?.name;
-  if (typeof rel === 'object' && 'name' in rel) {
-    return (rel as { name?: string }).name;
-  }
-  return undefined;
-}
-
-function pickOne<T>(rel: unknown): T | null {
-  if (!rel) return null;
-  if (Array.isArray(rel)) return (rel[0] as T) ?? null;
-  return rel as T;
-}
-
-type DriverRel = { first_name: string | null; last_name: string | null };
-type TruckRel = { registration_number: string | null };
-
-function getDriverName(rel: unknown): string | null {
-  const d = pickOne<DriverRel>(rel);
-  if (!d) return null;
-  const name = `${d.first_name || ''} ${d.last_name || ''}`.trim();
-  return name || null;
-}
-
-function getTruckNumber(rel: unknown): string | null {
-  const t = pickOne<TruckRel>(rel);
-  return t?.registration_number || null;
-}
-
-type EventItem = {
-  kind: 'trip' | 'sub' | 'fwd';
-  tripNumber: string | null;
-  clientName: string | null;
-  company: string | null;
-  city: string | null;
-  country: string | null;
-  date: string | null;
-  pointLabel?: string;
-  driverName?: string | null;
-  truckNumber?: string | null;
-  href: string;
-  tripStatus?: string | null;
-};
-
-const statusLabels: Record<string, string> = {
-  planned: 'Планируется',
-  active: 'В пути',
-  completed: 'Завершён',
-  invoiced: 'Выставлен счёт',
-  paid: 'Оплачен',
-};
-
-const statusColors: Record<string, string> = {
-  planned: 'bg-slate-100 text-slate-700 border-slate-200',
-  active: 'bg-brand-50 text-brand-700 border-brand-200',
-  completed: 'bg-green-50 text-green-700 border-green-200',
-  invoiced: 'bg-yellow-50 text-yellow-700 border-yellow-200',
-  paid: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-};
-
-function EventCard({ e, accent }: { e: EventItem; accent: 'load' | 'unload' }) {
-  const accentBorder = accent === 'load' ? 'border-l-green-500' : 'border-l-red-500';
-  const accentBg = accent === 'load' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700';
-  const Icon = accent === 'load' ? MapPin : Flag;
-
-  return (
-    <Link
-      href={e.href}
-      className={`group block card card-hover overflow-hidden border-l-4 ${accentBorder} active:scale-[0.99]`}
-    >
-      <div className="p-4">
-        <div className="flex items-start justify-between gap-2 mb-2">
-          <div className="flex items-center gap-2 min-w-0 flex-wrap">
-            <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${accentBg}`}>
-              <Icon className="w-3 h-3" strokeWidth={2.5} />
-              {e.pointLabel}
-            </span>
-            <span className="text-xs text-slate-400 font-medium tabular-nums">
-              Рейс {e.tripNumber}
-            </span>
-          </div>
-          {e.tripStatus && (
-            <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold border whitespace-nowrap
-                              ${statusColors[e.tripStatus] || 'bg-slate-100 text-slate-700 border-slate-200'}`}>
-              {statusLabels[e.tripStatus] || e.tripStatus}
-            </span>
-          )}
-        </div>
-
-        {e.clientName && (
-          <div className="font-bold text-slate-900 text-sm break-words group-hover:text-brand-600 transition-colors mb-1">
-            {e.clientName}
-          </div>
-        )}
-
-        {e.company && (
-          <div className="text-sm text-slate-700 break-words">{e.company}</div>
-        )}
-
-        <div className="text-xs text-slate-500 mt-1 break-words">
-          {[e.city, e.country].filter(Boolean).join(', ') || '—'}
-        </div>
-
-        {(e.driverName || e.truckNumber) && (
-          <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 pt-2 border-t border-slate-100 text-xs text-slate-500">
-            {e.truckNumber && (
-              <span className="inline-flex items-center gap-1">
-                <Truck className="w-3 h-3" strokeWidth={2} />
-                <b className="text-slate-700">{e.truckNumber}</b>
-              </span>
-            )}
-            {e.driverName && (
-              <span className="inline-flex items-center gap-1">
-                <UserCircle className="w-3 h-3" strokeWidth={2} />
-                {e.driverName}
-              </span>
-            )}
-          </div>
-        )}
-      </div>
-    </Link>
-  );
-}
-
-function EmptyBlock({ text }: { text: string }) {
-  return (
-    <div className="card p-6 text-center">
-      <div className="w-12 h-12 mx-auto mb-2 rounded-xl bg-slate-50 flex items-center justify-center">
-        <Inbox className="w-6 h-6 text-slate-300" strokeWidth={1.5} />
-      </div>
-      <div className="text-sm text-slate-400">{text}</div>
-    </div>
-  );
-}
-
 // react-hooks/purity: impure-вызовы (Date.now) нельзя делать прямо в теле
 // компонента. Правило ориентировано на клиентский рендер (гидрация), а здесь
 // компонент серверный и force-dynamic — расхождение с клиентом невозможно,
 // поэтому impure-вызов изолирован в отдельной функции.
-function currentTimestamp(): number {
-  return Date.now();
-}
-
 export default async function TodayPage() {
   const { role } = await getSessionContext();
   if (!can(role, 'today.view')) redirect('/driver');
@@ -440,6 +287,16 @@ export default async function TodayPage() {
   });
 
   return (
+  const activeTripCards = activeTrips.map((t) => ({
+    id: t.id,
+    trip_number: t.trip_number,
+    route: t.route,
+    start_date: t.start_date,
+    clientName: pickName(t.clients) || null,
+    driverName: getDriverName(t.drivers),
+    truckNumber: getTruckNumber(t.trucks),
+  }));
+
     <main className="min-h-screen bg-slate-50">
       <div className="max-w-[1400px] mx-auto px-4 md:px-6 py-6 md:py-8 space-y-6 md:space-y-8">
 
@@ -453,58 +310,12 @@ export default async function TodayPage() {
           </p>
         </div>
 
-        <div className="grid gap-3 md:gap-4 grid-cols-2 md:grid-cols-4">
-          <div className="card card-hover p-4 md:p-5">
-            <div className="flex items-center justify-between mb-2 md:mb-3">
-              <span className="text-xs md:text-sm font-medium text-slate-500">Загрузок</span>
-              <div className="w-8 h-8 md:w-9 md:h-9 rounded-xl bg-green-50 flex items-center justify-center">
-                <MapPin className="w-4 h-4 md:w-[18px] md:h-[18px] text-green-600" strokeWidth={2.2} />
-              </div>
-            </div>
-            <div className="text-2xl md:text-3xl font-bold text-green-600 tabular-nums">
-              {todayLoadings.length}
-            </div>
-          </div>
-
-          <div className="card card-hover p-4 md:p-5">
-            <div className="flex items-center justify-between mb-2 md:mb-3">
-              <span className="text-xs md:text-sm font-medium text-slate-500">Выгрузок</span>
-              <div className="w-8 h-8 md:w-9 md:h-9 rounded-xl bg-red-50 flex items-center justify-center">
-                <Flag className="w-4 h-4 md:w-[18px] md:h-[18px] text-red-500" strokeWidth={2.2} />
-              </div>
-            </div>
-            <div className="text-2xl md:text-3xl font-bold text-red-500 tabular-nums">
-              {todayUnloadings.length}
-            </div>
-          </div>
-
-          <div className="card card-hover p-4 md:p-5">
-            <div className="flex items-center justify-between mb-2 md:mb-3">
-              <span className="text-xs md:text-sm font-medium text-slate-500">В пути</span>
-              <div className="w-8 h-8 md:w-9 md:h-9 rounded-xl bg-brand-50 flex items-center justify-center">
-                <RouteIcon className="w-4 h-4 md:w-[18px] md:h-[18px] text-brand-600" strokeWidth={2.2} />
-              </div>
-            </div>
-            <div className="text-2xl md:text-3xl font-bold text-brand-600 tabular-nums">
-              {activeTrips.length}
-            </div>
-          </div>
-
-          <div className={`card card-hover p-4 md:p-5 ${attentionCount > 0 ? 'border-amber-200' : ''}`}>
-            <div className="flex items-center justify-between mb-2 md:mb-3">
-              <span className={`text-xs md:text-sm font-medium ${attentionCount > 0 ? 'text-amber-700' : 'text-slate-500'}`}>
-                Требует внимания
-              </span>
-              <div className={`w-8 h-8 md:w-9 md:h-9 rounded-xl flex items-center justify-center
-                ${attentionCount > 0 ? 'bg-amber-50' : 'bg-slate-50'}`}>
-                <AlertTriangle className={`w-4 h-4 md:w-[18px] md:h-[18px] ${attentionCount > 0 ? 'text-amber-600' : 'text-slate-400'}`} strokeWidth={2.2} />
-              </div>
-            </div>
-            <div className={`text-2xl md:text-3xl font-bold tabular-nums ${attentionCount > 0 ? 'text-amber-600' : 'text-slate-400'}`}>
-              {attentionCount}
-            </div>
-          </div>
-        </div>
+        <TodayStats
+          loadings={todayLoadings.length}
+          unloadings={todayUnloadings.length}
+          active={activeTrips.length}
+          attention={attentionCount}
+        />
 
         <div>
           <h2 className="text-base md:text-lg font-bold text-slate-900 mb-3 flex items-center gap-2">
@@ -565,158 +376,19 @@ export default async function TodayPage() {
             <EmptyBlock text="Активных рейсов сейчас нет" />
           ) : (
             <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-              {activeTrips.map((t) => {
-                const clientName = pickName(t.clients) || '—';
-                const driverName = getDriverName(t.drivers);
-                const truckNumber = getTruckNumber(t.trucks);
-                return (
-                  <Link
-                    key={t.id}
-                    href={`/trips/${t.id}`}
-                    className="group card card-hover overflow-hidden active:scale-[0.99]"
-                  >
-                    <div className="h-1.5 bg-brand-500" />
-                    <div className="p-4">
-                      <div className="text-xs text-slate-400 font-medium tabular-nums mb-1">
-                        № {t.trip_number || '—'}
-                      </div>
-                      <div className="font-bold text-slate-900 text-sm break-words group-hover:text-brand-600 transition-colors mb-2">
-                        {clientName}
-                      </div>
-                      <div className="flex items-start gap-1.5 text-xs text-slate-600 mb-3">
-                        <RouteIcon className="w-3.5 h-3.5 mt-0.5 shrink-0 text-slate-400" strokeWidth={2} />
-                        <span className="break-words">{t.route || '—'}</span>
-                      </div>
-                      <div className="flex flex-wrap gap-x-3 gap-y-1 pt-2 border-t border-slate-100 text-xs text-slate-500">
-                        {truckNumber && (
-                          <span className="inline-flex items-center gap-1">
-                            <Truck className="w-3 h-3" strokeWidth={2} />
-                            <b className="text-slate-700">{truckNumber}</b>
-                          </span>
-                        )}
-                        {driverName && (
-                          <span className="inline-flex items-center gap-1">
-                            <UserCircle className="w-3 h-3" strokeWidth={2} />
-                            {driverName}
-                          </span>
-                        )}
-                        {t.start_date && (
-                          <span className="inline-flex items-center gap-1 ml-auto tabular-nums">
-                            {fmtDateRu(t.start_date)}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </Link>
-                );
-              })}
+              {activeTripCards.map((trip) => (
+                <ActiveTripCard key={trip.id} trip={trip} />
+              ))}
             </div>
           )}
         </div>
 
-        {attentionCount > 0 && (
-          <div className="card border-l-4 border-l-amber-500 p-5 md:p-6">
-            <h2 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2 mb-4">
-              <AlertTriangle className="w-5 h-5 text-amber-600" strokeWidth={2.2} />
-              Требует внимания
-            </h2>
-
-            <div className="space-y-4">
-              {overdueReminders.length > 0 && (
-                <div>
-                  <div className="text-xs uppercase tracking-wide text-red-600 font-semibold mb-2 flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5" strokeWidth={2.2} />
-                    Просроченные напоминания · {overdueReminders.length}
-                  </div>
-                  <div className="space-y-1.5">
-                    {overdueReminders.slice(0, 5).map((r) => (
-                      <div key={r.id} className="flex items-center gap-2 text-sm text-slate-700">
-                        <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
-                        <span className="truncate">{r.title}</span>
-                        <span className="ml-auto text-xs text-red-600 whitespace-nowrap tabular-nums">
-                          {Math.abs(r.days)} дн.
-                        </span>
-                      </div>
-                    ))}
-                    {overdueReminders.length > 5 && (
-                      <Link href="/reminders" className="text-xs text-brand-600 hover:underline inline-flex items-center gap-1 pl-4">
-                        и ещё {overdueReminders.length - 5}
-                        <ArrowRight className="w-3 h-3" strokeWidth={2.5} />
-                      </Link>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {(tripsWithoutDriver.length > 0 || tripsWithoutTruck.length > 0) && (
-                <div>
-                  <div className="text-xs uppercase tracking-wide text-amber-600 font-semibold mb-2">
-                    Рейсы без назначения · {tripsWithoutDriver.length + tripsWithoutTruck.length}
-                  </div>
-                  <div className="space-y-1.5">
-                    {tripsWithoutDriver.slice(0, 3).map((t) => (
-                      <Link
-                        key={`nd-${t.id}`}
-                        href={`/trips/${t.id}`}
-                        className="flex items-center gap-2 text-sm text-slate-700 hover:text-brand-600 transition-colors"
-                      >
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
-                        <span className="truncate">№{t.trip_number || '—'} · {pickName(t.clients) || '—'}</span>
-                        <span className="ml-auto text-xs text-amber-600 whitespace-nowrap">
-                          нет водителя
-                        </span>
-                      </Link>
-                    ))}
-                    {tripsWithoutTruck.slice(0, 3).map((t) => (
-                      <Link
-                        key={`nt-${t.id}`}
-                        href={`/trips/${t.id}`}
-                        className="flex items-center gap-2 text-sm text-slate-700 hover:text-brand-600 transition-colors"
-                      >
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
-                        <span className="truncate">№{t.trip_number || '—'} · {pickName(t.clients) || '—'}</span>
-                        <span className="ml-auto text-xs text-amber-600 whitespace-nowrap">
-                          нет машины
-                        </span>
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-              )}
-                            {tripsWithoutSalary.length > 0 && (
-                <div>
-                  <div className="text-xs uppercase tracking-wide text-amber-600 font-semibold mb-2">
-                    Завершённые рейсы без ЗП · {tripsWithoutSalary.length}
-                  </div>
-                  <div className="space-y-1.5">
-                    {tripsWithoutSalary.slice(0, 5).map((t) => (
-                      <Link
-                        key={`ns-${t.id}`}
-                        href={`/trips/${t.id}`}
-                        className="flex items-center gap-2 text-sm text-slate-700 hover:text-brand-600 transition-colors"
-                      >
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
-                        <span className="truncate">
-                          №{t.trip_number || '—'}
-                          {t.clientName && ` · ${t.clientName}`}
-                          {t.driverName && ` · ${t.driverName}`}
-                        </span>
-                        <span className="ml-auto text-xs text-amber-600 whitespace-nowrap">
-                          нет ЗП
-                        </span>
-                      </Link>
-                    ))}
-                    {tripsWithoutSalary.length > 5 && (
-                      <div className="text-xs text-slate-400 text-center pt-1">
-                        и ещё {tripsWithoutSalary.length - 5}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+        <TodayAttention
+          overdueReminders={overdueReminders}
+          tripsWithoutDriver={tripsWithoutDriver}
+          tripsWithoutTruck={tripsWithoutTruck}
+          tripsWithoutSalary={tripsWithoutSalary}
+        />
 
       </div>
     </main>
