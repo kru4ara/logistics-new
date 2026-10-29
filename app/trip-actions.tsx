@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { logAudit, diffFields } from '../lib/audit';
 import { geocode } from '../lib/geocode';
+import { requireExpenseAccess } from '../lib/driver-access';
 
 // ============================================================
 // Добавление расхода
@@ -140,6 +141,13 @@ export async function addExpense(formData: FormData) {
 // Удаление расхода
 // ============================================================
 export async function deleteExpense(expenseId: string, tripId: string) {
+  // Экшен вызывается и со страницы офиса, и со страницы водителя.
+  // Офис удаляет любой расход, водитель — только расход своего рейса.
+  const access = await requireExpenseAccess(expenseId);
+  if (!access.ok) {
+    throw new Error(access.reason);
+  }
+
   const supabase = await createClient();
 
   const { data: before } = await supabase
@@ -169,6 +177,12 @@ export async function deleteExpense(expenseId: string, tripId: string) {
 }
 
 export async function updateExpense(expenseId: string, formData: FormData) {
+  // Та же проверка, что и в deleteExpense: водитель правит только свои расходы.
+  const access = await requireExpenseAccess(expenseId);
+  if (!access.ok) {
+    throw new Error(access.reason);
+  }
+
   const supabase = await createClient();
   const tripId = formData.get('trip_id') as string;
   

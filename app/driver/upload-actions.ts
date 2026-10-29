@@ -3,6 +3,7 @@
 import { createClient } from '../../lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
 import { logAudit } from '../../lib/audit';
+import { requireTripAccess } from '../../lib/driver-access';
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
@@ -17,6 +18,12 @@ export async function uploadDocument(
   fileName: string
 ) {
   try {
+    // tripId приходит от клиента — проверяем владение рейсом до записи.
+    const access = await requireTripAccess(tripId);
+    if (!access.ok) {
+      return { success: false, message: access.reason };
+    }
+
     const supabase = await createClient();
 
     const base64 = base64Data.split(',')[1];
@@ -150,7 +157,7 @@ export async function deleteDocument(documentId: string, tripId: string) {
     // 1. Получаем документ, чтобы узнать file_path
     const { data: doc, error: fetchError } = await supabase
       .from('trip_documents')
-      .select('file_path, document_type, original_name')
+      .select('file_path, document_type, original_name, trip_id')
       .eq('id', documentId)
       .single();
 
@@ -160,6 +167,13 @@ export async function deleteDocument(documentId: string, tripId: string) {
         success: false,
         message: `Документ не найден: ${fetchError?.message || 'неизвестная ошибка'}`,
       };
+    }
+
+    // Проверяем права по trip_id ИЗ БД, а не по аргументу: иначе можно
+    // было бы подсунуть чужой tripId и удалить чужой документ.
+    const access = await requireTripAccess(doc.trip_id as string);
+    if (!access.ok) {
+      return { success: false, message: access.reason };
     }
 
     // 2. Удаляем из Storage

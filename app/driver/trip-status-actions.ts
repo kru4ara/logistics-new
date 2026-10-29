@@ -4,6 +4,7 @@ import { createClient } from '../../lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
 import { logAudit } from '../../lib/audit';
 import { buildRouteMap, type SegmentRouteRow } from '../../lib/trip-route'; // ⬅️ ИЗМЕНЕНО
+import { requireTripAccess } from '../../lib/driver-access';
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
@@ -68,6 +69,11 @@ export async function changeTripStatus(
   status: string,
   endDate?: string
 ) {
+  const access = await requireTripAccess(tripId);
+  if (!access.ok) {
+    throw new Error(access.reason);
+  }
+
   const supabase = await createClient();
 
   // Забираем рейс + relations.
