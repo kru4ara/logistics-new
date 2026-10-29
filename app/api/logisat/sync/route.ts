@@ -1,7 +1,14 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { syncTripFromLogisat } from '../../../../lib/logisat';
+import { getSessionContext } from '../../../../lib/session';
+import { can } from '../../../../lib/roles';
 
 export async function POST(request: NextRequest) {
+  const { role } = await getSessionContext();
+  if (!can(role, 'logisat.sync')) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const SERVER = process.env.LOGISAT_SERVER;
     const USERNAME = process.env.LOGISAT_USERNAME;

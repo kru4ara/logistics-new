@@ -1,4 +1,6 @@
 import { NextResponse, NextRequest } from 'next/server';
+import { getSessionContext } from '../../../../lib/session';
+import { can } from '../../../../lib/roles';
 
 const SERVER = process.env.LOGISAT_SERVER;
 const USERNAME = process.env.LOGISAT_USERNAME;
@@ -105,6 +107,11 @@ async function queryDevice(deviceId: string, fromTs: number, toTs: number) {
 }
 
 export async function POST(request: NextRequest) {
+  const { role } = await getSessionContext();
+  if (!can(role, 'logisat.view')) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   if (!SERVER || !USERNAME || !PASSWORD) {
     return NextResponse.json(
       { success: false, error: 'Logisat не настроен (env переменные)' },

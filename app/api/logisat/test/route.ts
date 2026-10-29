@@ -1,4 +1,6 @@
 import { NextResponse, NextRequest } from 'next/server';
+import { getSessionContext } from '../../../../lib/session';
+import { can } from '../../../../lib/roles';
 
 const SERVER = process.env.LOGISAT_SERVER;
 const USERNAME = process.env.LOGISAT_USERNAME;
@@ -20,6 +22,11 @@ function splitIntoWindows(fromTs: number, toTs: number): Array<{ from: number; t
 }
 
 export async function GET(request: NextRequest) {
+  const { role } = await getSessionContext();
+  if (!can(role, 'logisat.sync')) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   if (!SERVER || !USERNAME || !PASSWORD) {
     return NextResponse.json(
       { success: false, error: 'LOGISAT_SERVER/USERNAME/PASSWORD не заданы' },

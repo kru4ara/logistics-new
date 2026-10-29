@@ -1,5 +1,5 @@
 import { getSessionContext } from '../lib/session';
-import { can, isDriverRole } from '../lib/roles';
+import { can } from '../lib/roles';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '../lib/supabase/admin';
