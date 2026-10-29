@@ -30,7 +30,6 @@ export default function DashboardTotals({
   totalCapexCount,
 }: Props) {
   return (
-{/* ОБЩИЕ ЗА ВСЁ ВРЕМЯ */}
 <div>
   <h2 className="text-xs md:text-sm font-bold text-slate-500 uppercase tracking-wide mb-3">
     За всё время

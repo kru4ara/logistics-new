@@ -38,7 +38,6 @@ export default function DashboardMonthStats({
   fixedCosts,
 }: Props) {
   return (
-{/* ПОКАЗАТЕЛИ ЗА МЕСЯЦ */}
 <div>
   <h2 className="text-xs md:text-sm font-bold text-slate-500 uppercase tracking-wide mb-3">
     Показатели за {monthName}
