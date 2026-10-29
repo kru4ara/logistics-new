@@ -226,12 +226,51 @@ grant execute on function public.driver_uses_contractor(uuid) to anon, authentic
 
 
 -- ============================================================
--- ROLLBACK
+-- Страховка: после всех drop/create политики чтения должны существовать
 -- ============================================================
--- -- Политики из 002 на trips/trip_cargo/trip_documents содержали прямые
--- подзапросы к trips — именно они ломались. Снимаем и создаём заново
--- через функции-владельцы.
-drop policy if exists trips_select_own_or_office on public.trips;
+-- Раньше ошибка была неочевидной: миграция отрабатывала с кодом 0, но
+-- одна из политик исчезала, и таблица оставалась без доступа на чтение.
+-- Теперь это проверяется прямо здесь, на этапе применения миграции,
+-- а не в следующем прогоне тестов.
+do $$
+declare
+  t text;
+  missing text;
+begin
+  missing := '';
+  foreach t in array array[
+    'trips', 'trip_segments', 'trip_expenses', 'trip_cargo',
+    'trip_segment_cargo', 'trip_documents', 'clients', 'contractors'
+  ] loop
+    if not exists (
+      select 1 from pg_policies
+      where schemaname = 'public'
+        and tablename = t
+        and policyname like '%_select_own_or_office'
+    ) then
+      missing := missing || t || ' ';
+    end if;
+  end loop;
+
+  if missing <> '' then
+    raise exception 'RLS: нет политики чтения для: %', missing;
+  end if;
+end;
+$$;
+
+
+-- ============================================================
+-- ROLLBACK (выполнять вручную, если что-то пошло не так)
+-- ============================================================
+-- ВАЖНО: весь ROLLBACK закомментирован. Нераскомментированная строка
+-- drop policy в конце файла выполняется как обычный SQL и сносит
+-- политику, которую эта же миграция только что создала. Именно так
+-- в 004 пропала trips_select_own_or_office: офис перестал видеть
+-- рейсы (0 строк вместо 2), потому что у таблицы не осталось НИ ОДНОЙ
+-- политики на SELECT. Обнаружено на CI (фаза 36), воспроизведено
+-- локально на PostgreSQL 17: 004 удаляла политику в ROLLBACK-секции.
+--
+-- drop policy if exists trips_select_own_or_office on public.trips;
 -- drop policy if exists trip_segments_select_own_or_office on public.trip_segments;
 -- drop policy if exists trip_expenses_select_own_or_office on public.trip_expenses;
 -- drop policy if exists trip_cargo_select_own_or_office on public.trip_cargo;

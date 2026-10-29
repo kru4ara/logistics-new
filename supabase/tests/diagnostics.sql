@@ -41,7 +41,7 @@ select
 select id, role, driver_id from public.profiles;
 
 \echo '--- владелец и RLS-обход функций-владельцев ---'
-select p.proname, pg_get_userbyid(p.proponowner) as owner,
+select p.proname, pg_get_userbyid(p.proowner) as owner,
        p.prosecdef as security_definer,
        p.proconfig::text as config
   from pg_proc p join pg_namespace n on n.oid=p.pronamespace

@@ -183,67 +183,89 @@ select public.assert_count('driver B: NO foreign driver row', 1, 'select count(*
 
 
 -- ============================================================
+-- ============================================================
 -- ВОДИТЕЛЬ НЕ МОЖЕТ ПИСАТЬ
 -- ============================================================
+-- ВАЖНО про семантику RLS:
+--   INSERT нарушает with_check -> БРОСАЕТСЯ ошибка (row-level security).
+--   UPDATE/DELETE нарушают using -> НЕ бросают ошибку, а затрагивают
+--   0 строк. Поэтому проверять надо СЧЁТОМ затронутых строк, а не
+--   ожиданием исключения. Раньше тест ждал исключение от UPDATE —
+--   и падал, хотя политика работала правильно.
+
+-- insert: должен быть отклонён (with_check не проходит)
 do $$
+declare
+  v_count integer;
 begin
   begin
     insert into public.trips (id, trip_number) values
       ('99999999-9999-9999-9999-999999999999', 'T-HACK');
-    raise exception 'FAIL: водитель смог вставить рейс — политика на запись не работает';
+    v_count := 1;
   exception
     when insufficient_privilege then
       raise notice 'ok: insert trips отклонён (нет прав)';
+      return;
     when others then
       if sqlerrm like '%row-level security%' then
         raise notice 'ok: insert trips отклонён (row-level security)';
+        return;
       else
         raise;
       end if;
   end;
+  raise exception 'FAIL: водитель смог вставить рейс — политика на запись не работает';
 end;
 $$;
 
+-- update чужого рейса: должен затронуть 0 строк
 do $$
+declare
+  v_count integer;
 begin
-  begin
-    update public.trips set status = 'hacked'
-      where id = '11111111-aaaa-1111-1111-111111111111';
-    raise exception 'FAIL: водитель смог обновить чужой рейс';
-  exception
-    when insufficient_privilege then
-      raise notice 'ok: update trips отклонён (нет прав)';
-    when others then
-      if sqlerrm like '%row-level security%' then
-        raise notice 'ok: update trips отклонён (row-level security)';
-      else
-        raise;
-      end if;
-  end;
+  update public.trips set status = 'hacked'
+    where id = '11111111-aaaa-1111-1111-111111111111';
+  get diagnostics v_count = row_count;
+  if v_count <> 0 then
+    raise exception 'FAIL: водитель обновил чужой рейс (% строк)', v_count;
+  end if;
+  raise notice 'ok: update чужого рейса не затронул строк';
 end;
 $$;
 
+-- delete чужого расхода: должен затронуть 0 строк
 do $$
+declare
+  v_count integer;
 begin
-  begin
-    delete from public.trip_expenses
-      where id = '55555555-eeee-5555-5555-555555555555';
-    raise exception 'FAIL: водитель смог удалить чужой расход';
-  exception
-    when insufficient_privilege then
-      raise notice 'ok: delete trip_expenses отклонён (нет прав)';
-    when others then
-      if sqlerrm like '%row-level security%' then
-        raise notice 'ok: delete trip_expenses отклонён (row-level security)';
-      else
-        raise;
-      end if;
-  end;
+  delete from public.trip_expenses
+    where id = '55555555-eeee-5555-5555-555555555555';
+  get diagnostics v_count = row_count;
+  if v_count <> 0 then
+    raise exception 'FAIL: водитель удалил чужой расход (% строк)', v_count;
+  end if;
+  raise notice 'ok: delete чужого расхода не затронул строк';
+end;
+$$;
+
+-- Запись рейсов — только для офиса (trips_office_update: is_office()).
+-- Водитель не может изменить даже СВОЙ рейс. Это осознанное решение
+-- текущих политик, а не дыра: тест фиксирует текущее поведение.
+do $$
+declare
+  v_count integer;
+begin
+  update public.trips set status = 'active'
+    where id = '11111111-aaaa-1111-1111-111111111111';
+  get diagnostics v_count = row_count;
+  if v_count <> 0 then
+    raise exception 'FAIL: водитель изменил рейс, хотя запись должна быть только у офиса (% строк)', v_count;
+  end if;
+  raise notice 'ok: запись рейсов — только офис (водитель: 0 строк)';
 end;
 $$;
 
 
--- ============================================================
 -- ANON (до входа): ничего не видит
 -- ============================================================
 reset role;

@@ -180,6 +180,6 @@ create table public.forwarding_expenses (id uuid primary key, amount numeric);
 create table public.forwarding_points (id uuid primary key, name text);
 
 -- Права, как в Supabase по умолчанию
-grant usage on schema public to anon, authenticated;
-grant select on all tables in schema public to anon, authenticated;
-grant insert, update, delete on all tables in schema public to authenticated;
+grant usage on schema public to anon, authenticated, service_role;
+grant select on all tables in schema public to anon, authenticated, service_role;
+grant insert, update, delete on all tables in schema public to authenticated, service_role;
