@@ -1,6 +1,5 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { createClient as createAdminClient } from '../../lib/supabase/admin';
 import { createClient as createServerClient } from '../../lib/supabase/server';
 import { buildRouteMap, type SegmentRouteRow, type TripRouteInfo } from '../../lib/trip-route';
 import TripsList from './TripsList';
@@ -40,9 +39,10 @@ export default async function DriverPage({
     redirect('/login');
   }
 
-  // 2. БЕРЕМ РОЛЬ И DRIVER_ID ИЗ БАЗЫ (источник правды)
-  const adminClient = await createAdminClient();
-  const { data: profile } = await adminClient
+  // 2. БЕРЕМ РОЛЬ И DRIVER_ID ИЗ БАЗЫ (источник правды).
+  //    Через RLS-клиент: политика profiles_select_own разрешает строку
+  //    с id = auth.uid(). Никакого service_role.
+  const { data: profile } = await authClient
     .from('profiles')
     .select('role, driver_id')
     .eq('id', user.id)
@@ -55,8 +55,10 @@ export default async function DriverPage({
     redirect('/login');
   }
 
-  // Дальше используем adminClient для запросов к данным (trips, expenses и т.д.)
-  const supabase = adminClient;
+  // Данные читаем через RLS-клиент (anon-ключ + сессия), а не через
+  // admin-клиент: так политики RLS реально работают, и водитель видит
+  // ровно свои рейсы — даже если проверку в коде удастся обойти.
+  const supabase = authClient;
 
   const resolvedParams = await searchParams;
 
