@@ -36,7 +36,7 @@ export type CellValueOpts = {
 
 /**
  * Форматирует дату. Разделитель задаётся параметром:
- * '/' — офисные документы, '.' — документ для водителя.
+ * '/' — офисные документы (segment, forwarding), '.' — документ для водителя.
  */
 export function fmtDate(d: string | null, sep: '/' | '.' = '/'): string {
   if (!d) return '—';
@@ -84,7 +84,10 @@ export function cellLabel(text: string, width = 38): TableCell {
   });
 }
 
-export function cellValue(text: string, opts?: CellValueOpts): TableCell {
+export function cellValue(
+  text: string,
+  opts?: CellValueOpts
+): TableCell {
   return new TableCell({
     width: { size: opts?.width ?? 62, type: WidthType.PERCENTAGE },
     verticalAlign: VerticalAlign.CENTER,
