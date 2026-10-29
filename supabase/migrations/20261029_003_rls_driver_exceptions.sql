@@ -137,6 +137,7 @@ create policy trip_documents_select_own_or_office on public.trip_documents
 -- clients: водитель читает клиентов СВОИХ рейсов. Имя клиента на своём
 -- рейсе — не секрет, а без этого джойн clients(name) в драйверских
 -- страницах отдаёт пустое имя.
+drop policy if exists clients_office_select on public.clients;
 drop policy if exists clients_select_own_or_office on public.clients;
 create policy clients_select_own_or_office on public.clients
   for select to authenticated
@@ -151,6 +152,7 @@ create policy clients_select_own_or_office on public.clients
   );
 
 -- contractors: водитель читает подрядчиков СВОИХ сегментов.
+drop policy if exists contractors_office_select on public.contractors;
 drop policy if exists contractors_select_own_or_office on public.contractors;
 create policy contractors_select_own_or_office on public.contractors
   for select to authenticated
@@ -177,7 +179,9 @@ create policy contractors_select_own_or_office on public.contractors
 -- drop policy if exists trip_cargo_select_own_or_office on public.trip_cargo;
 -- drop policy if exists trip_segment_cargo_select_own_or_office on public.trip_segment_cargo;
 -- drop policy if exists trip_documents_select_own_or_office on public.trip_documents;
--- drop policy if exists clients_select_own_or_office on public.clients;
--- drop policy if exists contractors_select_own_or_office on public.contractors;
+-- drop policy if exists clients_office_select on public.clients;
+drop policy if exists clients_select_own_or_office on public.clients;
+-- drop policy if exists contractors_office_select on public.contractors;
+drop policy if exists contractors_select_own_or_office on public.contractors;
 -- drop function if exists public.driver_owns_trip(uuid);
 -- drop function if exists public.driver_owns_segment(uuid);
