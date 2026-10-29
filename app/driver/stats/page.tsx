@@ -11,7 +11,7 @@ import {
   Route as RouteIcon,
   Wallet,
 } from 'lucide-react';
-import { createClient } from '../../../lib/supabase/admin';
+import { createClient as createAuthClient } from '../../../lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,7 +22,9 @@ export default async function DriverStatsPage() {
     redirect('/login');
   }
 
-  const supabase = await createClient();
+  // RLS-клиент вместо service_role: выборка ограничивается политиками
+  // RLS, поэтому водитель видит только свои данные.
+  const supabase = await createAuthClient();
 
   const { data: trips } = await supabase
     .from('trips')

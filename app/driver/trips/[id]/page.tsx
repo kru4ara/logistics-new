@@ -18,7 +18,6 @@ import {
   Globe,
   ArrowRight,
 } from 'lucide-react';
-import { createClient } from '../../../../lib/supabase/admin'; // <-- service_role
 import { createClient as createAuthClient } from '../../../../lib/supabase/server'; // <-- user session (RLS)
 import { buildRouteMap, type SegmentRouteRow } from '../../../../lib/trip-route';
 import { deleteExpense } from '../../../trip-actions';
@@ -66,7 +65,10 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
   const { id: tripId } = await params;
   if (!tripId) return <div className="p-6">Ошибка: ID рейса не передан</div>;
 
-  const supabase = await createClient();
+  // RLS-клиент вместо service_role: политики RLS теперь реально
+  // ограничивают выборку — водитель видит только свой рейс, его
+  // сегменты, расходы и документы по нему.
+  const supabase = await createAuthClient();
 
   // 1. Определяем водителя через Supabase Auth + profiles.
   //    Источник правды — profiles.driver_id (как в app/driver/page.tsx),
