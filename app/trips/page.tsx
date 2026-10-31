@@ -4,7 +4,7 @@ import { can } from '../../lib/roles';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase/admin';
 import { buildRouteMap, type SegmentRouteRow, type TripRouteInfo } from '../../lib/trip-route';
-import { parseOrderNumber } from '../../lib/orders-core';
+import { getOrderMonthKey, compareOrderNumbers } from '../../lib/orders-core';
 import DownloadButton from './DownloadButton';
 import SearchInput from './SearchInput';
 import TripFilters from './TripFilters';
@@ -161,9 +161,13 @@ export default async function TripsPage({
     return orderMode(t) === modeFilter;
   }
 
-  // Месяц заказа зависит от режима:
+  // Месяц заказа — единое правило из lib/orders-core:
   //   рейс       -> end_date || start_date
   //   экспедиция -> load_date || unload_date
+  function orderMonthKey(t: any): string | null {
+    return getOrderMonthKey(t);
+  }
+
   function orderDate(t: any): string | null {
     if (orderMode(t) === 'forwarding') {
       return t.load_date || t.unload_date || null;
@@ -219,9 +223,8 @@ export default async function TripsPage({
       const aD = aDate ? new Date(aDate).getTime() : 0;
       const bD = bDate ? new Date(bDate).getTime() : 0;
       if (aD !== bD) return bD - aD;
-      const aN = parseOrderNumber(a.trip_number).number ?? 0;
-      const bN = parseOrderNumber(b.trip_number).number ?? 0;
-      if (aN !== bN) return bN - aN;
+      const byNumber = compareOrderNumbers(a.trip_number, b.trip_number);
+      if (byNumber !== 0) return -byNumber;
       const aT = a.created_at ? new Date(a.created_at).getTime() : 0;
       const bT = b.created_at ? new Date(b.created_at).getTime() : 0;
       return bT - aT;
@@ -232,11 +235,10 @@ export default async function TripsPage({
 
   const tripsByMonth: Record<string, { month: number; trips: any[] }> = {};
   filteredTrips.forEach((t) => {
-    const date = orderDate(t);
-    if (!date) return;
-    const d = new Date(date);
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    if (!tripsByMonth[key]) tripsByMonth[key] = { month: d.getMonth() + 1, trips: [] };
+    const key = orderMonthKey(t);
+    if (!key) return;
+    const monthNum = Number(key.slice(-2));
+    if (!tripsByMonth[key]) tripsByMonth[key] = { month: monthNum, trips: [] };
     tripsByMonth[key].trips.push(t);
   });
 
