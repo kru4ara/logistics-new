@@ -77,7 +77,7 @@ export default function DashboardMonthStats({
         {totalIncome.toFixed(0)} €
       </div>
       <div className="text-[10px] md:text-xs text-slate-400 mt-1 break-words">
-        Фрахт: {tripRevenue.toFixed(0)} · Эксп.: {forwardingClient.toFixed(0)}
+        Выручка: {(tripRevenue + forwardingClient).toFixed(0)}
       </div>
     </div>
 
@@ -92,7 +92,7 @@ export default function DashboardMonthStats({
         {totalExpenses.toFixed(0)} €
       </div>
       <div className="text-[10px] md:text-xs text-slate-400 mt-1 break-words">
-        Рейсы: {tripExpenses.toFixed(0)} · Эксп.: {(forwardingContractor + forwardingExpenses).toFixed(0)} · Фикс.: {fixedCosts.toFixed(0)}
+        Расходы: {(tripExpenses + forwardingContractor + forwardingExpenses + fixedCosts).toFixed(0)}
       </div>
     </div>
 

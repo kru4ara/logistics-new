@@ -158,7 +158,7 @@ export default async function ProfitabilityPage({
             </div>
           </div>
           <div className="text-xs text-slate-400 mt-3">
-            Рейсы — по дате старта, экспедирование — по дате загрузки.
+            Заказы-рейсы — по дате старта, заказы-экспедирования — по дате загрузки.
           </div>
         </form>
 

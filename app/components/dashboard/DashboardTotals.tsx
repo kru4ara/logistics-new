@@ -41,7 +41,7 @@ export default function DashboardTotals({
         <TrendingUp className="w-4 h-4 md:w-5 md:h-5 text-green-100" strokeWidth={2} />
       </div>
       <div className="text-xl md:text-2xl font-bold break-words tabular-nums">{combinedIncome.toFixed(0)} €</div>
-      <div className="text-[10px] md:text-xs text-green-200 mt-1">Рейсы + Эксп.</div>
+      <div className="text-[10px] md:text-xs text-green-200 mt-1">Заказы</div>
     </div>
 
     <div className="bg-gradient-to-br from-red-500 to-red-700 rounded-2xl shadow-lg shadow-red-500/20 p-4 md:p-5 text-white">
