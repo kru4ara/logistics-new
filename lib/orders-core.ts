@@ -215,6 +215,40 @@ export function getOrderUnloadDate(
 }
 
 /**
+ * Дата ВЫГРУЗКИ заказа — СТРОГО, без запасного варианта.
+ *   рейс       -> end_date (финиш)
+ *   экспедиция -> unload_date (разгрузка)
+ * Если её нет — заказ ещё не выгружен: в статистику не идёт
+ * и попадает в уведомление «нет даты выгрузки» на странице «Сегодня».
+ */
+export function hasUnloadDate(
+  order: {
+    profit_mode?: ProfitMode | null;
+    end_date?: string | null;
+    unload_date?: string | null;
+  } | null | undefined
+): boolean {
+  if (!order) return false;
+  const mode: ProfitMode = order.profit_mode === 'forwarding' ? 'forwarding' : 'trip';
+  return mode === 'forwarding' ? Boolean(order.unload_date) : Boolean(order.end_date);
+}
+
+/**
+ * Заказ БЕЗ даты выгрузки — в пути либо дата выгрузки не проставлена.
+ * Такие заказы не идут в статистику, а висят вверху списка заказов
+ * и в блоке «Требует внимания» на странице «Сегодня».
+ */
+export function isOrderMissingUnloadDate(
+  order: {
+    profit_mode?: ProfitMode | null;
+    end_date?: string | null;
+    unload_date?: string | null;
+  } | null | undefined
+): boolean {
+  return !hasUnloadDate(order);
+}
+
+/**
  * Сортировка по номеру заказа ЧИСЛЕННО.
  * Нужна потому, что trip_number стал text: наивный orderBy дал бы
  * «10» перед «2». Суффикс «Е» на порядок внутри ветки не влияет.

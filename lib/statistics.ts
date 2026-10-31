@@ -1,5 +1,6 @@
 import {
   getOrderMonthKey,
+  hasUnloadDate,
   isOrderCompleted,
   num,
   type ProfitMode,
@@ -74,9 +75,18 @@ export function getOrderMonthKeyForStats(order: any): string | null {
  * (paid/invoiced) и по нему сведены расходы.
  */
 export function isStatsCompleted(order: any): boolean {
-  return isOrderCompleted({
+  if (!isOrderCompleted({
     status: order?.status,
     costs_closed: order?.costs_closed,
+  })) {
+    return false;
+  }
+  // Без даты выгрузки заказ в статистику не идёт, даже если он закрыт:
+  // месяц заказа определить не по чему.
+  return hasUnloadDate({
+    profit_mode: order?.profit_mode ?? 'trip',
+    end_date: order?.end_date,
+    unload_date: order?.unload_date,
   });
 }
 

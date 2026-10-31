@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { createClient } from '../../../lib/supabase/admin';
 import { calculateProfitability, toNum, getOrderPeriodDate } from '../../../lib/profitability';
+import { isStatsCompleted } from '../../../lib/statistics';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,12 +53,14 @@ export default async function ProfitabilityPage({
     .from('trips')
     .select(`
       id, client_id, truck_id, revenue_eur, actual_km, start_date,
-      end_date, load_date, unload_date, profit_mode,
+      end_date, load_date, unload_date, profit_mode, status, costs_closed,
       clients(name),
       trucks!truck_id(registration_number)
     `);
 
+  // Только завершённые заказы: в пути и без даты выгрузки в прибыльность не идут.
   const filteredOrders = (orders || []).filter((o: any) => {
+    if (!isStatsCompleted(o)) return false;
     const d = getOrderPeriodDate(o);
     if (!d) return false;
     return d >= from && d <= to;
