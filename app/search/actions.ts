@@ -3,6 +3,7 @@
 import { createClient } from '../../lib/supabase/admin';
 import { getSessionContext } from '../../lib/session';
 import { can } from '../../lib/roles';
+import { FORWARDING_SUFFIX } from '../../lib/orders-core';
 import { buildRouteMap, type SegmentRouteRow } from '../../lib/trip-route';
 
 export type SearchHit = {
@@ -67,12 +68,13 @@ export async function globalSearch(rawQuery: string): Promise<SearchResult> {
   const tripsMap = new Map<string, SearchHit>();
   const tripIdsFromSegments = new Set<string>();
 
-  // 1) Если число — прямой поиск по trip_number
+  // 1) Если число — прямой поиск по номеру заказа (текстовый).
+  //    Номера бывают двух видов: '42' (рейс) и '42Е' (экспедирование).
   if (isNumeric) {
     const { data } = await supabase
       .from('trips')
       .select('id, trip_number, start_date, clients(name)')
-      .eq('trip_number', parseInt(q, 10))
+      .in('trip_number', [q, q + FORWARDING_SUFFIX])
       .limit(LIMIT_PER_DOMAIN);
 
     for (const t of data || []) {
@@ -102,7 +104,6 @@ export async function globalSearch(rawQuery: string): Promise<SearchResult> {
         .from('trips')
         .select('id, trip_number, start_date, clients(name)')
         .in('id', ids)
-        .order('trip_number', { ascending: false })
         .limit(LIMIT_PER_DOMAIN),
       supabase
         .from('trip_segments')
@@ -186,53 +187,35 @@ export async function globalSearch(rawQuery: string): Promise<SearchResult> {
   }));
 
   // ============================================================
-  // ЭКСПЕДИРОВАНИЕ: order_number (если число) + client_request_number
+  // ЭКСПЕДИРОВАНИЕ: заказы с profit_mode='forwarding'
   // ============================================================
   const fwdMap = new Map<string, SearchHit>();
 
-  if (isNumeric) {
-    const { data } = await supabase
-      .from('forwarding_orders')
-      .select('id, order_number, client_request_number, load_date, clients(name)')
-      .eq('order_number', parseInt(q, 10))
-      .limit(LIMIT_PER_DOMAIN);
-
-    for (const o of data || []) {
-      const clientName = pickName(o.clients);
-      fwdMap.set(o.id, {
-        domain: 'forwarding',
-        id: o.id,
-        title: `Заявка #${o.order_number ?? '—'}${clientName ? ' · ' + clientName : ''}`,
-        subtitle: o.load_date ? new Date(o.load_date).toLocaleDateString('ru-RU') : null,
-        icon: '📦',
-        href: `/forwarding/${o.id}`,
-      });
-    }
-  }
-
-  const { data: fwdByReq } = await supabase
-    .from('forwarding_orders')
-    .select('id, order_number, client_request_number, load_date, clients(name)')
-    .ilike('client_request_number', like)
-    .order('order_number', { ascending: false })
+  const { data: fwdData } = await supabase
+    .from('trips')
+    .select('id, trip_number, client_request_number, load_date, unload_date, clients(name)')
+    .eq('profit_mode', 'forwarding')
+    .or(`trip_number.ilike.${like},client_request_number.ilike.${like}`)
+    .order('trip_number', { ascending: false })
     .limit(LIMIT_PER_DOMAIN);
 
-  for (const o of fwdByReq || []) {
+  for (const o of fwdData || []) {
     if (fwdMap.has(o.id)) continue;
     const clientName = pickName(o.clients);
     fwdMap.set(o.id, {
       domain: 'forwarding',
       id: o.id,
-      title: `Заявка #${o.order_number ?? '—'}${clientName ? ' · ' + clientName : ''}`,
+      title: `Заказ №${o.trip_number ?? '—'}${clientName ? ' · ' + clientName : ''}`,
       subtitle: o.client_request_number
         ? `Заявка клиента № ${o.client_request_number}`
         : o.load_date
           ? new Date(o.load_date).toLocaleDateString('ru-RU')
           : null,
       icon: '📦',
-      href: `/forwarding/${o.id}`,
+      href: `/trips/${o.id}`,
     });
   }
+
   const forwarding = Array.from(fwdMap.values()).slice(0, LIMIT_PER_DOMAIN);
 
   const total =

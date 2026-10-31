@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { User, Truck, Calendar, ArrowUpDown } from 'lucide-react';
+import { User, Truck, Calendar, ArrowUpDown, Package } from 'lucide-react';
 
 type Option = { id: string; label: string };
 
@@ -17,6 +17,7 @@ export default function TripFilters({
   currentDriver,
   currentTruck,
   currentSort,
+  currentMode,
 }: {
   clients: Option[];
   drivers: Option[];
@@ -29,6 +30,7 @@ export default function TripFilters({
   currentDriver: string | null;
   currentTruck: string | null;
   currentSort: string;
+  currentMode: string | null;
 }) {
   const router = useRouter();
 
@@ -129,6 +131,21 @@ export default function TripFilters({
               ))}
             </select>
           </div>
+        </div>
+
+        <div>
+          <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2 flex items-center gap-1.5">
+            <Package className="w-3.5 h-3.5" /> Режим расчёта
+          </div>
+          <select
+            className="input text-sm py-2"
+            value={currentMode || ''}
+            onChange={(e) => updateParam('mode', e.target.value || null)}
+          >
+            <option value="">Все заказы</option>
+            <option value="trip">Рейсы</option>
+            <option value="forwarding">Экспедирование</option>
+          </select>
         </div>
 
         <div>

@@ -22,64 +22,43 @@ export default async function StatisticsPage({ searchParams }: { searchParams: P
   const year = parseInt(resolvedParams?.year || String(currentYear));
 
   // ============================================================
-  // ЗАГРУЗКА ДАННЫХ
+  // ЗАГРУЗКА ДАННЫХ — единый источник «заказы»
   // ============================================================
-  
-  // 1. Рейсы
-  const { data: trips } = await supabase
+
+  // 1. Все заказы (рейсы + экспедиции) одним запросом
+  const { data: orders } = await supabase
     .from('trips')
-    .select('id, revenue_eur, start_date, end_date, status');
+    .select(
+      'id, revenue_eur, start_date, end_date, load_date, unload_date, status, profit_mode, is_forwarding, costs_closed'
+    );
 
-  const tripIds = trips?.map((t) => t.id) || [];
+  const orderIds = orders?.map((o) => o.id) || [];
 
-  // 2. Расходы рейсов
-  let allExpenses: any[] = [];
-  if (tripIds.length > 0) {
-    const { data } = await supabase.from('trip_expenses').select('amount_eur, trip_id');
-    allExpenses = data || [];
+  // 2. Расходы заказов.
+  // Подрядчик НЕ дублируется: сумма подрядчика живёт в trip_expenses
+  // (категория 'contractor') и автоматически создаётся из сегмента.
+  // Если считать подрядчика ещё и в trip_segments.price, он вычтется дважды.
+  const expensesByOrder: Record<string, number> = {};
+  const contractorByOrder: Record<string, number> = {};
+  if (orderIds.length > 0) {
+    const { data: allExpenses } = await supabase
+      .from('trip_expenses')
+      .select('amount_eur, trip_id, category');
+    allExpenses?.forEach((e) => {
+      if (!e.trip_id) return;
+      const amount = e.amount_eur || 0;
+      if (e.category === 'contractor') {
+        contractorByOrder[e.trip_id] = (contractorByOrder[e.trip_id] || 0) + amount;
+      } else {
+        expensesByOrder[e.trip_id] = (expensesByOrder[e.trip_id] || 0) + amount;
+      }
+    });
   }
 
-  // 3. Фикс-косты
+  // 4. Фикс-косты
   const { data: fixedCosts } = await supabase
     .from('fixed_costs')
     .select('id, amount_eur, month_key, cost_type, expense_date, category, currency, is_capex');
-
-  // 4. Экспедирование
-  const { data: forwarding } = await supabase
-    .from('forwarding_orders')
-    .select('id, client_price_eur, load_date, unload_date, status');
-
-  const forwardingIds = forwarding?.map((f) => f.id) || [];
-
-  // 5. Подрядчики экспедиций
-  const contractorsByForwarding: Record<string, number> = {};
-  if (forwardingIds.length > 0) {
-    const { data: allContractors } = await supabase
-      .from('forwarding_contractors')
-      .select('forwarding_id, price_eur')
-      .in('forwarding_id', forwardingIds);
-
-    allContractors?.forEach((c) => {
-      if (!c.forwarding_id) return;
-      contractorsByForwarding[c.forwarding_id] =
-        (contractorsByForwarding[c.forwarding_id] || 0) + (c.price_eur || 0);
-    });
-  }
-
-  // 6. Расходы экспедиций
-  const expensesByForwarding: Record<string, number> = {};
-  if (forwardingIds.length > 0) {
-    const { data: allFExp } = await supabase
-      .from('forwarding_expenses')
-      .select('forwarding_id, amount_eur')
-      .in('forwarding_id', forwardingIds);
-
-    allFExp?.forEach((e) => {
-      if (!e.forwarding_id) return;
-      expensesByForwarding[e.forwarding_id] =
-        (expensesByForwarding[e.forwarding_id] || 0) + (e.amount_eur || 0);
-    });
-  }
 
   // ============================================================
   // РАСЧЁТЫ (вынесены в lib/statistics.ts)
@@ -93,12 +72,10 @@ export default async function StatisticsPage({ searchParams }: { searchParams: P
     tripProfit,
     avgProfitPerTrip,
   } = calculateStatistics({
-    trips,
-    allExpenses,
+    orders,
+    expensesByOrder,
+    contractorByOrder,
     fixedCosts,
-    forwarding,
-    contractorsByForwarding,
-    expensesByForwarding,
     year,
   });
 
@@ -110,12 +87,8 @@ export default async function StatisticsPage({ searchParams }: { searchParams: P
   // ============================================================
   const yearsSet = new Set<number>();
   yearsSet.add(currentYear);
-  trips?.forEach((t) => {
-    const d = t.end_date || t.start_date;
-    if (d) yearsSet.add(new Date(d).getFullYear());
-  });
-  forwarding?.forEach((f) => {
-    const d = f.load_date || f.unload_date;
+  orders?.forEach((o) => {
+    const d = o.end_date || o.start_date || o.load_date || o.unload_date;
     if (d) yearsSet.add(new Date(d).getFullYear());
   });
   fixedCosts?.forEach((fc) => {

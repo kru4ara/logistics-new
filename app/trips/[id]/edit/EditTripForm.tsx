@@ -3,6 +3,7 @@
 import {
   FileText,
   AlertTriangle,
+  CalendarDays,
 } from 'lucide-react';
 import { updateTrip } from '../../../trip-actions';
 import SubmitButton from '../../../components/SubmitButton';
@@ -14,6 +15,11 @@ type Trip = {
   start_fuel_level: number | null;
   client_request_number: string | null;
   client_request_date: string | null;
+  profit_mode: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  load_date: string | null;
+  unload_date: string | null;
 };
 
 type Props = {
@@ -28,6 +34,7 @@ export default function EditTripForm({
   clients,
 }: Props) {
   const inputClass = 'input';
+  const isForwarding = trip.profit_mode === 'forwarding';
   const labelClass = 'block text-sm font-medium text-slate-700 mb-1';
   const sectionClass = 'card p-4 md:p-6 space-y-4';
   const sectionTitleClass = 'text-base md:text-lg font-bold text-slate-900 mb-2 flex items-center gap-2';
@@ -68,6 +75,36 @@ export default function EditTripForm({
             <input type="date" name="client_request_date" defaultValue={trip.client_request_date || ''} className={inputClass} />
           </div>
         </div>
+      </div>
+
+      <div className={sectionClass}>
+        <h2 className={sectionTitleClass}>
+          <CalendarDays className="w-5 h-5 text-brand-600" strokeWidth={2.2} />
+          Даты заказа
+        </h2>
+        {isForwarding ? (
+          <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
+            <div>
+              <label className={labelClass}>Дата загрузки</label>
+              <input type="date" name="load_date" defaultValue={trip.load_date || ''} className={inputClass} />
+            </div>
+            <div>
+              <label className={labelClass}>Дата разгрузки</label>
+              <input type="date" name="unload_date" defaultValue={trip.unload_date || ''} className={inputClass} />
+            </div>
+          </div>
+        ) : (
+          <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
+            <div>
+              <label className={labelClass}>Дата старта</label>
+              <input type="date" name="start_date" defaultValue={trip.start_date || ''} className={inputClass} />
+            </div>
+            <div>
+              <label className={labelClass}>Дата финиша</label>
+              <input type="date" name="end_date" defaultValue={trip.end_date || ''} className={inputClass} />
+            </div>
+          </div>
+        )}
       </div>
 
       <div className={sectionClass}>

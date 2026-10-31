@@ -78,8 +78,7 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ id
   const { data: trips } = await supabase
     .from('trips')
     .select('id, trip_number, status, revenue_eur, actual_km, actual_liters, start_date, end_date, truck_id, trailer_id, clients(name), drivers!driver_id(first_name, last_name)')
-    .or(`truck_id.eq.${truckId},trailer_id.eq.${truckId}`)
-    .order('trip_number', { ascending: false });
+    .or(`truck_id.eq.${truckId},trailer_id.eq.${truckId}`);
 
   // Маршруты рейсов — из trip_segments ⬅️ ИЗМЕНЕНО
   const tripIds = (trips || []).map((t) => t.id);

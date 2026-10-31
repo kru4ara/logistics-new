@@ -11,7 +11,7 @@ import {
 
 type Conflict = {
   id: string;
-  trip_number: number | null;
+  trip_number: string | null;
   start_date: string | null;
   end_date: string | null;
   status: string;

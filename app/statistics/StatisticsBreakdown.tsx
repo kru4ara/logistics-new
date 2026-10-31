@@ -15,7 +15,7 @@ export default function StatisticsBreakdown({
       <div className="card p-5 md:p-6">
         <h3 className="text-xs md:text-sm font-bold text-slate-500 uppercase tracking-wide mb-4 flex items-center gap-2">
           <Truck className="w-4 h-4 text-brand-600" strokeWidth={2.2} />
-          Рейсы (за год)
+          Заказы (за год)
         </h3>
         <div className="space-y-3 text-sm">
           <div className="flex justify-between items-center gap-2">

@@ -235,6 +235,10 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
   const computedRoute = routeMap.get(tripId)?.route ?? '—';
 
   // Расчёты
+  // Подрядчик — из расходов категории 'contractor'. Эта же сумма лежит
+  // в trip_segments.price, но в расходах она уже создаётся автоматически
+  // из сегмента, поэтому сегменты здесь НЕ суммируются —
+  // иначе подрядчик вычтется дважды.
   const contractorExpenses = expenses
     ?.filter((e: any) => e.category === 'contractor')
     .reduce((sum: number, e: any) => sum + (e.amount_eur || 0), 0) || 0;

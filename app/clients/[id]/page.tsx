@@ -32,8 +32,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
   const { data: trips, error: tripsError } = await supabase
     .from('trips')
     .select('*, drivers!driver_id(first_name, last_name, phone_by, phone_pl), trucks!truck_id(registration_number)')
-    .eq('client_id', clientId)
-    .order('trip_number', { ascending: false });
+    .eq('client_id', clientId);
 
   if (tripsError) {
     console.error('Ошибка загрузки рейсов:', tripsError.message);
@@ -177,10 +176,10 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
         <div className="card p-5 md:p-6">
           <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
             <FileText className="w-5 h-5 text-brand-600" />
-            Рейсы клиента ({trips?.length || 0})
+            Заказы клиента ({trips?.length || 0})
           </h2>
           {trips?.length === 0 ? (
-            <div className="text-slate-400 text-center py-8">У этого клиента ещё нет рейсов</div>
+            <div className="text-slate-400 text-center py-8">У этого клиента ещё нет заказов</div>
           ) : (
             <div className="space-y-3">
               {trips?.map((trip) => {

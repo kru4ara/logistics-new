@@ -23,8 +23,7 @@ export default async function MapPage() {
     .from('trips')
     .select('id, trip_number, status, start_lat, start_lng, end_lat, end_lng, start_date')
     .not('start_lat', 'is', null)
-    .not('start_lng', 'is', null)
-    .order('trip_number', { ascending: false });
+    .not('start_lng', 'is', null);
 
   if (error) {
     return <div className="p-8 text-red-500">Ошибка загрузки рейсов: {error.message}</div>;
@@ -80,7 +79,7 @@ export default async function MapPage() {
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2.5 tracking-tight">
             <MapIcon className="w-6 h-6 md:w-7 md:h-7 text-brand-600" strokeWidth={2.2} />
-            Карта рейсов
+            Карта заказов
           </h1>
           <p className="text-slate-500 mt-1 text-sm md:text-base flex items-center gap-3 flex-wrap">
             <span className="inline-flex items-center gap-1.5">
@@ -172,7 +171,7 @@ export default async function MapPage() {
               <Inbox className="w-8 h-8 text-slate-300" strokeWidth={1.5} />
             </div>
             <h2 className="text-xl font-bold text-slate-900 mb-2">Точек на карте нет</h2>
-            <p className="text-slate-500">У рейсов не заполнены координаты (start_lat, start_lng)</p>
+            <p className="text-slate-500">У заказов не заполнены координаты (start_lat, start_lng)</p>
           </div>
         )}
 

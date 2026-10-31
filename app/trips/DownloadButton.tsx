@@ -39,7 +39,7 @@ export default function DownloadButton({ data }: { data: TripCardData[] }) {
     });
 
     const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet('Рейсы');
+    const worksheet = workbook.addWorksheet('Заказы');
     worksheet.columns = [
       { header: 'Рейс №', key: 'tripNumber', width: 10 },
       { header: 'Клиент', key: 'clientName', width: 30 },

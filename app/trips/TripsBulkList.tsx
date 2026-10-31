@@ -21,12 +21,13 @@ import { bulkSetStatus, bulkDelete } from './bulk-actions';
 
 export type TripCardData = {
   id: string;
-  trip_number: number | null;
+  trip_number: string | null;
   status: string;
   route: string | null;
   start_date: string | null;
   end_date: string | null;
   client_request_number: string | null;
+  profit_mode: 'trip' | 'forwarding';
   revenue_eur: number | null;
   expenses: number;
   clientName: string;
@@ -170,7 +171,7 @@ export default function TripsBulkList({
           href={`/trips/${trip.id}`}
           prefetch={false}
           className="absolute inset-0 z-0"
-          aria-label={hasNumber ? `Открыть рейс № ${trip.trip_number}` : 'Открыть заявку'}
+          aria-label={hasNumber ? `Открыть заказ № ${trip.trip_number}` : 'Открыть заявку'}
         />
 
         <div className={`h-1.5 ${statusStripColors[trip.status] || 'bg-slate-300'}`} />
@@ -193,8 +194,15 @@ export default function TripsBulkList({
           <div className="flex items-start justify-between gap-2 mb-3 pr-8">
             <div className="min-w-0 flex-1">
               {hasNumber ? (
-                <div className="text-xs text-slate-400 font-medium tabular-nums">
-                  Рейс № {trip.trip_number}
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-xs text-slate-400 font-medium tabular-nums">
+                    {trip.profit_mode === 'forwarding' ? 'Экспедиция' : 'Рейс'} № {trip.trip_number}
+                  </span>
+                  {trip.profit_mode === 'forwarding' && (
+                    <span className="text-[10px] font-semibold rounded-full px-2 py-0.5 bg-violet-50 text-violet-700 border border-violet-200">
+                      Эксп.
+                    </span>
+                  )}
                 </div>
               ) : (
                 <div className="text-xs font-medium inline-flex items-center gap-1 text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5">

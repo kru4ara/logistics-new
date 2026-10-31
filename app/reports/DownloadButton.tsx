@@ -54,7 +54,7 @@ export default function DownloadButton({ data }: { data: ReportRow[] }) {
     });
 
     const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet('Рейсы');
+    const worksheet = workbook.addWorksheet('Заказы');
     worksheet.columns = [
       { header: '№ рейса', key: 'tripNumber', width: 10 },
       { header: 'Клиент', key: 'clientName', width: 30 },

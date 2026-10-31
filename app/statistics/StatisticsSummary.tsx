@@ -55,7 +55,7 @@ export default function StatisticsSummary({
             {yearTotals.totalIncome.toFixed(0)} €
           </div>
           <div className="text-[10px] md:text-xs text-slate-400 mt-1 break-words">
-            Фрахт: {yearTotals.tripRevenue.toFixed(0)} · Эксп.: {yearTotals.forwardingClientSum.toFixed(0)}
+            Выручка: {yearTotals.tripRevenue.toFixed(0)}
           </div>
         </div>
 
@@ -70,7 +70,7 @@ export default function StatisticsSummary({
             {yearTotals.totalExpenses.toFixed(0)} €
           </div>
           <div className="text-[10px] md:text-xs text-slate-400 mt-1 break-words">
-            Рейсы: {(yearTotals.directExpenses + yearTotals.fixedExpenses).toFixed(0)} · Эксп.: {(yearTotals.forwardingContractorSum + yearTotals.forwardingExtraExpenses).toFixed(0)}
+            Расходы: {(yearTotals.directExpenses + yearTotals.fixedExpenses + yearTotals.forwardingContractorSum + yearTotals.forwardingExtraExpenses).toFixed(0)}
           </div>
         </div>
 

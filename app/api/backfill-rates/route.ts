@@ -58,12 +58,15 @@ export async function GET() {
       .not('expense_date', 'is', null);
     e2?.forEach((r) => r.expense_date && dates.add(r.expense_date));
 
+    // Экспедирования переехали в заказы: сумма и валюта — в расходах заказа
+    // (trip_expenses, категория 'forwarding'), дата — expense_date.
     const { data: e3 } = await supabase
-      .from('forwarding_orders')
-      .select('load_date')
-      .in('original_currency', ['PLN', 'BYN'])
-      .not('load_date', 'is', null);
-    e3?.forEach((r) => r.load_date && dates.add(r.load_date));
+      .from('trip_expenses')
+      .select('expense_date')
+      .in('currency', ['PLN', 'BYN'])
+      .eq('category', 'forwarding')
+      .not('expense_date', 'is', null);
+    e3?.forEach((r) => r.expense_date && dates.add(r.expense_date));
 
     const sortedDates = Array.from(dates).sort();
 

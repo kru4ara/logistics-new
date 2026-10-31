@@ -53,7 +53,7 @@ export default function LoginPage() {
               из одного окна
             </h1>
             <p className="text-slate-300 text-base xl:text-lg leading-relaxed">
-              Рейсы, экспедирование, водители, документы — всё в одном месте.
+              Заказы, экспедирование, водители, документы — всё в одном месте.
               Синхронизация с Logisat, уведомления в Telegram, отчёты в Excel.
             </p>
           </div>

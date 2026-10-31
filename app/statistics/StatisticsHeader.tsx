@@ -15,7 +15,7 @@ export default function StatisticsHeader({
           Статистика
         </h1>
         <p className="text-slate-500 mt-1 text-sm md:text-base">
-          Рейсы + Экспедирование за {year} год
+          Заказы за {year} год
         </p>
       </div>
       <div className="flex flex-wrap gap-2">

@@ -20,7 +20,7 @@ type ExportFormat = 'xlsx' | 'csv';
 const OPTIONS: { value: ExportType; label: string; Icon: LucideIcon; hint: string }[] = [
   {
     value: 'trips',
-    label: 'Рейсы',
+    label: 'Заказы',
     Icon: ClipboardList,
     hint: 'Все рейсы с фрахтом, расходами и прибылью',
   },

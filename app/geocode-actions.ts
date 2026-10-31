@@ -92,6 +92,14 @@ export async function createCargoWithTrip(formData: FormData) {
   const freightAmount = freightRaw ? parseFloat(freightRaw) : 0;
   const freightCurrency = (((formData.get('freight_currency') as string) || 'EUR').toUpperCase()) || 'EUR';
 
+  // ---- Режим расчёта и признаки заказа ----
+  const profitMode =
+    ((formData.get('profit_mode') as string) || '').trim() === 'forwarding' ? 'forwarding' : 'trip';
+  const isForwarding = formData.get('is_forwarding') === '1' || formData.get('is_forwarding') === 'on';
+  const costsClosed = formData.get('costs_closed') === '1' || formData.get('costs_closed') === 'on';
+  const loadDate = ((formData.get('load_date') as string) || '').trim() || null;
+  const unloadDate = ((formData.get('unload_date') as string) || '').trim() || null;
+
   if (!label) throw new Error('Укажите название груза');
 
   // ---- Геокодинг ----
@@ -138,7 +146,13 @@ export async function createCargoWithTrip(formData: FormData) {
         start_lng: startLng,
         end_lat: endLat,
         end_lng: endLng,
-        trip_number: 0, // триггер set_trip_number поставит MAX+1
+        // Номер заказа проставляет нумерация (ветка рейсов).
+        trip_number: null,
+        profit_mode: profitMode,
+        is_forwarding: isForwarding,
+        costs_closed: costsClosed,
+        load_date: profitMode === 'forwarding' ? loadDate : null,
+        unload_date: profitMode === 'forwarding' ? unloadDate : null,
         status: 'planned',
       },
     ])
@@ -196,7 +210,7 @@ export async function createCargoWithTrip(formData: FormData) {
     entity_type: 'trip',
     entity_id: created.id,
     action: 'create',
-    summary: `Создана заявка №${created.trip_number ?? '—'}${clientName ? ' · ' + clientName : ''}${route ? ' · ' + route : ''}`,
+    summary: `Создан заказ${profitMode === 'forwarding' ? ' (экспедирование)' : ''} №${created.trip_number ?? '—'}${clientName ? ' · ' + clientName : ''}${route ? ' · ' + route : ''}`,
   });
 
   revalidatePath('/trips');
