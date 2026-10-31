@@ -4,6 +4,8 @@ import {
   formatOrderNumber,
   parseOrderNumber,
   renumberOrders,
+  orderByNumberingDate,
+  getOrderUnloadDateStrict,
   compareOrderNumbers,
   isOrderCompleted,
   hasUnloadDate,
@@ -172,5 +174,55 @@ describe('isOrderMissingUnloadDate', () => {
 
   it('заказ с датой выгрузки — не в пути', () => {
     expect(isOrderMissingUnloadDate({ profit_mode: 'trip', end_date: '2026-10-10' })).toBe(false);
+  });
+});
+
+describe('нумерация по дате выгрузки (строго)', () => {
+  it('дата выгрузки берётся строго: рейс — финиш, экспедиция — разгрузка', () => {
+    expect(getOrderUnloadDateStrict({ profit_mode: 'trip', end_date: '2026-10-29' })).toBe('2026-10-29');
+    expect(getOrderUnloadDateStrict({ profit_mode: 'forwarding', unload_date: '2026-10-28' })).toBe('2026-10-28');
+  });
+
+  it('запасной вариант (start_date / load_date) не подставляется', () => {
+    expect(getOrderUnloadDateStrict({ profit_mode: 'trip', start_date: '2026-10-29', end_date: null })).toBeNull();
+    expect(getOrderUnloadDateStrict({ profit_mode: 'forwarding', load_date: '2026-10-27', unload_date: null })).toBeNull();
+  });
+
+  it('заказ в пути уходит в конец ветки и получает наибольший номер', () => {
+    const res = renumberOrders([
+      { id: 'inTransit', start_date: '2026-10-29', created_at: '2026-10-14', ...us },
+      { id: 'done', end_date: '2026-10-29', created_at: '2026-10-23', ...us },
+      { id: 'done2', end_date: '2026-10-25', created_at: '2026-10-20', ...us },
+    ], 'trip');
+    expect(res).toEqual([
+      { id: 'done2', trip_number: '1' },
+      { id: 'done', trip_number: '2' },
+      { id: 'inTransit', trip_number: '3' },
+    ]);
+  });
+
+  it('рейс в пути не обгоняет завершённый рейс с более поздним финишем', () => {
+    const res = renumberOrders([
+      { id: 'a', start_date: '2026-10-29', created_at: '2026-10-14', ...us },
+      { id: 'b', end_date: '2026-10-29', created_at: '2026-10-23', ...us },
+    ], 'trip');
+    const map = Object.fromEntries(res.map((r) => [r.id, r.trip_number]));
+    expect(map.a).toBe('2');
+    expect(map.b).toBe('1');
+  });
+
+  it('экспедиция в пути уходит в конец своей ветки', () => {
+    const res = renumberOrders([
+      { id: 'fwdInTransit', load_date: '2026-10-27', created_at: '2026-10-14', executor_type: 'contractor', contractor_id: 'c1' },
+      { id: 'fwdDone', unload_date: '2026-10-28', created_at: '2026-10-20', executor_type: 'contractor', contractor_id: 'c2' },
+    ], 'forwarding');
+    expect(res.map((r) => r.trip_number)).toEqual(['2Е', '1Е']);
+  });
+
+  it('сортировка нумерации: без даты выгрузки — в конец', () => {
+    const inTransit = { start_date: '2026-10-01', created_at: '2026-10-01' };
+    const done = { end_date: '2026-10-29', created_at: '2026-10-05' };
+    expect(orderByNumberingDate(inTransit as any, done as any)).toBe(1);
+    expect(orderByNumberingDate(done as any, inTransit as any)).toBe(-1);
   });
 });
