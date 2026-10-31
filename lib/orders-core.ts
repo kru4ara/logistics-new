@@ -121,9 +121,15 @@ export function orderByNumberingDate<T extends {
 }>(a: T, b: T): number {
   const da = getOrderUnloadDateStrict(a);
   const db = getOrderUnloadDateStrict(b);
-  if (da && db && da !== db) return da < db ? -1 : 1;
-  if (da && !db) return -1;
-  if (!db && da) return 1;
+  // Одна дата есть, другой нет: заказ без даты выгрузки идёт ПОЗЖЕ.
+  if (da && db) {
+    if (da !== db) return da < db ? -1 : 1;
+  } else if (da) {
+    return -1;
+  } else if (db) {
+    return 1;
+  }
+  // Дат нет у обоих (оба в пути) — порядок по дате создания.
   const ca = a.created_at || '';
   const cb = b.created_at || '';
   if (ca !== cb) return ca < cb ? -1 : 1;

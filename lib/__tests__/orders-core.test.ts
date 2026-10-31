@@ -216,7 +216,9 @@ describe('нумерация по дате выгрузки (строго)', () 
       { id: 'fwdInTransit', load_date: '2026-10-27', created_at: '2026-10-14', executor_type: 'contractor', contractor_id: 'c1' },
       { id: 'fwdDone', unload_date: '2026-10-28', created_at: '2026-10-20', executor_type: 'contractor', contractor_id: 'c2' },
     ], 'forwarding');
-    expect(res.map((r) => r.trip_number)).toEqual(['2Е', '1Е']);
+    const map = Object.fromEntries(res.map((r) => [r.id, r.trip_number]));
+    expect(map.fwdDone).toBe('1Е');
+    expect(map.fwdInTransit).toBe('2Е');
   });
 
   it('сортировка нумерации: без даты выгрузки — в конец', () => {
@@ -224,5 +226,12 @@ describe('нумерация по дате выгрузки (строго)', () 
     const done = { end_date: '2026-10-29', created_at: '2026-10-05' };
     expect(orderByNumberingDate(inTransit as any, done as any)).toBe(1);
     expect(orderByNumberingDate(done as any, inTransit as any)).toBe(-1);
+  });
+
+  it('оба без даты выгрузки — порядок по дате создания', () => {
+    const a = { created_at: '2026-10-01' };
+    const b = { created_at: '2026-10-05' };
+    expect(orderByNumberingDate(a as any, b as any)).toBe(-1);
+    expect(orderByNumberingDate(b as any, a as any)).toBe(1);
   });
 });
