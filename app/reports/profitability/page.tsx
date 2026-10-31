@@ -274,7 +274,7 @@ export default async function ProfitabilityPage({
                             {r.name}
                           </td>
                           <td className="px-4 py-3 text-sm text-slate-600">
-                            <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${r.type === 'Рейсы' ? 'bg-brand-50 text-brand-700' : 'bg-purple-50 text-purple-700'}`}>
+                            <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${r.type === 'Заказы' ? 'bg-brand-50 text-brand-700' : 'bg-purple-50 text-purple-700'}`}>
                               {r.type}
                             </span>
                           </td>

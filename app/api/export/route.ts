@@ -341,32 +341,27 @@ async function buildForwardingSheet(
 async function buildClientsSheet(
   supabase: Awaited<ReturnType<typeof createClient>>
 ): Promise<ExcelJS.Worksheet> {
-  const [{ data: trips }, { data: forwarding }] = await Promise.all([
-    supabase
-      .from('trips')
-      .select('revenue_eur, clients(name)'),
-    supabase
-      .from('forwarding_orders')
-      .select('client_price_eur, clients(name)'),
-  ]);
+  // Единый источник: заказы (рейсы + экспедиции).
+  const { data: orders } = await supabase
+    .from('trips')
+    .select('revenue_eur, profit_mode, clients(name)');
 
   const stats: Record<string, { name: string; revenue: number; count: number; type: string }> = {};
 
-  (trips || []).forEach((t: any) => {
-    const name = pickName(t.clients);
+  (orders || []).forEach((o: any) => {
+    const name = pickName(o.clients);
     if (!name) return;
-    const key = `trip-${name}`;
-    if (!stats[key]) stats[key] = { name, revenue: 0, count: 0, type: 'Рейсы' };
-    stats[key].revenue += toNumber(t.revenue_eur);
-    stats[key].count += 1;
-  });
-
-  (forwarding || []).forEach((f: any) => {
-    const name = pickName(f.clients);
-    if (!name) return;
-    const key = `fwd-${name}`;
-    if (!stats[key]) stats[key] = { name, revenue: 0, count: 0, type: 'Экспедирование' };
-    stats[key].revenue += toNumber(f.client_price_eur);
+    const isFwd = o.profit_mode === 'forwarding';
+    const key = `${isFwd ? 'fwd' : 'trip'}-${name}`;
+    if (!stats[key]) {
+      stats[key] = {
+        name,
+        revenue: 0,
+        count: 0,
+        type: isFwd ? 'Экспедирование' : 'Заказы',
+      };
+    }
+    stats[key].revenue += toNumber(o.revenue_eur);
     stats[key].count += 1;
   });
 
@@ -423,7 +418,7 @@ export async function GET(request: Request) {
   try {
     if (type === 'trips') {
       sheet = await buildTripsSheet(supabase, from, to);
-      sheetName = 'Рейсы';
+      sheetName = 'Заказы';
       baseName = `Trips_${from || 'all'}_${to || 'all'}`;
     } else if (type === 'expenses') {
       sheet = await buildExpensesSheet(supabase, from, to);
