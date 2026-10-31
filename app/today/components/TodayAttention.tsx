@@ -70,7 +70,7 @@ export default function TodayAttention({
               {(tripsWithoutDriver.length > 0 || tripsWithoutTruck.length > 0) && (
                 <div>
                   <div className="text-xs uppercase tracking-wide text-amber-600 font-semibold mb-2">
-                    Рейсы без назначения · {tripsWithoutDriver.length + tripsWithoutTruck.length}
+                    Заказы без назначения · {tripsWithoutDriver.length + tripsWithoutTruck.length}
                   </div>
                   <div className="space-y-1.5">
                     {tripsWithoutDriver.slice(0, 3).map((t) => (
@@ -105,7 +105,7 @@ export default function TodayAttention({
                             {tripsWithoutSalary.length > 0 && (
                 <div>
                   <div className="text-xs uppercase tracking-wide text-amber-600 font-semibold mb-2">
-                    Завершённые рейсы без ЗП · {tripsWithoutSalary.length}
+                    Завершённые заказы без ЗП · {tripsWithoutSalary.length}
                   </div>
                   <div className="space-y-1.5">
                     {tripsWithoutSalary.slice(0, 5).map((t) => (

@@ -64,14 +64,14 @@ const QUICK_LINKS: QuickLink[] = [
   {
     href: '/reports/excel',
     title: 'Экспорт в Excel',
-    hint: 'Рейсы · Расходы · Экспедирование · Прибыльность клиентов',
+    hint: 'Заказы · Расходы · Экспедирование · Прибыльность клиентов',
     Icon: Download,
     gradient: 'from-emerald-600 to-emerald-800',
   },
   {
     href: '/reports/contractors',
     title: 'Подрядчики',
-    hint: 'Сколько кому заплатили: рейсы + экспедирование',
+    hint: 'Сколько кому заплатили: заказы + экспедирование',
     Icon: Truck,
     gradient: 'from-violet-600 to-violet-800',
   },
@@ -210,7 +210,7 @@ export default async function ReportsPage({
               Отчёт о прибыли
             </h1>
             <p className="text-slate-500 mt-1 text-sm md:text-base">
-              Полная финансовая сводка по всем рейсам
+              Полная финансовая сводка по всем заказам
             </p>
           </div>
           <DownloadButton data={reportRows} />
@@ -350,7 +350,7 @@ export default async function ReportsPage({
         <div className="card overflow-hidden">
           <div className="p-4 md:p-6 border-b border-slate-100 flex items-center justify-between gap-3">
             <h2 className="text-base md:text-lg font-bold text-slate-900">
-              Детализация по рейсам
+              Детализация по заказам
             </h2>
             <span className="text-xs md:text-sm text-slate-500">
               Найдено: <b className="text-slate-700">{reportRows.length}</b>
@@ -362,7 +362,7 @@ export default async function ReportsPage({
               <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-brand-50 flex items-center justify-center">
                 <Inbox className="w-8 h-8 text-brand-500" strokeWidth={1.5} />
               </div>
-              <p className="text-slate-500 text-sm">Нет рейсов по выбранным фильтрам</p>
+              <p className="text-slate-500 text-sm">Нет заказов по выбранным фильтрам</p>
               {hasFilters && (
                 <Link href="/reports" className="text-brand-600 text-sm font-medium mt-3 inline-block hover:underline">
                   Сбросить фильтры
@@ -384,7 +384,7 @@ export default async function ReportsPage({
                       <div className="flex items-start justify-between gap-2 mb-2">
                         <div className="min-w-0">
                           <div className="text-xs text-slate-400 font-medium tabular-nums">
-                            Рейс № {trip.trip_number || '—'}
+                            Заказ № {trip.trip_number || '—'}
                           </div>
                           <div className="font-semibold text-slate-800 break-words">
                             {trip.clientName}

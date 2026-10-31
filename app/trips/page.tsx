@@ -306,13 +306,13 @@ export default async function TripsPage({
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2.5 tracking-tight">
               <Package className="w-6 h-6 md:w-7 md:h-7 text-brand-600" strokeWidth={2.2} />
-              Рейсы
+              Заказы
             </h1>
             <p className="text-slate-500 mt-1 text-sm md:text-base">
               {isSearchMode ? (
                 <>Найдено: <b className="text-slate-700">{totalFiltered}</b>{q && <> · по запросу «{q}»</>}</>
               ) : (
-                <>Всего рейсов: <b className="text-slate-700">{filteredTrips.length}</b></>
+                <>Всего заказов: <b className="text-slate-700">{filteredTrips.length}</b></>
               )}
             </p>
           </div>
@@ -379,12 +379,12 @@ export default async function TripsPage({
               <Inbox className="w-8 h-8 text-slate-300" strokeWidth={1.5} />
             </div>
             <h2 className="text-xl font-bold text-slate-900 mb-2">
-              {isSearchMode ? 'Ничего не найдено' : 'Рейсов не найдено'}
+              {isSearchMode ? 'Ничего не найдено' : 'Заказов не найдено'}
             </h2>
             <p className="text-slate-500 mb-6">
               {isSearchMode
                 ? 'Попробуйте изменить запрос или сбросить фильтры'
-                : (monthFilter ? `За ${monthNames[monthFilter - 1]} ${year} нет рейсов` : `За ${year} год нет рейсов`)}
+                : (monthFilter ? `За ${monthNames[monthFilter - 1]} ${year} нет заказов` : `За ${year} год нет заказов`)}
             </p>
             {isSearchMode ? (
               <Link
