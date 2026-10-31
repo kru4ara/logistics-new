@@ -109,7 +109,6 @@ describe('renumberAllTrips', () => {
     expect(finalUpdates.find((u) => u.id === 't1')?.trip_number).toBe('1');
     expect(finalUpdates.find((u) => u.id === 'f1')?.trip_number).toBe('1Е');
   });
-});
 
   it('заказ без даты выгрузки уходит в конец ветки', async () => {
     const trips = [
