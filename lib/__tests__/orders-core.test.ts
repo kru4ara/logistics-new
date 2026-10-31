@@ -98,14 +98,18 @@ describe('isOrderCompleted', () => {
 });
 
 describe('getOrderMonthKey', () => {
-  it('рейс: месяц по end_date, иначе start_date', () => {
+  it('рейс: месяц по end_date (финиш), иначе start_date', () => {
     expect(getOrderMonthKey({ profit_mode: 'trip', start_date: '2026-01-05', end_date: '2026-02-10' })).toBe('2026-02');
     expect(getOrderMonthKey({ profit_mode: 'trip', start_date: '2026-01-05', end_date: null })).toBe('2026-01');
   });
 
-  it('экспедиция: месяц по load_date, иначе unload_date', () => {
+  it('экспедиция: месяц по unload_date (разгрузка), иначе load_date', () => {
+    // Загружен в сентябре, выгружен в октябре — заказ октябрьский.
+    expect(getOrderMonthKey({ profit_mode: 'forwarding', load_date: '2026-09-07', unload_date: '2026-10-12' })).toBe('2026-10');
     expect(getOrderMonthKey({ profit_mode: 'forwarding', load_date: '2026-05-07', unload_date: '2026-05-12' })).toBe('2026-05');
     expect(getOrderMonthKey({ profit_mode: 'forwarding', load_date: null, unload_date: '2026-06-12' })).toBe('2026-06');
+    // Без разгрузки — запасной вариант по загрузке.
+    expect(getOrderMonthKey({ profit_mode: 'forwarding', load_date: '2026-07-03', unload_date: null })).toBe('2026-07');
   });
 
   it('без дат — null', () => {
