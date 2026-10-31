@@ -23,8 +23,7 @@ export async function renumberAllTrips(
     .from('trips')
     .select('id, trip_number, start_date, load_date, created_at, profit_mode')
     .order('start_date', { ascending: true, nullsFirst: false })
-    .order('created_at', { ascending: true })
-    .order('id', { ascending: true });
+    .order('created_at', { ascending: true });
 
   if (error) {
     console.error('[renumber-trips] failed to load trips:', error.message);

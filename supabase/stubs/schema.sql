@@ -183,3 +183,99 @@ create table public.forwarding_points (id uuid primary key, name text);
 grant usage on schema public to anon, authenticated, service_role;
 grant select on all tables in schema public to anon, authenticated, service_role;
 grant insert, update, delete on all tables in schema public to authenticated, service_role;
+
+-- ============================================================
+-- Дополнения по РЕАЛЬНОЙ схеме (снято с боевой базы 31.10.2026).
+-- Нужны миграциям 20261031_*: единая модель заказа и перенос
+-- экспедирований. Каркас выше — урезанный; ниже — недостающие
+-- колонки и таблицы, на которые ссылаются эти миграции.
+-- ============================================================
+
+-- Заказ (рейс + экспедирование)
+alter table public.trips add column if not exists truck_id uuid;
+alter table public.trips add column if not exists trailer_id uuid;
+alter table public.trips add column if not exists revenue_eur numeric;
+alter table public.trips add column if not exists created_at timestamptz default now();
+alter table public.trips add column if not exists client_request_number text;
+alter table public.trips add column if not exists client_request_date date;
+alter table public.trips add column if not exists profit_mode text default 'trip';
+alter table public.trips add column if not exists is_forwarding boolean default false;
+alter table public.trips add column if not exists load_date date;
+alter table public.trips add column if not exists unload_date date;
+alter table public.trips add column if not exists costs_closed boolean default false;
+alter table public.trips add column if not exists source_forwarding_id uuid;
+
+-- Участок маршрута
+alter table public.trip_segments add column if not exists date_from date;
+alter table public.trip_segments add column if not exists stops jsonb default '[]'::jsonb;
+alter table public.trip_segments add column if not exists price numeric;
+alter table public.trip_segments add column if not exists currency text default 'EUR'::text;
+alter table public.trip_segments add column if not exists notes text;
+alter table public.trip_segments add column if not exists created_at timestamptz default now();
+alter table public.trip_segments add column if not exists contractor_truck_number text;
+alter table public.trip_segments add column if not exists contractor_driver_name text;
+alter table public.trip_segments add column if not exists contractor_payment_days integer default 30;
+alter table public.trip_segments add column if not exists contractor_transport_type text;
+alter table public.trip_segments add column if not exists contractor_transport_temperature text;
+
+-- Расход заказа
+alter table public.trip_expenses add column if not exists currency text default 'EUR'::text;
+alter table public.trip_expenses add column if not exists created_at timestamptz default now();
+
+-- Справочник точек
+alter table public.locations add column if not exists type text;
+alter table public.locations add column if not exists country text;
+alter table public.locations add column if not exists company_name text;
+alter table public.locations add column if not exists postal_code text;
+alter table public.locations add column if not exists city text;
+alter table public.locations add column if exists address text;
+alter table public.locations add column if not exists default_loading_number text;
+
+-- Общие затраты
+alter table public.fixed_costs add column if not exists month_key text;
+alter table public.fixed_costs add column if not exists category text;
+alter table public.fixed_costs add column if not exists amount_eur numeric;
+alter table public.fixed_costs add column if not exists currency text;
+alter table public.fixed_costs add column if not exists cost_type text;
+alter table public.fixed_costs add column if not exists expense_date date;
+alter table public.fixed_costs add column if not exists is_capex boolean default false;
+
+-- Старое экспедирование (источник переноса)
+alter table public.forwarding_orders add column if not exists order_number integer;
+alter table public.forwarding_orders add column if not exists client_id uuid;
+alter table public.forwarding_orders add column if not exists client_price_eur numeric default 0;
+alter table public.forwarding_orders add column if not exists load_date date;
+alter table public.forwarding_orders add column if not exists unload_date date;
+alter table public.forwarding_orders add column if not exists status text default 'planned'::text;
+alter table public.forwarding_orders add column if not exists created_at timestamptz default now();
+alter table public.forwarding_orders add column if not exists client_request_number text;
+alter table public.forwarding_orders add column if not exists client_request_date date;
+alter table public.forwarding_orders add column if not exists transport_type text;
+alter table public.forwarding_orders add column if not exists transport_temperature text;
+
+alter table public.forwarding_contractors add column if not exists forwarding_id uuid;
+alter table public.forwarding_contractors add column if not exists contractor_id uuid;
+alter table public.forwarding_contractors add column if not exists price_eur numeric default 0;
+alter table public.forwarding_contractors add column if not exists position integer default 1;
+alter table public.forwarding_contractors add column if not exists created_at timestamptz default now();
+alter table public.forwarding_contractors add column if not exists truck_number text;
+alter table public.forwarding_contractors add column if not exists driver_name text;
+alter table public.forwarding_contractors add column if not exists notes text;
+alter table public.forwarding_contractors add column if not exists payment_days integer default 30;
+alter table public.forwarding_contractors add column if not exists currency text default 'EUR'::text;
+
+alter table public.forwarding_expenses add column if not exists forwarding_id uuid;
+alter table public.forwarding_expenses add column if not exists category text;
+alter table public.forwarding_expenses add column if not exists amount_eur numeric default 0;
+alter table public.forwarding_expenses add column if not exists currency text default 'EUR'::text;
+alter table public.forwarding_expenses add column if not exists description text;
+alter table public.forwarding_expenses add column if not exists expense_date date;
+alter table public.forwarding_expenses add column if not exists created_at timestamptz default now();
+
+alter table public.forwarding_points add column if not exists forwarding_id uuid;
+alter table public.forwarding_points add column if not exists type text;
+alter table public.forwarding_points add column if not exists sequence integer default 1;
+alter table public.forwarding_points add column if not exists location_id uuid;
+alter table public.forwarding_points add column if not exists date date;
+alter table public.forwarding_points add column if not exists loading_number text;
+alter table public.forwarding_points add column if not exists notes text;

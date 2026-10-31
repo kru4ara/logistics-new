@@ -147,8 +147,29 @@ end;
 $$;
 
 -- ---------- 6. Триггеры ----------
--- Перенумерация теперь учитывает и дату загрузки экспедиции,
--- и смену режима расчёта.
+-- renumber_all_trips — обычная функция (returns void), её можно вызывать
+-- вручную. Триггеру нужна функция с returns trigger, поэтому для
+-- перенумерации заведены две отдельные обёртки.
+create or replace function public.trg_trip_renumber()
+ returns trigger
+ language plpgsql
+as $$
+begin
+  perform public.renumber_all_trips();
+  return null;
+end;
+$$;
+
+create or replace function public.trg_segment_renumber()
+ returns trigger
+ language plpgsql
+as $$
+begin
+  perform public.renumber_all_trips();
+  return null;
+end;
+$$;
+
 drop trigger if exists trg_trip_renumber on public.trips;
 drop trigger if exists trg_segment_renumber on public.trip_segments;
 
@@ -156,13 +177,13 @@ create trigger trg_trip_renumber
 after insert or delete or update of start_date, load_date, profit_mode
 on public.trips
 for each statement
-execute function public.renumber_all_trips();
+execute function public.trg_trip_renumber();
 
 create trigger trg_segment_renumber
 after insert or delete or update
 on public.trip_segments
 for each statement
-execute function public.renumber_all_trips();
+execute function public.trg_segment_renumber();
 
 -- ---------- 7. Сортировка по номеру — числовая ----------
 -- trip_number теперь текстовый, поэтому обычный orderBy дал бы
