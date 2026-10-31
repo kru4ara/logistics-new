@@ -279,3 +279,9 @@ alter table public.forwarding_points add column if not exists location_id uuid;
 alter table public.forwarding_points add column if not exists date date;
 alter table public.forwarding_points add column if not exists loading_number text;
 alter table public.forwarding_points add column if not exists notes text;
+
+-- Оставшиеся колонки реальной схемы, на которые ссылаются миграции 002/003
+alter table public.locations add column if not exists name text;
+alter table public.fixed_costs add column if not exists amount_pln numeric;
+alter table public.forwarding_contractors add column if not exists original_price numeric default 0;
+alter table public.forwarding_expenses add column if not exists original_amount numeric default 0;
