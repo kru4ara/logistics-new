@@ -28,9 +28,14 @@ export default async function Home() {
   // ============================================================
   // РЕЙСЫ
   // ============================================================
+  // ============================================================
+  // ЗАКАЗЫ (единая модель: рейсы + экспедирование)
+  // ============================================================
   const { data: trips } = await supabase
     .from('trips')
-    .select('*');
+    .select(
+      'id, client_id, revenue_eur, start_date, end_date, load_date, unload_date, status, profit_mode, is_forwarding, costs_closed'
+    );
 
   const { data: tripExpenses } = await supabase
     .from('trip_expenses')
@@ -43,41 +48,19 @@ export default async function Home() {
     return acc;
   }, {} as Record<string, number>) || {};
 
-  // ============================================================
-  // ЭКСПЕДИРОВАНИЕ
-  // ============================================================
-  const { data: forwarding } = await supabase
-    .from('forwarding_orders')
-    .select('*')
-    .order('load_date', { ascending: false });
+  // Подрядчики заказов: сегменты с исполнителем-подрядчиком.
+  const contractorByTrip: Record<string, number> = {};
+  const orderIds = trips?.map((t) => t.id) || [];
+  if (orderIds.length > 0) {
+    const { data: segments } = await supabase
+      .from('trip_segments')
+      .select('trip_id, price')
+      .in('trip_id', orderIds)
+      .eq('executor_type', 'contractor');
 
-  const forwardingIds = forwarding?.map((f) => f.id) || [];
-
-  const contractorsByForwarding: Record<string, number> = {};
-  if (forwardingIds.length > 0) {
-    const { data: allContractors } = await supabase
-      .from('forwarding_contractors')
-      .select('forwarding_id, price_eur')
-      .in('forwarding_id', forwardingIds);
-
-    allContractors?.forEach((c) => {
-      if (!c.forwarding_id) return;
-      contractorsByForwarding[c.forwarding_id] =
-        (contractorsByForwarding[c.forwarding_id] || 0) + (c.price_eur || 0);
-    });
-  }
-
-  const expensesByForwarding: Record<string, number> = {};
-  if (forwardingIds.length > 0) {
-    const { data: allFExp } = await supabase
-      .from('forwarding_expenses')
-      .select('forwarding_id, amount_eur')
-      .in('forwarding_id', forwardingIds);
-
-    allFExp?.forEach((e) => {
-      if (!e.forwarding_id) return;
-      expensesByForwarding[e.forwarding_id] =
-        (expensesByForwarding[e.forwarding_id] || 0) + (e.amount_eur || 0);
+    segments?.forEach((s) => {
+      if (!s.trip_id) return;
+      contractorByTrip[s.trip_id] = (contractorByTrip[s.trip_id] || 0) + (s.price || 0);
     });
   }
 
@@ -100,16 +83,51 @@ export default async function Home() {
   const { expired, soon } = splitReminders(remindersRaw);
 
   // ============================================================
+  // ВСПОМОГАТЕЛЬНОЕ
+  // ============================================================
+  const isForwardingOrder = (o: any) => o?.profit_mode === 'forwarding';
+
+  /** Месяц заказа по режиму: рейс — финиш (приоритет) или старт,
+   *  экспедиция — загрузка (приоритет) или разгрузка. */
+  const orderMonthKey = (o: any): string | null => {
+    const raw = isForwardingOrder(o)
+      ? o.load_date || o.unload_date
+      : o.end_date || o.start_date;
+    if (!raw) return null;
+    const d = new Date(raw);
+    if (isNaN(d.getTime())) return null;
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  };
+
+  const orderRevenue = (o: any) => o?.revenue_eur || 0;
+  const orderDirectExpenses = (o: any) => expensesByTrip[o.id] || 0;
+  const orderContractorExpenses = (o: any) => contractorByTrip[o.id] || 0;
+  const orderAllExpenses = (o: any) =>
+    orderDirectExpenses(o) + orderContractorExpenses(o);
+
+  // ============================================================
   // ОБЩИЕ ИТОГИ (за всё время)
   // ============================================================
-  const totalTripRevenue = trips?.reduce((sum, t) => sum + (t.revenue_eur || 0), 0) || 0;
-  const totalTripExpenses = tripExpenses?.reduce((sum, e) => sum + (e.amount_eur || 0), 0) || 0;
+  const allOrders = trips || [];
+
+  const tripOrders = allOrders.filter((o) => !isForwardingOrder(o));
+  const fwdOrders = allOrders.filter((o) => isForwardingOrder(o));
+
+  const totalTripRevenue = tripOrders.reduce((sum, o) => sum + orderRevenue(o), 0);
+  const totalTripExpenses = tripOrders.reduce((sum, o) => sum + orderDirectExpenses(o), 0);
   const tripProfitTotal = totalTripRevenue - totalTripExpenses;
 
-  const totalForwardingClient = forwarding?.reduce((sum, f) => sum + (f.client_price_eur || 0), 0) || 0;
-  const totalForwardingContractor = Object.values(contractorsByForwarding).reduce((s, v) => s + v, 0);
-  const totalForwardingExpenses = Object.values(expensesByForwarding).reduce((s, v) => s + v, 0);
-  const forwardingMarginTotal = totalForwardingClient - totalForwardingContractor - totalForwardingExpenses;
+  const totalForwardingClient = fwdOrders.reduce((sum, o) => sum + orderRevenue(o), 0);
+  const totalForwardingContractor = fwdOrders.reduce(
+    (sum, o) => sum + orderContractorExpenses(o),
+    0
+  );
+  const totalForwardingExpenses = fwdOrders.reduce(
+    (sum, o) => sum + orderDirectExpenses(o),
+    0
+  );
+  const forwardingMarginTotal =
+    totalForwardingClient - totalForwardingContractor - totalForwardingExpenses;
 
   let totalOperationalFixedCosts = 0;
   let totalCapex = 0;
@@ -142,29 +160,24 @@ export default async function Home() {
   const monthName = now.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
   const currentMonthKey = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
 
-  const monthTrips = trips?.filter((t) => {
-    if (!t.start_date) return false;
-    const d = new Date(t.start_date);
-    return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
-  }) || [];
+  const monthOrders = allOrders.filter((o) => orderMonthKey(o) === currentMonthKey);
+  const monthTrips = monthOrders.filter((o) => !isForwardingOrder(o));
+  const monthForwarding = monthOrders.filter((o) => isForwardingOrder(o));
 
-  const monthTripRevenue = monthTrips.reduce((sum, t) => sum + (t.revenue_eur || 0), 0);
-  const monthTripExpenses = monthTrips.reduce((sum, t) => sum + (expensesByTrip[t.id] || 0), 0);
+  const monthTripRevenue = monthTrips.reduce((sum, o) => sum + orderRevenue(o), 0);
+  const monthTripExpenses = monthTrips.reduce((sum, o) => sum + orderDirectExpenses(o), 0);
 
-  const monthForwarding = forwarding?.filter((f) => {
-    if (!f.load_date) return false;
-    const d = new Date(f.load_date);
-    return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
-  }) || [];
-
-  const monthForwardingClient = monthForwarding.reduce((sum, f) => sum + (f.client_price_eur || 0), 0);
+  const monthForwardingClient = monthForwarding.reduce((sum, o) => sum + orderRevenue(o), 0);
   const monthForwardingContractor = monthForwarding.reduce(
-    (sum, f) => sum + (contractorsByForwarding[f.id] || 0), 0
+    (sum, o) => sum + orderContractorExpenses(o),
+    0
   );
   const monthForwardingExpenses = monthForwarding.reduce(
-    (sum, f) => sum + (expensesByForwarding[f.id] || 0), 0
+    (sum, o) => sum + orderDirectExpenses(o),
+    0
   );
 
+  // Годовые затраты падают ЦЕЛИКОМ в месяц оплаты (не 1/12).
   let monthFixedCosts = 0;
   fixedCosts?.forEach((fc) => {
     const amount = fc.amount_eur || 0;
@@ -177,14 +190,10 @@ export default async function Home() {
       else if (fc.month_key) startDate = new Date(fc.month_key + '-01');
       if (!startDate) return;
 
-      const monthlyPart = amount / 12;
-      const currentDate = new Date(currentYear, currentMonth, 1);
-      const diffMonths =
-        (currentDate.getFullYear() - startDate.getFullYear()) * 12 +
-        (currentDate.getMonth() - startDate.getMonth());
-
-      if (diffMonths >= 0 && diffMonths < 12) {
-        monthFixedCosts += monthlyPart;
+      const mk =
+        startDate.getFullYear() + '-' + String(startDate.getMonth() + 1).padStart(2, '0');
+      if (mk === currentMonthKey) {
+        monthFixedCosts += amount;
       }
     } else {
       if (fc.month_key === currentMonthKey) {
@@ -229,21 +238,10 @@ export default async function Home() {
     let income = 0;
     let expenses = 0;
 
-    trips?.forEach((t) => {
-      const dateStr = t.end_date || t.start_date;
-      if (!dateStr) return;
-      const td = new Date(dateStr);
-      if (td.getUTCFullYear() !== y || td.getUTCMonth() !== m) return;
-      income += t.revenue_eur || 0;
-      expenses += expensesByTrip[t.id] || 0;
-    });
-
-    forwarding?.forEach((f) => {
-      if (!f.load_date) return;
-      const fd = new Date(f.load_date);
-      if (fd.getUTCFullYear() !== y || fd.getUTCMonth() !== m) return;
-      income += f.client_price_eur || 0;
-      expenses += (contractorsByForwarding[f.id] || 0) + (expensesByForwarding[f.id] || 0);
+    allOrders.forEach((o) => {
+      if (orderMonthKey(o) !== key) return;
+      income += orderRevenue(o);
+      expenses += orderAllExpenses(o);
     });
 
     fixedCosts?.forEach((fc) => {
@@ -256,15 +254,13 @@ export default async function Home() {
         if (fc.expense_date) startDate = new Date(fc.expense_date);
         else if (fc.month_key) startDate = new Date(fc.month_key + '-01');
         if (!startDate) return;
-        const monthlyPart = amount / 12;
-        
-        // Сравниваем без Date (чистая арифметика)
-        const startY = startDate.getUTCFullYear();
-        const startM = startDate.getUTCMonth();
-        const diffMonths = (y - startY) * 12 + (m - startM);
-        
-        if (diffMonths >= 0 && diffMonths < 12) {
-          expenses += monthlyPart;
+
+        const startY = startDate.getFullYear();
+        const startM = startDate.getMonth();
+        const mk = `${startY}-${String(startM + 1).padStart(2, '0')}`;
+
+        if (mk === key) {
+          expenses += amount;
         }
       } else {
         if (fc.month_key === key) {
