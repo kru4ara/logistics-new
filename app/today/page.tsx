@@ -313,7 +313,8 @@ export default async function TodayPage() {
       trip_number: t.trip_number,
       clientName: pickName(t.clients) || null,
       driverName: getDriverName(t.drivers),
-      profit_mode: t.profit_mode === 'forwarding' ? 'forwarding' : 'trip',
+      profit_mode: (t.profit_mode === 'forwarding' ? 'forwarding' : 'trip') as
+        'trip' | 'forwarding',
     }));
   const tripsWithoutTruck = allTrips.filter(
     (t) => (t.status === 'active' || t.status === 'planned') && !t.truck_id
