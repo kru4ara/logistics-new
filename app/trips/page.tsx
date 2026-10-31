@@ -4,7 +4,7 @@ import { can } from '../../lib/roles';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase/admin';
 import { buildRouteMap, type SegmentRouteRow, type TripRouteInfo } from '../../lib/trip-route';
-import { getOrderMonthKey, getOrderUnloadDate, compareOrderNumbers } from '../../lib/orders-core';
+import { getOrderMonthKey, getOrderUnloadDate, compareOrderNumbers, hasUnloadDate } from '../../lib/orders-core';
 import DownloadButton from './DownloadButton';
 import SearchInput from './SearchInput';
 import TripFilters from './TripFilters';
@@ -172,6 +172,20 @@ export default async function TripsPage({
     return getOrderUnloadDate(t);
   }
 
+  /** Есть ли у заказа хоть одна дата (загрузка/финиш/разгрузка). */
+  function hasAnyDate(t: any): boolean {
+    return Boolean(t?.start_date || t?.end_date || t?.load_date || t?.unload_date);
+  }
+
+  /**
+   * Заказ В ПУТИ: дата есть, а даты ВЫГРУЗКИ нет.
+   * Рейс без end_date, экспедиция без unload_date.
+   * Такие заказы не идут в статистику и висят наверху списка.
+   */
+  function isInTransit(t: any): boolean {
+    return hasAnyDate(t) && !hasUnloadDate(t);
+  }
+
   function matchesDriver(t: any): boolean {
     if (!driverFilter) return true;
     return t.driver_id === driverFilter;
@@ -228,10 +242,16 @@ export default async function TripsPage({
     });
   }
 
-  const filteredWithoutDate = filteredTrips.filter((t) => !orderDate(t));
+  // Заявки вообще без дат — ждут назначения машины и водителя.
+  const filteredWithoutDate = filteredTrips.filter((t) => !hasAnyDate(t));
+
+  // Заказы БЕЗ даты выгрузки (в пути / дата не проставлена) — не в месяцы:
+  // месяц заказа определить не по чему, и в статистику они не идут.
+  const tripsInTransit = filteredTrips.filter((t) => isInTransit(t));
 
   const tripsByMonth: Record<string, { month: number; trips: any[] }> = {};
   filteredTrips.forEach((t) => {
+    if (!hasUnloadDate(t)) return;
     const key = orderMonthKey(t);
     if (!key) return;
     const monthNum = Number(key.slice(-2));
@@ -308,6 +328,7 @@ export default async function TripsPage({
       expenses: expensesByTrip[t.id] || 0,
       clientName: pickName(t.clients) || 'Не указан',
       driverName,
+      missingUnloadDate: !hasUnloadDate(t),
     };
   }
 
@@ -440,6 +461,9 @@ export default async function TripsPage({
           </div>
         ) : (
           <TripsBulkList
+            tripsInTransit={
+              sortBy === 'created' ? [] : tripsInTransit.map(prepareTrip)
+            }
             tripsWithoutDate={
               sortBy === 'created'
                 ? filteredTrips.map(prepareTrip)

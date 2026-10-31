@@ -6,6 +6,8 @@ import {
   renumberOrders,
   compareOrderNumbers,
   isOrderCompleted,
+  hasUnloadDate,
+  isOrderMissingUnloadDate,
   getOrderMonthKey,
   calcOrderEconomics,
 } from '../orders-core';
@@ -132,5 +134,43 @@ describe('calcOrderEconomics', () => {
     });
     expect(r.profit).toBe(0);
     expect(r.marginPct).toBe(0);
+  });
+});
+
+describe('hasUnloadDate', () => {
+  it('рейс: дата выгрузки — финиш', () => {
+    expect(hasUnloadDate({ profit_mode: 'trip', end_date: '2026-10-10' })).toBe(true);
+  });
+
+  it('рейс без финиша — даты выгрузки нет (в пути)', () => {
+    expect(hasUnloadDate({ profit_mode: 'trip', end_date: null })).toBe(false);
+  });
+
+  it('экспедиция: дата выгрузки — разгрузка', () => {
+    expect(hasUnloadDate({ profit_mode: 'forwarding', unload_date: '2026-10-10' })).toBe(true);
+  });
+
+  it('экспедиция без разгрузки — даты выгрузки нет', () => {
+    expect(hasUnloadDate({ profit_mode: 'forwarding', unload_date: null })).toBe(false);
+  });
+
+  it('запасной вариант (start_date / load_date) датой выгрузки НЕ считается', () => {
+    expect(hasUnloadDate({ profit_mode: 'trip', start_date: '2026-10-10', end_date: null })).toBe(false);
+    expect(hasUnloadDate({ profit_mode: 'forwarding', load_date: '2026-10-10', unload_date: null })).toBe(false);
+  });
+
+  it('пустой заказ и null — без даты выгрузки', () => {
+    expect(hasUnloadDate(null)).toBe(false);
+    expect(hasUnloadDate({})).toBe(false);
+  });
+});
+
+describe('isOrderMissingUnloadDate', () => {
+  it('заказ без даты выгрузки — в пути', () => {
+    expect(isOrderMissingUnloadDate({ profit_mode: 'trip', end_date: null })).toBe(true);
+  });
+
+  it('заказ с датой выгрузки — не в пути', () => {
+    expect(isOrderMissingUnloadDate({ profit_mode: 'trip', end_date: '2026-10-10' })).toBe(false);
   });
 });

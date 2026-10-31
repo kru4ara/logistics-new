@@ -16,6 +16,7 @@ import {
   ChevronDown,
   X,
   Clock,
+  Truck as TruckIcon,
 } from 'lucide-react';
 import { bulkSetStatus, bulkDelete } from './bulk-actions';
 
@@ -32,6 +33,8 @@ export type TripCardData = {
   expenses: number;
   clientName: string;
   driverName: string | null;
+  /** Нет даты выгрузки — заказ в пути, в статистику не идёт. */
+  missingUnloadDate?: boolean;
 };
 
 export type MonthGroup = {
@@ -84,11 +87,13 @@ function fmtDate(d: string | null): string {
 }
 
 export default function TripsBulkList({
+  tripsInTransit,
   tripsWithoutDate,
   monthGroups,
   isSearchMode,
   flatMode = false,
 }: {
+  tripsInTransit: TripCardData[];
   tripsWithoutDate: TripCardData[];
   monthGroups: MonthGroup[];
   isSearchMode: boolean;
@@ -100,6 +105,7 @@ export default function TripsBulkList({
   const [error, setError] = useState<string | null>(null);
 
   const allIds = [
+    ...tripsInTransit.map((t) => t.id),
     ...tripsWithoutDate.map((t) => t.id),
     ...monthGroups.flatMap((g) => g.trips.map((t) => t.id)),
   ];
@@ -219,6 +225,13 @@ export default function TripsBulkList({
               {statusLabels[trip.status] || trip.status}
             </span>
           </div>
+
+          {trip.missingUnloadDate && (
+            <div className="flex items-center gap-1.5 text-xs text-brand-700 bg-brand-50 border border-brand-200 rounded-lg px-2 py-1 mb-2">
+              <Clock className="w-3.5 h-3.5 shrink-0" strokeWidth={2.2} />
+              <span>Нет даты выгрузки — в статистику не идёт</span>
+            </div>
+          )}
 
           {trip.client_request_number && (
             <div className="flex items-center gap-1.5 text-xs text-slate-500 mb-2 break-words">
@@ -369,6 +382,28 @@ export default function TripsBulkList({
               <span>{error}</span>
             </div>
           )}
+        </div>
+      )}
+
+      {/* СЕКЦИЯ «В ПУТИ» — заказы без даты выгрузки, самый верх */}
+      {tripsInTransit.length > 0 && !isSearchMode && !flatMode && (
+        <div>
+          <div className="flex items-center gap-3 mb-3 md:mb-4 px-1">
+            <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-brand-50 flex items-center justify-center shrink-0">
+              <TruckIcon className="w-4 h-4 md:w-5 md:h-5 text-brand-600" strokeWidth={2} />
+            </div>
+            <div className="min-w-0">
+              <h2 className="text-lg md:text-xl font-bold text-slate-900">В пути</h2>
+              <div className="text-xs text-slate-400">
+                Заказов: {tripsInTransit.length} · ждут даты выгрузки · в статистику не идут
+              </div>
+            </div>
+          </div>
+          <div className="grid gap-4 md:gap-5 md:grid-cols-2 lg:grid-cols-3">
+            {tripsInTransit.map((t) => (
+              <TripCard key={t.id} trip={t} />
+            ))}
+          </div>
         </div>
       )}
 

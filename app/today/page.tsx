@@ -15,6 +15,7 @@ import TodayStats from './components/TodayStats';
 import ActiveTripCard from './components/ActiveTripCard';
 import TodayAttention from './components/TodayAttention';
 import { todayIso, currentTimestamp } from './lib/dates';
+import { hasUnloadDate } from '../../lib/orders-core';
 import { pickName, pickOne, getDriverName, getTruckNumber } from './lib/relations';
 import { type EventItem } from './lib/events';
 
@@ -36,6 +37,7 @@ export default async function TodayPage() {
     .from('trips')
     .select(`
       id, trip_number, status, start_date, end_date,
+      load_date, unload_date, profit_mode,
       driver_id, truck_id,
       clients(name),
       drivers!driver_id(first_name, last_name, phone_by, phone_pl),
@@ -297,6 +299,23 @@ export default async function TodayPage() {
   const tripsWithoutDriver = allTrips.filter(
     (t) => (t.status === 'active' || t.status === 'planned') && !t.driver_id
   );
+
+  // Заказы БЕЗ даты выгрузки: рейс без end_date, экспедиция без unload_date.
+  // В статистику не идут (месяц заказа определить не по чему) —
+  // показываем в блоке «Требует внимания».
+  const tripsMissingUnloadDate = allTrips
+    .filter((t) => {
+      const hasAny = Boolean(t.start_date || t.end_date || t.load_date || t.unload_date);
+      return hasAny && !hasUnloadDate(t);
+    })
+    .map((t) => ({
+      id: t.id,
+      trip_number: t.trip_number,
+      clientName: pickName(t.clients) || null,
+      driverName: getDriverName(t.drivers),
+      profit_mode: (t.profit_mode === 'forwarding' ? 'forwarding' : 'trip') as
+        'trip' | 'forwarding',
+    }));
   const tripsWithoutTruck = allTrips.filter(
     (t) => (t.status === 'active' || t.status === 'planned') && !t.truck_id
   );
@@ -305,7 +324,8 @@ export default async function TodayPage() {
     overdueReminders.length +
     tripsWithoutDriver.length +
     tripsWithoutTruck.length +
-    tripsWithoutSalary.length;
+    tripsWithoutSalary.length +
+    tripsMissingUnloadDate.length;
 
   const todayHuman = new Date().toLocaleDateString('ru-RU', {
     day: '2-digit',
@@ -416,6 +436,7 @@ export default async function TodayPage() {
           tripsWithoutDriver={tripsWithoutDriver}
           tripsWithoutTruck={tripsWithoutTruck}
           tripsWithoutSalary={tripsWithoutSalary}
+          tripsMissingUnloadDate={tripsMissingUnloadDate}
         />
 
       </div>

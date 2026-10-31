@@ -10,6 +10,7 @@ export type TripRef = {
   clients?: unknown;
   clientName?: string | null;
   driverName?: string | null;
+  profit_mode?: 'trip' | 'forwarding';
 };
 
 type Props = {
@@ -17,6 +18,7 @@ type Props = {
   tripsWithoutDriver: TripRef[];
   tripsWithoutTruck: TripRef[];
   tripsWithoutSalary: TripRef[];
+  tripsMissingUnloadDate: TripRef[];
 };
 
 /** Блок «Требует внимания» на странице «Сегодня». */
@@ -25,12 +27,14 @@ export default function TodayAttention({
   tripsWithoutDriver,
   tripsWithoutTruck,
   tripsWithoutSalary,
+  tripsMissingUnloadDate,
 }: Props) {
   const count =
     overdueReminders.length +
     tripsWithoutDriver.length +
     tripsWithoutTruck.length +
-    tripsWithoutSalary.length;
+    tripsWithoutSalary.length +
+    tripsMissingUnloadDate.length;
   if (count === 0) return null;
 
   return (
@@ -102,7 +106,38 @@ export default function TodayAttention({
                   </div>
                 </div>
               )}
-                            {tripsWithoutSalary.length > 0 && (
+              {tripsMissingUnloadDate.length > 0 && (
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-amber-600 font-semibold mb-2 flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5" strokeWidth={2.2} />
+                    Нет даты выгрузки · {tripsMissingUnloadDate.length}
+                  </div>
+                  <div className="space-y-1.5">
+                    {tripsMissingUnloadDate.slice(0, 5).map((t) => (
+                      <Link
+                        key={`mu-${t.id}`}
+                        href={`/trips/${t.id}`}
+                        className="flex items-center gap-2 text-sm text-slate-700 hover:text-brand-600 transition-colors"
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+                        <span className="truncate">
+                          {t.profit_mode === 'forwarding' ? 'Экспедиция' : 'Рейс'} №{t.trip_number || '—'}
+                          {t.clientName && ` · ${t.clientName}`}
+                        </span>
+                        <span className="ml-auto text-xs text-amber-600 whitespace-nowrap">
+                          нет даты выгрузки
+                        </span>
+                      </Link>
+                    ))}
+                    {tripsMissingUnloadDate.length > 5 && (
+                      <div className="text-xs text-slate-400 text-center pt-1">
+                        и ещё {tripsMissingUnloadDate.length - 5}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            {tripsWithoutSalary.length > 0 && (
                 <div>
                   <div className="text-xs uppercase tracking-wide text-amber-600 font-semibold mb-2">
                     Завершённые заказы без ЗП · {tripsWithoutSalary.length}

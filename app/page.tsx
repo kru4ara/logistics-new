@@ -11,6 +11,7 @@ import DashboardTotals from './components/dashboard/DashboardTotals';
 import { CHART_PALETTE, CATEGORY_META } from '../lib/dashboard/category';
 import { splitReminders } from '../lib/dashboard/reminders';
 import { getOrderUnloadDate } from '../lib/orders-core';
+import { isStatsCompleted } from '../lib/statistics';
 
 export const dynamic = 'force-dynamic';
 
@@ -102,7 +103,10 @@ export default async function Home() {
   // ============================================================
   // ОБЩИЕ ИТОГИ (за всё время)
   // ============================================================
-  const allOrders = trips || [];
+  // Итоги, месяц и график — только по ЗАВЕРШЁННЫМ заказам
+  // (paid/invoiced + сведённые расходы + есть дата выгрузки).
+  // Заказы в пути и без даты выгрузки в статистику не идут.
+  const allOrders = (trips || []).filter((o) => isStatsCompleted(o));
 
   const tripOrders = allOrders.filter((o) => !isForwardingOrder(o));
   const fwdOrders = allOrders.filter((o) => isForwardingOrder(o));
