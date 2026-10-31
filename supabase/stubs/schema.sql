@@ -228,7 +228,7 @@ alter table public.locations add column if not exists country text;
 alter table public.locations add column if not exists company_name text;
 alter table public.locations add column if not exists postal_code text;
 alter table public.locations add column if not exists city text;
-alter table public.locations add column if exists address text;
+alter table public.locations add column if not exists address text;
 alter table public.locations add column if not exists default_loading_number text;
 
 -- Общие затраты
