@@ -41,28 +41,22 @@ export default async function Home() {
     .from('trip_expenses')
     .select('trip_id, amount_eur, category');
 
-  const expensesByTrip = tripExpenses?.reduce((acc, e) => {
-    if (!e.trip_id) return acc;
-    if (!acc[e.trip_id]) acc[e.trip_id] = 0;
-    acc[e.trip_id] += e.amount_eur || 0;
-    return acc;
-  }, {} as Record<string, number>) || {};
-
-  // Подрядчики заказов: сегменты с исполнителем-подрядчиком.
+  // Расходы делим на две части:
+  //   подрядчик — запись в trip_expenses с category='contractor'
+  //   прочие    — всё остальное
+  // Подрядчик НЕ берём из trip_segments.price: эта же сумма уже лежит
+  // в расходах, и при сложении она учитывалась дважды.
   const contractorByTrip: Record<string, number> = {};
-  const orderIds = trips?.map((t) => t.id) || [];
-  if (orderIds.length > 0) {
-    const { data: segments } = await supabase
-      .from('trip_segments')
-      .select('trip_id, price')
-      .in('trip_id', orderIds)
-      .eq('executor_type', 'contractor');
-
-    segments?.forEach((s) => {
-      if (!s.trip_id) return;
-      contractorByTrip[s.trip_id] = (contractorByTrip[s.trip_id] || 0) + (s.price || 0);
-    });
-  }
+  const otherExpensesByTrip: Record<string, number> = {};
+  tripExpenses?.forEach((e) => {
+    if (!e.trip_id) return;
+    const amount = e.amount_eur || 0;
+    if (e.category === 'contractor') {
+      contractorByTrip[e.trip_id] = (contractorByTrip[e.trip_id] || 0) + amount;
+    } else {
+      otherExpensesByTrip[e.trip_id] = (otherExpensesByTrip[e.trip_id] || 0) + amount;
+    }
+  });
 
   // ============================================================
   // ОБЩИЕ РАСХОДЫ — с флагом is_capex
@@ -100,7 +94,8 @@ export default async function Home() {
   };
 
   const orderRevenue = (o: any) => o?.revenue_eur || 0;
-  const orderDirectExpenses = (o: any) => expensesByTrip[o.id] || 0;
+  // Прямые расходы — без подрядчика (он учитывается отдельно).
+  const orderDirectExpenses = (o: any) => otherExpensesByTrip[o.id] || 0;
   const orderContractorExpenses = (o: any) => contractorByTrip[o.id] || 0;
   const orderAllExpenses = (o: any) =>
     orderDirectExpenses(o) + orderContractorExpenses(o);
