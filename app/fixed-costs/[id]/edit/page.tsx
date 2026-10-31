@@ -1,7 +1,8 @@
 import { createClient } from '../../../../lib/supabase/admin';
 import { updateFixedCost } from '../../../fixed-cost-actions';
 import SubmitButton from '../../../components/SubmitButton';
-import { ArrowLeft, Banknote, Pencil, Save } from 'lucide-react';
+import { ArrowLeft, Banknote, Pencil, Save, TrendingUp } from 'lucide-react';
+import { classifyCapex, capexRuleLabel } from '../../../lib/capex';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,6 +20,7 @@ export default async function EditFixedCostPage({ params }: { params: Promise<{ 
   if (error) return <div className="p-8 text-red-500">Ошибка: {error.message}</div>;
 
   const currentAmount = cost.original_amount ?? cost.amount_pln ?? cost.amount_eur ?? 0;
+  const capex = classifyCapex(cost.category, cost.amount_eur);
 
   return (
     <main className="min-h-screen bg-slate-50">
@@ -115,6 +117,16 @@ export default async function EditFixedCostPage({ params }: { params: Promise<{ 
                   className="input"
                 />
               </div>
+            </div>
+
+            <div className="flex items-start gap-2 text-xs rounded-lg p-3
+                            bg-amber-50 text-amber-800 border border-amber-200">
+              <TrendingUp className="w-4 h-4 shrink-0 mt-0.5" strokeWidth={2} />
+              <span>
+                {capex.isCapex
+                  ? 'Инвестиция - определяется автоматически по категории и сумме (вне P&L, в прибыль не входит).'
+                  : 'Операционный расход - попадёт в прибыль (правило: ' + capexRuleLabel(capex.rule) + ').'}
+              </span>
             </div>
           </div>
 

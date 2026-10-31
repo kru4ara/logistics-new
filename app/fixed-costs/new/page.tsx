@@ -84,7 +84,7 @@ export default function NewFixedCostPage() {
             </div>
             <div className="flex items-start gap-2 text-xs text-slate-500 bg-slate-50 rounded-lg p-3">
               <Info className="w-4 h-4 shrink-0 mt-0.5 text-slate-400" strokeWidth={2} />
-              <span>Сумма автоматически пересчитается в EUR по курсу на дату расхода.</span>
+              <span>Сумма автоматически пересчитается в EUR по курсу на дату расхода. Инвестиция (покупка имущества от 1000 EUR) определяется автоматически и в прибыль не входит.</span>
             </div>
           </div>
 

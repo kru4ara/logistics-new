@@ -3,6 +3,7 @@
 import { createClient } from '../lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+import { classifyCapex } from '../lib/capex';
 
 async function convertToEur(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -51,6 +52,9 @@ export async function createFixedCost(formData: FormData) {
   const dateForRate = expenseDate || `${monthKey}-01`;
   const amountEur = await convertToEur(supabase, originalAmount, currency, dateForRate);
 
+  // Инвестиция определяется автоматически по категории и сумме.
+  const capex = classifyCapex(category, amountEur);
+
   const { error } = await supabase
     .from('fixed_costs')
     .insert([
@@ -62,7 +66,9 @@ export async function createFixedCost(formData: FormData) {
         currency: currency,
         original_amount: originalAmount,
         amount_eur: amountEur,
-        amount_pln: currency === 'PLN' ? originalAmount : null
+        amount_pln: currency === 'PLN' ? originalAmount : null,
+        is_capex: capex.isCapex,
+        capex_rule: capex.rule
       }
     ]);
 
@@ -84,6 +90,9 @@ export async function updateFixedCost(costId: string, formData: FormData) {
   const dateForRate = expenseDate || `${monthKey}-01`;
   const amountEur = await convertToEur(supabase, originalAmount, currency, dateForRate);
 
+  // Инвестиция определяется автоматически по категории и сумме.
+  const capex = classifyCapex(category, amountEur);
+
   const { error } = await supabase
     .from('fixed_costs')
     .update({
@@ -92,6 +101,8 @@ export async function updateFixedCost(costId: string, formData: FormData) {
       cost_type: costType,
       expense_date: expenseDate || null,
       currency: currency,
+      is_capex: capex.isCapex,
+      capex_rule: capex.rule,
       original_amount: originalAmount,
       amount_eur: amountEur,
       amount_pln: currency === 'PLN' ? originalAmount : null
