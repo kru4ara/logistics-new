@@ -37,14 +37,18 @@ export default async function ContractorsPage() {
     return <div className="p-8 text-red-500">Ошибка загрузки: {error.message}</div>;
   }
 
-  // Считаем сколько заявок экспедирования у каждого подрядчика
+  // Считаем сколько заявок экспедирования у каждого подрядчика:
+  // сегменты-подрядчики заказов в режиме forwarding.
   const { data: allFc } = await supabase
-    .from('forwarding_contractors')
-    .select('contractor_id');
+    .from('trip_segments')
+    .select('contractor_id, trips!inner(profit_mode)')
+    .eq('executor_type', 'contractor')
+    .eq('trips.profit_mode', 'forwarding');
 
   const ordersCountByContractor: Record<string, number> = {};
-  allFc?.forEach((fc) => {
+  allFc?.forEach((fc: any) => {
     if (!fc.contractor_id) return;
+    if (fc.trips?.profit_mode !== 'forwarding') return;
     ordersCountByContractor[fc.contractor_id] =
       (ordersCountByContractor[fc.contractor_id] || 0) + 1;
   });

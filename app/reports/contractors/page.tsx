@@ -12,8 +12,8 @@ type ContractorRow = {
 
 type FwdStatsRow = {
   contractor_id: string | null;
-  price_eur: number;
-  payment_days: number | null;
+  price: number | null;
+  contractor_payment_days: number | null;
 };
 
 type TripStatsRow = {
@@ -56,10 +56,13 @@ export default async function ContractorsStatsPage() {
     return <div className="p-8 text-red-500">Ошибка загрузки: {cErr.message}</div>;
   }
 
-  // 2. Данные экспедирования (заявки с подрядчиками)
+  // 2. Данные экспедирования — сегменты-подрядчики заказов
+  //    в режиме forwarding (trips.profit_mode='forwarding').
   const { data: fwdRows } = await supabase
-    .from('forwarding_contractors')
-    .select('contractor_id, price_eur, payment_days');
+    .from('trip_segments')
+    .select('contractor_id, price, contractor_payment_days, trips!inner(profit_mode)')
+    .eq('executor_type', 'contractor')
+    .eq('trips.profit_mode', 'forwarding');
 
   // 3. Данные комбинированных перевозок — участки-подрядчики в рейсах
   const { data: tripRows } = await supabase
@@ -86,12 +89,16 @@ export default async function ContractorsStatsPage() {
     });
   }
 
-  for (const r of (fwdRows || []) as FwdStatsRow[]) {
+  const fwdRowsTyped = ((fwdRows || []) as FwdStatsRow[]).filter(
+    (r) => (r as any).trips?.profit_mode === 'forwarding'
+  );
+
+  for (const r of fwdRowsTyped) {
     if (!r.contractor_id) continue;
     const s = statsMap.get(r.contractor_id);
     if (!s) continue;
     s.fwdCount += 1;
-    s.fwdSum += r.price_eur || 0;
+    s.fwdSum += Number(r.price) || 0;
   }
 
   for (const r of (tripRows || []) as TripStatsRow[]) {
@@ -107,12 +114,12 @@ export default async function ContractorsStatsPage() {
     s.totalSum = s.fwdSum + s.tripSum;
     s.totalCount = s.fwdCount + s.tripCount;
     // Средний срок оплаты считаем по экспедированию (там есть payment_days)
-    const fwdPays = ((fwdRows || []) as FwdStatsRow[]).filter(
-      (r) => r.contractor_id === s.id && r.payment_days
+    const fwdPays = fwdRowsTyped.filter(
+      (r) => r.contractor_id === s.id && r.contractor_payment_days
     );
     if (fwdPays.length > 0) {
       s.paymentDays = Math.round(
-        fwdPays.reduce((sum, r) => sum + (r.payment_days || 0), 0) / fwdPays.length
+        fwdPays.reduce((sum, r) => sum + (r.contractor_payment_days || 0), 0) / fwdPays.length
       );
     }
   }
@@ -413,14 +420,17 @@ export default async function ContractorsStatsPage() {
             <span className="text-xl shrink-0">💡</span>
             <div className="text-sm text-blue-900 space-y-1">
               <p>
-                <b>Источники данных:</b> блок «Экспедирование» — из заявок
-                (<code className="text-xs bg-blue-100 px-1 rounded">forwarding_contractors</code>),
+                <b>Источники данных:</b> блок «Экспедирование» — из участков заказов в режиме
+                экспедирования
+                (<code className="text-xs bg-blue-100 px-1 rounded">trip_segments</code>,
+                где <code>executor_type = &apos;contractor&apos;</code> и
+                <code>trips.profit_mode = &apos;forwarding&apos;</code>),
                 блок «Комбинированные» — из участков рейсов
                 (<code className="text-xs bg-blue-100 px-1 rounded">trip_segments</code>,
                 где <code>executor_type = &apos;contractor&apos;</code>).
               </p>
               <p className="text-xs text-blue-700">
-                Суммы приведены в EUR (поле <code>price_eur</code> для экспедирования, <code>price</code> для участков рейсов).
+                Суммы приведены в EUR (поле <code>price</code> у участков).
                 Итоговая валюта исходных платежей может отличаться — смотрите карточку подрядчика.
               </p>
             </div>
