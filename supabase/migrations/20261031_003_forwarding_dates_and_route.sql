@@ -109,7 +109,18 @@ where s.trip_id = t.id
   and coalesce(jsonb_array_length(coalesce(s.stops, '[]'::jsonb)), 0) = 0;
 
 
--- ---------- 3. Дата разгрузки экспедиции — из сегмента подрядчика ----------
+-- ---------- 3. Даты экспедиции — заполняем ТОЛЬКО пустые ----------
+-- Существующие даты не трогаем: они могли быть проставлены вручную
+-- и не совпадать с датой сегмента (загрузка у клиента и у подрядчика
+-- может отличаться на день).
+update public.trips t
+   set load_date = s.date_from
+  from public.trip_segments s
+ where s.trip_id = t.id
+   and t.profit_mode = 'forwarding'
+   and t.load_date is null
+   and s.date_from is not null;
+
 update public.trips t
    set unload_date = s.date_to
   from public.trip_segments s
@@ -117,6 +128,25 @@ update public.trips t
    and t.profit_mode = 'forwarding'
    and t.unload_date is null
    and s.date_to is not null;
+
+-- ---------- 3a. Даты из точек груза (если в сегменте их нет) ----------
+update public.trips t
+   set load_date = fp.date
+  from public.forwarding_points fp
+ where fp.forwarding_id = t.source_forwarding_id
+   and fp.type = 'loading'
+   and fp.date is not null
+   and t.profit_mode = 'forwarding'
+   and t.load_date is null;
+
+update public.trips t
+   set unload_date = fp.date
+  from public.forwarding_points fp
+ where fp.forwarding_id = t.source_forwarding_id
+   and fp.type = 'unloading'
+   and fp.date is not null
+   and t.profit_mode = 'forwarding'
+   and t.unload_date is null;
 
 
 -- ---------- 4. Нумерация после восстановления дат ----------

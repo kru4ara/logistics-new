@@ -47,32 +47,26 @@ export async function renumberAllTrips(
     return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
   });
 
+  // Заказ меняет ветку нумерации, если его текущий номер не совпадает
+  // с режимом: экспедиция без суффикса 'Е' или рейс с суффиксом.
+  // В этом случае пересобираются ЦЕЛИКОМ обе ветки — иначе номера
+  // одной ветки сдвинутся и поедут по порядку.
+  const hasFwdSuffix = (n: unknown) =>
+    typeof n === 'string' && n.endsWith(FORWARDING_SUFFIX);
+  const branchChanged = sorted.some(
+    (t: any) => (t.profit_mode === 'forwarding') !== hasFwdSuffix(t.trip_number)
+  );
+
   const updates: { id: string; newNumber: string }[] = [];
   let counterTrip = 0;
   let counterFwd = 0;
 
-  const rows = sorted.map((t: any) => {
+  sorted.forEach((t: any) => {
     const isForwarding = t.profit_mode === 'forwarding';
     const base = isForwarding ? ++counterFwd : ++counterTrip;
     const expected = isForwarding ? `${base}${FORWARDING_SUFFIX}` : String(base);
-    return { id: t.id, current: t.trip_number as string | null, expected, isForwarding };
-  });
-
-  // Заказ, сменивший ветку расчёта (рейс -> экспедиция или наоборот),
-  // определяется по суффиксу номера: суффикс есть, а режим — рейс,
-  // или режим — экспедиция, а суффикса нет.
-  // В этом случае пересобираются ОБЕ ветки целиком: номер ушедшего
-  // заказа освобождается, а его место могут занять соседи, поэтому
-  // переписываем все номера, а не только изменившийся.
-  const branchChanged = rows.some((r) => {
-    const n = r.current;
-    if (!n || n.startsWith('~')) return false;
-    return n.endsWith(FORWARDING_SUFFIX) !== r.isForwarding;
-  });
-
-  rows.forEach((r) => {
-    if (branchChanged || r.current !== r.expected) {
-      updates.push({ id: r.id, newNumber: r.expected });
+    if (branchChanged || t.trip_number !== expected) {
+      updates.push({ id: t.id, newNumber: expected });
     }
   });
 
