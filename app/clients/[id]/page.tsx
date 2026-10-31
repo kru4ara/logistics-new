@@ -32,8 +32,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
   const { data: trips, error: tripsError } = await supabase
     .from('trips')
     .select('*, drivers!driver_id(first_name, last_name, phone_by, phone_pl), trucks!truck_id(registration_number)')
-    .eq('client_id', clientId)
-    .order('trip_number', { ascending: false });
+    .eq('client_id', clientId);
 
   if (tripsError) {
     console.error('Ошибка загрузки рейсов:', tripsError.message);

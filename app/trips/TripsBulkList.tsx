@@ -21,7 +21,7 @@ import { bulkSetStatus, bulkDelete } from './bulk-actions';
 
 export type TripCardData = {
   id: string;
-  trip_number: number | null;
+  trip_number: string | null;
   status: string;
   route: string | null;
   start_date: string | null;

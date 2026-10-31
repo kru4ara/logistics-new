@@ -85,7 +85,6 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
     .select('id, trip_number, truck_id, trailer_id, trucks!truck_id(registration_number), trailers:trucks!trailer_id(registration_number)')
     .eq('driver_id', driverId)
     .in('status', ['active', 'planned'])
-    .order('trip_number', { ascending: false })
     .limit(1);
 
   const currentTrip: any = currentTripRaw?.[0] || null;
@@ -110,8 +109,7 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
   const { data: trips } = await supabase
     .from('trips')
     .select('id, trip_number, status, revenue_eur, actual_km, actual_liters, start_date, end_date, clients(name)')
-    .eq('driver_id', driverId)
-    .order('trip_number', { ascending: false });
+    .eq('driver_id', driverId);
 
   const tripIds = (trips || []).map((t) => t.id);
   const routeByTrip = new Map<string, string>();

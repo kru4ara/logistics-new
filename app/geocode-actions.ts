@@ -138,7 +138,8 @@ export async function createCargoWithTrip(formData: FormData) {
         start_lng: startLng,
         end_lat: endLat,
         end_lng: endLng,
-        trip_number: 0, // триггер set_trip_number поставит MAX+1
+        // Номер заказа проставляет нумерация (ветка рейсов).
+        trip_number: null,
         status: 'planned',
       },
     ])

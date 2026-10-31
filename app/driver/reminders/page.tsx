@@ -48,7 +48,6 @@ export default async function DriverRemindersPage() {
     .select('truck_id, trailer_id')
     .eq('driver_id', driverId)
     .in('status', ['active', 'planned'])
-    .order('trip_number', { ascending: false })
     .limit(1);
 
   const truckId = activeTrips?.[0]?.truck_id;

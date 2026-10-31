@@ -3,6 +3,7 @@
 import { createClient } from '../../lib/supabase/admin';
 import { getSessionContext } from '../../lib/session';
 import { can } from '../../lib/roles';
+import { FORWARDING_SUFFIX } from '../../lib/orders-core';
 import { buildRouteMap, type SegmentRouteRow } from '../../lib/trip-route';
 
 export type SearchHit = {
@@ -67,12 +68,13 @@ export async function globalSearch(rawQuery: string): Promise<SearchResult> {
   const tripsMap = new Map<string, SearchHit>();
   const tripIdsFromSegments = new Set<string>();
 
-  // 1) Если число — прямой поиск по trip_number
+  // 1) Если число — прямой поиск по номеру заказа (текстовый).
+  //    Номера бывают двух видов: '42' (рейс) и '42Е' (экспедирование).
   if (isNumeric) {
     const { data } = await supabase
       .from('trips')
       .select('id, trip_number, start_date, clients(name)')
-      .eq('trip_number', parseInt(q, 10))
+      .in('trip_number', [q, q + FORWARDING_SUFFIX])
       .limit(LIMIT_PER_DOMAIN);
 
     for (const t of data || []) {
@@ -102,7 +104,6 @@ export async function globalSearch(rawQuery: string): Promise<SearchResult> {
         .from('trips')
         .select('id, trip_number, start_date, clients(name)')
         .in('id', ids)
-        .order('trip_number', { ascending: false })
         .limit(LIMIT_PER_DOMAIN),
       supabase
         .from('trip_segments')

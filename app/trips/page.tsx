@@ -4,6 +4,7 @@ import { can } from '../../lib/roles';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase/admin';
 import { buildRouteMap, type SegmentRouteRow, type TripRouteInfo } from '../../lib/trip-route';
+import { parseOrderNumber } from '../../lib/orders-core';
 import DownloadButton from './DownloadButton';
 import SearchInput from './SearchInput';
 import TripFilters from './TripFilters';
@@ -75,8 +76,7 @@ export default async function TripsPage({
   const [tripsResult, expensesResult, driversResult, tractorsResult, clientsResult, segmentsResult] = await Promise.all([
     supabase
       .from('trips')
-      .select('*, clients(name), drivers!driver_id(first_name, last_name)')
-      .order('trip_number', { ascending: false, nullsFirst: false }),
+      .select('*, clients(name), drivers!driver_id(first_name, last_name)'),
     supabase
       .from('trip_expenses')
       .select('trip_id, amount_eur'),
@@ -187,8 +187,8 @@ export default async function TripsPage({
       const aD = a.start_date ? new Date(a.start_date).getTime() : 0;
       const bD = b.start_date ? new Date(b.start_date).getTime() : 0;
       if (aD !== bD) return bD - aD;
-      const aN = a.trip_number ?? 0;
-      const bN = b.trip_number ?? 0;
+      const aN = parseOrderNumber(a.trip_number).number ?? 0;
+      const bN = parseOrderNumber(b.trip_number).number ?? 0;
       if (aN !== bN) return bN - aN;
       const aT = a.created_at ? new Date(a.created_at).getTime() : 0;
       const bT = b.created_at ? new Date(b.created_at).getTime() : 0;

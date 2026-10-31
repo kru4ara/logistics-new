@@ -83,8 +83,7 @@ async function buildTripsSheet(
       clients(name),
       drivers!driver_id(first_name, last_name),
       trucks!truck_id(registration_number)
-    `)
-    .order('trip_number', { ascending: true });
+    `);
 
   if (from) query = query.gte('start_date', from);
   if (to) query = query.lte('start_date', to);

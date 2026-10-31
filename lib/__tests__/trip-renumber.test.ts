@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { renumberAllTrips } from '../trip-renumber';
 
 function createMockSupabase(mockTrips: any[]) {
-  const updatesMap = new Map<string, number>();
+  const updatesMap = new Map<string, string>();
 
   const mock = {
     from: vi.fn().mockReturnValue({
@@ -17,7 +17,7 @@ function createMockSupabase(mockTrips: any[]) {
           }),
         }),
       }),
-      update: vi.fn().mockImplementation((payload: { trip_number: number }) => ({
+      update: vi.fn().mockImplementation((payload: { trip_number: string }) => ({
         eq: vi.fn().mockImplementation((column: string, value: string) => {
           if (column === 'id') {
             updatesMap.set(value, payload.trip_number);
@@ -30,7 +30,8 @@ function createMockSupabase(mockTrips: any[]) {
 
   return {
     supabase: mock as any,
-    getUpdates: () => Array.from(updatesMap.entries()).map(([id, trip_number]) => ({ id, trip_number })),
+    getUpdates: () =>
+      Array.from(updatesMap.entries()).map(([id, trip_number]) => ({ id, trip_number })),
   };
 }
 
@@ -43,9 +44,9 @@ describe('renumberAllTrips', () => {
 
   it('ничего не делает, если номера уже идут по порядку (1, 2, 3)', async () => {
     const trips = [
-      { id: 't1', trip_number: 1, start_date: '2026-01-01' },
-      { id: 't2', trip_number: 2, start_date: '2026-01-02' },
-      { id: 't3', trip_number: 3, start_date: '2026-01-03' },
+      { id: 't1', trip_number: '1', start_date: '2026-01-01', profit_mode: 'trip' },
+      { id: 't2', trip_number: '2', start_date: '2026-01-02', profit_mode: 'trip' },
+      { id: 't3', trip_number: '3', start_date: '2026-01-03', profit_mode: 'trip' },
     ];
     const { supabase, getUpdates } = createMockSupabase(trips);
     await renumberAllTrips(supabase);
@@ -54,32 +55,58 @@ describe('renumberAllTrips', () => {
 
   it('перенумеровывает, если есть дырки (1, 3, 5 → 1, 2, 3)', async () => {
     const trips = [
-      { id: 't1', trip_number: 1, start_date: '2026-01-01' },
-      { id: 't2', trip_number: 3, start_date: '2026-01-02' },
-      { id: 't3', trip_number: 5, start_date: '2026-01-03' },
+      { id: 't1', trip_number: '1', start_date: '2026-01-01', profit_mode: 'trip' },
+      { id: 't2', trip_number: '3', start_date: '2026-01-02', profit_mode: 'trip' },
+      { id: 't3', trip_number: '5', start_date: '2026-01-03', profit_mode: 'trip' },
     ];
     const { supabase, getUpdates } = createMockSupabase(trips);
     await renumberAllTrips(supabase);
 
     const finalUpdates = getUpdates();
     expect(finalUpdates).toHaveLength(2);
-    expect(finalUpdates.find((u) => u.id === 't2')?.trip_number).toBe(2);
-    expect(finalUpdates.find((u) => u.id === 't3')?.trip_number).toBe(3);
+    expect(finalUpdates.find((u) => u.id === 't2')?.trip_number).toBe('2');
+    expect(finalUpdates.find((u) => u.id === 't3')?.trip_number).toBe('3');
   });
 
   it('перенумеровывает, если номера перепутаны (1, 2, 3 → 3, 1, 2 по дате)', async () => {
     const trips = [
-      { id: 't1', trip_number: 1, start_date: '2026-01-03' },
-      { id: 't2', trip_number: 2, start_date: '2026-01-01' },
-      { id: 't3', trip_number: 3, start_date: '2026-01-02' },
+      { id: 't1', trip_number: '1', start_date: '2026-01-03', profit_mode: 'trip' },
+      { id: 't2', trip_number: '2', start_date: '2026-01-01', profit_mode: 'trip' },
+      { id: 't3', trip_number: '3', start_date: '2026-01-02', profit_mode: 'trip' },
     ];
     const { supabase, getUpdates } = createMockSupabase(trips);
     await renumberAllTrips(supabase);
 
     const finalUpdates = getUpdates();
     expect(finalUpdates).toHaveLength(3);
-    expect(finalUpdates.find((u) => u.id === 't2')?.trip_number).toBe(1);
-    expect(finalUpdates.find((u) => u.id === 't3')?.trip_number).toBe(2);
-    expect(finalUpdates.find((u) => u.id === 't1')?.trip_number).toBe(3);
+    expect(finalUpdates.find((u) => u.id === 't2')?.trip_number).toBe('1');
+    expect(finalUpdates.find((u) => u.id === 't3')?.trip_number).toBe('2');
+    expect(finalUpdates.find((u) => u.id === 't1')?.trip_number).toBe('3');
+  });
+
+  it('ведёт две независимые ветки нумерации с суффиксом Е', async () => {
+    const trips = [
+      { id: 't1', trip_number: '1', start_date: '2026-01-01', profit_mode: 'trip' },
+      { id: 'f1', trip_number: '1Е', start_date: '2026-01-02', profit_mode: 'forwarding' },
+      { id: 't2', trip_number: '2', start_date: '2026-01-03', profit_mode: 'trip' },
+      { id: 'f2', trip_number: '2Е', start_date: '2026-01-04', profit_mode: 'forwarding' },
+    ];
+    const { supabase, getUpdates } = createMockSupabase(trips);
+    await renumberAllTrips(supabase);
+
+    expect(getUpdates().length).toBe(0);
+  });
+
+  it('переводит экспедицию в ветку Е при смене режима', async () => {
+    const trips = [
+      { id: 't1', trip_number: '1', start_date: '2026-01-01', profit_mode: 'trip' },
+      { id: 'f1', trip_number: '2', start_date: '2026-01-02', profit_mode: 'forwarding' },
+    ];
+    const { supabase, getUpdates } = createMockSupabase(trips);
+    await renumberAllTrips(supabase);
+
+    const finalUpdates = getUpdates();
+    expect(finalUpdates.find((u) => u.id === 't1')?.trip_number).toBe('1');
+    expect(finalUpdates.find((u) => u.id === 'f1')?.trip_number).toBe('1Е');
   });
 });

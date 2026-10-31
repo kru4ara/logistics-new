@@ -30,8 +30,7 @@ export default async function Home() {
   // ============================================================
   const { data: trips } = await supabase
     .from('trips')
-    .select('*')
-    .order('trip_number', { ascending: false });
+    .select('*');
 
   const { data: tripExpenses } = await supabase
     .from('trip_expenses')

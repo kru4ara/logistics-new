@@ -4,7 +4,7 @@ import { buildDriverTaskText } from '../trip-task-text';
 // Базовая «заготовка» рейса и сегмента, чтобы не дублировать код в каждом тесте
 const baseTrip = {
   id: 'trip-1',
-  trip_number: 42,
+  trip_number: '42',
   clients: { name: 'ООО Ромашка' },
   start_date: '2026-05-10',
 };

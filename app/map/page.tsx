@@ -23,8 +23,7 @@ export default async function MapPage() {
     .from('trips')
     .select('id, trip_number, status, start_lat, start_lng, end_lat, end_lng, start_date')
     .not('start_lat', 'is', null)
-    .not('start_lng', 'is', null)
-    .order('trip_number', { ascending: false });
+    .not('start_lng', 'is', null);
 
   if (error) {
     return <div className="p-8 text-red-500">Ошибка загрузки рейсов: {error.message}</div>;

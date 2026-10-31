@@ -74,8 +74,7 @@ export default async function DriverPage({
   const { data: trips, error } = await supabase
     .from('trips')
     .select('*, clients(name)')
-    .eq('driver_id', driverId)
-    .order('trip_number', { ascending: false });
+    .eq('driver_id', driverId);
 
   if (error) {
     return <div className="p-6 text-red-500">Ошибка загрузки рейсов: {error.message}</div>;

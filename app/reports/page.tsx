@@ -115,8 +115,7 @@ export default async function ReportsPage({
   // 1. Запрос рейсов с фильтрами
   let tripsQuery = supabase
     .from('trips')
-    .select('*, clients(name)')
-    .order('trip_number', { ascending: false });
+    .select('*, clients(name)');
 
   if (from) tripsQuery = tripsQuery.gte('start_date', from);
   if (to) tripsQuery = tripsQuery.lte('start_date', to);

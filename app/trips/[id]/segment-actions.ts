@@ -142,7 +142,6 @@ async function calcFuelFromPrevTrip(
     .eq('truck_id', truckId)
     .neq('id', currentTripId)
     .not('trip_number', 'is', null)
-    .order('trip_number', { ascending: false })
     .limit(1)
     .maybeSingle();
 
@@ -208,7 +207,6 @@ async function calcSuggestedStartDate(
     .eq('truck_id', truckId)
     .neq('id', currentTripId)
     .not('end_date', 'is', null)
-    .order('trip_number', { ascending: false })
     .limit(1)
     .maybeSingle();
 
