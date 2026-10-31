@@ -213,8 +213,8 @@ describe('нумерация по дате выгрузки (строго)', () 
 
   it('экспедиция в пути уходит в конец своей ветки', () => {
     const res = renumberOrders([
-      { id: 'fwdInTransit', load_date: '2026-10-27', created_at: '2026-10-14', executor_type: 'contractor', contractor_id: 'c1' },
-      { id: 'fwdDone', unload_date: '2026-10-28', created_at: '2026-10-20', executor_type: 'contractor', contractor_id: 'c2' },
+      { id: 'fwdInTransit', profit_mode: 'forwarding', load_date: '2026-10-27', created_at: '2026-10-14', executor_type: 'contractor', contractor_id: 'c1' },
+      { id: 'fwdDone', profit_mode: 'forwarding', unload_date: '2026-10-28', created_at: '2026-10-20', executor_type: 'contractor', contractor_id: 'c2' },
     ], 'forwarding');
     const map = Object.fromEntries(res.map((r) => [r.id, r.trip_number]));
     expect(map.fwdDone).toBe('1Е');
