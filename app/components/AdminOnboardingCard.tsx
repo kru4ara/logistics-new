@@ -4,7 +4,6 @@ import { useTransition } from 'react';
 import {
   Sparkles,
   Package,
-  Boxes,
   Users,
   BarChart3,
   Calendar,
@@ -22,14 +21,6 @@ const LINKS = [
     Icon: Package,
     color: 'text-brand-600',
     bg: 'bg-brand-50',
-  },
-  {
-    href: '/forwarding',
-    title: 'Экспедирование',
-    hint: 'Заявки клиентов на перевозку, точки, подрядчики',
-    Icon: Boxes,
-    color: 'text-violet-600',
-    bg: 'bg-violet-50',
   },
   {
     href: '/drivers',

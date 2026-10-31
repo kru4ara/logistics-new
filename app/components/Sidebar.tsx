@@ -6,7 +6,6 @@ import { can, isDriverRole } from '../../lib/roles';
 import { useEffect, useState } from 'react';
 import {
   Package,
-  Boxes,
   Route,
   Map,
   Users,
@@ -47,7 +46,6 @@ const adminSections: NavSection[] = [
     title: 'Работа',
     items: [
       { href: '/trips', label: 'Заказы', icon: Package },
-      { href: '/forwarding', label: 'Экспедирование', icon: Boxes },
       { href: '/routes', label: 'Маршруты', icon: Route },
       { href: '/map', label: 'Карта', icon: Map },
     ],
