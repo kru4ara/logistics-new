@@ -48,6 +48,7 @@ export default async function TripsPage({
     truck?: string;
     client?: string;
     sort?: string;
+    mode?: string;
   }>;
 }) {
   const { role } = await getSessionContext();
@@ -70,8 +71,16 @@ export default async function TripsPage({
   const clientFilter = resolvedParams?.client || null;
   const sortBy: 'start' | 'created' = resolvedParams?.sort === 'created' ? 'created' : 'start';
   
+  // Режим расчёта: 'trip' (рейс) | 'forwarding' (экспедирование).
+  const modeFilter: 'trip' | 'forwarding' | null =
+    resolvedParams?.mode === 'forwarding'
+      ? 'forwarding'
+      : resolvedParams?.mode === 'trip'
+        ? 'trip'
+        : null;
+
   const hasExtraFilter =
-    Boolean(q) || Boolean(statusFilter) || Boolean(driverFilter) || Boolean(truckFilter) || Boolean(clientFilter);
+    Boolean(q) || Boolean(statusFilter) || Boolean(driverFilter) || Boolean(truckFilter) || Boolean(clientFilter) || Boolean(modeFilter);
 
   const [tripsResult, expensesResult, driversResult, tractorsResult, clientsResult, segmentsResult] = await Promise.all([
     supabase
@@ -142,6 +151,26 @@ export default async function TripsPage({
     return t.status === statusFilter;
   }
 
+  // Режим расчёта заказа: 'trip' по умолчанию, 'forwarding' — экспедирование.
+  function orderMode(t: any): 'trip' | 'forwarding' {
+    return t.profit_mode === 'forwarding' ? 'forwarding' : 'trip';
+  }
+
+  function matchesMode(t: any): boolean {
+    if (!modeFilter) return true;
+    return orderMode(t) === modeFilter;
+  }
+
+  // Месяц заказа зависит от режима:
+  //   рейс       -> end_date || start_date
+  //   экспедиция -> load_date || unload_date
+  function orderDate(t: any): string | null {
+    if (orderMode(t) === 'forwarding') {
+      return t.load_date || t.unload_date || null;
+    }
+    return t.end_date || t.start_date || null;
+  }
+
   function matchesDriver(t: any): boolean {
     if (!driverFilter) return true;
     return t.driver_id === driverFilter;
@@ -163,8 +192,9 @@ export default async function TripsPage({
     if (!matchesDriver(t)) return false;
     if (!matchesTruck(t)) return false;
     if (!matchesClient(t)) return false;
+    if (!matchesMode(t)) return false;
 
-    const date = t.end_date || t.start_date;
+    const date = orderDate(t);
 
     if (!date) return true;
 
@@ -184,8 +214,10 @@ export default async function TripsPage({
     });
   } else {
     filteredTrips.sort((a, b) => {
-      const aD = a.start_date ? new Date(a.start_date).getTime() : 0;
-      const bD = b.start_date ? new Date(b.start_date).getTime() : 0;
+      const aDate = orderDate(a);
+      const bDate = orderDate(b);
+      const aD = aDate ? new Date(aDate).getTime() : 0;
+      const bD = bDate ? new Date(bDate).getTime() : 0;
       if (aD !== bD) return bD - aD;
       const aN = parseOrderNumber(a.trip_number).number ?? 0;
       const bN = parseOrderNumber(b.trip_number).number ?? 0;
@@ -196,13 +228,11 @@ export default async function TripsPage({
     });
   }
 
-  const filteredWithoutDate = filteredTrips.filter(
-    (t) => !t.start_date && !t.end_date
-  );
+  const filteredWithoutDate = filteredTrips.filter((t) => !orderDate(t));
 
   const tripsByMonth: Record<string, { month: number; trips: any[] }> = {};
   filteredTrips.forEach((t) => {
-    const date = t.start_date || t.end_date;
+    const date = orderDate(t);
     if (!date) return;
     const d = new Date(date);
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -214,7 +244,7 @@ export default async function TripsPage({
 
   const tripYears = new Set<number>();
   trips?.forEach((t) => {
-    const date = t.end_date || t.start_date;
+    const date = orderDate(t);
     if (date) tripYears.add(new Date(date).getFullYear());
   });
   tripYears.add(currentYear);
@@ -235,6 +265,7 @@ export default async function TripsPage({
     truck?: string | null;
     client?: string | null;
     sort?: 'start' | 'created' | null;
+    mode?: 'trip' | 'forwarding' | null;
   }): string {
     const params = new URLSearchParams();
     const y = overrides.year !== undefined ? overrides.year : year;
@@ -245,6 +276,7 @@ export default async function TripsPage({
     const tr = overrides.truck === undefined ? truckFilter : overrides.truck;
     const cl = overrides.client === undefined ? clientFilter : overrides.client;
     const so = overrides.sort === undefined ? (sortBy === 'created' ? 'created' : null) : overrides.sort;
+    const mo = overrides.mode === undefined ? modeFilter : overrides.mode;
     if (y) params.set('year', String(y));
     if (m) params.set('month', String(m));
     if (qq) params.set('q', qq);
@@ -253,6 +285,7 @@ export default async function TripsPage({
     if (tr) params.set('truck', tr);
     if (cl) params.set('client', cl);
     if (so) params.set('sort', so);
+    if (mo) params.set('mode', mo);
     const s = params.toString();
     return s ? `/trips?${s}` : '/trips';
   }
@@ -271,6 +304,7 @@ export default async function TripsPage({
       start_date: t.start_date ?? null,
       end_date: t.end_date ?? null,
       client_request_number: t.client_request_number ?? null,
+      profit_mode: orderMode(t),
       revenue_eur: t.revenue_eur ?? null,
       expenses: expensesByTrip[t.id] || 0,
       clientName: pickName(t.clients) || 'Не указан',
@@ -349,6 +383,7 @@ export default async function TripsPage({
             currentDriver={driverFilter}
             currentTruck={truckFilter}
             currentSort={sortBy}
+            currentMode={modeFilter}
           />
 
           <div className="grid grid-cols-3 gap-3 pt-4 border-t border-slate-100">
@@ -388,7 +423,7 @@ export default async function TripsPage({
             </p>
             {isSearchMode ? (
               <Link
-                href={buildUrl({ q: null, status: null, driver: null, truck: null, client: null })}
+                href={buildUrl({ q: null, status: null, driver: null, truck: null, client: null, mode: null })}
                 className="inline-flex items-center gap-2 bg-slate-200 hover:bg-slate-300 text-slate-700
                            font-semibold px-6 py-3 rounded-xl transition-all"
               >
