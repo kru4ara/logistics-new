@@ -55,9 +55,17 @@ update public.trips
 
 -- ---------- 4. Счётчик под две ветки нумерации ----------
 -- trip_counter: id = 1 (рейсы), id = 2 (экспедиции).
+create table if not exists public.trip_counter (
+  id          integer primary key,
+  last_number integer not null default 0
+);
+
 insert into public.trip_counter (id, last_number)
 values (1, 0), (2, 0)
-on conflict (id) do nothing;
+on conflict (id) do update set last_number = greatest(
+  public.trip_counter.last_number,
+  excluded.last_number
+);
 
 -- ---------- 5. Перенумерация в двух ветках ----------
 
@@ -73,10 +81,12 @@ declare
   v_eligible boolean;
 begin
   -- Двухфазная схема: сначала временные значения, потом финальные.
-  -- Временные номера начинаются с префикса, который не пересекается
-  -- с реальными ('~' не встречается в номерах).
+  -- Временный номер содержит ТОЛЬКО цифры в диапазоне int.
+  -- Раньше здесь был '~' || id::text — uuid даёт 19-значное число,
+  -- и индекс ((regexp_replace(trip_number,'[^0-9]','','g'))::integer)
+  -- падал с ошибкой переполнения integer.
   update public.trips
-     set trip_number = '~' || id::text
+     set trip_number = '~0'
    where trip_number is not null;
 
   for r in

@@ -157,7 +157,7 @@ insert into public.trip_expenses (
 )
 select
   t.id,
-  'forwarding',
+  coalesce(fe.category, 'forwarding'),
   coalesce(fe.amount_eur, 0),
   coalesce(fe.currency, 'EUR'),
   fe.description,
@@ -169,7 +169,7 @@ where not exists (
   select 1
   from public.trip_expenses e
   where e.trip_id = t.id
-    and e.category = 'forwarding'
+    and e.category = coalesce(fe.category, 'forwarding')
     and e.expense_date is not distinct from fe.expense_date
     and e.amount_eur = fe.amount_eur
 );

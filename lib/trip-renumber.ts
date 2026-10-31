@@ -21,8 +21,9 @@ export async function renumberAllTrips(
 ): Promise<void> {
   const { data: trips, error } = await supabase
     .from('trips')
-    .select('id, trip_number, start_date, load_date, profit_mode')
+    .select('id, trip_number, start_date, load_date, created_at, profit_mode')
     .order('start_date', { ascending: true, nullsFirst: false })
+    .order('created_at', { ascending: true })
     .order('id', { ascending: true });
 
   if (error) {
@@ -32,11 +33,26 @@ export async function renumberAllTrips(
 
   if (!trips || trips.length === 0) return;
 
+  // Сортировка внутри ветки нумерации — как в renumber_all_trips (БД):
+  //   дата старта ASC (для экспедиции — дата загрузки),
+  //   при равенстве дат — дата создания ASC, затем id ASC.
+  const sorted = [...trips].sort((a: any, b: any) => {
+    const da = a.start_date || a.load_date || null;
+    const db = b.start_date || b.load_date || null;
+    if (da && db && da !== db) return da < db ? -1 : 1;
+    if (da && !db) return -1;
+    if (!da && db) return 1;
+    const ca = a.created_at || '';
+    const cb = b.created_at || '';
+    if (ca !== cb) return ca < cb ? -1 : 1;
+    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+  });
+
   const updates: { id: string; newNumber: string }[] = [];
   let counterTrip = 0;
   let counterFwd = 0;
 
-  trips.forEach((t: any) => {
+  sorted.forEach((t: any) => {
     const isForwarding = t.profit_mode === 'forwarding';
     const base = isForwarding ? ++counterFwd : ++counterTrip;
     const expected = isForwarding ? `${base}${FORWARDING_SUFFIX}` : String(base);

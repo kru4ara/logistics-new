@@ -205,7 +205,9 @@ export function calculateStatistics({
       } else {
         tripsCount += 1;
         tripRevenue += revenue;
-        directExpenses += otherExpenses;
+        // Подрядчик в рейсе — тоже расход: раньше он не вычитался,
+        // и прибыль рейсов была завышена.
+        directExpenses += otherExpenses + contractorExpenses;
       }
     });
 

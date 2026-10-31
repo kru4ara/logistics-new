@@ -44,15 +44,15 @@ export function toNum(v: unknown): number {
 
 /**
  * Дата заказа для фильтра по периоду — зависит от режима расчёта:
- *   trip       -> start_date
- *   forwarding -> load_date
+ *   trip       -> end_date || start_date
+ *   forwarding -> load_date || unload_date
  */
 export function getOrderPeriodDate(order: any): string | null {
   const mode = order?.profit_mode === 'forwarding' ? 'forwarding' : 'trip';
   const raw =
     mode === 'forwarding'
       ? order?.load_date || order?.unload_date
-      : order?.start_date || order?.end_date;
+      : order?.end_date || order?.start_date;
   if (!raw) return null;
   const d = new Date(raw);
   if (isNaN(d.getTime())) return null;

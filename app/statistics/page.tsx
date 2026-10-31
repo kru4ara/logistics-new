@@ -34,29 +34,24 @@ export default async function StatisticsPage({ searchParams }: { searchParams: P
 
   const orderIds = orders?.map((o) => o.id) || [];
 
-  // 2. Расходы заказов
+  // 2. Расходы заказов.
+  // Подрядчик НЕ дублируется: сумма подрядчика живёт в trip_expenses
+  // (категория 'contractor') и автоматически создаётся из сегмента.
+  // Если считать подрядчика ещё и в trip_segments.price, он вычтется дважды.
   const expensesByOrder: Record<string, number> = {};
+  const contractorByOrder: Record<string, number> = {};
   if (orderIds.length > 0) {
     const { data: allExpenses } = await supabase
       .from('trip_expenses')
-      .select('amount_eur, trip_id');
+      .select('amount_eur, trip_id, category');
     allExpenses?.forEach((e) => {
       if (!e.trip_id) return;
-      expensesByOrder[e.trip_id] = (expensesByOrder[e.trip_id] || 0) + (e.amount_eur || 0);
-    });
-  }
-
-  // 3. Подрядчики заказов (экспедиции и субподряд в рейсах)
-  const contractorByOrder: Record<string, number> = {};
-  if (orderIds.length > 0) {
-    const { data: segments } = await supabase
-      .from('trip_segments')
-      .select('trip_id, price, executor_type')
-      .in('trip_id', orderIds)
-      .eq('executor_type', 'contractor');
-    segments?.forEach((s) => {
-      if (!s.trip_id) return;
-      contractorByOrder[s.trip_id] = (contractorByOrder[s.trip_id] || 0) + (s.price || 0);
+      const amount = e.amount_eur || 0;
+      if (e.category === 'contractor') {
+        contractorByOrder[e.trip_id] = (contractorByOrder[e.trip_id] || 0) + amount;
+      } else {
+        expensesByOrder[e.trip_id] = (expensesByOrder[e.trip_id] || 0) + amount;
+      }
     });
   }
 

@@ -11,11 +11,12 @@ export default function TripEconomics({
   otherExpenses: number;
   profit: number;
 }) {
+  const isForwarding = trip?.profit_mode === 'forwarding';
   return (
     <div className="card p-5 md:p-6">
       <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
         <Wallet className="w-5 h-5 text-brand-600" strokeWidth={2} />
-        Экономика рейса
+        {isForwarding ? 'Экономика экспедиции' : 'Экономика рейса'}
       </h2>
 
       <div className="space-y-3">

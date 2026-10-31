@@ -240,9 +240,18 @@ export async function updateTrip(tripId: string, formData: FormData) {
 
   const { data: before } = await supabase
     .from('trips')
-    .select('trip_number, revenue_eur, driver_id, truck_id, client_id, start_date, end_date, client_request_number, start_fuel_level, start_lat, start_lng, end_lat, end_lng')
+    .select('trip_number, revenue_eur, driver_id, truck_id, client_id, start_date, end_date, load_date, unload_date, profit_mode, client_request_number, start_fuel_level, start_lat, start_lng, end_lat, end_lng')
     .eq('id', tripId)
     .single();
+
+  // Даты заказа зависят от режима расчёта:
+  //   рейс       -> start_date / end_date
+  //   экспедиция -> load_date / unload_date
+  const isForwarding = before?.profit_mode === 'forwarding';
+  const startDate = (formData.get('start_date') as string) || null;
+  const endDate = (formData.get('end_date') as string) || null;
+  const loadDate = (formData.get('load_date') as string) || null;
+  const unloadDate = (formData.get('unload_date') as string) || null;
 
   let startLat = before?.start_lat ?? 0;
   let startLng = before?.start_lng ?? 0;
@@ -268,7 +277,12 @@ export async function updateTrip(tripId: string, formData: FormData) {
       start_lat: startLat,
       start_lng: startLng,
       end_lat: endLat,
-      end_lng: endLng
+      end_lng: endLng,
+      // Даты пишем только для своего режима — поля другого режима
+      // остаются нетронутыми.
+      ...(isForwarding
+        ? { load_date: loadDate, unload_date: unloadDate }
+        : { start_date: startDate, end_date: endDate }),
     })
     .eq('id', tripId);
 
@@ -280,13 +294,21 @@ export async function updateTrip(tripId: string, formData: FormData) {
         client_id: before.client_id,
         client_request_number: before.client_request_number,
         start_fuel_level: before.start_fuel_level,
+        start_date: before.start_date,
+        end_date: before.end_date,
+        load_date: before.load_date,
+        unload_date: before.unload_date,
       },
       {
         client_id: clientId || null,
         client_request_number: clientRequestNumber || null,
         start_fuel_level: startFuelLevel,
+        start_date: isForwarding ? before.start_date : startDate,
+        end_date: isForwarding ? before.end_date : endDate,
+        load_date: isForwarding ? loadDate : before.load_date,
+        unload_date: isForwarding ? unloadDate : before.unload_date,
       },
-      ['client_id', 'client_request_number', 'start_fuel_level']
+      ['client_id', 'client_request_number', 'start_fuel_level', 'start_date', 'end_date', 'load_date', 'unload_date']
     );
 
     const changedCount = Object.keys(changes).length;
