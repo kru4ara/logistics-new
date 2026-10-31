@@ -161,7 +161,7 @@ describe('calculateProfitability', () => {
 });
 
 describe('getOrderPeriodDate', () => {
-  it('берёт дату финиша для рейса, загрузки для экспедирования', () => {
+  it('берёт дату выгрузки: финиш для рейса, разгрузку для экспедирования', () => {
     expect(
       getOrderPeriodDate({
         profit_mode: 'trip',
@@ -170,11 +170,21 @@ describe('getOrderPeriodDate', () => {
       })
     ).toBe('2026-05-05');
 
+    // Загружен в апреле, выгружен в мае — экспедирование майское.
     expect(
       getOrderPeriodDate({
         profit_mode: 'forwarding',
         load_date: '2026-04-10',
         unload_date: '2026-05-20',
+      })
+    ).toBe('2026-05-20');
+
+    // Без даты разгрузки — запасной вариант по загрузке.
+    expect(
+      getOrderPeriodDate({
+        profit_mode: 'forwarding',
+        load_date: '2026-04-10',
+        unload_date: null,
       })
     ).toBe('2026-04-10');
   });

@@ -180,7 +180,7 @@ export function getOrderMonthKey(
     end_date?: string | null;
     load_date?: string | null;
     unload_date?: string | null;
-  },
+  } | null | undefined,
   fallbackMode: ProfitMode = 'trip'
 ): string | null {
   const raw = getOrderUnloadDate(order, fallbackMode);
@@ -204,9 +204,10 @@ export function getOrderUnloadDate(
     end_date?: string | null;
     load_date?: string | null;
     unload_date?: string | null;
-  },
+  } | null | undefined,
   fallbackMode: ProfitMode = 'trip'
 ): string | null {
+  if (!order) return null;
   const mode: ProfitMode = order.profit_mode === 'forwarding' ? 'forwarding' : fallbackMode;
   return mode === 'forwarding'
     ? order.unload_date || order.load_date || null

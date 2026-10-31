@@ -76,7 +76,7 @@ describe('calculateStatistics', () => {
     expect(result.avgProfitPerTrip).toBe(1150);
   });
 
-  it('считает заказ-экспедирование по дате загрузки, рейс — по финишу', () => {
+  it('считает заказ-экспедирование по дате разгрузки, рейс — по финишу', () => {
     const orders = [
       {
         id: 'f1',
@@ -109,13 +109,14 @@ describe('calculateStatistics', () => {
     const apr = result.months.find((m) => m.monthKey === '2026-04')!;
     const may = result.months.find((m) => m.monthKey === '2026-05')!;
 
-    expect(apr.forwardingCount).toBe(1);
-    expect(apr.forwardingClientSum).toBe(1000);
-    expect(apr.tripsCount).toBe(0);
-
+    // Экспедиция загружена в апреле, выгружена в мае — идёт в мае.
+    expect(may.forwardingCount).toBe(1);
+    expect(may.forwardingClientSum).toBe(1000);
     expect(may.tripsCount).toBe(1);
     expect(may.tripRevenue).toBe(2000);
-    expect(may.forwardingCount).toBe(0);
+
+    expect(apr.forwardingCount).toBe(0);
+    expect(apr.tripsCount).toBe(0);
   });
 
   it('годовую подписку (yearly) относит целиком в месяц оплаты', () => {
