@@ -71,69 +71,109 @@ function r2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
+/** Дата периода заказа: рейс — финиш (приоритет) или старт,
+ *  экспедиция — загрузка (приоритет) или разгрузка. */
+function orderPeriodDate(o: any): string | null {
+  const isFwd = o?.profit_mode === 'forwarding';
+  const raw = isFwd ? o.load_date || o.unload_date : o.end_date || o.start_date;
+  if (!raw) return null;
+  const d = new Date(raw);
+  if (isNaN(d.getTime())) return null;
+  return d.toISOString().slice(0, 10);
+}
+
+/** Расходы заказа: прямые + подрядчики (сегменты executor_type='contractor'). */
+async function loadOrderExpenses(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  orderIds: string[]
+): Promise<{ direct: Record<string, number>; contractor: Record<string, number> }> {
+  const direct: Record<string, number> = {};
+  const contractor: Record<string, number> = {};
+  if (orderIds.length === 0) return { direct, contractor };
+
+  const { data: exp, error: expErr } = await supabase
+    .from('trip_expenses')
+    .select('trip_id, amount_eur')
+    .in('trip_id', orderIds);
+  if (expErr) console.error('[export] expenses error:', expErr);
+  (exp || []).forEach((e: any) => {
+    if (!e.trip_id) return;
+    direct[e.trip_id] = (direct[e.trip_id] || 0) + toNumber(e.amount_eur);
+  });
+
+  const { data: cs, error: csErr } = await supabase
+    .from('trip_segments')
+    .select('trip_id, price')
+    .in('trip_id', orderIds)
+    .eq('executor_type', 'contractor');
+  if (csErr) console.error('[export] contractor segments error:', csErr);
+  (cs || []).forEach((s: any) => {
+    if (!s.trip_id) return;
+    contractor[s.trip_id] = (contractor[s.trip_id] || 0) + toNumber(s.price);
+  });
+
+  return { direct, contractor };
+}
+
 async function buildTripsSheet(
   supabase: Awaited<ReturnType<typeof createClient>>,
   from: string | null,
   to: string | null
 ): Promise<ExcelJS.Worksheet> {
-  let query = supabase
+  // Единый источник: заказы (рейсы + экспедирования).
+  const { data: orders, error } = await supabase
     .from('trips')
     .select(`
-      id, trip_number, start_date, end_date, status, revenue_eur, actual_km,
+      id, trip_number, start_date, end_date, load_date, unload_date, status,
+      profit_mode, is_forwarding, revenue_eur, actual_km,
       clients(name),
       drivers!driver_id(first_name, last_name),
       trucks!truck_id(registration_number)
     `);
+  if (error) console.error('[export/orders] orders error:', error);
 
-  if (from) query = query.gte('start_date', from);
-  if (to) query = query.lte('start_date', to);
+  const rowsSrc = (orders || []).filter((o: any) => {
+    const d = orderPeriodDate(o);
+    if (!d) return false;
+    if (from && d < from) return false;
+    if (to && d > to) return false;
+    return true;
+  });
 
-  const { data: trips, error } = await query;
-  if (error) console.error('[export/trips] trips error:', error);
+  const orderIds = rowsSrc.map((o: any) => o.id).filter(Boolean) as string[];
 
-  const tripIds = (trips || []).map((t: any) => t.id).filter(Boolean) as string[];
-
-  const { data: segs } = tripIds.length > 0
+  const { data: segs } = orderIds.length > 0
     ? await supabase
         .from('trip_segments')
         .select('trip_id, position, from_city, from_country, to_city, to_country')
-        .in('trip_id', tripIds)
+        .in('trip_id', orderIds)
     : { data: [] };
   const routeByTrip = buildRouteMap(segs || []);
 
-  const expensesByTrip: Record<string, number> = {};
-  if (tripIds.length > 0) {
-    const { data: exp, error: expErr } = await supabase
-      .from('trip_expenses')
-      .select('trip_id, amount_eur')
-      .in('trip_id', tripIds);
-    if (expErr) console.error('[export/trips] expenses error:', expErr);
-    (exp || []).forEach((e: any) => {
-      if (!e.trip_id) return;
-      expensesByTrip[e.trip_id] = (expensesByTrip[e.trip_id] || 0) + toNumber(e.amount_eur);
-    });
-  }
+  const { direct, contractor } = await loadOrderExpenses(supabase, orderIds);
 
-  const rows: Record<string, unknown>[] = (trips || []).map((t: any) => {
-    const exp = expensesByTrip[t.id] || 0;
-    const revenue = toNumber(t.revenue_eur);
-    const driver = t.drivers
-      ? `${t.drivers.first_name || ''} ${t.drivers.last_name || ''}`.trim()
+  const rows: Record<string, unknown>[] = rowsSrc.map((o: any) => {
+    const exp = (direct[o.id] || 0) + (contractor[o.id] || 0);
+    const revenue = toNumber(o.revenue_eur);
+    const driver = o.drivers
+      ? `${o.drivers.first_name || ''} ${o.drivers.last_name || ''}`.trim()
       : '';
-    const routeInfo = routeByTrip.get(t.id);
+    const routeInfo = routeByTrip.get(o.id);
+    const isFwd = o.profit_mode === 'forwarding';
     return {
-      tripNumber: t.trip_number || '',
-      start: isoDate(t.start_date),
-      end: isoDate(t.end_date),
-      client: pickName(t.clients),
-      truck: t.trucks?.registration_number || '',
+      tripNumber: o.trip_number || '',
+      mode: isFwd ? 'Экспедирование' : 'Заказ',
+      start: isoDate(isFwd ? o.load_date : o.start_date),
+      end: isoDate(isFwd ? o.unload_date : o.end_date),
+      client: pickName(o.clients),
+      truck: o.trucks?.registration_number || '',
       driver,
       route: routeInfo?.route || '',
       revenue: r2(revenue),
       expenses: r2(exp),
       profit: r2(revenue - exp),
-      km: toNumber(t.actual_km),
-      status: statusLabel(t.status),
+      km: toNumber(o.actual_km),
+      status: statusLabel(o.status),
     };
   });
 
@@ -144,6 +184,7 @@ async function buildTripsSheet(
   if (rows.length > 0) {
     rows.push({
       tripNumber: 'ИТОГО',
+      mode: '',
       start: '',
       end: '',
       client: '',
@@ -160,9 +201,10 @@ async function buildTripsSheet(
 
   const ws = new ExcelJS.Workbook().addWorksheet('Заказы');
   ws.columns = [
-    { header: '№ рейса', key: 'tripNumber', width: 10 },
-    { header: 'Старт', key: 'start', width: 12 },
-    { header: 'Финиш', key: 'end', width: 12 },
+    { header: '№ заказа', key: 'tripNumber', width: 12 },
+    { header: 'Режим', key: 'mode', width: 16 },
+    { header: 'Начало', key: 'start', width: 12 },
+    { header: 'Окончание', key: 'end', width: 12 },
     { header: 'Клиент', key: 'client', width: 25 },
     { header: 'Тягач', key: 'truck', width: 12 },
     { header: 'Водитель', key: 'driver', width: 20 },
@@ -223,10 +265,10 @@ async function buildExpensesSheet(
     });
   }
 
-  const ws = new ExcelJS.Workbook().addWorksheet('Расходы рейсов');
+  const ws = new ExcelJS.Workbook().addWorksheet('Расходы заказов');
   ws.columns = [
     { header: 'Дата', key: 'date', width: 12 },
-    { header: 'Рейс №', key: 'tripNumber', width: 10 },
+    { header: 'Заказ №', key: 'tripNumber', width: 12 },
     { header: 'Категория', key: 'category', width: 18 },
     { header: 'Описание', key: 'description', width: 40 },
     { header: 'Сумма', key: 'amount', width: 12 },
@@ -243,55 +285,34 @@ async function buildForwardingSheet(
   from: string | null,
   to: string | null
 ): Promise<ExcelJS.Worksheet> {
-  let query = supabase
-    .from('forwarding_orders')
+  // Экспедирования — это заказы с profit_mode='forwarding'.
+  const { data: orders, error } = await supabase
+    .from('trips')
     .select(`
-      id, order_number, load_date, unload_date, status,
-      client_price_eur, original_client_price, original_currency,
-      clients(name)
+      id, trip_number, load_date, unload_date, status, revenue_eur,
+      profit_mode, clients(name)
     `)
-    .order('order_number', { ascending: true });
+    .eq('profit_mode', 'forwarding');
 
-  if (from) query = query.gte('load_date', from);
-  if (to) query = query.lte('load_date', to);
-
-  const { data: orders, error } = await query;
   if (error) console.error('[export/forwarding] orders error:', error);
 
-  const ids = (orders || []).map((o: any) => o.id).filter(Boolean) as string[];
+  const rowsSrc = (orders || []).filter((o: any) => {
+    const d = orderPeriodDate(o);
+    if (!d) return false;
+    if (from && d < from) return false;
+    if (to && d > to) return false;
+    return true;
+  });
 
-  const contractorsByFwd: Record<string, number> = {};
-  if (ids.length > 0) {
-    const { data: fc, error: fcErr } = await supabase
-      .from('forwarding_contractors')
-      .select('forwarding_id, price_eur')
-      .in('forwarding_id', ids);
-    if (fcErr) console.error('[export/forwarding] contractors error:', fcErr);
-    (fc || []).forEach((c: any) => {
-      if (!c.forwarding_id) return;
-      contractorsByFwd[c.forwarding_id] = (contractorsByFwd[c.forwarding_id] || 0) + toNumber(c.price_eur);
-    });
-  }
+  const ids = rowsSrc.map((o: any) => o.id).filter(Boolean) as string[];
+  const { direct, contractor } = await loadOrderExpenses(supabase, ids);
 
-  const expensesByFwd: Record<string, number> = {};
-  if (ids.length > 0) {
-    const { data: fe, error: feErr } = await supabase
-      .from('forwarding_expenses')
-      .select('forwarding_id, amount_eur')
-      .in('forwarding_id', ids);
-    if (feErr) console.error('[export/forwarding] expenses error:', feErr);
-    (fe || []).forEach((e: any) => {
-      if (!e.forwarding_id) return;
-      expensesByFwd[e.forwarding_id] = (expensesByFwd[e.forwarding_id] || 0) + toNumber(e.amount_eur);
-    });
-  }
-
-  const rows: Record<string, unknown>[] = (orders || []).map((o: any) => {
-    const clientPrice = toNumber(o.client_price_eur);
-    const cSum = contractorsByFwd[o.id] || 0;
-    const eSum = expensesByFwd[o.id] || 0;
+  const rows: Record<string, unknown>[] = rowsSrc.map((o: any) => {
+    const clientPrice = toNumber(o.revenue_eur);
+    const cSum = contractor[o.id] || 0;
+    const eSum = direct[o.id] || 0;
     return {
-      orderNumber: o.order_number || '',
+      orderNumber: o.trip_number || '',
       loadDate: isoDate(o.load_date),
       unloadDate: isoDate(o.unload_date),
       client: pickName(o.clients),
@@ -323,7 +344,7 @@ async function buildForwardingSheet(
 
   const ws = new ExcelJS.Workbook().addWorksheet('Экспедирование');
   ws.columns = [
-    { header: '№ заявки', key: 'orderNumber', width: 12 },
+    { header: '№ заказа', key: 'orderNumber', width: 12 },
     { header: 'Дата загрузки', key: 'loadDate', width: 14 },
     { header: 'Дата выгрузки', key: 'unloadDate', width: 14 },
     { header: 'Клиент', key: 'client', width: 25 },
@@ -421,7 +442,7 @@ export async function GET(request: Request) {
       baseName = `Trips_${from || 'all'}_${to || 'all'}`;
     } else if (type === 'expenses') {
       sheet = await buildExpensesSheet(supabase, from, to);
-      sheetName = 'Расходы рейсов';
+      sheetName = 'Расходы заказов';
       baseName = `Expenses_${from || 'all'}_${to || 'all'}`;
     } else if (type === 'forwarding') {
       sheet = await buildForwardingSheet(supabase, from, to);
