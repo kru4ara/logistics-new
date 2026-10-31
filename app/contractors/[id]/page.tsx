@@ -64,16 +64,19 @@ function fmtEur(n: number): string {
   return n.toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' €';
 }
 
-function pickLoc(rel: unknown): { city?: string; country?: string } {
-  if (!rel) return {};
-  if (Array.isArray(rel)) return (rel[0] || {}) as { city?: string; country?: string };
-  return rel as { city?: string; country?: string };
+// Маршрут экспедиции: точки лежат в trip_segments.stops (jsonb)
+// в общем с рейсами формате {type:'load'|'reload'|'unload'|'customs', city, country}.
+function stopStr(stop: any): string {
+  if (!stop) return '';
+  return [stop.city, stop.country].filter(Boolean).join(', ');
 }
 
-function locStr(p: any): string {
-  if (!p) return '';
-  const loc = pickLoc(p.locations);
-  return [loc.city, loc.country].filter(Boolean).join(', ');
+// Первая загрузка → последняя выгрузка.
+function routeFromStops(stops: any): { from: string; to: string } {
+  const list = Array.isArray(stops) ? stops : [];
+  const firstLoad = list.find((s: any) => s.type === 'load');
+  const lastUnload = [...list].reverse().find((s: any) => s.type === 'unload');
+  return { from: stopStr(firstLoad), to: stopStr(lastUnload) };
 }
 
 export default async function ContractorCardPage({
@@ -137,35 +140,34 @@ export default async function ContractorCardPage({
       from_city,
       to_country,
       to_city,
-      trips(trip_number, client_request_number)
+      trips(trip_number, client_request_number, profit_mode)
     `)
     .eq('contractor_id', id)
     .eq('executor_type', 'contractor');
 
-  // 3. Работы: экспедирование (forwarding_contractors)
-  //    Маршрут берём из forwarding_points (loading → unloading), НЕ из route_from/route_to.
+  // 3. Работы: экспедирование — заказы с profit_mode='forwarding',
+  //    где этот подрядчик выполняет сегмент.
+  //    Маршрут берём из stops сегмента (загрузка → выгрузка),
+  //    НЕ из route_from/route_to.
   const { data: fwdSubs } = await supabase
-    .from('forwarding_contractors')
+    .from('trip_segments')
     .select(`
       id,
-      forwarding_id,
-      price_eur,
-      original_price,
+      trip_id,
+      price,
       currency,
-      payment_days,
-      forwarding_orders(
-        order_number,
+      contractor_payment_days,
+      stops,
+      trips!inner(
+        trip_number,
         client_request_number,
         load_date,
         unload_date,
-        forwarding_points(
-          type,
-          sequence,
-          locations(country, city)
-        )
+        profit_mode
       )
     `)
-    .eq('contractor_id', id);
+    .eq('contractor_id', id)
+    .eq('executor_type', 'contractor');
 
   // 4. Объединяем в один список
   const works: WorkItem[] = [];
@@ -173,6 +175,8 @@ export default async function ContractorCardPage({
   for (const s of tripSubs || []) {
     const trip: any = Array.isArray(s.trips) ? s.trips[0] : s.trips;
     if (!trip) continue;
+    // Экспедирования учитываются отдельно (ниже), здесь только рейсы.
+    if (trip.profit_mode === 'forwarding') continue;
 
     const numberBase = trip.client_request_number || (trip.trip_number ? `№${trip.trip_number}` : '—');
     const routeFrom = [s.from_country, s.from_city].filter(Boolean).join(', ') || '—';
@@ -196,33 +200,30 @@ export default async function ContractorCardPage({
   }
 
   for (const s of fwdSubs || []) {
-    const fwd: any = Array.isArray(s.forwarding_orders) ? s.forwarding_orders[0] : s.forwarding_orders;
+    const fwd: any = Array.isArray(s.trips) ? s.trips[0] : s.trips;
     if (!fwd) continue;
+    // Экспедированием считаем только заказы в режиме forwarding.
+    if (fwd.profit_mode !== 'forwarding') continue;
 
-    const numberBase = fwd.client_request_number || (fwd.order_number ? `№${fwd.order_number}` : '—');
+    const numberBase = fwd.client_request_number || (fwd.trip_number ? `№${fwd.trip_number}` : '—');
 
-    // Маршрут из forwarding_points: первая загрузка → последняя выгрузка
-    const points = Array.isArray(fwd.forwarding_points) ? fwd.forwarding_points : [];
-    const sortedPoints = [...points].sort((a: any, b: any) => (a.sequence || 0) - (b.sequence || 0));
-    const firstLoad = sortedPoints.find((p: any) => p.type === 'loading');
-    const lastUnload = [...sortedPoints].reverse().find((p: any) => p.type === 'unloading');
-    const routeFrom = locStr(firstLoad);
-    const routeTo = locStr(lastUnload);
+    // Маршрут из stops сегмента: первая загрузка → последняя выгрузка
+    const { from: routeFrom, to: routeTo } = routeFromStops(s.stops);
     const route = (routeFrom || routeTo) ? `${routeFrom || '—'} → ${routeTo || '—'}` : '—';
 
     const date = fwd.unload_date || fwd.load_date;
 
     works.push({
       kind: 'forwarding',
-      id: s.forwarding_id,
+      id: s.trip_id,
       number: numberBase,
       date,
       route,
-      price_eur: s.price_eur || 0,
-      original_price: s.original_price || 0,
+      price_eur: Number(s.price) || 0,
+      original_price: Number(s.price) || 0,
       currency: s.currency || 'EUR',
-      payment_days: s.payment_days || null,
-      href: `/forwarding/${s.forwarding_id}`,
+      payment_days: s.contractor_payment_days || null,
+      href: `/trips/${s.trip_id}`,
     });
   }
 
