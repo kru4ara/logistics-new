@@ -244,14 +244,15 @@ export async function updateTrip(tripId: string, formData: FormData) {
     .eq('id', tripId)
     .single();
 
-  // Даты заказа зависят от режима расчёта:
-  //   рейс       -> start_date / end_date
-  //   экспедиция -> load_date / unload_date
+  // Старт и финиш — единые поля заказа (start_date / end_date)
+  // для любого режима расчёта.
   const isForwarding = before?.profit_mode === 'forwarding';
   const startDate = (formData.get('start_date') as string) || null;
   const endDate = (formData.get('end_date') as string) || null;
-  const loadDate = (formData.get('load_date') as string) || null;
-  const unloadDate = (formData.get('unload_date') as string) || null;
+  // Для экспедирования те же даты дублируются в load_date/unload_date,
+  // чтобы работали расчёты и отчёты, которые берут даты загрузки.
+  const loadDate = isForwarding ? startDate : null;
+  const unloadDate = isForwarding ? endDate : null;
 
   let startLat = before?.start_lat ?? 0;
   let startLng = before?.start_lng ?? 0;
@@ -278,11 +279,13 @@ export async function updateTrip(tripId: string, formData: FormData) {
       start_lng: startLng,
       end_lat: endLat,
       end_lng: endLng,
-      // Даты пишем только для своего режима — поля другого режима
-      // остаются нетронутыми.
+      // Даты — всегда в start_date / end_date. Для экспедирования
+      // дополнительно синхронизируем load_date / unload_date.
+      start_date: startDate,
+      end_date: endDate,
       ...(isForwarding
         ? { load_date: loadDate, unload_date: unloadDate }
-        : { start_date: startDate, end_date: endDate }),
+        : {}),
     })
     .eq('id', tripId);
 
@@ -303,8 +306,8 @@ export async function updateTrip(tripId: string, formData: FormData) {
         client_id: clientId || null,
         client_request_number: clientRequestNumber || null,
         start_fuel_level: startFuelLevel,
-        start_date: isForwarding ? before.start_date : startDate,
-        end_date: isForwarding ? before.end_date : endDate,
+        start_date: startDate,
+        end_date: endDate,
         load_date: isForwarding ? loadDate : before.load_date,
         unload_date: isForwarding ? unloadDate : before.unload_date,
       },

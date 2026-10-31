@@ -82,29 +82,31 @@ export default function EditTripForm({
           <CalendarDays className="w-5 h-5 text-brand-600" strokeWidth={2.2} />
           Даты заказа
         </h2>
-        {isForwarding ? (
-          <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
-            <div>
-              <label className={labelClass}>Дата загрузки</label>
-              <input type="date" name="load_date" defaultValue={trip.load_date || ''} className={inputClass} />
-            </div>
-            <div>
-              <label className={labelClass}>Дата разгрузки</label>
-              <input type="date" name="unload_date" defaultValue={trip.unload_date || ''} className={inputClass} />
-            </div>
+        <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
+          <div>
+            <label className={labelClass}>Старт</label>
+            <input
+              type="date"
+              name="start_date"
+              defaultValue={trip.start_date || trip.load_date || ''}
+              className={inputClass}
+            />
           </div>
-        ) : (
-          <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
-            <div>
-              <label className={labelClass}>Дата старта</label>
-              <input type="date" name="start_date" defaultValue={trip.start_date || ''} className={inputClass} />
-            </div>
-            <div>
-              <label className={labelClass}>Дата финиша</label>
-              <input type="date" name="end_date" defaultValue={trip.end_date || ''} className={inputClass} />
-            </div>
+          <div>
+            <label className={labelClass}>Финиш</label>
+            <input
+              type="date"
+              name="end_date"
+              defaultValue={trip.end_date || trip.unload_date || ''}
+              className={inputClass}
+            />
           </div>
-        )}
+        </div>
+        <p className="text-xs text-slate-500">
+          {isForwarding
+            ? 'Даты экспедирования. Если оставить пустыми — подтянутся из сегмента подрядчика.'
+            : 'Даты рейса. Если оставить пустыми — подтянутся из участка с нашей машиной.'}
+        </p>
       </div>
 
       <div className={sectionClass}>

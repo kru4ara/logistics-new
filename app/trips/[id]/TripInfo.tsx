@@ -21,6 +21,11 @@ export default function TripInfo({
   trailerNumber: string | null;
   computedRoute: string;
 }) {
+  // Старт/финиш — единые поля заказа. Для экспедирований, у которых
+  // даты ещё лежат в load_date/unload_date, подстраховываемся ими.
+  const startDate = trip.start_date || trip.load_date || null;
+  const endDate = trip.end_date || trip.unload_date || null;
+
   return (
     <div className="card p-5 md:p-6">
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
@@ -94,13 +99,13 @@ export default function TripInfo({
         <div>
           <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Старт</div>
           <div className="text-lg md:text-xl font-bold text-slate-800 tabular-nums">
-            {trip.start_date ? new Date(trip.start_date).toLocaleDateString('ru-RU') : '—'}
+            {startDate ? new Date(startDate).toLocaleDateString('ru-RU') : '—'}
           </div>
         </div>
         <div>
           <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Финиш</div>
-          <div className={`text-lg md:text-xl font-bold tabular-nums ${trip.end_date ? 'text-emerald-600' : 'text-slate-400'}`}>
-            {trip.end_date ? new Date(trip.end_date).toLocaleDateString('ru-RU') : '—'}
+          <div className={`text-lg md:text-xl font-bold tabular-nums ${endDate ? 'text-emerald-600' : 'text-slate-400'}`}>
+            {endDate ? new Date(endDate).toLocaleDateString('ru-RU') : '—'}
           </div>
         </div>
       </div>
