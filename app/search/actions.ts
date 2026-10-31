@@ -187,53 +187,35 @@ export async function globalSearch(rawQuery: string): Promise<SearchResult> {
   }));
 
   // ============================================================
-  // ЭКСПЕДИРОВАНИЕ: order_number (если число) + client_request_number
+  // ЭКСПЕДИРОВАНИЕ: заказы с profit_mode='forwarding'
   // ============================================================
   const fwdMap = new Map<string, SearchHit>();
 
-  if (isNumeric) {
-    const { data } = await supabase
-      .from('forwarding_orders')
-      .select('id, order_number, client_request_number, load_date, clients(name)')
-      .eq('order_number', parseInt(q, 10))
-      .limit(LIMIT_PER_DOMAIN);
-
-    for (const o of data || []) {
-      const clientName = pickName(o.clients);
-      fwdMap.set(o.id, {
-        domain: 'forwarding',
-        id: o.id,
-        title: `Заявка #${o.order_number ?? '—'}${clientName ? ' · ' + clientName : ''}`,
-        subtitle: o.load_date ? new Date(o.load_date).toLocaleDateString('ru-RU') : null,
-        icon: '📦',
-        href: `/forwarding/${o.id}`,
-      });
-    }
-  }
-
-  const { data: fwdByReq } = await supabase
-    .from('forwarding_orders')
-    .select('id, order_number, client_request_number, load_date, clients(name)')
-    .ilike('client_request_number', like)
-    .order('order_number', { ascending: false })
+  const { data: fwdData } = await supabase
+    .from('trips')
+    .select('id, trip_number, client_request_number, load_date, unload_date, clients(name)')
+    .eq('profit_mode', 'forwarding')
+    .or(`trip_number.ilike.${like},client_request_number.ilike.${like}`)
+    .order('trip_number', { ascending: false })
     .limit(LIMIT_PER_DOMAIN);
 
-  for (const o of fwdByReq || []) {
+  for (const o of fwdData || []) {
     if (fwdMap.has(o.id)) continue;
     const clientName = pickName(o.clients);
     fwdMap.set(o.id, {
       domain: 'forwarding',
       id: o.id,
-      title: `Заявка #${o.order_number ?? '—'}${clientName ? ' · ' + clientName : ''}`,
+      title: `Заказ №${o.trip_number ?? '—'}${clientName ? ' · ' + clientName : ''}`,
       subtitle: o.client_request_number
         ? `Заявка клиента № ${o.client_request_number}`
         : o.load_date
           ? new Date(o.load_date).toLocaleDateString('ru-RU')
           : null,
       icon: '📦',
-      href: `/forwarding/${o.id}`,
+      href: `/trips/${o.id}`,
     });
   }
+
   const forwarding = Array.from(fwdMap.values()).slice(0, LIMIT_PER_DOMAIN);
 
   const total =

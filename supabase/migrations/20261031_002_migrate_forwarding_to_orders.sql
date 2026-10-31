@@ -105,22 +105,37 @@ where not exists (
 );
 
 -- ---------- 3. Точки (загрузка/выгрузка) -> stops сегмента ----------
--- stops: jsonb-массив точек маршрута с датами и номерами.
+-- Формат stops — тот же, что у обычных сегментов рейсов
+-- (app/trips/[id]/segment-actions.ts: parseStops):
+--   type: 'load' | 'reload' | 'unload' | 'customs'
+--   company / country / city / address / postal_code / date
+-- Тип из forwarding_points ('loading' / 'unloading') приводим
+-- к общему словарю, исходный тип сохраняем в point_type.
 update public.trip_segments s
    set stops = coalesce(
      (
        select jsonb_agg(
                 jsonb_build_object(
-                  'type', fp.type,
+                  'type', case fp.type
+                            when 'loading'   then 'load'
+                            when 'unloading' then 'unload'
+                            else 'reload'
+                          end,
+                  'point_type', fp.type,
                   'sequence', fp.sequence,
                   'date', fp.date,
                   'loading_number', fp.loading_number,
                   'notes', fp.notes,
-                  'location_id', fp.location_id
+                  'company', l.company_name,
+                  'city', l.city,
+                  'country', l.country,
+                  'address', null,
+                  'postal_code', null
                 )
                 order by fp.type, fp.sequence
               )
          from public.forwarding_points fp
+         left join public.locations l on l.id = fp.location_id
          where fp.forwarding_id = t.source_forwarding_id
      ),
      s.stops

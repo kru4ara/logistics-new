@@ -152,32 +152,60 @@ export default async function TodayPage() {
     }
   });
 
-  // 3. ЭКСПЕДИРОВАНИЕ
-  const { data: fwdPoints } = await supabase
-    .from('forwarding_points')
+  // 3. ЭКСПЕДИРОВАНИЕ — заказы с profit_mode='forwarding'.
+  //    Точки маршрута лежат в trip_segments.stops (jsonb) в общем
+  //    с рейсами формате: type 'load' | 'reload' | 'unload' | 'customs'.
+  const { data: fwdOrders } = await supabase
+    .from('trips')
     .select(`
-      id, forwarding_id, type, sequence, date, loading_number,
-      locations(name, city, country, company_name),
-      forwarding_orders!forwarding_id(order_number, clients(name))
+      id, trip_number, load_date, unload_date,
+      clients(name)
     `)
-    .eq('date', today);
+    .eq('profit_mode', 'forwarding');
 
-  const fwdEventsToday: EventItem[] = (fwdPoints || []).map((p: any) => {
-    const loc = pickOne<{ name: string | null; city: string | null; country: string | null; company_name: string | null }>(p.locations);
-    const order = pickOne<{ order_number: number | null; clients: unknown }>(p.forwarding_orders);
-    const orderNumber = order?.order_number ? `№${order.order_number}` : '—';
-    const clientName = pickName(order?.clients) || null;
-    return {
-      kind: 'fwd' as const,
-      tripNumber: orderNumber,
-      clientName,
-      company: loc?.company_name || loc?.name || null,
-      city: loc?.city || null,
-      country: loc?.country || null,
-      date: p.date,
-      pointLabel: p.type === 'loading' ? 'Загрузка' : 'Выгрузка',
-      href: `/forwarding/${p.forwarding_id}`,
-    };
+  const fwdOrderIds = (fwdOrders || []).map((o: any) => o.id).filter(Boolean) as string[];
+
+  const { data: fwdSegs } = fwdOrderIds.length > 0
+    ? await supabase
+        .from('trip_segments')
+        .select('id, trip_id, executor_type, stops, contractors(name)')
+        .in('trip_id', fwdOrderIds)
+    : { data: [] };
+
+  const segsByOrder: Record<string, any[]> = {};
+  (fwdSegs || []).forEach((s: any) => {
+    if (!s.trip_id) return;
+    if (!segsByOrder[s.trip_id]) segsByOrder[s.trip_id] = [];
+    segsByOrder[s.trip_id].push(s);
+  });
+
+  const fwdEventsToday: EventItem[] = [];
+
+  (fwdOrders || []).forEach((o: any) => {
+    const orderNumber = o.trip_number ? `№${o.trip_number}` : '—';
+    const clientName = pickName(o.clients) || null;
+    const segs = segsByOrder[o.id] || [];
+
+    segs.forEach((s: any) => {
+      const stops = Array.isArray(s.stops) ? s.stops : [];
+      const contractorName = pickName(s.contractors) || null;
+
+      stops.forEach((stop: any) => {
+        if (stop.date !== today) return;
+        const isUnload = stop.type === 'unload';
+        fwdEventsToday.push({
+          kind: 'fwd' as const,
+          tripNumber: orderNumber,
+          clientName,
+          company: stop.company || contractorName || null,
+          city: stop.city || null,
+          country: stop.country || null,
+          date: stop.date,
+          pointLabel: isUnload ? 'Выгрузка' : 'Загрузка',
+          href: `/trips/${o.id}`,
+        });
+      });
+    });
   });
 
   const todayLoadings: EventItem[] = [
