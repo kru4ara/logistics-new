@@ -47,7 +47,7 @@ describe('calculateStatistics', () => {
   it('правильно считает доход, расходы и прибыль по заказу-рейсу', () => {
     const orders = [
       { id: 't1', status: 'paid', costs_closed: true, revenue_eur: 1000, end_date: '2026-05-15' },
-      { id: 't2', status: 'paid', costs_closed: true, revenue_eur: 2000, start_date: '2026-05-10' },
+      { id: 't2', status: 'paid', costs_closed: true, revenue_eur: 2000, start_date: '2026-05-10', end_date: '2026-05-12' },
     ];
     const expensesByOrder = { t1: 200, t2: 500 };
 
@@ -74,6 +74,36 @@ describe('calculateStatistics', () => {
     expect(result.yearTotals.profit).toBe(2300);
     expect(result.tripProfit).toBe(2300);
     expect(result.avgProfitPerTrip).toBe(1150);
+  });
+
+  it('заказ без даты выгрузки в статистику не идёт', () => {
+    // Рейс без финиша и экспедиция без разгрузки — в пути.
+    const orders = [
+      { id: 't1', status: 'paid', costs_closed: true, revenue_eur: 1000, start_date: '2026-05-10' },
+      {
+        id: 'f1',
+        status: 'paid',
+        costs_closed: true,
+        profit_mode: 'forwarding',
+        revenue_eur: 5000,
+        load_date: '2026-05-01',
+      },
+    ];
+
+    const result = calculateStatistics({
+      orders,
+      expensesByOrder: { t1: 200, f1: 300 },
+      contractorByOrder: { f1: 4000 },
+      fixedCosts: [],
+      year,
+    });
+
+    const may = result.months.find((m) => m.monthKey === '2026-05')!;
+    expect(may.ordersCount).toBe(0);
+    expect(may.tripsCount).toBe(0);
+    expect(may.forwardingCount).toBe(0);
+    expect(may.totalIncome).toBe(0);
+    expect(result.yearTotals.totalIncome).toBe(0);
   });
 
   it('считает заказ-экспедирование по дате разгрузки, рейс — по финишу', () => {
@@ -199,6 +229,7 @@ describe('calculateStatistics', () => {
         profit_mode: 'forwarding',
         revenue_eur: 5000,
         load_date: '2026-06-01',
+        unload_date: '2026-06-05',
       },
     ];
     const result = calculateStatistics({
