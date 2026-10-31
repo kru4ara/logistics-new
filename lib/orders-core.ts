@@ -86,9 +86,30 @@ export function parseOrderNumber(value: string | null | undefined): {
 }
 
 /**
+ * Дата ВЫГРУЗКИ для нумерации — СТРОГО, без запасного варианта.
+ *   рейс       -> end_date (финиш)
+ *   экспедиция -> unload_date (разгрузка)
+ * Заказ без даты выгрузки (в пути) сортируется в конец ветки.
+ */
+export function getOrderUnloadDateStrict(
+  order: {
+    profit_mode?: ProfitMode | null;
+    end_date?: string | null;
+    unload_date?: string | null;
+  } | null | undefined
+): string | null {
+  if (!order) return null;
+  const mode: ProfitMode = order.profit_mode === 'forwarding' ? 'forwarding' : 'trip';
+  return mode === 'forwarding' ? order.unload_date || null : order.end_date || null;
+}
+
+/**
  * Сортировка внутри ветки нумерации — по дате ВЫГРУЗКИ ASC
- * (рейс — финиш, экспедиция — разгрузка), при равенстве по дате
- * создания ASC. Так же работает renumber_all_trips в БД.
+ * (рейс — финиш, экспедиция — разгрузка), СТРОГО: без запасного
+ * варианта start_date/load_date. При равенстве дат — дата создания
+ * ASC. Заказы без даты выгрузки (в пути) идут в конец ветки и
+ * получают наибольшие номера.
+ * Так же работает renumber_all_trips в БД.
  */
 export function orderByNumberingDate<T extends {
   profit_mode?: ProfitMode | null;
@@ -98,8 +119,8 @@ export function orderByNumberingDate<T extends {
   unload_date?: string | null;
   created_at?: string | null;
 }>(a: T, b: T): number {
-  const da = getOrderUnloadDate(a);
-  const db = getOrderUnloadDate(b);
+  const da = getOrderUnloadDateStrict(a);
+  const db = getOrderUnloadDateStrict(b);
   if (da && db && da !== db) return da < db ? -1 : 1;
   if (da && !db) return -1;
   if (!db && da) return 1;
