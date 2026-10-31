@@ -1,5 +1,5 @@
 import type { createClient } from './supabase/admin';
-import { FORWARDING_SUFFIX, getOrderUnloadDateStrict } from './orders-core';
+import { FORWARDING_SUFFIX, orderByNumberingDate } from './orders-core';
 
 /**
  * Перенумеровывает все заказы по дате выгрузки ASC.
@@ -38,15 +38,13 @@ export async function renumberAllTrips(
   //   при равенстве дат — дата создания ASC, затем id ASC;
   //   заказы без даты выгрузки (в пути) — в конец ветки.
   const sorted = [...trips].sort((a: any, b: any) => {
-    // Дата выгрузки: рейс — финиш, экспедиция — разгрузка.
-    const da = getOrderUnloadDateStrict(a);
-    const db = getOrderUnloadDateStrict(b);
-    if (da && db && da !== db) return da < db ? -1 : 1;
-    if (da && !db) return -1;
-    if (!da && db) return 1;
-    const ca = a.created_at || '';
-    const cb = b.created_at || '';
-    if (ca !== cb) return ca < cb ? -1 : 1;
+    // Единая функция сортировки нумерации (та же, что в БД):
+    //   дата выгрузки ASC (рейс — финиш, экспедиция — разгрузка) СТРОГО,
+    //   при равенстве — дата создания ASC,
+    //   заказы без даты выгрузки (в пути) — в конец ветки.
+    const byDate = orderByNumberingDate(a, b);
+    if (byDate !== 0) return byDate;
+    // Полный порядок — по id, чтобы нумерация была детерминированной.
     return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
   });
 

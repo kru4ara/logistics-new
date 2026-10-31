@@ -111,6 +111,7 @@ describe('renumberAllTrips', () => {
   });
 
   it('заказ без даты выгрузки уходит в конец ветки', async () => {
+    // Номера перепутаны: заказ в пути стоит первым, хотя должен быть последним.
     const trips = [
       { id: 't1', trip_number: '1', start_date: '2026-01-01', end_date: '2026-01-05', profit_mode: 'trip' },
       { id: 't2', trip_number: '2', start_date: '2026-01-02', profit_mode: 'trip' },
@@ -119,7 +120,21 @@ describe('renumberAllTrips', () => {
     await renumberAllTrips(supabase);
 
     const finalUpdates = getUpdates();
+    // t1 с датой выгрузки -> 1, t2 в пути -> 2 (последний номер).
     expect(finalUpdates.find((u) => u.id === 't1')?.trip_number).toBe('1');
     expect(finalUpdates.find((u) => u.id === 't2')?.trip_number).toBe('2');
+  });
+
+  it('заказ в пути получает наибольший номер в ветке', async () => {
+    const trips = [
+      { id: 'a', trip_number: '1', start_date: '2026-01-01', end_date: '2026-01-02', profit_mode: 'trip' },
+      { id: 'b', trip_number: '2', start_date: '2026-01-03', end_date: '2026-01-04', profit_mode: 'trip' },
+      { id: 'c', trip_number: '3', start_date: '2026-01-05', profit_mode: 'trip' },
+    ];
+    const { supabase, getUpdates } = createMockSupabase(trips);
+    await renumberAllTrips(supabase);
+
+    const finalUpdates = getUpdates();
+    expect(finalUpdates.find((u) => u.id === 'c')?.trip_number).toBe('3');
   });
 });

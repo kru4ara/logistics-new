@@ -133,6 +133,12 @@ export function orderByNumberingDate<T extends {
   const ca = a.created_at || '';
   const cb = b.created_at || '';
   if (ca !== cb) return ca < cb ? -1 : 1;
+  // Полный порядок — по id: нумерация детерминирована.
+  const ia = (a as any).id;
+  const ib = (b as any).id;
+  if (typeof ia === 'string' && typeof ib === 'string') {
+    return ia < ib ? -1 : ia > ib ? 1 : 0;
+  }
   return 0;
 }
 
