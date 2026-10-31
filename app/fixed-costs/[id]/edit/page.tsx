@@ -2,7 +2,7 @@ import { createClient } from '../../../../lib/supabase/admin';
 import { updateFixedCost } from '../../../fixed-cost-actions';
 import SubmitButton from '../../../components/SubmitButton';
 import { ArrowLeft, Banknote, Pencil, Save, TrendingUp } from 'lucide-react';
-import { classifyCapex, capexRuleLabel } from '../../../lib/capex';
+import { classifyCapex, capexRuleLabel } from '../../../../lib/capex';
 
 export const dynamic = 'force-dynamic';
 
