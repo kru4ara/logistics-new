@@ -17,7 +17,7 @@ import { completeAdminOnboarding } from '../admin-onboarding-actions';
 const LINKS = [
   {
     href: '/trips',
-    title: 'Рейсы',
+    title: 'Заказы',
     hint: 'Создание, редактирование, документы, участки и грузы',
     Icon: Package,
     color: 'text-brand-600',

@@ -126,7 +126,7 @@ export default async function SearchPage({
           </div>
         )}
 
-        <Section title="Рейсы" Icon={Package} hits={result.trips} href="/trips" />
+        <Section title="Заказы" Icon={Package} hits={result.trips} href="/trips" />
         <Section title="Экспедирование" Icon={Boxes} hits={result.forwarding} href="/forwarding" />
         <Section title="Клиенты" Icon={Users} hits={result.clients} href="/clients" />
         <Section title="Подрядчики" Icon={Building2} hits={result.contractors} href="/contractors" />

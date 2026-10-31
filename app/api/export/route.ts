@@ -158,7 +158,7 @@ async function buildTripsSheet(
     });
   }
 
-  const ws = new ExcelJS.Workbook().addWorksheet('Рейсы');
+  const ws = new ExcelJS.Workbook().addWorksheet('Заказы');
   ws.columns = [
     { header: '№ рейса', key: 'tripNumber', width: 10 },
     { header: 'Старт', key: 'start', width: 12 },
