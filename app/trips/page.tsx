@@ -4,7 +4,7 @@ import { can } from '../../lib/roles';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase/admin';
 import { buildRouteMap, type SegmentRouteRow, type TripRouteInfo } from '../../lib/trip-route';
-import { getOrderMonthKey, compareOrderNumbers } from '../../lib/orders-core';
+import { getOrderMonthKey, getOrderUnloadDate, compareOrderNumbers } from '../../lib/orders-core';
 import DownloadButton from './DownloadButton';
 import SearchInput from './SearchInput';
 import TripFilters from './TripFilters';
@@ -162,17 +162,14 @@ export default async function TripsPage({
   }
 
   // Месяц заказа — единое правило из lib/orders-core:
-  //   рейс       -> end_date || start_date
-  //   экспедиция -> load_date || unload_date
+  //   рейс       -> end_date || start_date (финиш)
+  //   экспедиция -> unload_date || load_date (разгрузка)
   function orderMonthKey(t: any): string | null {
     return getOrderMonthKey(t);
   }
 
   function orderDate(t: any): string | null {
-    if (orderMode(t) === 'forwarding') {
-      return t.load_date || t.unload_date || null;
-    }
-    return t.end_date || t.start_date || null;
+    return getOrderUnloadDate(t);
   }
 
   function matchesDriver(t: any): boolean {

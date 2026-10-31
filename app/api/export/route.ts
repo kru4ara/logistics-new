@@ -1,3 +1,4 @@
+import { getOrderUnloadDate } from '../../lib/orders-core';
 import { NextResponse } from 'next/server';
 import ExcelJS from 'exceljs';
 import { getSessionContext } from '../../../lib/session';
@@ -71,11 +72,10 @@ function r2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
-/** Дата периода заказа: рейс — финиш (приоритет) или старт,
- *  экспедиция — загрузка (приоритет) или разгрузка. */
+/** Дата периода заказа — ПО ДАТЕ ВЫГРУЗКИ:
+ *  рейс — финиш, экспедиция — разгрузка. */
 function orderPeriodDate(o: any): string | null {
-  const isFwd = o?.profit_mode === 'forwarding';
-  const raw = isFwd ? o.load_date || o.unload_date : o.end_date || o.start_date;
+  const raw = getOrderUnloadDate(o);
   if (!raw) return null;
   const d = new Date(raw);
   if (isNaN(d.getTime())) return null;

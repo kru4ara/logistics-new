@@ -1,3 +1,4 @@
+import { getOrderUnloadDate } from './orders-core';
 export type ClientRow = {
   name: string;
   type: 'Заказы' | 'Экспедирование';
@@ -44,15 +45,11 @@ export function toNum(v: unknown): number {
 
 /**
  * Дата заказа для фильтра по периоду — зависит от режима расчёта:
- *   trip       -> end_date || start_date
- *   forwarding -> load_date || unload_date
+ *   trip       -> end_date || start_date (финиш)
+ *   forwarding -> unload_date || load_date (разгрузка)
  */
 export function getOrderPeriodDate(order: any): string | null {
-  const mode = order?.profit_mode === 'forwarding' ? 'forwarding' : 'trip';
-  const raw =
-    mode === 'forwarding'
-      ? order?.load_date || order?.unload_date
-      : order?.end_date || order?.start_date;
+  const raw = getOrderUnloadDate(order);
   if (!raw) return null;
   const d = new Date(raw);
   if (isNaN(d.getTime())) return null;

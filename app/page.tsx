@@ -10,6 +10,7 @@ import DashboardAttention from './components/dashboard/DashboardAttention';
 import DashboardTotals from './components/dashboard/DashboardTotals';
 import { CHART_PALETTE, CATEGORY_META } from '../lib/dashboard/category';
 import { splitReminders } from '../lib/dashboard/reminders';
+import { getOrderUnloadDate } from '../lib/orders-core';
 
 export const dynamic = 'force-dynamic';
 
@@ -81,12 +82,11 @@ export default async function Home() {
   // ============================================================
   const isForwardingOrder = (o: any) => o?.profit_mode === 'forwarding';
 
-  /** Месяц заказа по режиму: рейс — финиш (приоритет) или старт,
-   *  экспедиция — загрузка (приоритет) или разгрузка. */
+  /** Месяц заказа — ПО ДАТЕ ВЫГРУЗКИ:
+   *  рейс — финиш, экспедиция — разгрузка.
+   *  Загружен в сентябре, выгружен в октябре — заказ октябрьский. */
   const orderMonthKey = (o: any): string | null => {
-    const raw = isForwardingOrder(o)
-      ? o.load_date || o.unload_date
-      : o.end_date || o.start_date;
+    const raw = getOrderUnloadDate(o);
     if (!raw) return null;
     const d = new Date(raw);
     if (isNaN(d.getTime())) return null;

@@ -1,8 +1,8 @@
 import type { createClient } from './supabase/admin';
-import { FORWARDING_SUFFIX } from './orders-core';
+import { FORWARDING_SUFFIX, getOrderUnloadDate } from './orders-core';
 
 /**
- * Перенумеровывает все заказы по дате старта ASC.
+ * Перенумеровывает все заказы по дате выгрузки ASC.
  * Черновики (без start_date) попадают в конец, отсортированы по id ASC.
  * Дырок не остаётся: номера всегда идут 1..N.
  *
@@ -21,8 +21,8 @@ export async function renumberAllTrips(
 ): Promise<void> {
   const { data: trips, error } = await supabase
     .from('trips')
-    .select('id, trip_number, start_date, load_date, created_at, profit_mode')
-    .order('start_date', { ascending: true, nullsFirst: false })
+    .select('id, trip_number, start_date, end_date, load_date, unload_date, created_at, profit_mode')
+    .order('end_date', { ascending: true, nullsFirst: false })
     .order('created_at', { ascending: true });
 
   if (error) {
@@ -33,11 +33,12 @@ export async function renumberAllTrips(
   if (!trips || trips.length === 0) return;
 
   // Сортировка внутри ветки нумерации — как в renumber_all_trips (БД):
-  //   дата старта ASC (для экспедиции — дата загрузки),
+  //   дата выгрузки ASC (рейс — финиш, экспедиция — разгрузка),
   //   при равенстве дат — дата создания ASC, затем id ASC.
   const sorted = [...trips].sort((a: any, b: any) => {
-    const da = a.start_date || a.load_date || null;
-    const db = b.start_date || b.load_date || null;
+    // Дата выгрузки: рейс — финиш, экспедиция — разгрузка.
+    const da = getOrderUnloadDate(a);
+    const db = getOrderUnloadDate(b);
     if (da && db && da !== db) return da < db ? -1 : 1;
     if (da && !db) return -1;
     if (!da && db) return 1;

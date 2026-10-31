@@ -19,9 +19,11 @@
  *    Завершённый = 'paid' или 'invoiced'.
  *    Незавершённый = 'active' (в пути), 'planned' или null.
  *
- * 4. МЕСЯЦ заказа зависит от режима:
- *    - 'trip'       -> end_date || start_date
- *    - 'forwarding' -> load_date || unload_date
+ * 4. МЕСЯЦ заказа — ПО ДАТЕ ВЫГРУЗКИ:
+ *    - 'trip'       -> end_date || start_date (финиш)
+ *    - 'forwarding' -> unload_date || load_date (разгрузка)
+ *    Загружен в сентябре, выгружен в октябре — заказ октябрьский.
+ *    По этой же дате идёт сортировка и нумерация.
  *
  * 5. ЧИСТАЯ ПРИБЫЛЬ = Прибыль1 + Прибыль2 − общие затраты, БЕЗ CAPEX.
  *    Годовые общие затраты падают целиком в месяц оплаты.
@@ -84,17 +86,20 @@ export function parseOrderNumber(value: string | null | undefined): {
 }
 
 /**
- * Сортировка внутри ветки нумерации — как сейчас в БД (renumber_all_trips):
- * по дате старта ASC, при равенстве по дате создания ASC.
- * Для экспедирования датой старта считается load_date.
+ * Сортировка внутри ветки нумерации — по дате ВЫГРУЗКИ ASC
+ * (рейс — финиш, экспедиция — разгрузка), при равенстве по дате
+ * создания ASC. Так же работает renumber_all_trips в БД.
  */
 export function orderByNumberingDate<T extends {
+  profit_mode?: ProfitMode | null;
   start_date?: string | null;
+  end_date?: string | null;
   load_date?: string | null;
+  unload_date?: string | null;
   created_at?: string | null;
 }>(a: T, b: T): number {
-  const da = a.start_date || a.load_date || null;
-  const db = b.start_date || b.load_date || null;
+  const da = getOrderUnloadDate(a);
+  const db = getOrderUnloadDate(b);
   if (da && db && da !== db) return da < db ? -1 : 1;
   if (da && !db) return -1;
   if (!db && da) return 1;
@@ -129,8 +134,11 @@ export function hasAssignedExecutor(order: {
  */
 export function renumberOrders<T extends {
   id: string;
+  profit_mode?: ProfitMode | null;
   start_date?: string | null;
+  end_date?: string | null;
   load_date?: string | null;
+  unload_date?: string | null;
   created_at?: string | null;
   executor_type?: string | null;
   truck_id?: string | null;
@@ -175,15 +183,34 @@ export function getOrderMonthKey(
   },
   fallbackMode: ProfitMode = 'trip'
 ): string | null {
-  const mode: ProfitMode = order.profit_mode === 'forwarding' ? 'forwarding' : fallbackMode;
-  const raw =
-    mode === 'forwarding'
-      ? order.load_date || order.unload_date
-      : order.end_date || order.start_date;
+  const raw = getOrderUnloadDate(order, fallbackMode);
   if (!raw) return null;
   const d = new Date(raw);
   if (isNaN(d.getTime())) return null;
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+}
+
+/**
+ * Дата выгрузки заказа — по ней определяются месяц заказа,
+ * сортировка и нумерация.
+ *   рейс       -> end_date (финиш), запасной start_date
+ *   экспедиция -> unload_date (разгрузка), запасной load_date
+ * Загружен в сентябре, выгружен в октябре — заказ октябрьский.
+ */
+export function getOrderUnloadDate(
+  order: {
+    profit_mode?: ProfitMode | null;
+    start_date?: string | null;
+    end_date?: string | null;
+    load_date?: string | null;
+    unload_date?: string | null;
+  },
+  fallbackMode: ProfitMode = 'trip'
+): string | null {
+  const mode: ProfitMode = order.profit_mode === 'forwarding' ? 'forwarding' : fallbackMode;
+  return mode === 'forwarding'
+    ? order.unload_date || order.load_date || null
+    : order.end_date || order.start_date || null;
 }
 
 /**

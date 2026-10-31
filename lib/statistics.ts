@@ -53,8 +53,8 @@ export type CapexItem = {
 
 /**
  * Месяц заказа. Режим расчёта задаёт правило:
- *   trip       -> end_date || start_date
- *   forwarding -> load_date || unload_date
+ *   trip       -> end_date || start_date (финиш)
+ *   forwarding -> unload_date || load_date (разгрузка)
  */
 export function getOrderMonthKeyForStats(order: any): string | null {
   return getOrderMonthKey(
