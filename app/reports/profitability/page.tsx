@@ -8,7 +8,7 @@ import {
   Truck,
 } from 'lucide-react';
 import { createClient } from '../../../lib/supabase/admin';
-import { calculateProfitability, toNum } from '../../../lib/profitability';
+import { calculateProfitability, toNum, getOrderPeriodDate } from '../../../lib/profitability';
 
 export const dynamic = 'force-dynamic';
 
@@ -47,64 +47,48 @@ export default async function ProfitabilityPage({
 
   const supabase = await createClient();
 
-  // РЕЙСЫ
-  const { data: trips } = await supabase
+  // ЗАКАЗЫ (рейсы + экспедиции)
+  const { data: orders } = await supabase
     .from('trips')
     .select(`
       id, client_id, truck_id, revenue_eur, actual_km, start_date,
+      end_date, load_date, unload_date, profit_mode,
       clients(name),
       trucks!truck_id(registration_number)
-    `)
-    .gte('start_date', from)
-    .lte('start_date', to);
+    `);
 
-  const tripIds = (trips || []).map((t: any) => t.id).filter(Boolean);
+  const filteredOrders = (orders || []).filter((o: any) => {
+    const d = getOrderPeriodDate(o);
+    if (!d) return false;
+    return d >= from && d <= to;
+  });
 
-  const expensesByTrip: Record<string, number> = {};
-  if (tripIds.length > 0) {
+  const orderIds = filteredOrders.map((o: any) => o.id).filter(Boolean);
+
+  // Расходы заказов
+  const expensesByOrder: Record<string, number> = {};
+  if (orderIds.length > 0) {
     const { data: exp } = await supabase
       .from('trip_expenses')
       .select('trip_id, amount_eur')
-      .in('trip_id', tripIds);
+      .in('trip_id', orderIds);
     (exp || []).forEach((e: any) => {
       if (!e.trip_id) return;
-      expensesByTrip[e.trip_id] = (expensesByTrip[e.trip_id] || 0) + toNum(e.amount_eur);
+      expensesByOrder[e.trip_id] = (expensesByOrder[e.trip_id] || 0) + toNum(e.amount_eur);
     });
   }
 
-  // ЭКСПЕДИРОВАНИЕ
-  const { data: forwarding } = await supabase
-    .from('forwarding_orders')
-    .select('id, client_id, client_price_eur, load_date, clients(name)')
-    .gte('load_date', from)
-    .lte('load_date', to);
-
-  const fwdIds = (forwarding || []).map((f: any) => f.id).filter(Boolean);
-
-  const contractorsByFwd: Record<string, number> = {};
-  const expensesByFwd: Record<string, number> = {};
-
-  if (fwdIds.length > 0) {
-    const [{ data: fc }, { data: fe }] = await Promise.all([
-      supabase
-        .from('forwarding_contractors')
-        .select('forwarding_id, price_eur')
-        .in('forwarding_id', fwdIds),
-      supabase
-        .from('forwarding_expenses')
-        .select('forwarding_id, amount_eur')
-        .in('forwarding_id', fwdIds),
-    ]);
-
-    (fc || []).forEach((c: any) => {
-      if (!c.forwarding_id) return;
-      contractorsByFwd[c.forwarding_id] =
-        (contractorsByFwd[c.forwarding_id] || 0) + toNum(c.price_eur);
-    });
-    (fe || []).forEach((e: any) => {
-      if (!e.forwarding_id) return;
-      expensesByFwd[e.forwarding_id] =
-        (expensesByFwd[e.forwarding_id] || 0) + toNum(e.amount_eur);
+  // Подрядчики заказов
+  const contractorByOrder: Record<string, number> = {};
+  if (orderIds.length > 0) {
+    const { data: segs } = await supabase
+      .from('trip_segments')
+      .select('trip_id, price, executor_type')
+      .in('trip_id', orderIds)
+      .eq('executor_type', 'contractor');
+    (segs || []).forEach((s: any) => {
+      if (!s.trip_id) return;
+      contractorByOrder[s.trip_id] = (contractorByOrder[s.trip_id] || 0) + toNum(s.price);
     });
   }
 
@@ -117,11 +101,9 @@ export default async function ProfitabilityPage({
     totalProfit,
     totalMargin,
   } = calculateProfitability({
-    trips,
-    forwarding,
-    expensesByTrip,
-    contractorsByFwd,
-    expensesByFwd,
+    orders: filteredOrders,
+    expensesByOrder,
+    contractorByOrder,
   });
 
   const inputClass = 'input';

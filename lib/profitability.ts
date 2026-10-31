@@ -1,6 +1,6 @@
 export type ClientRow = {
   name: string;
-  type: 'Рейсы' | 'Экспедирование';
+  type: 'Заказы' | 'Экспедирование';
   count: number;
   revenue: number;
   expenses: number;
@@ -42,18 +42,35 @@ export function toNum(v: unknown): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+/**
+ * Дата заказа для фильтра по периоду — зависит от режима расчёта:
+ *   trip       -> start_date
+ *   forwarding -> load_date
+ */
+export function getOrderPeriodDate(order: any): string | null {
+  const mode = order?.profit_mode === 'forwarding' ? 'forwarding' : 'trip';
+  const raw =
+    mode === 'forwarding'
+      ? order?.load_date || order?.unload_date
+      : order?.start_date || order?.end_date;
+  if (!raw) return null;
+  const d = new Date(raw);
+  if (isNaN(d.getTime())) return null;
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Прибыльность по клиентам и по нашему транспорту.
+ * Источник — единые заказы (trips), где экспедиции помечены profit_mode.
+ */
 export function calculateProfitability({
-  trips,
-  forwarding,
-  expensesByTrip,
-  contractorsByFwd,
-  expensesByFwd,
+  orders,
+  expensesByOrder,
+  contractorByOrder,
 }: {
-  trips: any[] | null;
-  forwarding: any[] | null;
-  expensesByTrip: Record<string, number>;
-  contractorsByFwd: Record<string, number>;
-  expensesByFwd: Record<string, number>;
+  orders: any[] | null;
+  expensesByOrder: Record<string, number>;
+  contractorByOrder: Record<string, number>;
 }): {
   clientRows: ClientRow[];
   truckRows: TruckRow[];
@@ -63,73 +80,79 @@ export function calculateProfitability({
   totalMargin: number;
 } {
   const clientRows: ClientRow[] = [];
-  const byClientTrips: Record<string, { name: string; count: number; revenue: number; expenses: number }> = {};
 
-  for (const t of trips || []) {
-    const name = pickName((t as any).clients);
+  type Bucket = { name: string; count: number; revenue: number; expenses: number };
+  const byName: Record<string, { orders: Bucket; forwarding: Bucket }> = {};
+
+  for (const o of orders || []) {
+    const name = pickName((o as any).clients);
     if (!name) continue;
-    if (!byClientTrips[name]) byClientTrips[name] = { name, count: 0, revenue: 0, expenses: 0 };
-    byClientTrips[name].count += 1;
-    byClientTrips[name].revenue += toNum((t as any).revenue_eur);
-    byClientTrips[name].expenses += expensesByTrip[(t as any).id] || 0;
+
+    const isFwd = o?.profit_mode === 'forwarding';
+    const revenue = toNum((o as any).revenue_eur);
+    const expenses =
+      toNum(expensesByOrder[(o as any).id]) + toNum(contractorByOrder[(o as any).id]);
+
+    if (!byName[name]) {
+      byName[name] = {
+        orders: { name, count: 0, revenue: 0, expenses: 0 },
+        forwarding: { name, count: 0, revenue: 0, expenses: 0 },
+      };
+    }
+    const bucket = isFwd ? byName[name].forwarding : byName[name].orders;
+    bucket.count += 1;
+    bucket.revenue += revenue;
+    bucket.expenses += expenses;
   }
 
-  for (const r of Object.values(byClientTrips)) {
-    const profit = r.revenue - r.expenses;
-    const margin = r.revenue > 0 ? (profit / r.revenue) * 100 : 0;
-    clientRows.push({
-      name: r.name,
-      type: 'Рейсы',
-      count: r.count,
-      revenue: r.revenue,
-      expenses: r.expenses,
-      profit,
-      margin,
-    });
-  }
-
-  const byClientFwd: Record<string, { name: string; count: number; revenue: number; expenses: number }> = {};
-
-  for (const f of forwarding || []) {
-    const name = pickName((f as any).clients);
-    if (!name) continue;
-    if (!byClientFwd[name]) byClientFwd[name] = { name, count: 0, revenue: 0, expenses: 0 };
-    byClientFwd[name].count += 1;
-    byClientFwd[name].revenue += toNum((f as any).client_price_eur);
-    byClientFwd[name].expenses +=
-      (contractorsByFwd[(f as any).id] || 0) + (expensesByFwd[(f as any).id] || 0);
-  }
-
-  for (const r of Object.values(byClientFwd)) {
-    const profit = r.revenue - r.expenses;
-    const margin = r.revenue > 0 ? (profit / r.revenue) * 100 : 0;
-    clientRows.push({
-      name: r.name,
-      type: 'Экспедирование',
-      count: r.count,
-      revenue: r.revenue,
-      expenses: r.expenses,
-      profit,
-      margin,
-    });
+  for (const entry of Object.values(byName)) {
+    const pairs = [
+      [entry.orders, 'Заказы'] as const,
+      [entry.forwarding, 'Экспедирование'] as const,
+    ];
+    for (const [bucket, type] of pairs) {
+      if (bucket.count === 0) continue;
+      const profit = bucket.revenue - bucket.expenses;
+      const margin = bucket.revenue > 0 ? (profit / bucket.revenue) * 100 : 0;
+      clientRows.push({
+        name: bucket.name,
+        type,
+        count: bucket.count,
+        revenue: bucket.revenue,
+        expenses: bucket.expenses,
+        profit,
+        margin,
+      });
+    }
   }
 
   clientRows.sort((a, b) => b.profit - a.profit);
 
-  const byTruck: Record<string, { id: string; registration: string; count: number; km: number; revenue: number; expenses: number }> = {};
+  const byTruck: Record<
+    string,
+    { id: string; registration: string; count: number; km: number; revenue: number; expenses: number }
+  > = {};
 
-  for (const t of trips || []) {
-    const truckId = (t as any).truck_id;
+  for (const o of orders || []) {
+    if (o?.profit_mode === 'forwarding') continue;
+    const truckId = (o as any).truck_id;
     if (!truckId) continue;
-    const registration = pickTruck((t as any).trucks) || '—';
+    const registration = pickTruck((o as any).trucks) || '—';
 
     if (!byTruck[truckId]) {
-      byTruck[truckId] = { id: truckId, registration, count: 0, km: 0, revenue: 0, expenses: 0 };
+      byTruck[truckId] = {
+        id: truckId,
+        registration,
+        count: 0,
+        km: 0,
+        revenue: 0,
+        expenses: 0,
+      };
     }
     byTruck[truckId].count += 1;
-    byTruck[truckId].km += toNum((t as any).actual_km);
-    byTruck[truckId].revenue += toNum((t as any).revenue_eur);
-    byTruck[truckId].expenses += expensesByTrip[(t as any).id] || 0;
+    byTruck[truckId].km += toNum((o as any).actual_km);
+    byTruck[truckId].revenue += toNum((o as any).revenue_eur);
+    byTruck[truckId].expenses += toNum(expensesByOrder[(o as any).id]);
   }
 
   const truckRows: TruckRow[] = Object.values(byTruck).map((t) => {
