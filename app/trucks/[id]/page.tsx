@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { createClient } from '../../../lib/supabase/admin';
 import { buildRouteMap, type SegmentRouteRow } from '../../../lib/trip-route';
+import { fetchFuelLevels } from '../../../lib/fuel-server';
+import { formatLiters } from '../../../lib/fuel';
 import {
   ArrowLeft,
   Pencil,
@@ -94,6 +96,10 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ id
       if (info.route) routeByTrip.set(tripId, info.route);
     });
   }
+
+  // Остаток топлива в баке по последнему рейсу машины.
+  const fuelLevels = await fetchFuelLevels(supabase);
+  const fuel = fuelLevels.get(truckId) || null;
 
   const totalTrips = trips?.length || 0;
   const totalRevenue = (trips || []).reduce((s, t) => s + (t.revenue_eur || 0), 0);
@@ -258,6 +264,30 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ id
                 {avgConsumption !== null ? `${avgConsumption.toFixed(1)} л/100` : '—'}
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* ⛽ Остаток топлива в баке */}
+        <div>
+          <h2 className="text-xs md:text-sm font-bold text-slate-500 uppercase tracking-wide mb-3 px-1">
+            Топливо
+          </h2>
+          <div className="card p-4 md:p-5">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-slate-400 font-medium">Остаток в баке</span>
+              <Fuel className="w-4 h-4 text-slate-600" strokeWidth={2} />
+            </div>
+            <div className="text-2xl md:text-3xl font-bold text-slate-800 tabular-nums">
+              {fuel && fuel.liters != null
+                ? (fuel.isEstimate ? '~' : '') + formatLiters(fuel.liters) + ' л'
+                : '—'}
+            </div>
+            {fuel && fuel.tripNumber && (
+              <div className="text-xs text-slate-400 mt-1 tabular-nums">
+                рейс №{fuel.tripNumber}
+                {fuel.date ? ` · ${fuel.date.slice(8, 10)}.${fuel.date.slice(5, 7)}.${fuel.date.slice(0, 4)}` : ''}
+              </div>
+            )}
           </div>
         </div>
 

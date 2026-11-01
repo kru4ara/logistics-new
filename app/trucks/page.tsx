@@ -2,6 +2,8 @@ import Link from 'next/link';
 import { getSessionContext } from '../../lib/session';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase/admin';
+import { fetchFuelLevels } from '../../lib/fuel-server';
+import { formatLiters } from '../../lib/fuel';
 import {
   Truck as TruckIcon,
   Container,
@@ -14,6 +16,7 @@ import {
   Calendar,
   ArrowRight,
   Inbox,
+  Fuel,
 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -86,6 +89,9 @@ export default async function TrucksPage() {
     return <div className="p-8 text-red-500">Ошибка загрузки: {error.message}</div>;
   }
 
+  // Последний показатель остатка топлива в баке по каждому тягачу.
+  const fuelLevels = await fetchFuelLevels(supabase);
+
   // Считаем количество рейсов для каждой машины — и как тягач, и как прицеп
   const { data: allTrips } = await supabase
     .from('trips')
@@ -139,6 +145,7 @@ export default async function TrucksPage() {
     const subtitle = subtitleParts.join(' · ');
 
     const tripsCount = tripsCountByTruck[truck.id] || 0;
+    const fuel = truck.type === 'tractor' ? fuelLevels.get(truck.id) : undefined;
     const filledDocs = countFilledDocs(truck);
     const totalDocs = countTotalDocs(truck);
 
@@ -170,7 +177,7 @@ export default async function TrucksPage() {
             <span>{statusLabel}</span>
           </div>
 
-          <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-slate-100">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4 pt-4 border-t border-slate-100">
             <div>
               <div className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-slate-400 font-medium mb-0.5">
                 <FileText className="w-3 h-3" strokeWidth={2} />
@@ -196,6 +203,17 @@ export default async function TrucksPage() {
               </div>
               <div className="text-xs sm:text-sm font-bold text-slate-700 tabular-nums">
                 {truck.year || '—'}
+              </div>
+            </div>
+            <div>
+              <div className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-slate-400 font-medium mb-0.5">
+                <Fuel className="w-3 h-3" strokeWidth={2} />
+                Топливо
+              </div>
+              <div className="text-xs sm:text-sm font-bold text-slate-700 tabular-nums">
+                {fuel && fuel.liters != null
+                  ? (fuel.isEstimate ? '~' : '') + formatLiters(fuel.liters) + ' л'
+                  : '—'}
               </div>
             </div>
           </div>
