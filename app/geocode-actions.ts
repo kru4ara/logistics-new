@@ -92,13 +92,11 @@ export async function createCargoWithTrip(formData: FormData) {
   const freightAmount = freightRaw ? parseFloat(freightRaw) : 0;
   const freightCurrency = (((formData.get('freight_currency') as string) || 'EUR').toUpperCase()) || 'EUR';
 
-  // ---- Режим расчёта и признаки заказа ----
-  const profitMode =
-    ((formData.get('profit_mode') as string) || '').trim() === 'forwarding' ? 'forwarding' : 'trip';
+  // ---- Признаки заказа ----
+  // Режим расчёта НЕ выбирается: он выводится из назначенного исполнителя
+  // (см. sync_trip_from_segment). До назначения режим не определён (null).
   const isForwarding = formData.get('is_forwarding') === '1' || formData.get('is_forwarding') === 'on';
   const costsClosed = formData.get('costs_closed') === '1' || formData.get('costs_closed') === 'on';
-  const loadDate = ((formData.get('load_date') as string) || '').trim() || null;
-  const unloadDate = ((formData.get('unload_date') as string) || '').trim() || null;
 
   if (!label) throw new Error('Укажите название груза');
 
@@ -148,11 +146,15 @@ export async function createCargoWithTrip(formData: FormData) {
         end_lng: endLng,
         // Номер заказа проставляет нумерация (ветка рейсов).
         trip_number: null,
-        profit_mode: profitMode,
+        // Режим пока дефолтный: реальный выводится из сегментов
+        // триггером sync_trip_from_segment при назначении исполнителя.
+        profit_mode: 'trip',
         is_forwarding: isForwarding,
         costs_closed: costsClosed,
-        load_date: profitMode === 'forwarding' ? loadDate : null,
-        unload_date: profitMode === 'forwarding' ? unloadDate : null,
+        // Даты загрузки/разгрузки проставляются из сегмента подрядчика,
+        // даты старта/финиша — из сегмента с нашей машиной.
+        load_date: null,
+        unload_date: null,
         status: 'planned',
       },
     ])
@@ -210,7 +212,7 @@ export async function createCargoWithTrip(formData: FormData) {
     entity_type: 'trip',
     entity_id: created.id,
     action: 'create',
-    summary: `Создан заказ${profitMode === 'forwarding' ? ' (экспедирование)' : ''} №${created.trip_number ?? '—'}${clientName ? ' · ' + clientName : ''}${route ? ' · ' + route : ''}`,
+    summary: `Создан заказ №${created.trip_number ?? '—'}${clientName ? ' · ' + clientName : ''}${route ? ' · ' + route : ''}`,
   });
 
   revalidatePath('/trips');
