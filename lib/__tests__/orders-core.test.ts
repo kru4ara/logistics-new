@@ -12,9 +12,15 @@ import {
   isOrderMissingUnloadDate,
   getOrderMonthKey,
   calcOrderEconomics,
+  deriveProfitMode,
 } from '../orders-core';
 
-const us = { executor_type: 'us', truck_id: 't', driver_id: 'd' };
+/** Сегмент с нашей машиной: машина + водитель. */
+const usSeg = { executor_type: 'us', truck_id: 't', driver_id: 'd' };
+/** Сегмент с подрядчиком. */
+const conSeg = { executor_type: 'contractor', contractor_id: 'c1' };
+/** Заказ с нашей машиной (один сегмент). */
+const us = { segments: [usSeg] };
 
 describe('formatOrderNumber / parseOrderNumber', () => {
   it('форматирует номер по режиму', () => {
@@ -45,8 +51,8 @@ describe('renumberOrders', () => {
 
   it('экспедиция получает суффикс Е', () => {
     const res = renumberOrders([
-      { id: 'a', load_date: '2026-01-01', created_at: '2026-01-01', executor_type: 'contractor', contractor_id: 'c1' },
-      { id: 'b', load_date: '2026-01-02', created_at: '2026-01-02', executor_type: 'contractor', contractor_id: 'c2' },
+      { id: 'a', profit_mode: 'forwarding', load_date: '2026-01-01', created_at: '2026-01-01', segments: [conSeg] },
+      { id: 'b', profit_mode: 'forwarding', load_date: '2026-01-02', created_at: '2026-01-02', segments: [{ executor_type: 'contractor', contractor_id: 'c2' }] },
     ], 'forwarding');
     expect(res.map((r) => r.trip_number)).toEqual(['1Е', '2Е']);
     expect(res[0].trip_number?.endsWith(FORWARDING_SUFFIX)).toBe(true);
@@ -55,7 +61,7 @@ describe('renumberOrders', () => {
   it('без назначенного исполнителя номер не выдаётся, счётчик не сдвигается', () => {
     const res = renumberOrders([
       { id: 'a', start_date: '2026-01-01', created_at: '2026-01-01', ...us },
-      { id: 'b', start_date: '2026-01-02', created_at: '2026-01-02', executor_type: 'us', truck_id: null, driver_id: 'd' },
+      { id: 'b', start_date: '2026-01-02', created_at: '2026-01-02', segments: [{ executor_type: 'us', truck_id: null, driver_id: 'd' }] },
       { id: 'c', start_date: '2026-01-03', created_at: '2026-01-03', ...us },
     ], 'trip');
     expect(res).toEqual([
@@ -65,9 +71,16 @@ describe('renumberOrders', () => {
     ]);
   });
 
-  it('подрядчик — назначенный исполнитель', () => {
+  it('подрядчик без нашей машины — назначенный исполнитель', () => {
     const res = renumberOrders([
-      { id: 'a', start_date: '2026-01-01', created_at: '2026-01-01', executor_type: 'contractor', contractor_id: 'c1' },
+      { id: 'a', profit_mode: 'forwarding', start_date: '2026-01-01', created_at: '2026-01-01', segments: [conSeg] },
+    ], 'forwarding');
+    expect(res).toEqual([{ id: 'a', trip_number: '1Е' }]);
+  });
+
+  it('смешанный заказ (наш транспорт + подрядчик) остаётся в ветке рейсов', () => {
+    const res = renumberOrders([
+      { id: 'a', start_date: '2026-01-01', created_at: '2026-01-01', segments: [usSeg, conSeg] },
     ], 'trip');
     expect(res).toEqual([{ id: 'a', trip_number: '1' }]);
   });
@@ -213,8 +226,8 @@ describe('нумерация по дате выгрузки (строго)', () 
 
   it('экспедиция в пути уходит в конец своей ветки', () => {
     const res = renumberOrders([
-      { id: 'fwdInTransit', profit_mode: 'forwarding', load_date: '2026-10-27', created_at: '2026-10-14', executor_type: 'contractor', contractor_id: 'c1' },
-      { id: 'fwdDone', profit_mode: 'forwarding', unload_date: '2026-10-28', created_at: '2026-10-20', executor_type: 'contractor', contractor_id: 'c2' },
+      { id: 'fwdInTransit', profit_mode: 'forwarding', load_date: '2026-10-27', created_at: '2026-10-14', segments: [conSeg] },
+      { id: 'fwdDone', profit_mode: 'forwarding', unload_date: '2026-10-28', created_at: '2026-10-20', segments: [{ executor_type: 'contractor', contractor_id: 'c2' }] },
     ], 'forwarding');
     const map = Object.fromEntries(res.map((r) => [r.id, r.trip_number]));
     expect(map.fwdDone).toBe('1Е');
@@ -233,5 +246,32 @@ describe('нумерация по дате выгрузки (строго)', () 
     const b = { created_at: '2026-10-05' };
     expect(orderByNumberingDate(a as any, b as any)).toBe(-1);
     expect(orderByNumberingDate(b as any, a as any)).toBe(1);
+  });
+});
+
+describe('deriveProfitMode', () => {
+  it('наш транспорт -> рейс', () => {
+    expect(deriveProfitMode([usSeg])).toBe('trip');
+  });
+
+  it('только подрядчик -> экспедирование', () => {
+    expect(deriveProfitMode([conSeg])).toBe('forwarding');
+  });
+
+  it('смешанный заказ -> рейс', () => {
+    expect(deriveProfitMode([usSeg, conSeg])).toBe('trip');
+  });
+
+  it('без сегментов -> режим не определён', () => {
+    expect(deriveProfitMode([])).toBeNull();
+    expect(deriveProfitMode(null)).toBeNull();
+  });
+
+  it('наша машина без водителя не считается назначенным исполнителем', () => {
+    expect(deriveProfitMode([{ executor_type: 'us', truck_id: 't', driver_id: null }])).toBeNull();
+  });
+
+  it('подрядчик без contractor_id не считается назначенным', () => {
+    expect(deriveProfitMode([{ executor_type: 'contractor', contractor_id: null }])).toBeNull();
   });
 });

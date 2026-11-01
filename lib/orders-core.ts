@@ -143,20 +143,71 @@ export function orderByNumberingDate<T extends {
 }
 
 /**
- * Заказ рабочий (получает номер), только если назначен исполнитель.
- * Для рейса — наш транспорт с водителем, для экспедиции — подрядчик.
+ * Сегмент заказа в том виде, как его видит вычисление режима.
  */
-export function hasAssignedExecutor(order: {
+export type OrderSegment = {
   executor_type?: string | null;
   truck_id?: string | null;
   driver_id?: string | null;
   contractor_id?: string | null;
-}): boolean {
-  if (order.executor_type === 'us') {
-    return Boolean(order.truck_id && order.driver_id);
+};
+
+/**
+ * Режим расчёта ВЫВОДИТСЯ из фактических исполнителей, а не выбирается.
+ *
+ * Зафиксировано 01.11.2026:
+ *   - когда получаем заявку от клиента, мы ещё не знаем, кто повезёт груз;
+ *   - режим определяется в момент назначения исполнителя (сегмента);
+ *   - наш транспорт (executor_type='us')  -> 'trip';
+ *   - только подрядчик (executor_type='contractor') -> 'forwarding';
+ *   - смешанный заказ (есть и наш транспорт, и подрядчик) -> 'trip';
+ *     расходы подрядчика идут в прямые расходы рейса — как и было;
+ *   - нет ни одного сегмента -> null: режим ещё не определён.
+ */
+export function deriveProfitMode(
+  segments: Array<OrderSegment | null | undefined> | null | undefined
+): ProfitMode | null {
+  if (!segments || segments.length === 0) return null;
+
+  let hasUs = false;
+  let hasContractor = false;
+
+  for (const s of segments) {
+    if (!s) continue;
+    if (s.executor_type === 'us') {
+      // Наш транспорт считаем только с полным назначением: машина + водитель.
+      if (s.truck_id && s.driver_id) hasUs = true;
+    } else if (s.executor_type === 'contractor') {
+      if (s.contractor_id) hasContractor = true;
+    }
   }
-  if (order.executor_type === 'contractor') {
-    return Boolean(order.contractor_id);
+
+  if (hasUs) return 'trip';
+  if (hasContractor) return 'forwarding';
+  return null;
+}
+
+/**
+ * Заказ рабочий (получает номер), только если назначен исполнитель.
+ * Режим выводится из сегментов:
+ *   'trip'       -> нужен наш транспорт с машиной и водителем;
+ *   'forwarding' -> нужен подрядчик.
+ */
+export function hasAssignedExecutor(order: {
+  profit_mode?: ProfitMode | null;
+  segments?: Array<OrderSegment | null | undefined> | null;
+}): boolean {
+  const segments = order.segments || [];
+  const mode = deriveProfitMode(segments);
+  if (mode === 'trip') {
+    return segments.some(
+      (s) => !!s && s.executor_type === 'us' && Boolean(s.truck_id) && Boolean(s.driver_id)
+    );
+  }
+  if (mode === 'forwarding') {
+    return segments.some(
+      (s) => !!s && s.executor_type === 'contractor' && Boolean(s.contractor_id)
+    );
   }
   return false;
 }
@@ -173,10 +224,7 @@ export function renumberOrders<T extends {
   load_date?: string | null;
   unload_date?: string | null;
   created_at?: string | null;
-  executor_type?: string | null;
-  truck_id?: string | null;
-  driver_id?: string | null;
-  contractor_id?: string | null;
+  segments?: Array<OrderSegment | null | undefined> | null;
 }>(orders: T[], mode: ProfitMode): Array<{ id: string; trip_number: string | null }> {
   const sorted = [...orders].sort(orderByNumberingDate);
   const result: Array<{ id: string; trip_number: string | null }> = [];

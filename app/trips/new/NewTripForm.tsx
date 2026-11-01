@@ -64,7 +64,6 @@ export default function NewTripForm({
   const [from, setFrom] = useState<AddrState>({ ...emptyAddr });
   const [to, setTo] = useState<AddrState>({ ...emptyAddr });
   const [customs, setCustoms] = useState<CustomsState>({ ...emptyCustoms });
-  const [mode, setMode] = useState<'trip' | 'forwarding'>('trip');
   const [fwdOrigin, setFwdOrigin] = useState(false);
   const [costsClosed, setCostsClosed] = useState(true);
 
@@ -124,70 +123,12 @@ export default function NewTripForm({
       <div className={sectionClass}>
         <h2 className={sectionTitleClass}>
           <Coins className="w-5 h-5 text-brand-600" strokeWidth={2.2} />
-          Режим расчёта
+          Отметки заказа
         </h2>
         <p className="text-xs text-slate-500 -mt-1">
-          Режим задаёт математику экономики и то, в какой месяц заказ попадёт в статистику.
-          Галочка «Экспедирование» ниже — только пометка происхождения, на расчёт не влияет.
-        </p>
-
-        <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
-          <label
-            className={`flex items-start gap-3 rounded-xl border-2 p-3 cursor-pointer transition-colors ${
-              mode === 'trip' ? 'border-brand-500 bg-brand-50' : 'border-slate-200 bg-white hover:border-slate-300'
-            }`}
-          >
-            <input
-              type="radio"
-              name="profit_mode"
-              value="trip"
-              checked={mode === 'trip'}
-              onChange={() => setMode('trip')}
-              className="mt-0.5"
-            />
-            <span className="min-w-0">
-              <span className="block text-sm font-semibold text-slate-800">Рейс</span>
-              <span className="block text-xs text-slate-500">
-                Наш транспорт. Месяц заказа — по дате финиша, приоритет у финиша.
-              </span>
-            </span>
-          </label>
-
-          <label
-            className={`flex items-start gap-3 rounded-xl border-2 p-3 cursor-pointer transition-colors ${
-              mode === 'forwarding' ? 'border-brand-500 bg-brand-50' : 'border-slate-200 bg-white hover:border-slate-300'
-            }`}
-          >
-            <input
-              type="radio"
-              name="profit_mode"
-              value="forwarding"
-              checked={mode === 'forwarding'}
-              onChange={() => setMode('forwarding')}
-              className="mt-0.5"
-            />
-            <span className="min-w-0">
-              <span className="block text-sm font-semibold text-slate-800">Экспедирование</span>
-              <span className="block text-xs text-slate-500">
-                Перевозка силами подрядчика. Месяц заказа — по дате загрузки, иначе разгрузки.
-              </span>
-            </span>
-          </label>
-        </div>
-
-        {mode === 'forwarding' && (
-          <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2 pt-2 border-t border-slate-100">
-            <div>
-              <label className={labelClass}>Дата загрузки</label>
-              <input type="date" name="load_date" className={inputClass} />
-            </div>
-            <div>
-              <label className={labelClass}>Дата разгрузки</label>
-              <input type="date" name="unload_date" className={inputClass} />
-            </div>
-          </div>
-        )}
-
+          Режим расчёта определяется сам, когда назначен исполнитель: наша машина — рейс,
+          подрядчик — экспедирование. Смешанный заказ считается рейсом, расходы подрядчика идут
+          в прямые расходы рейса. Здесь только пометки — на математику они не влияют.
         <div className="space-y-2 pt-2 border-t border-slate-100">
           <label className="flex items-start gap-3 cursor-pointer">
             <input
