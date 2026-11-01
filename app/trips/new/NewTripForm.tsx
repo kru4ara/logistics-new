@@ -119,7 +119,7 @@ export default function NewTripForm({
   return (
     <form action={createCargoWithTrip} className="space-y-4 md:space-y-6">
 
-      {/* РЕЖИМ РАСЧЁТА */}
+      {/* РЕЖИМ РАСЧЁТА И ОТМЕТКИ ЗАКАЗА */}
       <div className={sectionClass}>
         <h2 className={sectionTitleClass}>
           <Coins className="w-5 h-5 text-brand-600" strokeWidth={2.2} />
@@ -129,6 +129,8 @@ export default function NewTripForm({
           Режим расчёта определяется сам, когда назначен исполнитель: наша машина — рейс,
           подрядчик — экспедирование. Смешанный заказ считается рейсом, расходы подрядчика идут
           в прямые расходы рейса. Здесь только пометки — на математику они не влияют.
+        </p>
+
         <div className="space-y-2 pt-2 border-t border-slate-100">
           <label className="flex items-start gap-3 cursor-pointer">
             <input
