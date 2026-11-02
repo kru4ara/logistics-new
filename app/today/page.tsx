@@ -6,6 +6,7 @@ import {
   MapPin,
   Flag,
   Route as RouteIcon,
+  Fuel,
 } from 'lucide-react';
 import { createClient } from '../../lib/supabase/admin';
 import { buildRouteMap } from '../../lib/trip-route';
@@ -13,10 +14,12 @@ import EventCard from './components/EventCard';
 import EmptyBlock from './components/EmptyBlock';
 import TodayStats from './components/TodayStats';
 import ActiveTripCard from './components/ActiveTripCard';
+import FuelList, { type FuelRow } from './components/FuelList';
 import TodayAttention from './components/TodayAttention';
 import { todayIso, currentTimestamp } from './lib/dates';
 import { hasUnloadDate } from '../../lib/orders-core';
 import { pickName, pickOne, getDriverName, getTruckNumber } from './lib/relations';
+import { fetchFuelLevels } from '../../lib/fuel-server';
 import { type EventItem } from './lib/events';
 
 export const dynamic = 'force-dynamic';
@@ -327,6 +330,26 @@ export default async function TodayPage() {
     tripsWithoutSalary.length +
     tripsMissingUnloadDate.length;
 
+  // Остаток топлива в баках тягачей
+  const fuelLevels = await fetchFuelLevels(supabase);
+  const { data: tractorRows } = await supabase
+    .from('trucks')
+    .select('id, registration_number')
+    .eq('type', 'tractor')
+    .order('registration_number', { ascending: true });
+
+  const fuelRows: FuelRow[] = (tractorRows || []).map((t: any) => {
+    const f = fuelLevels.get(t.id);
+    return {
+      id: t.id,
+      registration: t.registration_number?.trim() || '—',
+      liters: f?.liters ?? null,
+      isEstimate: f?.isEstimate ?? false,
+      tripNumber: f?.tripNumber ?? null,
+      date: f?.date ?? null,
+    };
+  });
+
   const todayHuman = new Date().toLocaleDateString('ru-RU', {
     day: '2-digit',
     month: 'long',
@@ -428,6 +451,24 @@ export default async function TodayPage() {
                 <ActiveTripCard key={trip.id} trip={trip} />
               ))}
             </div>
+          )}
+        </div>
+
+        <div>
+          <h2 className="text-base md:text-lg font-bold text-slate-900 mb-3 flex items-center gap-2">
+            <Fuel className="w-5 h-5 text-brand-600" strokeWidth={2.2} />
+            Топливо в баках
+            {fuelRows.length > 0 && (
+              <span className="text-xs bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full font-medium tabular-nums">
+                {fuelRows.length}
+              </span>
+            )}
+          </h2>
+
+          {fuelRows.length === 0 ? (
+            <EmptyBlock text="Тягачей нет" />
+          ) : (
+            <FuelList rows={fuelRows} />
           )}
         </div>
 
