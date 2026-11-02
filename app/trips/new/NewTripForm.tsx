@@ -65,7 +65,6 @@ export default function NewTripForm({
   const [to, setTo] = useState<AddrState>({ ...emptyAddr });
   const [customs, setCustoms] = useState<CustomsState>({ ...emptyCustoms });
   const [fwdOrigin, setFwdOrigin] = useState(false);
-  const [costsClosed, setCostsClosed] = useState(true);
 
   function fillFrom(locId: string) {
     if (!locId) return;
@@ -145,23 +144,6 @@ export default function NewTripForm({
               <span className="block text-sm font-medium text-slate-800">Экспедирование (происхождение)</span>
               <span className="block text-xs text-slate-500">
                 Помечает заказ как перевезённый экспедитором. На расчёт не влияет.
-              </span>
-            </span>
-          </label>
-
-          <label className="flex items-start gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              name="costs_closed"
-              value="1"
-              checked={costsClosed}
-              onChange={(e) => setCostsClosed(e.target.checked)}
-              className="mt-0.5"
-            />
-            <span className="min-w-0">
-              <span className="block text-sm font-medium text-slate-800">Расходы сведены</span>
-              <span className="block text-xs text-slate-500">
-                Только завершённые заказы со сведёнными расходами попадают в статистику.
               </span>
             </span>
           </label>

@@ -96,7 +96,6 @@ export async function createCargoWithTrip(formData: FormData) {
   // Режим расчёта НЕ выбирается: он выводится из назначенного исполнителя
   // (см. sync_trip_from_segment). До назначения режим не определён (null).
   const isForwarding = formData.get('is_forwarding') === '1' || formData.get('is_forwarding') === 'on';
-  const costsClosed = formData.get('costs_closed') === '1' || formData.get('costs_closed') === 'on';
 
   if (!label) throw new Error('Укажите название груза');
 
@@ -150,7 +149,6 @@ export async function createCargoWithTrip(formData: FormData) {
         // триггером sync_trip_from_segment при назначении исполнителя.
         profit_mode: 'trip',
         is_forwarding: isForwarding,
-        costs_closed: costsClosed,
         // Даты загрузки/разгрузки проставляются из сегмента подрядчика,
         // даты старта/финиша — из сегмента с нашей машиной.
         load_date: null,

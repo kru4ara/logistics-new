@@ -1,7 +1,7 @@
 import {
+  COMPLETED_STATUSES,
   getOrderMonthKey,
   hasUnloadDate,
-  isOrderCompleted,
   num,
   type ProfitMode,
 } from './orders-core';
@@ -72,15 +72,17 @@ export function getOrderMonthKeyForStats(order: any): string | null {
 
 /**
  * Заказ попадает в статистику, только если он завершён
- * (paid/invoiced) и по нему сведены расходы.
+ * (paid/invoiced) и известна дата выгрузки.
+ *
+ * Отдельного признака «расходы сведены» нет: заказ со статусом
+ * invoiced/paid — это уже завершённая работа, и в статистике он
+ * должен отражаться всегда. Иначе такие заказы молча выпадают
+ * из месяца и счётчики (рейсы/экспедиции) не сходятся с фактом.
  */
 export function isStatsCompleted(order: any): boolean {
-  if (!isOrderCompleted({
-    status: order?.status,
-    costs_closed: order?.costs_closed,
-  })) {
-    return false;
-  }
+  const status = order?.status;
+  if (!status) return false;
+  if (!(COMPLETED_STATUSES as readonly string[]).includes(status)) return false;
   // Без даты выгрузки заказ в статистику не идёт, даже если он закрыт:
   // месяц заказа определить не по чему.
   return hasUnloadDate({

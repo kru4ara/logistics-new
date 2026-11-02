@@ -104,20 +104,15 @@ describe('compareOrderNumbers', () => {
 });
 
 describe('isOrderCompleted', () => {
-  it('завершённые: paid и invoiced со сведёнными расходами', () => {
-    expect(isOrderCompleted({ status: 'paid', costs_closed: true })).toBe(true);
-    expect(isOrderCompleted({ status: 'invoiced', costs_closed: true })).toBe(true);
+  it('завершённые: paid и invoiced', () => {
+    expect(isOrderCompleted({ status: 'paid' })).toBe(true);
+    expect(isOrderCompleted({ status: 'invoiced' })).toBe(true);
   });
 
   it('незавершённые: active, planned, без статуса', () => {
-    expect(isOrderCompleted({ status: 'active', costs_closed: true })).toBe(false);
-    expect(isOrderCompleted({ status: 'planned', costs_closed: true })).toBe(false);
-    expect(isOrderCompleted({ status: null, costs_closed: true })).toBe(false);
-  });
-
-  it('расходы не сведены — в статистику не идёт', () => {
-    expect(isOrderCompleted({ status: 'paid', costs_closed: false })).toBe(false);
-    expect(isOrderCompleted({ status: 'paid', costs_closed: null })).toBe(false);
+    expect(isOrderCompleted({ status: 'active' })).toBe(false);
+    expect(isOrderCompleted({ status: 'planned' })).toBe(false);
+    expect(isOrderCompleted({ status: null })).toBe(false);
   });
 });
 
