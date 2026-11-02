@@ -202,7 +202,6 @@ alter table public.trips add column if not exists profit_mode text default 'trip
 alter table public.trips add column if not exists is_forwarding boolean default false;
 alter table public.trips add column if not exists load_date date;
 alter table public.trips add column if not exists unload_date date;
-alter table public.trips add column if not exists costs_closed boolean default false;
 alter table public.trips add column if not exists source_forwarding_id uuid;
 
 -- Участок маршрута

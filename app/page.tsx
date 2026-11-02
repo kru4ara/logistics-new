@@ -36,7 +36,7 @@ export default async function Home() {
   const { data: trips } = await supabase
     .from('trips')
     .select(
-      'id, client_id, revenue_eur, start_date, end_date, load_date, unload_date, status, profit_mode, is_forwarding, costs_closed'
+      'id, client_id, revenue_eur, start_date, end_date, load_date, unload_date, status, profit_mode, is_forwarding'
     );
 
   const { data: tripExpenses } = await supabase

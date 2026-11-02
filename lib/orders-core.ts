@@ -253,14 +253,12 @@ export function renumberOrders<T extends {
   return result;
 }
 
-/** Заказ завершён и пригоден для статистики. */
+/** Заказ завершён: работа закончена, заказ можно закрывать и считать. */
 export function isOrderCompleted(order: {
   status?: string | null;
-  costs_closed?: boolean | null;
 }): boolean {
   if (!order.status) return false;
-  if (!(COMPLETED_STATUSES as readonly string[]).includes(order.status)) return false;
-  return order.costs_closed === true;
+  return (COMPLETED_STATUSES as readonly string[]).includes(order.status);
 }
 
 /**

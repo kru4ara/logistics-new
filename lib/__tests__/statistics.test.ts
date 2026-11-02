@@ -21,13 +21,12 @@ describe('calculateStatistics', () => {
     expect(result.capexTotalForYear).toBe(0);
   });
 
-  it('учитывает завершённые заказы независимо от флага сведённых расходов', () => {
+  it('учитывает только завершённые заказы', () => {
     const orders = [
-      { id: 't1', status: 'paid', costs_closed: true, revenue_eur: 1000, end_date: '2026-05-15' },
-      // Расходы не сведены, но заказ оплачен — в статистике он должен быть.
-      { id: 't2', status: 'paid', costs_closed: false, revenue_eur: 5000, end_date: '2026-05-15' },
-      { id: 't3', status: 'active', costs_closed: true, revenue_eur: 7000, end_date: '2026-05-15' },
-      { id: 't4', status: 'planned', costs_closed: true, revenue_eur: 9000, end_date: '2026-05-15' },
+      { id: 't1', status: 'paid', revenue_eur: 1000, end_date: '2026-05-15' },
+      { id: 't2', status: 'paid', revenue_eur: 5000, end_date: '2026-05-15' },
+      { id: 't3', status: 'active', revenue_eur: 7000, end_date: '2026-05-15' },
+      { id: 't4', status: 'planned', revenue_eur: 9000, end_date: '2026-05-15' },
     ];
 
     const result = calculateStatistics({
@@ -46,14 +45,13 @@ describe('calculateStatistics', () => {
     expect(result.yearTotals.totalIncome).toBe(6000);
   });
 
-  it('оплаченная экспедиция попадает в статистику даже без сведённых расходов', () => {
-    // Регресс: заказ 30Е (invoiced, costs_closed=false) выпадал из
-    // месяца, и счётчик экспедиций не сходился с фактом.
+  it('оплаченная экспедиция попадает в статистику', () => {
+    // Регресс: заказ 30Е (invoiced) выпадал из месяца, и счётчик
+    // экспедиций не сходился с фактом.
     const orders = [
       {
         id: 'f1',
         status: 'invoiced',
-        costs_closed: false,
         profit_mode: 'forwarding',
         revenue_eur: 3900,
         load_date: '2026-09-30',
@@ -80,8 +78,8 @@ describe('calculateStatistics', () => {
 
   it('правильно считает доход, расходы и прибыль по заказу-рейсу', () => {
     const orders = [
-      { id: 't1', status: 'paid', costs_closed: true, revenue_eur: 1000, end_date: '2026-05-15' },
-      { id: 't2', status: 'paid', costs_closed: true, revenue_eur: 2000, start_date: '2026-05-10', end_date: '2026-05-12' },
+      { id: 't1', status: 'paid', revenue_eur: 1000, end_date: '2026-05-15' },
+      { id: 't2', status: 'paid', revenue_eur: 2000, start_date: '2026-05-10', end_date: '2026-05-12' },
     ];
     const expensesByOrder = { t1: 200, t2: 500 };
 
@@ -113,11 +111,10 @@ describe('calculateStatistics', () => {
   it('заказ без даты выгрузки в статистику не идёт', () => {
     // Рейс без финиша и экспедиция без разгрузки — в пути.
     const orders = [
-      { id: 't1', status: 'paid', costs_closed: true, revenue_eur: 1000, start_date: '2026-05-10' },
+      { id: 't1', status: 'paid', revenue_eur: 1000, start_date: '2026-05-10' },
       {
         id: 'f1',
         status: 'paid',
-        costs_closed: true,
         profit_mode: 'forwarding',
         revenue_eur: 5000,
         load_date: '2026-05-01',
@@ -145,7 +142,6 @@ describe('calculateStatistics', () => {
       {
         id: 'f1',
         status: 'paid',
-        costs_closed: true,
         profit_mode: 'forwarding',
         revenue_eur: 1000,
         load_date: '2026-04-10',
@@ -154,7 +150,6 @@ describe('calculateStatistics', () => {
       {
         id: 't1',
         status: 'paid',
-        costs_closed: true,
         profit_mode: 'trip',
         revenue_eur: 2000,
         start_date: '2026-03-01',
@@ -259,7 +254,6 @@ describe('calculateStatistics', () => {
       {
         id: 'f1',
         status: 'invoiced',
-        costs_closed: true,
         profit_mode: 'forwarding',
         revenue_eur: 5000,
         load_date: '2026-06-01',

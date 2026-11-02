@@ -29,7 +29,7 @@ export default async function StatisticsPage({ searchParams }: { searchParams: P
   const { data: orders } = await supabase
     .from('trips')
     .select(
-      'id, revenue_eur, start_date, end_date, load_date, unload_date, status, profit_mode, is_forwarding, costs_closed'
+      'id, revenue_eur, start_date, end_date, load_date, unload_date, status, profit_mode, is_forwarding'
     );
 
   const orderIds = orders?.map((o) => o.id) || [];

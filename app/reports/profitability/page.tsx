@@ -53,7 +53,7 @@ export default async function ProfitabilityPage({
     .from('trips')
     .select(`
       id, client_id, truck_id, revenue_eur, actual_km, start_date,
-      end_date, load_date, unload_date, profit_mode, status, costs_closed,
+      end_date, load_date, unload_date, profit_mode, status,
       clients(name),
       trucks!truck_id(registration_number)
     `);
