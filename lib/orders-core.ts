@@ -169,20 +169,26 @@ export function deriveProfitMode(
 ): ProfitMode | null {
   if (!segments || segments.length === 0) return null;
 
-  let hasUs = false;
+  let hasUs = false;        // есть сегмент "наша авто" (любое назначение)
+  let hasUsFull = false;   // наша авто назначена полностью: машина + водитель
   let hasContractor = false;
 
   for (const s of segments) {
     if (!s) continue;
     if (s.executor_type === 'us') {
-      // Наш транспорт считаем только с полным назначением: машина + водитель.
-      if (s.truck_id && s.driver_id) hasUs = true;
+      hasUs = true;
+      // Полное назначение — машина и водитель.
+      if (s.truck_id && s.driver_id) hasUsFull = true;
     } else if (s.executor_type === 'contractor') {
       if (s.contractor_id) hasContractor = true;
     }
   }
 
-  if (hasUs) return 'trip';
+  // Смешанный заказ (наша авто + подрядчик) — рейс, даже если конкретная
+  // машина ещё не назначена: сегмент "наша авто" уже означает, что часть
+  // маршрута едет на нашем транспорте.
+  if (hasUs && (hasUsFull || hasContractor)) return 'trip';
+  if (hasUsFull) return 'trip';
   if (hasContractor) return 'forwarding';
   return null;
 }
@@ -190,7 +196,9 @@ export function deriveProfitMode(
 /**
  * Заказ рабочий (получает номер), только если назначен исполнитель.
  * Режим выводится из сегментов:
- *   'trip'       -> нужен наш транспорт с машиной и водителем;
+ *   'trip'       -> нужен наш транспорт; для смешанного заказа
+ *                  (наша авто + подрядчик) достаточно назначенного
+ *                  подрядчика — конкретную машину назначают позже;
  *   'forwarding' -> нужен подрядчик.
  */
 export function hasAssignedExecutor(order: {
@@ -200,9 +208,14 @@ export function hasAssignedExecutor(order: {
   const segments = order.segments || [];
   const mode = deriveProfitMode(segments);
   if (mode === 'trip') {
-    return segments.some(
+    const hasUsFull = segments.some(
       (s) => !!s && s.executor_type === 'us' && Boolean(s.truck_id) && Boolean(s.driver_id)
     );
+    const hasUs = segments.some((s) => !!s && s.executor_type === 'us');
+    const hasContractor = segments.some(
+      (s) => !!s && s.executor_type === 'contractor' && Boolean(s.contractor_id)
+    );
+    return hasUsFull || (hasUs && hasContractor);
   }
   if (mode === 'forwarding') {
     return segments.some(

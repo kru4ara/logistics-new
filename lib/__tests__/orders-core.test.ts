@@ -84,6 +84,13 @@ describe('renumberOrders', () => {
     ], 'trip');
     expect(res).toEqual([{ id: 'a', trip_number: '1' }]);
   });
+
+  it('смешанный заказ без назначенной нашей машины тоже получает номер рейса', () => {
+    const res = renumberOrders([
+      { id: 'a', start_date: '2026-01-01', created_at: '2026-01-01', segments: [{ executor_type: 'us', truck_id: null, driver_id: null }, conSeg] },
+    ], 'trip');
+    expect(res).toEqual([{ id: 'a', trip_number: '1' }]);
+  });
 });
 
 describe('compareOrderNumbers', () => {
@@ -260,6 +267,13 @@ describe('deriveProfitMode', () => {
 
   it('смешанный заказ -> рейс', () => {
     expect(deriveProfitMode([usSeg, conSeg])).toBe('trip');
+  });
+
+  it('смешанный заказ -> рейс, даже если наша машина ещё не назначена', () => {
+    // Сегмент "наша авто" есть, конкретная машина и водитель не назначены:
+    // заказ всё равно рейс, а не экспедиция.
+    expect(deriveProfitMode([{ executor_type: 'us', truck_id: null, driver_id: null }, conSeg])).toBe('trip');
+    expect(deriveProfitMode([{ executor_type: 'us', truck_id: 't', driver_id: null }, conSeg])).toBe('trip');
   });
 
   it('без сегментов -> режим не определён', () => {
