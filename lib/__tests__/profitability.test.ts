@@ -174,17 +174,17 @@ describe('getOrderPeriodDate', () => {
     expect(
       getOrderPeriodDate({
         profit_mode: 'forwarding',
-        load_date: '2026-04-10',
-        unload_date: '2026-05-20',
+        start_date: '2026-04-10',
+        end_date: '2026-05-20',
       })
     ).toBe('2026-05-20');
 
-    // Без даты разгрузки — запасной вариант по загрузке.
+    // Без даты разгрузки — запасной вариант по старту.
     expect(
       getOrderPeriodDate({
         profit_mode: 'forwarding',
-        load_date: '2026-04-10',
-        unload_date: null,
+        start_date: '2026-04-10',
+        end_date: null,
       })
     ).toBe('2026-04-10');
   });

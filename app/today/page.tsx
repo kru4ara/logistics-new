@@ -40,7 +40,7 @@ export default async function TodayPage() {
     .from('trips')
     .select(`
       id, trip_number, status, start_date, end_date,
-      load_date, unload_date, profit_mode,
+      profit_mode,
       driver_id, truck_id,
       clients(name),
       drivers!driver_id(first_name, last_name, phone_by, phone_pl),
@@ -163,7 +163,7 @@ export default async function TodayPage() {
   const { data: fwdOrders } = await supabase
     .from('trips')
     .select(`
-      id, trip_number, load_date, unload_date,
+      id, trip_number,
       clients(name)
     `)
     .eq('profit_mode', 'forwarding');
@@ -303,12 +303,12 @@ export default async function TodayPage() {
     (t) => (t.status === 'active' || t.status === 'planned') && !t.driver_id
   );
 
-  // Заказы БЕЗ даты выгрузки: рейс без end_date, экспедиция без unload_date.
+  // Заказы БЕЗ даты выгрузки (факта финиша/разгрузки).
   // В статистику не идут (месяц заказа определить не по чему) —
   // показываем в блоке «Требует внимания».
   const tripsMissingUnloadDate = allTrips
     .filter((t) => {
-      const hasAny = Boolean(t.start_date || t.end_date || t.load_date || t.unload_date);
+      const hasAny = Boolean(t.start_date || t.end_date);
       return hasAny && !hasUnloadDate(t);
     })
     .map((t) => ({

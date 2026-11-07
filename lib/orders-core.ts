@@ -19,9 +19,16 @@
  *    Завершённый = 'paid' или 'invoiced'.
  *    Незавершённый = 'active' (в пути), 'planned' или null.
  *
- * 4. МЕСЯЦ заказа — ПО ДАТЕ ВЫГРУЗКИ:
- *    - 'trip'       -> end_date || start_date (финиш)
- *    - 'forwarding' -> unload_date || load_date (разгрузка)
+ * 4. ДАТЫ ЗАКАЗА:
+ *    - start_date / end_date — ФАКТИЧЕСКИЕ даты заказа:
+ *      рейс       -> старт и финиш машины;
+ *      экспедиция -> фактическая погрузка и разгрузка.
+ *    - load_date / unload_date — ПЛАНОВЫЕ даты. В расчётах, отчётах
+ *      и нумерации НЕ участвуют.
+ *    - trip_segments.date_from / date_to — план по каждому участку.
+ *
+ *    МЕСЯЦ заказа — ПО ФАКТИЧЕСКОЙ ДАТЕ ВЫГРУЗКИ:
+ *    для обоих режимов это end_date (запасной вариант — start_date).
  *    Загружен в сентябре, выгружен в октябре — заказ октябрьский.
  *    По этой же дате идёт сортировка и нумерация.
  *
@@ -87,20 +94,19 @@ export function parseOrderNumber(value: string | null | undefined): {
 
 /**
  * Дата ВЫГРУЗКИ для нумерации — СТРОГО, без запасного варианта.
- *   рейс       -> end_date (финиш)
- *   экспедиция -> unload_date (разгрузка)
+ * Для обоих режимов это end_date:
+ *   рейс       -> финиш машины;
+ *   экспедиция -> фактическая разгрузка.
  * Заказ без даты выгрузки (в пути) сортируется в конец ветки.
  */
 export function getOrderUnloadDateStrict(
   order: {
     profit_mode?: ProfitMode | null;
     end_date?: string | null;
-    unload_date?: string | null;
   } | null | undefined
 ): string | null {
   if (!order) return null;
-  const mode: ProfitMode = order.profit_mode === 'forwarding' ? 'forwarding' : 'trip';
-  return mode === 'forwarding' ? order.unload_date || null : order.end_date || null;
+  return order.end_date || null;
 }
 
 /**
@@ -115,8 +121,6 @@ export function orderByNumberingDate<T extends {
   profit_mode?: ProfitMode | null;
   start_date?: string | null;
   end_date?: string | null;
-  load_date?: string | null;
-  unload_date?: string | null;
   created_at?: string | null;
 }>(a: T, b: T): number {
   const da = getOrderUnloadDateStrict(a);
@@ -234,8 +238,6 @@ export function renumberOrders<T extends {
   profit_mode?: ProfitMode | null;
   start_date?: string | null;
   end_date?: string | null;
-  load_date?: string | null;
-  unload_date?: string | null;
   created_at?: string | null;
   segments?: Array<OrderSegment | null | undefined> | null;
 }>(orders: T[], mode: ProfitMode): Array<{ id: string; trip_number: string | null }> {
@@ -262,7 +264,8 @@ export function isOrderCompleted(order: {
 }
 
 /**
- * Ключ месяца заказа. Правило зависит от режима расчёта.
+ * Ключ месяца заказа — по фактической дате выгрузки (end_date),
+ * одинаково для рейса и экспедирования.
  * null, если нет ни одной подходящей даты.
  */
 export function getOrderMonthKey(
@@ -270,12 +273,9 @@ export function getOrderMonthKey(
     profit_mode?: ProfitMode | null;
     start_date?: string | null;
     end_date?: string | null;
-    load_date?: string | null;
-    unload_date?: string | null;
-  } | null | undefined,
-  fallbackMode: ProfitMode = 'trip'
+  } | null | undefined
 ): string | null {
-  const raw = getOrderUnloadDate(order, fallbackMode);
+  const raw = getOrderUnloadDate(order);
   if (!raw) return null;
   const d = new Date(raw);
   if (isNaN(d.getTime())) return null;
@@ -285,8 +285,7 @@ export function getOrderMonthKey(
 /**
  * Дата выгрузки заказа — по ней определяются месяц заказа,
  * сортировка и нумерация.
- *   рейс       -> end_date (финиш), запасной start_date
- *   экспедиция -> unload_date (разгрузка), запасной load_date
+ * Для обоих режимов это end_date (факт), запасной вариант — start_date.
  * Загружен в сентябре, выгружен в октябре — заказ октябрьский.
  */
 export function getOrderUnloadDate(
@@ -294,22 +293,15 @@ export function getOrderUnloadDate(
     profit_mode?: ProfitMode | null;
     start_date?: string | null;
     end_date?: string | null;
-    load_date?: string | null;
-    unload_date?: string | null;
-  } | null | undefined,
-  fallbackMode: ProfitMode = 'trip'
+  } | null | undefined
 ): string | null {
   if (!order) return null;
-  const mode: ProfitMode = order.profit_mode === 'forwarding' ? 'forwarding' : fallbackMode;
-  return mode === 'forwarding'
-    ? order.unload_date || order.load_date || null
-    : order.end_date || order.start_date || null;
+  return order.end_date || order.start_date || null;
 }
 
 /**
  * Дата ВЫГРУЗКИ заказа — СТРОГО, без запасного варианта.
- *   рейс       -> end_date (финиш)
- *   экспедиция -> unload_date (разгрузка)
+ * Для обоих режимов это end_date (факт).
  * Если её нет — заказ ещё не выгружен: в статистику не идёт
  * и попадает в уведомление «нет даты выгрузки» на странице «Сегодня».
  */
@@ -317,12 +309,10 @@ export function hasUnloadDate(
   order: {
     profit_mode?: ProfitMode | null;
     end_date?: string | null;
-    unload_date?: string | null;
   } | null | undefined
 ): boolean {
   if (!order) return false;
-  const mode: ProfitMode = order.profit_mode === 'forwarding' ? 'forwarding' : 'trip';
-  return mode === 'forwarding' ? Boolean(order.unload_date) : Boolean(order.end_date);
+  return Boolean(order.end_date);
 }
 
 /**
@@ -334,7 +324,6 @@ export function isOrderMissingUnloadDate(
   order: {
     profit_mode?: ProfitMode | null;
     end_date?: string | null;
-    unload_date?: string | null;
   } | null | undefined
 ): boolean {
   return !hasUnloadDate(order);

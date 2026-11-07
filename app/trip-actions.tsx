@@ -240,19 +240,16 @@ export async function updateTrip(tripId: string, formData: FormData) {
 
   const { data: before } = await supabase
     .from('trips')
-    .select('trip_number, revenue_eur, driver_id, truck_id, client_id, start_date, end_date, load_date, unload_date, profit_mode, client_request_number, start_fuel_level, start_lat, start_lng, end_lat, end_lng')
+    .select('trip_number, revenue_eur, driver_id, truck_id, client_id, start_date, end_date, profit_mode, client_request_number, start_fuel_level, start_lat, start_lng, end_lat, end_lng')
     .eq('id', tripId)
     .single();
 
-  // Старт и финиш — единые поля заказа (start_date / end_date)
+  // Старт и финиш — ФАКТИЧЕСКИЕ даты заказа (start_date / end_date)
   // для любого режима расчёта.
-  const isForwarding = before?.profit_mode === 'forwarding';
+  // load_date/unload_date — плановые даты, их заполняет сегмент;
+  // из формы они не пишутся, чтобы план не затирал факт.
   const startDate = (formData.get('start_date') as string) || null;
   const endDate = (formData.get('end_date') as string) || null;
-  // Для экспедирования те же даты дублируются в load_date/unload_date,
-  // чтобы работали расчёты и отчёты, которые берут даты загрузки.
-  const loadDate = isForwarding ? startDate : null;
-  const unloadDate = isForwarding ? endDate : null;
 
   let startLat = before?.start_lat ?? 0;
   let startLng = before?.start_lng ?? 0;
@@ -279,13 +276,9 @@ export async function updateTrip(tripId: string, formData: FormData) {
       start_lng: startLng,
       end_lat: endLat,
       end_lng: endLng,
-      // Даты — всегда в start_date / end_date. Для экспедирования
-      // дополнительно синхронизируем load_date / unload_date.
+      // Даты — всегда фактические, в start_date / end_date.
       start_date: startDate,
       end_date: endDate,
-      ...(isForwarding
-        ? { load_date: loadDate, unload_date: unloadDate }
-        : {}),
     })
     .eq('id', tripId);
 
@@ -299,8 +292,6 @@ export async function updateTrip(tripId: string, formData: FormData) {
         start_fuel_level: before.start_fuel_level,
         start_date: before.start_date,
         end_date: before.end_date,
-        load_date: before.load_date,
-        unload_date: before.unload_date,
       },
       {
         client_id: clientId || null,
@@ -308,10 +299,8 @@ export async function updateTrip(tripId: string, formData: FormData) {
         start_fuel_level: startFuelLevel,
         start_date: startDate,
         end_date: endDate,
-        load_date: isForwarding ? loadDate : before.load_date,
-        unload_date: isForwarding ? unloadDate : before.unload_date,
       },
-      ['client_id', 'client_request_number', 'start_fuel_level', 'start_date', 'end_date', 'load_date', 'unload_date']
+      ['client_id', 'client_request_number', 'start_fuel_level', 'start_date', 'end_date']
     );
 
     const changedCount = Object.keys(changes).length;

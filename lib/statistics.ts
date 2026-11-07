@@ -53,21 +53,15 @@ export type CapexItem = {
 };
 
 /**
- * Месяц заказа. Режим расчёта задаёт правило:
- *   trip       -> end_date || start_date (финиш)
- *   forwarding -> unload_date || load_date (разгрузка)
+ * Месяц заказа — по фактической дате выгрузки (end_date),
+ * одинаково для рейса и экспедирования.
  */
 export function getOrderMonthKeyForStats(order: any): string | null {
-  return getOrderMonthKey(
-    {
-      profit_mode: (order?.profit_mode as ProfitMode) ?? 'trip',
-      start_date: order?.start_date,
-      end_date: order?.end_date,
-      load_date: order?.load_date,
-      unload_date: order?.unload_date,
-    },
-    'trip'
-  );
+  return getOrderMonthKey({
+    profit_mode: (order?.profit_mode as ProfitMode) ?? 'trip',
+    start_date: order?.start_date,
+    end_date: order?.end_date,
+  });
 }
 
 /**
@@ -88,7 +82,6 @@ export function isStatsCompleted(order: any): boolean {
   return hasUnloadDate({
     profit_mode: order?.profit_mode ?? 'trip',
     end_date: order?.end_date,
-    unload_date: order?.unload_date,
   });
 }
 

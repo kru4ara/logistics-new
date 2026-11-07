@@ -29,7 +29,7 @@ export default async function StatisticsPage({ searchParams }: { searchParams: P
   const { data: orders } = await supabase
     .from('trips')
     .select(
-      'id, revenue_eur, start_date, end_date, load_date, unload_date, status, profit_mode, is_forwarding'
+      'id, revenue_eur, start_date, end_date, status, profit_mode, is_forwarding'
     );
 
   const orderIds = orders?.map((o) => o.id) || [];
@@ -88,7 +88,7 @@ export default async function StatisticsPage({ searchParams }: { searchParams: P
   const yearsSet = new Set<number>();
   yearsSet.add(currentYear);
   orders?.forEach((o) => {
-    const d = o.end_date || o.start_date || o.load_date || o.unload_date;
+    const d = o.end_date || o.start_date;
     if (d) yearsSet.add(new Date(d).getFullYear());
   });
   fixedCosts?.forEach((fc) => {

@@ -149,8 +149,9 @@ export async function createCargoWithTrip(formData: FormData) {
         // триггером sync_trip_from_segment при назначении исполнителя.
         profit_mode: 'trip',
         is_forwarding: isForwarding,
-        // Даты загрузки/разгрузки проставляются из сегмента подрядчика,
-        // даты старта/финиша — из сегмента с нашей машиной.
+        // Плановые даты (загрузка/разгрузка) проставляются из сегмента
+        // подрядчика. Фактические даты (start_date/end_date) вносятся
+        // офисом вручную — план не должен их затирать.
         load_date: null,
         unload_date: null,
         status: 'planned',

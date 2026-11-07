@@ -54,8 +54,8 @@ describe('calculateStatistics', () => {
         status: 'invoiced',
         profit_mode: 'forwarding',
         revenue_eur: 3900,
-        load_date: '2026-09-30',
-        unload_date: '2026-10-28',
+        start_date: '2026-09-30',
+        end_date: '2026-10-28',
       },
     ];
 
@@ -117,7 +117,7 @@ describe('calculateStatistics', () => {
         status: 'paid',
         profit_mode: 'forwarding',
         revenue_eur: 5000,
-        load_date: '2026-05-01',
+        start_date: '2026-05-01',
       },
     ];
 
@@ -144,8 +144,8 @@ describe('calculateStatistics', () => {
         status: 'paid',
         profit_mode: 'forwarding',
         revenue_eur: 1000,
-        load_date: '2026-04-10',
-        unload_date: '2026-05-20',
+        start_date: '2026-04-10',
+        end_date: '2026-05-20',
       },
       {
         id: 't1',
@@ -256,8 +256,8 @@ describe('calculateStatistics', () => {
         status: 'invoiced',
         profit_mode: 'forwarding',
         revenue_eur: 5000,
-        load_date: '2026-06-01',
-        unload_date: '2026-06-05',
+        start_date: '2026-06-01',
+        end_date: '2026-06-05',
       },
     ];
     const result = calculateStatistics({

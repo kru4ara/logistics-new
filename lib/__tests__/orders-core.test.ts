@@ -51,8 +51,8 @@ describe('renumberOrders', () => {
 
   it('экспедиция получает суффикс Е', () => {
     const res = renumberOrders([
-      { id: 'a', profit_mode: 'forwarding', load_date: '2026-01-01', created_at: '2026-01-01', segments: [conSeg] },
-      { id: 'b', profit_mode: 'forwarding', load_date: '2026-01-02', created_at: '2026-01-02', segments: [{ executor_type: 'contractor', contractor_id: 'c2' }] },
+      { id: 'a', profit_mode: 'forwarding', start_date: '2026-01-01', created_at: '2026-01-01', segments: [conSeg] },
+      { id: 'b', profit_mode: 'forwarding', start_date: '2026-01-02', created_at: '2026-01-02', segments: [{ executor_type: 'contractor', contractor_id: 'c2' }] },
     ], 'forwarding');
     expect(res.map((r) => r.trip_number)).toEqual(['1Е', '2Е']);
     expect(res[0].trip_number?.endsWith(FORWARDING_SUFFIX)).toBe(true);
@@ -122,13 +122,23 @@ describe('getOrderMonthKey', () => {
     expect(getOrderMonthKey({ profit_mode: 'trip', start_date: '2026-01-05', end_date: null })).toBe('2026-01');
   });
 
-  it('экспедиция: месяц по unload_date (разгрузка), иначе load_date', () => {
+  it('экспедиция: месяц по ФАКТУ разгрузки (end_date)', () => {
     // Загружен в сентябре, выгружен в октябре — заказ октябрьский.
-    expect(getOrderMonthKey({ profit_mode: 'forwarding', load_date: '2026-09-07', unload_date: '2026-10-12' })).toBe('2026-10');
-    expect(getOrderMonthKey({ profit_mode: 'forwarding', load_date: '2026-05-07', unload_date: '2026-05-12' })).toBe('2026-05');
-    expect(getOrderMonthKey({ profit_mode: 'forwarding', load_date: null, unload_date: '2026-06-12' })).toBe('2026-06');
-    // Без разгрузки — запасной вариант по загрузке.
-    expect(getOrderMonthKey({ profit_mode: 'forwarding', load_date: '2026-07-03', unload_date: null })).toBe('2026-07');
+    expect(getOrderMonthKey({ profit_mode: 'forwarding', start_date: '2026-09-07', end_date: '2026-10-12' })).toBe('2026-10');
+    expect(getOrderMonthKey({ profit_mode: 'forwarding', start_date: '2026-05-07', end_date: '2026-05-12' })).toBe('2026-05');
+    expect(getOrderMonthKey({ profit_mode: 'forwarding', start_date: null, end_date: '2026-06-12' })).toBe('2026-06');
+    // Без разгрузки — запасной вариант по старту.
+    expect(getOrderMonthKey({ profit_mode: 'forwarding', start_date: '2026-07-03', end_date: null })).toBe('2026-07');
+  });
+
+  it('плановые даты (load_date/unload_date) на месяц заказа НЕ влияют', () => {
+    expect(getOrderMonthKey({
+      profit_mode: 'forwarding',
+      start_date: '2026-09-07',
+      end_date: '2026-10-12',
+      load_date: '2026-01-01',
+      unload_date: '2026-01-02',
+    } as any)).toBe('2026-10');
   });
 
   it('без дат — null', () => {
@@ -163,17 +173,26 @@ describe('hasUnloadDate', () => {
     expect(hasUnloadDate({ profit_mode: 'trip', end_date: null })).toBe(false);
   });
 
-  it('экспедиция: дата выгрузки — разгрузка', () => {
-    expect(hasUnloadDate({ profit_mode: 'forwarding', unload_date: '2026-10-10' })).toBe(true);
+  it('экспедиция: дата выгрузки — фактическая разгрузка (end_date)', () => {
+    expect(hasUnloadDate({ profit_mode: 'forwarding', end_date: '2026-10-10' })).toBe(true);
   });
 
   it('экспедиция без разгрузки — даты выгрузки нет', () => {
-    expect(hasUnloadDate({ profit_mode: 'forwarding', unload_date: null })).toBe(false);
+    expect(hasUnloadDate({ profit_mode: 'forwarding', end_date: null })).toBe(false);
   });
 
-  it('запасной вариант (start_date / load_date) датой выгрузки НЕ считается', () => {
+  it('запасной вариант (start_date) датой выгрузки НЕ считается', () => {
     expect(hasUnloadDate({ profit_mode: 'trip', start_date: '2026-10-10', end_date: null })).toBe(false);
-    expect(hasUnloadDate({ profit_mode: 'forwarding', load_date: '2026-10-10', unload_date: null })).toBe(false);
+    expect(hasUnloadDate({ profit_mode: 'forwarding', start_date: '2026-10-10', end_date: null })).toBe(false);
+  });
+
+  it('плановые даты (load_date/unload_date) датой выгрузки НЕ считаются', () => {
+    expect(hasUnloadDate({
+      profit_mode: 'forwarding',
+      load_date: '2026-10-10',
+      unload_date: '2026-10-12',
+      end_date: null,
+    } as any)).toBe(false);
   });
 
   it('пустой заказ и null — без даты выгрузки', () => {
@@ -193,14 +212,14 @@ describe('isOrderMissingUnloadDate', () => {
 });
 
 describe('нумерация по дате выгрузки (строго)', () => {
-  it('дата выгрузки берётся строго: рейс — финиш, экспедиция — разгрузка', () => {
+  it('дата выгрузки берётся строго: для обоих режимов это end_date', () => {
     expect(getOrderUnloadDateStrict({ profit_mode: 'trip', end_date: '2026-10-29' })).toBe('2026-10-29');
-    expect(getOrderUnloadDateStrict({ profit_mode: 'forwarding', unload_date: '2026-10-28' })).toBe('2026-10-28');
+    expect(getOrderUnloadDateStrict({ profit_mode: 'forwarding', end_date: '2026-10-28' })).toBe('2026-10-28');
   });
 
-  it('запасной вариант (start_date / load_date) не подставляется', () => {
+  it('запасной вариант (start_date) не подставляется', () => {
     expect(getOrderUnloadDateStrict({ profit_mode: 'trip', start_date: '2026-10-29', end_date: null })).toBeNull();
-    expect(getOrderUnloadDateStrict({ profit_mode: 'forwarding', load_date: '2026-10-27', unload_date: null })).toBeNull();
+    expect(getOrderUnloadDateStrict({ profit_mode: 'forwarding', start_date: '2026-10-27', end_date: null })).toBeNull();
   });
 
   it('заказ в пути уходит в конец ветки и получает наибольший номер', () => {
@@ -228,8 +247,8 @@ describe('нумерация по дате выгрузки (строго)', () 
 
   it('экспедиция в пути уходит в конец своей ветки', () => {
     const res = renumberOrders([
-      { id: 'fwdInTransit', profit_mode: 'forwarding', load_date: '2026-10-27', created_at: '2026-10-14', segments: [conSeg] },
-      { id: 'fwdDone', profit_mode: 'forwarding', unload_date: '2026-10-28', created_at: '2026-10-20', segments: [{ executor_type: 'contractor', contractor_id: 'c2' }] },
+      { id: 'fwdInTransit', profit_mode: 'forwarding', start_date: '2026-10-27', created_at: '2026-10-14', segments: [conSeg] },
+      { id: 'fwdDone', profit_mode: 'forwarding', end_date: '2026-10-28', created_at: '2026-10-20', segments: [{ executor_type: 'contractor', contractor_id: 'c2' }] },
     ], 'forwarding');
     const map = Object.fromEntries(res.map((r) => [r.id, r.trip_number]));
     expect(map.fwdDone).toBe('1Е');

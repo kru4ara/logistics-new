@@ -44,9 +44,8 @@ export function toNum(v: unknown): number {
 }
 
 /**
- * Дата заказа для фильтра по периоду — зависит от режима расчёта:
- *   trip       -> end_date || start_date (финиш)
- *   forwarding -> unload_date || load_date (разгрузка)
+ * Дата заказа для фильтра по периоду — фактическая дата выгрузки
+ * (end_date, запасной вариант — start_date), одинаково для обоих режимов.
  */
 export function getOrderPeriodDate(order: any): string | null {
   const raw = getOrderUnloadDate(order);

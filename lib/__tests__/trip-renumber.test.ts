@@ -87,9 +87,9 @@ describe('renumberAllTrips', () => {
   it('ведёт две независимые ветки нумерации с суффиксом Е', async () => {
     const trips = [
       { id: 't1', trip_number: '1', start_date: '2026-01-01', end_date: '2026-01-01', profit_mode: 'trip' },
-      { id: 'f1', trip_number: '1Е', load_date: '2026-01-02', unload_date: '2026-01-02', profit_mode: 'forwarding' },
+      { id: 'f1', trip_number: '1Е', start_date: '2026-01-02', end_date: '2026-01-02', profit_mode: 'forwarding' },
       { id: 't2', trip_number: '2', start_date: '2026-01-03', end_date: '2026-01-03', profit_mode: 'trip' },
-      { id: 'f2', trip_number: '2Е', load_date: '2026-01-04', unload_date: '2026-01-04', profit_mode: 'forwarding' },
+      { id: 'f2', trip_number: '2Е', start_date: '2026-01-04', end_date: '2026-01-04', profit_mode: 'forwarding' },
     ];
     const { supabase, getUpdates } = createMockSupabase(trips);
     await renumberAllTrips(supabase);
@@ -100,7 +100,7 @@ describe('renumberAllTrips', () => {
   it('переводит экспедицию в ветку Е при смене режима', async () => {
     const trips = [
       { id: 't1', trip_number: '1', start_date: '2026-01-01', end_date: '2026-01-01', profit_mode: 'trip' },
-      { id: 'f1', trip_number: '2', load_date: '2026-01-02', unload_date: '2026-01-02', profit_mode: 'forwarding' },
+      { id: 'f1', trip_number: '2', start_date: '2026-01-02', end_date: '2026-01-02', profit_mode: 'forwarding' },
     ];
     const { supabase, getUpdates } = createMockSupabase(trips);
     await renumberAllTrips(supabase);
