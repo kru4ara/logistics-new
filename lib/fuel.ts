@@ -115,6 +115,7 @@ export function latestFuelForTruck(
   if (numbered.length === 0) return { ...EMPTY };
 
   const latest = pickTripByNumberDesc(numbered);
+  if (!latest) return { ...EMPTY };
 
   return computeFuelLevel(latest, fuelExpenses);
 }
