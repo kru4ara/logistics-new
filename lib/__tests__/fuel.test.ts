@@ -1,8 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import {
   calculateFuelLevels,
+  computeFuelLevel,
   latestFuelForTruck,
   formatLiters,
+  pickPreviousTrip,
+  pickTripByNumberDesc,
+  totalRefuelLiters,
   type FuelTripRow,
   type FuelExpenseRow,
 } from '../fuel';
@@ -84,5 +88,86 @@ describe('остаток топлива в баке', () => {
     expect(formatLiters(233.5)).toBe('233,5');
     expect(formatLiters(180)).toBe('180');
     expect(formatLiters(null)).toBe('—');
+  });
+});
+
+describe('единый расчёт остатка топлива', () => {
+  it('сумма заправок берётся только по своему рейсу', () => {
+    const expenses: FuelExpenseRow[] = [
+      { trip_id: 'a', liters: 50 },
+      { trip_id: 'b', liters: 30 },
+    ];
+    expect(totalRefuelLiters('a', expenses)).toBe(50);
+    expect(totalRefuelLiters('c', expenses)).toBe(0);
+  });
+
+  it('computeFuelLevel совпадает с формулой карточки рейса', () => {
+    const r = computeFuelLevel(
+      trip({ id: 'a', trip_number: '74', start_fuel_level: 315.7, actual_liters: 82.2 }),
+      [{ trip_id: 'a', liters: 0 }]
+    );
+    expect(r.liters).toBe(233.5);
+    expect(r.isEstimate).toBe(false);
+  });
+
+  it('computeFuelLevel без расхода помечает оценку', () => {
+    const r = computeFuelLevel(
+      trip({ id: 'a', start_fuel_level: 100, actual_liters: null }),
+      [{ trip_id: 'a', liters: 40 }]
+    );
+    expect(r.liters).toBe(140);
+    expect(r.isEstimate).toBe(true);
+  });
+
+  it('рейс с наибольшим номером выбирается явно, а не случайно', () => {
+    const trips = [
+      trip({ id: 'a', trip_number: '70', end_date: '2026-10-10' }),
+      trip({ id: 'b', trip_number: '75', end_date: '2026-10-20' }),
+      trip({ id: 'c', trip_number: '72', end_date: '2026-10-15' }),
+    ];
+    expect(pickTripByNumberDesc(trips)!.id).toBe('b');
+  });
+
+  it('предыдущий рейс - максимальный номер, кроме текущего', () => {
+    const trips = [
+      trip({ id: 'cur', trip_number: '80', end_date: '2026-11-05' }),
+      trip({ id: 'a', trip_number: '75', end_date: '2026-10-20' }),
+      trip({ id: 'b', trip_number: '77', end_date: '2026-10-28' }),
+    ];
+    expect(pickPreviousTrip(trips, 'cur')!.id).toBe('b');
+  });
+
+  it('предыдущий рейс берётся завершённым, даже если номер больше у незавершённого', () => {
+    const trips = [
+      trip({ id: 'cur', trip_number: '80', end_date: null }),
+      trip({ id: 'a', trip_number: '75', end_date: '2026-10-20' }),
+      trip({ id: 'b', trip_number: '77', end_date: null }),
+    ];
+    expect(pickPreviousTrip(trips, 'cur')!.id).toBe('a');
+  });
+
+  it('если завершённых рейсов нет - берётся последний по номеру', () => {
+    const trips = [
+      trip({ id: 'cur', trip_number: '80', end_date: null }),
+      trip({ id: 'b', trip_number: '77', end_date: null }),
+      trip({ id: 'c', trip_number: '79', end_date: null }),
+    ];
+    expect(pickPreviousTrip(trips, 'cur')!.id).toBe('c');
+  });
+
+  it('нечисловой номер рейса не ломает сортировку', () => {
+    const trips = [
+      trip({ id: 'a', trip_number: '31Е', end_date: '2026-11-01' }),
+      trip({ id: 'b', trip_number: '78', end_date: '2026-10-30' }),
+    ];
+    expect(pickTripByNumberDesc(trips)!.id).toBe('b');
+  });
+
+  it('рейсы без номера в выборе предыдущего не участвуют', () => {
+    const trips = [
+      trip({ id: 'cur', trip_number: '80' }),
+      trip({ id: 'a', trip_number: null, end_date: '2026-10-20' }),
+    ];
+    expect(pickPreviousTrip(trips, 'cur')).toBeNull();
   });
 });
