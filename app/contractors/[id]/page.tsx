@@ -161,8 +161,8 @@ export default async function ContractorCardPage({
       trips!inner(
         trip_number,
         client_request_number,
-        load_date,
-        unload_date,
+        start_date,
+        end_date,
         profit_mode
       )
     `)
@@ -211,7 +211,7 @@ export default async function ContractorCardPage({
     const { from: routeFrom, to: routeTo } = routeFromStops(s.stops);
     const route = (routeFrom || routeTo) ? `${routeFrom || '—'} → ${routeTo || '—'}` : '—';
 
-    const date = fwd.unload_date || fwd.load_date;
+    const date = fwd.end_date || fwd.start_date;
 
     works.push({
       kind: 'forwarding',

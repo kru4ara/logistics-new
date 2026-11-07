@@ -18,8 +18,6 @@ type Trip = {
   profit_mode: string | null;
   start_date: string | null;
   end_date: string | null;
-  load_date: string | null;
-  unload_date: string | null;
 };
 
 type Props = {
@@ -88,7 +86,7 @@ export default function EditTripForm({
             <input
               type="date"
               name="start_date"
-              defaultValue={trip.start_date || trip.load_date || ''}
+              defaultValue={trip.start_date || ''}
               className={inputClass}
             />
           </div>
@@ -97,15 +95,16 @@ export default function EditTripForm({
             <input
               type="date"
               name="end_date"
-              defaultValue={trip.end_date || trip.unload_date || ''}
+              defaultValue={trip.end_date || ''}
               className={inputClass}
             />
           </div>
         </div>
         <p className="text-xs text-slate-500">
           {isForwarding
-            ? 'Даты экспедирования. Если оставить пустыми — подтянутся из сегмента подрядчика.'
-            : 'Даты рейса. Если оставить пустыми — подтянутся из участка с нашей машиной.'}
+            ? 'Фактические даты экспедирования: когда груз реально погрузили и разгрузили.'
+            : 'Фактические даты рейса: когда машина реально выехала и вернулась.'}
+          {' '}Плановые даты задаются в участках и автоматически сюда не подставляются.
         </p>
       </div>
 

@@ -193,7 +193,7 @@ export async function globalSearch(rawQuery: string): Promise<SearchResult> {
 
   const { data: fwdData } = await supabase
     .from('trips')
-    .select('id, trip_number, client_request_number, load_date, unload_date, clients(name)')
+    .select('id, trip_number, client_request_number, start_date, end_date, clients(name)')
     .eq('profit_mode', 'forwarding')
     .or(`trip_number.ilike.${like},client_request_number.ilike.${like}`)
     .order('trip_number', { ascending: false })
@@ -208,8 +208,8 @@ export async function globalSearch(rawQuery: string): Promise<SearchResult> {
       title: `Заказ №${o.trip_number ?? '—'}${clientName ? ' · ' + clientName : ''}`,
       subtitle: o.client_request_number
         ? `Заявка клиента № ${o.client_request_number}`
-        : o.load_date
-          ? new Date(o.load_date).toLocaleDateString('ru-RU')
+        : o.start_date
+          ? new Date(o.start_date).toLocaleDateString('ru-RU')
           : null,
       icon: '📦',
       href: `/trips/${o.id}`,

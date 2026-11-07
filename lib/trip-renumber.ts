@@ -21,7 +21,7 @@ export async function renumberAllTrips(
 ): Promise<void> {
   const { data: trips, error } = await supabase
     .from('trips')
-    .select('id, trip_number, start_date, end_date, load_date, unload_date, created_at, profit_mode')
+    .select('id, trip_number, start_date, end_date, created_at, profit_mode')
     .order('end_date', { ascending: true, nullsFirst: false })
     .order('created_at', { ascending: true });
 
@@ -33,13 +33,13 @@ export async function renumberAllTrips(
   if (!trips || trips.length === 0) return;
 
   // Сортировка внутри ветки нумерации — как в renumber_all_trips (БД):
-  //   дата выгрузки ASC (рейс — финиш, экспедиция — разгрузка) СТРОГО,
-  //   без запасного варианта start_date/load_date;
+  //   дата выгрузки ASC (факт: end_date) СТРОГО,
+  //   без запасного варианта start_date;
   //   при равенстве дат — дата создания ASC, затем id ASC;
   //   заказы без даты выгрузки (в пути) — в конец ветки.
   const sorted = [...trips].sort((a: any, b: any) => {
     // Единая функция сортировки нумерации (та же, что в БД):
-    //   дата выгрузки ASC (рейс — финиш, экспедиция — разгрузка) СТРОГО,
+    //   дата выгрузки ASC (факт: end_date) СТРОГО,
     //   при равенстве — дата создания ASC,
     //   заказы без даты выгрузки (в пути) — в конец ветки.
     const byDate = orderByNumberingDate(a, b);

@@ -72,8 +72,7 @@ function r2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
-/** Дата периода заказа — ПО ДАТЕ ВЫГРУЗКИ:
- *  рейс — финиш, экспедиция — разгрузка. */
+/** Дата периода заказа — по фактической дате выгрузки (end_date). */
 function orderPeriodDate(o: any): string | null {
   const raw = getOrderUnloadDate(o);
   if (!raw) return null;
@@ -124,7 +123,7 @@ async function buildTripsSheet(
   const { data: orders, error } = await supabase
     .from('trips')
     .select(`
-      id, trip_number, start_date, end_date, load_date, unload_date, status,
+      id, trip_number, start_date, end_date, status,
       profit_mode, is_forwarding, revenue_eur, actual_km,
       clients(name),
       drivers!driver_id(first_name, last_name),
@@ -163,8 +162,8 @@ async function buildTripsSheet(
     return {
       tripNumber: o.trip_number || '',
       mode: isFwd ? 'Экспедирование' : 'Заказ',
-      start: isoDate(isFwd ? o.load_date : o.start_date),
-      end: isoDate(isFwd ? o.unload_date : o.end_date),
+      start: isoDate(o.start_date),
+      end: isoDate(o.end_date),
       client: pickName(o.clients),
       truck: o.trucks?.registration_number || '',
       driver,
@@ -289,7 +288,7 @@ async function buildForwardingSheet(
   const { data: orders, error } = await supabase
     .from('trips')
     .select(`
-      id, trip_number, load_date, unload_date, status, revenue_eur,
+      id, trip_number, start_date, end_date, status, revenue_eur,
       profit_mode, clients(name)
     `)
     .eq('profit_mode', 'forwarding');
@@ -313,8 +312,8 @@ async function buildForwardingSheet(
     const eSum = direct[o.id] || 0;
     return {
       orderNumber: o.trip_number || '',
-      loadDate: isoDate(o.load_date),
-      unloadDate: isoDate(o.unload_date),
+      loadDate: isoDate(o.start_date),
+      unloadDate: isoDate(o.end_date),
       client: pickName(o.clients),
       clientPrice: r2(clientPrice),
       contractorSum: r2(cSum),

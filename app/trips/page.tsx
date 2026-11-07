@@ -162,8 +162,7 @@ export default async function TripsPage({
   }
 
   // Месяц заказа — единое правило из lib/orders-core:
-  //   рейс       -> end_date || start_date (финиш)
-  //   экспедиция -> unload_date || load_date (разгрузка)
+  //   по фактической дате выгрузки (end_date) — одинаково для обоих режимов.
   function orderMonthKey(t: any): string | null {
     return getOrderMonthKey(t);
   }
@@ -172,14 +171,13 @@ export default async function TripsPage({
     return getOrderUnloadDate(t);
   }
 
-  /** Есть ли у заказа хоть одна дата (загрузка/финиш/разгрузка). */
+  /** Есть ли у заказа хоть одна фактическая дата (старт/финиш). */
   function hasAnyDate(t: any): boolean {
-    return Boolean(t?.start_date || t?.end_date || t?.load_date || t?.unload_date);
+    return Boolean(t?.start_date || t?.end_date);
   }
 
   /**
-   * Заказ В ПУТИ: дата есть, а даты ВЫГРУЗКИ нет.
-   * Рейс без end_date, экспедиция без unload_date.
+   * Заказ В ПУТИ: дата есть, а даты ВЫГРУЗКИ (финиша) нет.
    * Такие заказы не идут в статистику и висят наверху списка.
    */
   function isInTransit(t: any): boolean {

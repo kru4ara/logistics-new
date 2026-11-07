@@ -21,10 +21,10 @@ export default function TripInfo({
   trailerNumber: string | null;
   computedRoute: string;
 }) {
-  // Старт/финиш — единые поля заказа. Для экспедирований, у которых
-  // даты ещё лежат в load_date/unload_date, подстраховываемся ими.
-  const startDate = trip.start_date || trip.load_date || null;
-  const endDate = trip.end_date || trip.unload_date || null;
+  // Старт/финиш — ФАКТИЧЕСКИЕ даты заказа (для обоих режимов).
+  // Плановые даты (load_date/unload_date) в карточке не показываются.
+  const startDate = trip.start_date || null;
+  const endDate = trip.end_date || null;
 
   return (
     <div className="card p-5 md:p-6">
