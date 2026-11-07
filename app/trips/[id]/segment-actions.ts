@@ -3,6 +3,13 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '../../../lib/supabase/admin';
 import { logAudit } from '../../../lib/audit';
+import {
+  computeFuelLevel,
+  pickPreviousTrip,
+  pickTripByNumberDesc,
+  type FuelExpenseRow,
+  type FuelTripRow,
+} from '../../../lib/fuel';
 
 function str(formData: FormData, key: string): string | null {
   const v = (formData.get(key) as string)?.trim();
@@ -131,37 +138,31 @@ async function createSegmentExpense(
 // ============================================================
 // Расчёт остатка топлива с предыдущего рейса машины
 // ============================================================
+// Формула и выбор «предыдущего» рейса живут в lib/fuel.ts —
+// здесь только загрузка данных из базы.
 async function calcFuelFromPrevTrip(
   supabase: Awaited<ReturnType<typeof createClient>>,
   truckId: string,
   currentTripId: string
 ): Promise<number | null> {
-  const { data: prevTrip } = await supabase
+  const { data: trips } = await supabase
     .from('trips')
-    .select('id, start_fuel_level, actual_liters, trip_number')
+    .select('id, truck_id, trip_number, status, start_date, end_date, start_fuel_level, actual_liters')
     .eq('truck_id', truckId)
     .neq('id', currentTripId)
-    .not('trip_number', 'is', null)
-    .limit(1)
-    .maybeSingle();
+    .not('trip_number', 'is', null);
 
+  const prevTrip = pickPreviousTrip((trips || []) as FuelTripRow[], currentTripId);
   if (!prevTrip) return null;
 
   const { data: fuelExpenses } = await supabase
     .from('trip_expenses')
-    .select('liters')
+    .select('trip_id, liters')
     .eq('trip_id', prevTrip.id)
     .eq('category', 'fuel');
 
-  const totalRefuel = fuelExpenses?.reduce((sum, e) => sum + (e.liters || 0), 0) || 0;
-  const consumed = prevTrip.actual_liters || 0;
-  const prevStart = prevTrip.start_fuel_level || 0;
-
-  const fuelLeft = consumed > 0
-    ? prevStart + totalRefuel - consumed
-    : prevStart + totalRefuel;
-
-  return Math.max(0, fuelLeft);
+  const level = computeFuelLevel(prevTrip, (fuelExpenses || []) as FuelExpenseRow[]);
+  return level.liters;
 }
 
 // Если у рейса start_fuel_level = 0/null — заполнить из предыдущего рейса машины
@@ -201,15 +202,17 @@ async function calcSuggestedStartDate(
   truckId: string,
   currentTripId: string
 ): Promise<string | null> {
-  const { data: prevTrip } = await supabase
+  const { data: trips } = await supabase
     .from('trips')
-    .select('end_date, trip_number')
+    .select('id, truck_id, trip_number, status, start_date, end_date, start_fuel_level, actual_liters')
     .eq('truck_id', truckId)
     .neq('id', currentTripId)
-    .not('end_date', 'is', null)
-    .limit(1)
-    .maybeSingle();
+    .not('trip_number', 'is', null);
 
+  const prevTrip = pickTripByNumberDesc(
+    (trips || []) as FuelTripRow[],
+    (t) => t.end_date != null
+  );
   if (!prevTrip?.end_date) return null;
 
   const dt = new Date(prevTrip.end_date);

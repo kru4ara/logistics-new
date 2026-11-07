@@ -6,10 +6,11 @@
  *
  *   остаток = start_fuel_level + заправки по рейсу - actual_liters
  *
- * Формула ровно та же, что уже применяется в карточке рейса
- * (app/trips/[id]/page.tsx) и при автозаполнении стартового уровня
- * (app/trips/[id]/segment-actions.ts) - здесь она живёт в одном месте,
- * чтобы не разъезжалась.
+ * Это ЕДИНСТВЕННОЕ место в проекте, где живёт формула остатка.
+ * И отображение (lib/fuel-server.ts -> карточка рейса, список тягачей,
+ * вкладка «Сегодня»), и автозаполнение start_fuel_level при добавлении
+ * нашей машины в сегмент (app/trips/[id]/segment-actions.ts) считают
+ * через эти функции - чтобы значения не разъезжались.
  *
  * Если рейс ещё идёт (actual_liters неизвестен), расход ещё не учтён:
  * остаток известен лишь приблизительно - start_fuel_level + заправки.
@@ -50,14 +51,56 @@ const EMPTY: FuelLevel = {
   date: null,
 };
 
-function tripNumberValue(tripNumber: string | null): number {
+/**
+ * Числовое значение номера рейса.
+ * Номера сквозные по базе, но встречаются и нечисловые («31Е»).
+ * Для таких номеров число не разобрать - возвращаем -1,
+ * а при сортировке такие рейсы встают в конец.
+ */
+export function tripNumberValue(tripNumber: string | null): number {
   const n = Number(tripNumber);
   return Number.isFinite(n) ? n : -1;
 }
 
 /** Округление до десятых - как в карточке рейса. */
-function round1(value: number): number {
+export function round1(value: number): number {
   return Math.round(value * 10) / 10;
+}
+
+/**
+ * Сумма заправок по рейсу (расходы категории 'fuel').
+ */
+export function totalRefuelLiters(
+  tripId: string,
+  fuelExpenses: FuelExpenseRow[]
+): number {
+  return fuelExpenses
+    .filter((e) => e.trip_id === tripId)
+    .reduce((sum, e) => sum + (e.liters ?? 0), 0);
+}
+
+/**
+ * Остаток топлива по одному рейсу - единая формула проекта.
+ *
+ * refuel считается только по расходам ЭТОГО рейса.
+ */
+export function computeFuelLevel(
+  trip: FuelTripRow,
+  fuelExpenses: FuelExpenseRow[]
+): FuelLevel {
+  const start = trip.start_fuel_level ?? 0;
+  const refuel = totalRefuelLiters(trip.id, fuelExpenses);
+  const consumed = trip.actual_liters ?? 0;
+
+  const isEstimate = !(consumed > 0);
+  const liters = isEstimate ? start + refuel : start + refuel - consumed;
+
+  return {
+    liters: Math.max(0, round1(liters)),
+    isEstimate,
+    tripNumber: trip.trip_number,
+    date: trip.end_date || trip.start_date,
+  };
 }
 
 /**
@@ -71,25 +114,9 @@ export function latestFuelForTruck(
   const numbered = trips.filter((t) => t.truck_id && t.trip_number != null);
   if (numbered.length === 0) return { ...EMPTY };
 
-  const latest = [...numbered].sort(
-    (a, b) => tripNumberValue(b.trip_number) - tripNumberValue(a.trip_number)
-  )[0];
+  const latest = pickTripByNumberDesc(numbered);
 
-  const start = latest.start_fuel_level ?? 0;
-  const refuel = fuelExpenses
-    .filter((e) => e.trip_id === latest.id)
-    .reduce((sum, e) => sum + (e.liters ?? 0), 0);
-  const consumed = latest.actual_liters ?? 0;
-
-  const isEstimate = !(consumed > 0);
-  const liters = isEstimate ? start + refuel : start + refuel - consumed;
-
-  return {
-    liters: Math.max(0, round1(liters)),
-    isEstimate,
-    tripNumber: latest.trip_number,
-    date: latest.end_date || latest.start_date,
-  };
+  return computeFuelLevel(latest, fuelExpenses);
 }
 
 /**
@@ -112,6 +139,49 @@ export function calculateFuelLevels(
     result.set(truckId, latestFuelForTruck(rows, fuelExpenses));
   });
   return result;
+}
+
+/**
+ * Рейс с наибольшим номером.
+ * Второй аргумент - фильтр (например, «только с датой окончания»).
+ * При равных номерах берётся более поздний по дате начала.
+ */
+export function pickTripByNumberDesc(
+  trips: FuelTripRow[],
+  filter?: (t: FuelTripRow) => boolean
+): FuelTripRow | null {
+  const rows = filter ? trips.filter(filter) : trips;
+  if (rows.length === 0) return null;
+
+  const sorted = [...rows].sort((a, b) => {
+    const byNumber = tripNumberValue(b.trip_number) - tripNumberValue(a.trip_number);
+    if (byNumber !== 0) return byNumber;
+    // номера равны или нечисловые - сравниваем по дате начала
+    return String(b.start_date || '').localeCompare(String(a.start_date || ''));
+  });
+
+  return sorted[0];
+}
+
+/**
+ * Предыдущий рейс машины относительно текущего.
+ *
+ * Берётся рейс с наибольшим номером, кроме текущего.
+ * Приоритет - завершённые рейсы (с end_date): остаток после них
+ * известен точно. Если завершённых нет - берётся последний рейс
+ * машины, но его остаток считается как оценка (isEstimate).
+ */
+export function pickPreviousTrip(
+  trips: FuelTripRow[],
+  currentTripId: string
+): FuelTripRow | null {
+  const others = trips.filter((t) => t.id !== currentTripId && t.trip_number != null);
+  if (others.length === 0) return null;
+
+  const finished = pickTripByNumberDesc(others, (t) => t.end_date != null);
+  if (finished) return finished;
+
+  return pickTripByNumberDesc(others);
 }
 
 /** Литры для показа: "233,5" / "180" / "—" */
