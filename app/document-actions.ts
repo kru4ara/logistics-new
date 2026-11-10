@@ -1,5 +1,6 @@
 'use server';
 
+import { requireOffice } from '../lib/require-office';
 import { createClient } from '../lib/supabase/admin';
 import { logAudit, type AuditEntityType } from '../lib/audit';
 
@@ -28,6 +29,7 @@ const DOC_TYPE_LABELS: Record<string, string> = {
 };
 
 export async function uploadDocument(formData: FormData): Promise<UploadResult> {
+  await requireOffice();
   const entityType = String(formData.get('entityType') || '').trim();
   const entityId = String(formData.get('entityId') || '').trim();
   const documentType = String(formData.get('documentType') || '').trim();

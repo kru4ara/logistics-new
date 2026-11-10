@@ -1,11 +1,13 @@
 'use server';
 
+import { requireOffice } from '../lib/require-office';
 import { createClient } from '../lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { logAudit, diffFields } from '../lib/audit';
 
 export async function updateClient(clientId: string, formData: FormData) {
+  await requireOffice();
   const supabase = await createClient();
 
   const name = formData.get('name') as string;
@@ -68,6 +70,7 @@ export async function updateClient(clientId: string, formData: FormData) {
 }
 
 export async function deleteClient(clientId: string) {
+  await requireOffice();
   const supabase = await createClient();
 
   // Запоминаем имя перед удалением
@@ -102,6 +105,7 @@ export async function deleteClient(clientId: string) {
 }
 
 export async function mergeClients(sourceId: string, targetId: string) {
+  await requireOffice();
   const supabase = await createClient();
 
   if (sourceId === targetId) {

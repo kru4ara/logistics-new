@@ -1,5 +1,6 @@
 'use server';
 
+import { requireOffice } from '../../lib/require-office';
 import { createClient } from '../../lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
@@ -11,6 +12,7 @@ const TRACKED_FIELDS = [
 ] as const;
 
 export async function createContractor(formData: FormData) {
+  await requireOffice();
   const supabase = await createClient();
 
   const name = (formData.get('name') as string)?.trim();
@@ -57,6 +59,7 @@ export async function createContractor(formData: FormData) {
 }
 
 export async function updateContractor(contractorId: string, formData: FormData) {
+  await requireOffice();
   const supabase = await createClient();
 
   const name = (formData.get('name') as string)?.trim();
@@ -128,6 +131,7 @@ export async function updateContractor(contractorId: string, formData: FormData)
 }
 
 export async function deleteContractor(contractorId: string) {
+  await requireOffice();
   const supabase = await createClient();
 
   const { data: before } = await supabase
@@ -162,7 +166,8 @@ export async function deleteContractor(contractorId: string) {
 export async function mergeContractors(
   sourceId: string,
   targetId: string
-): Promise<{ success: true } | { success: false; error: string }> {
+): Promise<{
+  await requireOffice(); success: true } | { success: false; error: string }> {
   if (sourceId === targetId) {
     return { success: false, error: 'Нельзя объединить подрядчика с самим собой' };
   }

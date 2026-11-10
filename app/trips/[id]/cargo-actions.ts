@@ -1,5 +1,6 @@
 'use server';
 
+import { requireOffice } from '../../../lib/require-office';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '../../../lib/supabase/admin';
 import { logAudit } from '../../../lib/audit';
@@ -82,6 +83,7 @@ async function syncTripRevenue(
 }
 
 export async function createCargo(tripId: string, formData: FormData) {
+  await requireOffice();
   const supabase = await createClient();
 
   const label = str(formData, 'label');
@@ -177,6 +179,7 @@ export async function createCargo(tripId: string, formData: FormData) {
 }
 
 export async function updateCargo(cargoId: string, tripId: string, formData: FormData) {
+  await requireOffice();
   const supabase = await createClient();
 
   const label = str(formData, 'label');
@@ -251,6 +254,7 @@ export async function updateCargo(cargoId: string, tripId: string, formData: For
 }
 
 export async function deleteCargo(cargoId: string, tripId: string) {
+  await requireOffice();
   const supabase = await createClient();
 
   const { data: before } = await supabase

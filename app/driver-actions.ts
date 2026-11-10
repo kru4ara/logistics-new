@@ -1,5 +1,6 @@
 'use server';
 
+import { requireOffice } from '../lib/require-office';
 import { createClient } from '../lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
@@ -19,6 +20,7 @@ const TRACKED_FIELDS = [
 ] as const;
  
 export async function updateDriver(driverId: string, formData: FormData) {
+  await requireOffice();
   const supabase = await createClient();
 
   const firstName = formData.get('first_name') as string;
@@ -112,7 +114,8 @@ export async function updateDriver(driverId: string, formData: FormData) {
 // ============================================================
 export async function replaceDriverPassport(
   formData: FormData
-): Promise<{ success: true } | { success: false; error: string }> {
+): Promise<{
+  await requireOffice(); success: true } | { success: false; error: string }> {
   const supabase = await createClient();
 
   const driverId = String(formData.get('driver_id') || '').trim();

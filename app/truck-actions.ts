@@ -1,5 +1,6 @@
 'use server';
 
+import { requireOffice } from '../lib/require-office';
 import { createClient } from '../lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
@@ -54,6 +55,7 @@ function parseTruckForm(formData: FormData) {
 // Создание транспорта
 // ============================================================
 export async function createTruck(formData: FormData) {
+  await requireOffice();
   const supabase = await createClient();
   const payload = parseTruckForm(formData);
 
@@ -83,6 +85,7 @@ export async function createTruck(formData: FormData) {
 // Обновление транспорта
 // ============================================================
 export async function updateTruck(truckId: string, formData: FormData) {
+  await requireOffice();
   const supabase = await createClient();
   const payload = parseTruckForm(formData);
 
