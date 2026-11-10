@@ -1,78 +1,77 @@
--- Бэкап-таблицы: закрываем публичный доступ.
+-- Бэкап-таблицы: закрываем публичный доступ и закрепляем защиту в git.
 --
--- Найдено на аудите 09.11.2026:
+-- Контекст (аудит 09.11.2026, проверено на боевой базе 10.11.2026):
 --
---   Таблицы bak_*_20261031 были созданы миграциями 31.10 как
---   CREATE TABLE ... AS SELECT внутри DO-блока. Event-триггер
---   ensure_rls ловит только 'CREATE TABLE', 'CREATE TABLE AS'
---   и 'SELECT INTO' — бэкап-таблицы под фильтр не попали,
---   и RLS на них так и не включился.
+--   Бэкап-таблицы bak_* создавались на боевой базе вручную через
+--   Supabase SQL Editor, поэтому в git их не было. Одна из них
+--   (bak_trips_profit_mode_20261101) появилась миграцией 007.
 --
---   При этом в Postgres роль anon по умолчанию получает права
---   на все таблицы схемы public. Миграции 002/003 эти гранты
---   для bak_* не отзывали — в отличие от обычных таблиц,
---   где гранты чистились явно.
+--   В Postgres роль anon по умолчанию получает права на все таблицы
+--   схемы public (дефолтные права postgres и supabase_admin:
+--   anon=arwdDxtm). То есть на каждую новую таблицу public у anon
+--   есть SELECT/INSERT/UPDATE/DELETE. Единственная линия защиты —
+--   RLS.
 --
---   Итог: bak_trips_20261031 (77 рейсов с выручкой),
---   bak_forwarding_orders_20261031 (31 экспедиция) и ещё
---   четыре таблицы были доступны из интернета анонимно —
---   на SELECT, INSERT, UPDATE и DELETE.
+--   На боевой базе RLS на всех семи bak_* включён: event-триггер
+--   ensure_rls ловит в том числе 'CREATE TABLE AS', поэтому бэкапы
+--   под защиту попали. Проверено 10.11.2026: на всех bak_*
+--   rls=true, политик 0, прав у anon нет.
 --
---   Ключ anon лежит в NEXT_PUBLIC_SUPABASE_ANON_KEY и попадает
---   в клиентский бандл, то есть достаётся с любой страницы
---   приложения. Граница была не «аноним», а «любой, кто открыл сайт».
+--   То есть утечки данных не было. Миграция закрывает хвост:
+--   убирает лишние гранты anon/authenticated (защита в глубину на
+--   случай, если RLS когда-нибудь выключат) и переносит в git
+--   сам механизм защиты — на свежей базе, развёрнутой из миграций
+--   репозитория, event-триггера не было бы вообще.
 --
 -- Что делает миграция:
 --
---   1. Отзывает все права у anon и authenticated на bak_*.
---      Приложение ходит в бэкапы через service_role — ему права
---      не нужны, но оставляем (для бэкап-крона и ручных проверок).
+--   1. Для всех существующих bak_* (включая те, которых ещё нет)
+--      отзывает права anon/authenticated и включает RLS.
+--      Перебор идёт по каталогу pg_class, поэтому миграция
+--      применяется и на базе без части бэкапов, и дважды подряд.
 --
---   2. Включает RLS на всех bak_*. Политик нет — значит при
---      включённом RLS доступ для всех закрыт, кроме владельца
---      и service_role (service_role RLS обходит).
+--   2. Переносит в git функцию public.rls_auto_enable() и
+--      event-триггер ensure_rls — с боевой базы, дословно,
+--      с добавлением отзыва грантов для bak_*.
 --
---   3. Добавляет защиту от повторения: триггер ensure_rls
---      расширяется на команду 'CREATE TABLE AS' в DO-блоках
---      и включает RLS + отзывает гранты anon для таблиц,
---      созданных как bak_*.
+--   3. Политик на bak_* намеренно нет: при включённом RLS таблица
+--      закрыта для всех, кроме владельца и service_role
+--      (service_role RLS обходит).
 --
 -- Проверка после применения: на всех bak_* rls=true,
 -- грантов anon=0; таблиц без RLS с грантами anon в базе нет.
 
 -- ============================================================
--- 1. Отзыв публичных прав
+-- 1. Права и RLS на существующие бэкап-таблицы
 -- ============================================================
 
-revoke all on table public.bak_trips_20261031 from anon, authenticated;
-revoke all on table public.bak_forwarding_orders_20261031 from anon, authenticated;
-revoke all on table public.bak_forwarding_expenses_20261031 from anon, authenticated;
-revoke all on table public.bak_forwarding_points_20261031 from anon, authenticated;
-revoke all on table public.bak_forwarding_contractors_20261031 from anon, authenticated;
-revoke all on table public.bak_fwd_segment_stops_20261031 from anon, authenticated;
-revoke all on table public.bak_trips_profit_mode_20261101 from anon, authenticated;
+do $$
+declare
+  r record;
+begin
+  for r in
+    select c.oid::regclass::text as tbl
+    from pg_class c
+    join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'public'
+      and c.relkind = 'r'
+      and c.relname like 'bak\_%'
+  loop
+    execute format('revoke all on table %s from anon, authenticated', r.tbl);
+    execute format('alter table %s enable row level security', r.tbl);
+    raise notice 'bak locked: %', r.tbl;
+  end loop;
+end;
+$$;
 
 -- ============================================================
--- 2. RLS на бэкап-таблицы
+-- 2. Защита от повторения: функция и event-триггер
 -- ============================================================
-
-alter table public.bak_trips_20261031 enable row level security;
-alter table public.bak_forwarding_orders_20261031 enable row level security;
-alter table public.bak_forwarding_expenses_20261031 enable row level security;
-alter table public.bak_forwarding_points_20261031 enable row level security;
-alter table public.bak_forwarding_contractors_20261031 enable row level security;
-alter table public.bak_fwd_segment_stops_20261031 enable row level security;
-alter table public.bak_trips_profit_mode_20261101 enable row level security;
-
--- ============================================================
--- 3. Защита от повторения
 --
--- Триггер ensure_rls и так включал RLS на CREATE TABLE —
--- но bak_* создавались как CREATE TABLE ... AS SELECT внутри
--- DO-блока, и команда не попадала в его фильтр. Теперь
--- фильтр шире, а для таблиц с именем bak_* дополнительно
--- отзываются гранты anon/authenticated.
--- ============================================================
+-- Тело функции перенесено с боевой базы (10.11.2026) без
+-- изменений, кроме дополнительного отзыва грантов для bak_*.
+-- Фильтр по command_tag уже включал 'CREATE TABLE AS' и
+-- 'SELECT INTO' — бэкап-таблицы и под это попадали.
 
 create or replace function public.rls_auto_enable() returns event_trigger
 language plpgsql
@@ -90,7 +89,9 @@ begin
   loop
     if cmd.schema_name is not null
        and cmd.schema_name = 'public'
-       and cmd.object_identity not like 'pg_%'
+       and cmd.schema_name not in ('pg_catalog','information_schema')
+       and cmd.schema_name not like 'pg_toast%'
+       and cmd.schema_name not like 'pg_temp%'
     then
       begin
         execute format('alter table if exists %s enable row level security', cmd.object_identity);
@@ -114,5 +115,21 @@ begin
 end;
 $$;
 
--- Политик на bak_* намеренно нет: при включённом RLS таблица
--- закрыта для всех, кроме владельца и service_role.
+-- Event-триггер: на боевой базе он уже есть (evtname=ensure_rls,
+-- evtevent=ddl_command_end, функция rls_auto_enable). CREATE EVENT
+-- TRIGGER не поддерживает IF NOT EXISTS, поэтому проверяем вручную.
+-- Создание требует суперпользователя — если прав нет, пропускаем
+-- (в CI роль postgres суперпользователь, триггер создастся).
+do $$
+begin
+  if not exists (select 1 from pg_event_trigger where evtname = 'ensure_rls') then
+    execute 'create event trigger ensure_rls on ddl_command_end execute function public.rls_auto_enable()';
+    raise notice 'event trigger ensure_rls created';
+  else
+    raise notice 'event trigger ensure_rls already exists';
+  end if;
+exception
+  when insufficient_privilege then
+    raise notice 'нет прав на создание event trigger — пропускаем (RLS всё равно включится явно)';
+end;
+$$;

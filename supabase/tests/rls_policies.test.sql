@@ -280,3 +280,116 @@ select public.assert_count('anon: no profiles', 0, 'select count(*) from public.
 select public.assert_count('anon: no contractors', 0, 'select count(*) from public.contractors');
 
 reset role;
+
+-- ============================================================
+-- БЭКАП-ТАБЛИЦЫ: anon не должен их видеть
+-- ============================================================
+--
+-- Бэкап-таблицы bak_* содержат копии рейсов и экспедиций.
+-- В базе роль anon по умолчанию получает права на все таблицы
+-- public (дефолтные права postgres/supabase_admin), поэтому
+-- единственная защита — RLS.
+--
+-- Проверяем два уровня:
+--   1. Прав у anon нет вовсе (has_table_privilege).
+--   2. Даже если права есть — строки не видны (RLS без политик).
+
+insert into public.bak_trips_20261031 (id, trip_number, revenue_eur)
+values ('99999999-9999-9999-9999-999999999999', 'BAK-1', 1234.56);
+insert into public.bak_forwarding_orders_20261031 (id, order_number)
+values ('99999999-9999-9999-9999-999999999998', 1);
+
+-- 1. У anon нет прав на бэкап-таблицы
+do $$
+declare
+  r record;
+begin
+  for r in
+    select c.oid::regclass::text as tbl
+    from pg_class c
+    join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'public'
+      and c.relkind = 'r'
+      and c.relname like 'bak\_%'
+  loop
+    if has_table_privilege('anon', r.tbl, 'SELECT')
+       or has_table_privilege('anon', r.tbl, 'INSERT')
+       or has_table_privilege('anon', r.tbl, 'UPDATE')
+       or has_table_privilege('anon', r.tbl, 'DELETE')
+    then
+      raise exception 'FAIL: у anon есть права на бэкап-таблицу %', r.tbl;
+    end if;
+  end loop;
+  raise notice 'ok: у anon нет прав на бэкап-таблицы';
+end;
+$$;
+
+-- 2. RLS включён и политик нет -> таблица закрыта
+do $$
+declare
+  r record;
+begin
+  for r in
+    select c.oid::regclass::text as tbl, c.relrowsecurity as rls
+    from pg_class c
+    join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'public'
+      and c.relkind = 'r'
+      and c.relname like 'bak\_%'
+  loop
+    if not r.rls then
+      raise exception 'FAIL: RLS не включён на бэкап-таблице %', r.tbl;
+    end if;
+    if exists (
+      select 1 from pg_policies p
+      where p.schemaname = 'public' and p.tablename = split_part(r.tbl, '.', 2)
+    ) then
+      raise exception 'FAIL: на бэкап-таблице % есть политика — доступ не закрыт', r.tbl;
+    end if;
+  end loop;
+  raise notice 'ok: RLS включён, политик нет';
+end;
+$$;
+
+-- 3. Анонимный SELECT отклоняется (permission denied)
+--
+-- Ожидаем именно ОТКАЗ, а не 0 строк: миграция 011 отзывает права
+-- у anon, поэтому запрос падает на проверке привилегий. 0 строк
+-- было бы хуже — это означало бы, что права есть и таблица
+-- отдаётся анониму (пусть и через RLS).
+reset role;
+set role anon;
+
+do $$
+begin
+  perform count(*) from public.bak_trips_20261031;
+  raise exception 'FAIL: anon прочитал бэкап-таблицу — права не отозваны';
+exception
+  when insufficient_privilege then
+    raise notice 'ok: SELECT по бэкап-таблице для anon отклонён';
+  when others then
+    if sqlerrm like '%row-level security%' then
+      raise notice 'ok: SELECT по бэкап-таблице отклонён (row-level security)';
+    else
+      raise;
+    end if;
+end;
+$$;
+
+do $$
+begin
+  perform count(*) from public.bak_forwarding_orders_20261031;
+  raise exception 'FAIL: anon прочитал бэкап-таблицу — права не отозваны';
+exception
+  when insufficient_privilege then
+    raise notice 'ok: SELECT по бэкап-таблице для anon отклонён';
+  when others then
+    if sqlerrm like '%row-level security%' then
+      raise notice 'ok: SELECT по бэкап-таблице отклонён (row-level security)';
+    else
+      raise;
+    end if;
+end;
+$$;
+
+reset role;
