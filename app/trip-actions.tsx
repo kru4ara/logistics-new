@@ -1,11 +1,12 @@
 'use server';
 
+import { requireOffice } from '../lib/require-office';
 import { createClient } from '../lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { logAudit, diffFields } from '../lib/audit';
 import { geocode } from '../lib/geocode';
-import { requireExpenseAccess } from '../lib/driver-access';
+import { requireExpenseAccess, requireTripAccess } from '../lib/driver-access';
 
 // ============================================================
 // Добавление расхода
@@ -14,6 +15,13 @@ export async function addExpense(formData: FormData) {
   const supabase = await createClient();
 
   const tripId = formData.get('trip_id') as string;
+
+  // Экшен вызывается и со страницы офиса, и со страницы водителя.
+  // Офис добавляет расход в любой рейс, водитель — только в свой.
+  const tripAccess = await requireTripAccess(tripId);
+  if (!tripAccess.ok) {
+    throw new Error(tripAccess.reason);
+  }
   const category = formData.get('category') as string;
   const originalAmount = parseFloat(formData.get('amount') as string) || 0;
   const currency = formData.get('currency') as string;
@@ -222,6 +230,7 @@ export async function updateExpense(expenseId: string, formData: FormData) {
 // из trip_segments и trip_cargo.
 // ============================================================
 export async function updateTrip(tripId: string, formData: FormData) {
+  await requireOffice();
   const supabase = await createClient();
 
   const clientId = formData.get('client_id') as string;
@@ -323,6 +332,7 @@ export async function updateTrip(tripId: string, formData: FormData) {
 // Удаление рейса
 // ============================================================
 export async function deleteTrip(tripId: string) {
+  await requireOffice();
   const supabase = await createClient();
 
   const { data: tripInfo } = await supabase
@@ -366,6 +376,7 @@ export async function deleteTrip(tripId: string) {
 // Пересчёт координат рейса по сегментам
 // ============================================================
 export async function recalcTripCoords(tripId: string): Promise<{ success: boolean; error?: string }> {
+  await requireOffice();
   const supabase = await createClient();
 
   const { data: segments } = await supabase
@@ -425,6 +436,7 @@ const MAX_RECALC_BATCH = 20;
 export async function recalcAllTripsCoords(
   tripIds: string[]
 ): Promise<{ success: boolean; updated: number; failed: number; error?: string }> {
+  await requireOffice();
   if (tripIds.length === 0) {
     return { success: false, updated: 0, failed: 0, error: 'Нет рейсов для пересчёта' };
   }

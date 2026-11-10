@@ -1,8 +1,10 @@
 'use server';
 
+import { requireOffice } from '../lib/require-office';
 import { revalidatePath } from 'next/cache';
 
 export async function fetchLogisatData(tripId: string) {
+  await requireOffice();
   console.log('Режим отладки. Данные не подтягиваются.');
   
   // Возвращаем фейковые данные для проверки

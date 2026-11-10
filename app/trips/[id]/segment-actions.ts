@@ -1,5 +1,6 @@
 'use server';
 
+import { requireOffice } from '../../../lib/require-office';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '../../../lib/supabase/admin';
 import { logAudit } from '../../../lib/audit';
@@ -221,6 +222,7 @@ async function calcSuggestedStartDate(
 }
 
 export async function createSegment(tripId: string, formData: FormData) {
+  await requireOffice();
   const supabase = await createClient();
 
   const executorType = str(formData, 'executor_type') || 'us';
@@ -362,6 +364,7 @@ export async function createSegment(tripId: string, formData: FormData) {
 }
 
 export async function updateSegment(segmentId: string, tripId: string, formData: FormData) {
+  await requireOffice();
   const supabase = await createClient();
 
   const executorType = str(formData, 'executor_type') || 'us';
@@ -488,6 +491,7 @@ export async function updateSegment(segmentId: string, tripId: string, formData:
 }
 
 export async function deleteSegment(segmentId: string, tripId: string) {
+  await requireOffice();
   const supabase = await createClient();
 
   const { data: before } = await supabase

@@ -1,5 +1,6 @@
 'use server';
 
+import { requireOffice } from '../lib/require-office';
 import { createClient } from '../lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
 
@@ -11,6 +12,7 @@ export async function syncReminders(
   entityType: 'driver' | 'truck',
   entityId: string
 ) {
+  await requireOffice();
   const supabase = await createClient();
 
   // 1. Удаляем старые напоминания для этой сущности

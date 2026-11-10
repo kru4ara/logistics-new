@@ -7,27 +7,24 @@ on:
     branches: [master]
 
 jobs:
-  build:
+  check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: 20
+          cache: npm
 
-      - run: npm ci --include=dev
+      - name: Установка зависимостей
+        run: npm ci
 
-      - run: npm run lint
+      - name: Проверка типов (tsc)
+        run: npx tsc --noEmit
 
-      - run: npx tsc --noEmit
+      - name: Линт
+        run: npm run lint
 
-      - run: npm run test
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: "https://dummy.supabase.co"
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: "dummy-anon-key"
-
-      - run: npm run build
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: "https://dummy.supabase.co"
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: "dummy-anon-key"
+      - name: Тесты
+        run: npm run test

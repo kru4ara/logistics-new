@@ -179,6 +179,55 @@ create table public.forwarding_contractors (id uuid primary key, name text);
 create table public.forwarding_expenses (id uuid primary key, amount numeric);
 create table public.forwarding_points (id uuid primary key, name text);
 
+-- ============================================================
+-- Бэкап-таблицы (каркас реальных таблиц боевой базы)
+-- ============================================================
+--
+-- Бэкап-таблицы bak_* создавались на боевой базе вручную через
+-- Supabase SQL Editor, поэтому в git их не было — и миграция
+-- 011 (lock_backup_tables) падала на CI: REVOKE/ALTER TABLE на
+-- несуществующие таблицы.
+--
+-- Ниже — каркас тех же семи таблиц. Он нужен не для красоты:
+-- без них CI не проверяет ровно то, ради чего миграция 011
+-- написана — что anon не видит бэкап-таблицы.
+--
+-- Создаются ДО раздачи грантов (гранты ниже идут на все таблицы
+-- public), то есть anon получает к ним доступ так же, как к
+-- обычным таблицам, — ровно та ситуация, которую миграция 011
+-- и должна закрывать.
+
+create table public.bak_trips_20261031 (
+  id uuid primary key,
+  trip_number text,
+  revenue_eur numeric
+);
+create table public.bak_forwarding_orders_20261031 (
+  id uuid primary key,
+  order_number integer
+);
+create table public.bak_forwarding_expenses_20261031 (
+  id uuid primary key,
+  amount_eur numeric
+);
+create table public.bak_forwarding_points_20261031 (
+  id uuid primary key,
+  name text
+);
+create table public.bak_forwarding_contractors_20261031 (
+  id uuid primary key,
+  name text
+);
+create table public.bak_fwd_segment_stops_20261031 (
+  id uuid primary key,
+  trip_id uuid
+);
+create table public.bak_trips_profit_mode_20261101 (
+  id uuid primary key,
+  trip_number text,
+  profit_mode text
+);
+
 -- Права, как в Supabase по умолчанию
 grant usage on schema public to anon, authenticated, service_role;
 grant select on all tables in schema public to anon, authenticated, service_role;

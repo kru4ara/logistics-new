@@ -1,5 +1,6 @@
 'use server';
 
+import { requireOffice } from '../lib/require-office';
 import { createClient } from '../lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
 import { logAudit } from '../lib/audit';
@@ -68,6 +69,7 @@ export async function getDriverBalance(
 // Начислить долг водителю (компания должна ему)
 // ============================================================
 export async function accrueDriverDebt(formData: FormData) {
+  await requireOffice();
   const supabase = await createClient();
 
   const driverId = formData.get('driver_id') as string;
@@ -119,6 +121,7 @@ export async function accrueDriverDebt(formData: FormData) {
 // Погасить долг (выплатить водителю)
 // ============================================================
 export async function payOutDriverDebt(formData: FormData) {
+  await requireOffice();
   const supabase = await createClient();
 
   const driverId = formData.get('driver_id') as string;
@@ -169,6 +172,7 @@ export async function payOutDriverDebt(formData: FormData) {
 // Удалить операцию (если ошиблись)
 // ============================================================
 export async function deleteDriverTransaction(id: string, driverId: string) {
+  await requireOffice();
   const supabase = await createClient();
 
   const { data: before } = await supabase

@@ -1,5 +1,6 @@
 'use server';
 
+import { requireOffice } from '../../../lib/require-office';
 import { createClient } from '../../../lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
 import { buildDriverTaskText } from '../../../lib/trip-task-text';
@@ -24,6 +25,7 @@ function pickName(rel: unknown): string | undefined {
 }
 
 export async function sendTaskToDriver(tripId: string): Promise<SendTaskResult> {
+  await requireOffice();
   const supabase = await createClient();
 
   // ============================================================
@@ -183,6 +185,7 @@ export async function sendSegmentTaskToDriver(
   tripId: string,
   segmentId: string
 ): Promise<SendTaskResult> {
+  await requireOffice();
   const supabase = await createClient();
 
   // ============================================================

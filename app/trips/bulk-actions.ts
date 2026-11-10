@@ -1,5 +1,6 @@
 'use server';
 
+import { requireOffice } from '../../lib/require-office';
 import { createClient } from '../../lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
 import { logAudit } from '../../lib/audit';
@@ -18,6 +19,7 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export async function bulkSetStatus(ids: string[], status: string) {
+  await requireOffice();
   if (!Array.isArray(ids) || ids.length === 0) {
     return { success: false as const, error: 'Не выбрано ни одного рейса' };
   }
@@ -64,6 +66,7 @@ export async function bulkSetStatus(ids: string[], status: string) {
 }
 
 export async function bulkDelete(ids: string[]) {
+  await requireOffice();
   if (!Array.isArray(ids) || ids.length === 0) {
     return { success: false as const, error: 'Не выбрано ни одного рейса' };
   }

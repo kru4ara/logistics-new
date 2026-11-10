@@ -16,6 +16,21 @@ export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
   // 1. Пропускаем публичные API (cron, вебхуки) без проверки сессии
+  //
+  // Для /api/cron/* дополнительно проверяем CRON_SECRET ЗДЕСЬ, а не
+  // только в каждом роуте: proxy пропускает весь префикс без сессии,
+  // и новый роут без проверки секрета стал бы публичным молча.
+  // Vercel добавляет заголовок Authorization: Bearer ${CRON_SECRET}
+  // ко всем cron-запросам.
+  if (pathname.startsWith('/api/cron')) {
+    const cronSecret = process.env.CRON_SECRET;
+    const auth = request.headers.get('authorization');
+    if (!cronSecret || auth !== `Bearer ${cronSecret}`) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    return response;
+  }
+
   if (PUBLIC_API_PATHS.some((path) => pathname.startsWith(path))) {
     return response;
   }

@@ -1,5 +1,6 @@
 'use server';
 
+import { requireOffice } from '../lib/require-office';
 import { createClient } from '../lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
@@ -49,6 +50,7 @@ async function toEur(
 // Сегмент НЕ создаётся — появится, когда найден транспорт.
 // ============================================================
 export async function createCargoWithTrip(formData: FormData) {
+  await requireOffice();
   const supabase = await createClient();
 
   // ---- Клиент и заявка ----
