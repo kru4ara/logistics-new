@@ -375,8 +375,8 @@ export async function deleteTrip(tripId: string) {
 // ============================================================
 // Пересчёт координат рейса по сегментам
 // ============================================================
-export async function recalcTripCoords(tripId: string): Promise<{
-  await requireOffice(); success: boolean; error?: string }> {
+export async function recalcTripCoords(tripId: string): Promise<{ success: boolean; error?: string }> {
+  await requireOffice();
   const supabase = await createClient();
 
   const { data: segments } = await supabase
@@ -435,8 +435,8 @@ const MAX_RECALC_BATCH = 20;
 
 export async function recalcAllTripsCoords(
   tripIds: string[]
-): Promise<{
-  await requireOffice(); success: boolean; updated: number; failed: number; error?: string }> {
+): Promise<{ success: boolean; updated: number; failed: number; error?: string }> {
+  await requireOffice();
   if (tripIds.length === 0) {
     return { success: false, updated: 0, failed: 0, error: 'Нет рейсов для пересчёта' };
   }

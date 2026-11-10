@@ -166,8 +166,8 @@ export async function deleteContractor(contractorId: string) {
 export async function mergeContractors(
   sourceId: string,
   targetId: string
-): Promise<{
-  await requireOffice(); success: true } | { success: false; error: string }> {
+): Promise<{ success: true } | { success: false; error: string }> {
+  await requireOffice();
   if (sourceId === targetId) {
     return { success: false, error: 'Нельзя объединить подрядчика с самим собой' };
   }

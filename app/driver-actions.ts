@@ -114,8 +114,8 @@ export async function updateDriver(driverId: string, formData: FormData) {
 // ============================================================
 export async function replaceDriverPassport(
   formData: FormData
-): Promise<{
-  await requireOffice(); success: true } | { success: false; error: string }> {
+): Promise<{ success: true } | { success: false; error: string }> {
+  await requireOffice();
   const supabase = await createClient();
 
   const driverId = String(formData.get('driver_id') || '').trim();
