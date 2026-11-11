@@ -22,11 +22,11 @@ export default async function EditTripPage({ params }: { params: Promise<{ id: s
   const scope = await getScope();
 
   const { data: trip, error } = await applyTripScope(
-    supabase
-      .from('trips'),
-    scope
-  )
-    .select('*')
+      supabase
+        .from('trips')
+        .select('*'),
+      scope
+    )
     .eq('id', tripId)
     .single();
 

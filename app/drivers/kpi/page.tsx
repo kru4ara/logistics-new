@@ -34,11 +34,11 @@ export default async function DriverKpiPage() {
   const scope = await getScope();
 
   const { data: trips } = await applyTripScope(
-    supabase
-      .from('trips'),
-    scope
-  )
-    .select('id, driver_id, revenue_eur, actual_km, actual_liters, start_date, end_date, status');
+      supabase
+        .from('trips')
+        .select('id, driver_id, revenue_eur, actual_km, actual_liters, start_date, end_date, status'),
+      scope
+    );
 
   // ⬅️ ВСЕ расходы (не только ЗП)
   const { data: allExpenses } = await supabase

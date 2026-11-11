@@ -49,11 +49,11 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
   const scope = await getScope();
 
   const { data: trip, error: tripError } = await applyTripScope(
-    supabase
-      .from('trips'),
-    scope
-  )
-    .select('*, clients(name), drivers!driver_id(first_name, last_name, phone_by, phone_pl, telegram_chat_id), trucks!truck_id(registration_number)')
+      supabase
+        .from('trips')
+        .select('*, clients(name), drivers!driver_id(first_name, last_name, phone_by, phone_pl, telegram_chat_id), trucks!truck_id(registration_number)'),
+      scope
+    )
     .eq('id', tripId)
     .single();
 

@@ -1,6 +1,8 @@
 'use server';
 
 import { requireOffice, requireCapability } from '../lib/require-office';
+import { getSessionContext } from '../lib/session';
+import { can } from '../lib/roles';
 import { createClient } from '../lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';

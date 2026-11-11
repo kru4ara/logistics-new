@@ -57,6 +57,11 @@ export async function getScope(): Promise<Scope> {
 /**
  * Применяет скоуп к запросу заказов.
  *
+ * ВАЖНО: функцию вызывают ПОСЛЕ .select(). У supabase-js фильтр
+ * .or() существует только у filter-билдера, который возвращает
+ * .select(); на сыром билдере from('trips') метода .or() нет.
+ * Порядок: from(...).select(...) -> applyTripScope(...) -> .eq(...) и т.д.
+ *
  * Смысл: страницы ходят в базу через admin-клиент (service_role), который
  * RLS обходит. Поэтому ограничение «менеджер не видит чужие заказы»
  * приходится задавать в самом запросе, а не полагаться на политику БД.
@@ -67,11 +72,14 @@ export async function getScope(): Promise<Scope> {
  *
  * Менеджер получает условие «без менеджера ИЛИ мой».
  */
-export function applyTripScope<T extends { or: (filter: string) => T }>(
+export function applyTripScope<T extends { or: (filter: string, ...rest: any[]) => any }>(
   query: T,
   scope: Scope
 ): T {
   const filter = managerTripFilter(scope);
   if (!filter) return query;
-  return query.or(filter);
+  // Приведение к T: у supabase-js .or() на фильтр-билдере возвращает
+  // тот же билдер, но с другими дженериками. Нам важен исходный тип
+  // строк, поэтому возвращаем именно T.
+  return query.or(filter) as T;
 }

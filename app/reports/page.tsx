@@ -118,11 +118,11 @@ export default async function ReportsPage({
   const scope = await getScope();
 
   let tripsQuery = applyTripScope(
-    supabase
-      .from('trips'),
-    scope
-  )
-    .select('*, clients(name)');
+      supabase
+        .from('trips')
+        .select('*, clients(name)'),
+      scope
+    );
 
   if (from) tripsQuery = tripsQuery.gte('start_date', from);
   if (to) tripsQuery = tripsQuery.lte('start_date', to);

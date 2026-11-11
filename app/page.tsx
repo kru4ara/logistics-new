@@ -38,12 +38,12 @@ export default async function Home() {
   const scope = await getScope();
 
   const { data: trips } = await applyTripScope(
-    supabase
-      .from('trips'),
-    scope
-  )
-    .select(
+      supabase
+        .from('trips')
+        .select(
       'id, client_id, revenue_eur, start_date, end_date, status, profit_mode, is_forwarding'
+    ),
+      scope
     );
 
   const { data: tripExpenses } = await supabase

@@ -37,11 +37,11 @@ export default async function ClientsPage() {
   const scope = await getScope();
 
   const { data: trips } = await applyTripScope(
-    supabase
-      .from('trips'),
-    scope
-  )
-    .select('client_id');
+      supabase
+        .from('trips')
+        .select('client_id'),
+      scope
+    );
 
   const tripsByClient = trips?.reduce((acc, t) => {
     if (!t.client_id) return acc;

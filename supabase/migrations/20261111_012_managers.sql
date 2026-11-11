@@ -220,6 +220,58 @@ create policy trip_segments_select_own_or_office
 
 
 -- ============================================================
+-- 8. RLS справочника managers
+-- ============================================================
+--
+-- В Supabase роль anon по умолчанию получает SELECT на все таблицы
+-- public (дефолтные гранты). Новая таблица managers без RLS была бы
+-- отдана анониму целиком — вместе с телефоном, e-mail и заметками.
+-- Поэтому RLS включаем явно.
+--
+-- Правила:
+--   - офис видит все карточки (ведёт справочник);
+--   - менеджер видит свою карточку (нужна для подписи заказов);
+--   - аноним не видит ничего.
+--
+-- Запись (insert/update/delete) — только офис: карточку заводит офис.
+-- service_role (admin-клиент приложения) RLS обходит, поэтому
+-- приложение работает как раньше.
+
+alter table public.managers enable row level security;
+
+drop policy if exists managers_select_own_or_office on public.managers;
+
+create policy managers_select_own_or_office
+  on public.managers for select
+  using (
+    is_office()
+    or (is_manager() and id = public.current_manager_id())
+  );
+
+drop policy if exists managers_insert_office on public.managers;
+
+create policy managers_insert_office
+  on public.managers for insert
+  with check (is_office());
+
+drop policy if exists managers_update_office on public.managers;
+
+create policy managers_update_office
+  on public.managers for update
+  using (is_office())
+  with check (is_office());
+
+drop policy if exists managers_delete_office on public.managers;
+
+create policy managers_delete_office
+  on public.managers for delete
+  using (is_office());
+
+-- Анониму SELECT не нужен вовсе: убираем и грант, чтобы карточки
+-- не отдавались даже при случайном отключении политики.
+revoke select on public.managers from anon;
+
+-- ============================================================
 -- 7. Вход менеджера по логину
 --
 -- lookup_login_email ищет e-mail по логину: сначала в users,

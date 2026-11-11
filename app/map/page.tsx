@@ -23,11 +23,11 @@ export default async function MapPage() {
   const scope = await getScope();
 
   const { data: tripsRaw, error } = await applyTripScope(
-    supabase
-      .from('trips'),
-    scope
-  )
-    .select('id, trip_number, status, start_lat, start_lng, end_lat, end_lng, start_date')
+      supabase
+        .from('trips')
+        .select('id, trip_number, status, start_lat, start_lng, end_lat, end_lng, start_date'),
+      scope
+    )
     .not('start_lat', 'is', null)
     .not('start_lng', 'is', null);
 

@@ -31,12 +31,12 @@ export default async function StatisticsPage({ searchParams }: { searchParams: P
   const scope = await getScope();
 
   const { data: orders } = await applyTripScope(
-    supabase
-      .from('trips'),
-    scope
-  )
-    .select(
+      supabase
+        .from('trips')
+        .select(
       'id, revenue_eur, start_date, end_date, status, profit_mode, is_forwarding'
+    ),
+      scope
     );
 
   const orderIds = orders?.map((o) => o.id) || [];

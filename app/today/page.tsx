@@ -41,18 +41,18 @@ export default async function TodayPage() {
 
   // 1. РЕЙСЫ
   const { data: tripsRaw, error: tripsError } = await applyTripScope(
-    supabase
-      .from('trips'),
-    scope
-  )
-    .select(`
+      supabase
+        .from('trips')
+        .select(`
       id, trip_number, status, start_date, end_date,
       profit_mode,
       driver_id, truck_id,
       clients(name),
       drivers!driver_id(first_name, last_name, phone_by, phone_pl),
       trucks!truck_id(registration_number)
-    `);
+    `),
+      scope
+    );
 
   if (tripsError) {
     console.error('[today] trips query error:', tripsError.message);
@@ -168,14 +168,14 @@ export default async function TodayPage() {
   //    Точки маршрута лежат в trip_segments.stops (jsonb) в общем
   //    с рейсами формате: type 'load' | 'reload' | 'unload' | 'customs'.
   const { data: fwdOrders } = await applyTripScope(
-    supabase
-      .from('trips'),
-    scope
-  )
-    .select(`
+      supabase
+        .from('trips')
+        .select(`
       id, trip_number,
       clients(name)
-    `)
+    `),
+      scope
+    )
     .eq('profit_mode', 'forwarding');
 
   const fwdOrderIds = (fwdOrders || []).map((o: any) => o.id).filter(Boolean) as string[];
@@ -263,15 +263,15 @@ export default async function TodayPage() {
   
   // 3.5. ЗАВЕРШЁННЫЕ РЕЙСЫ БЕЗ ЗП
   const { data: completedTrips } = await applyTripScope(
-    supabase
-      .from('trips'),
-    scope
-  )
-    .select(`
+      supabase
+        .from('trips')
+        .select(`
       id, trip_number, end_date,
       clients(name),
       drivers!driver_id(first_name, last_name)
-    `)
+    `),
+      scope
+    )
     .eq('status', 'completed')
     .not('driver_id', 'is', null);
 

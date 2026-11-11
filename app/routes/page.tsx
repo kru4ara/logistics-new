@@ -28,10 +28,10 @@ export default async function RoutesPage() {
   const [tripsResult, expensesResult, segmentsResult] = await Promise.all([
     applyTripScope(
       supabase
-        .from('trips'),
+        .from('trips')
+        .select('id, revenue_eur'),
       scope
-    )
-      .select('id, revenue_eur'),
+    ),
     supabase
       .from('trip_expenses')
       .select('trip_id, amount_eur'),

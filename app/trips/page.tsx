@@ -89,10 +89,10 @@ export default async function TripsPage({
   const [tripsResult, expensesResult, driversResult, tractorsResult, clientsResult, segmentsResult] = await Promise.all([
     applyTripScope(
       supabase
-        .from('trips'),
+        .from('trips')
+        .select('*, clients(name), drivers!driver_id(first_name, last_name)'),
       scope
-    )
-      .select('*, clients(name), drivers!driver_id(first_name, last_name)'),
+    ),
     supabase
       .from('trip_expenses')
       .select('trip_id, amount_eur'),
