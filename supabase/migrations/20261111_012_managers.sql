@@ -46,16 +46,6 @@
 -- ============================================================
 
 
--- Права на функции-владельцы (фаза 39).
---
--- Политики вызывают их от имени пользователя (менеджера), поэтому явный
--- grant execute обязателен: без него вызов падает с "permission denied for
--- function ...", и политика молча отсекает ВСЕ строки — менеджер увидит
--- пустую выдачу вместо своих заказов.
-grant execute on function public.is_office() to anon, authenticated, service_role;
-grant execute on function public.is_manager() to anon, authenticated, service_role;
-grant execute on function public.current_manager_id() to anon, authenticated, service_role;
-grant execute on function public.manager_owns_trip(uuid) to anon, authenticated, service_role;
 
 create table if not exists public.managers (
   id uuid primary key default gen_random_uuid(),
@@ -203,6 +193,86 @@ $$;
 
 
 -- ============================================================
+
+-- Права на функции-владельцы (фаза 39).
+--
+-- Политики вызывают их от имени пользователя (менеджера), поэтому явный
+-- grant execute обязателен: без него вызов падает с "permission denied for
+-- function ...", и политика молча отсекает ВСЕ строки — менеджер увидит
+-- пустую выдачу вместо своих заказов.
+--
+-- ВАЖНО: блок стоит ПОСЛЕ создания функций. GRANT на ещё не созданную
+-- функцию падает с "function ... does not exist" и роняет всю миграцию.
+grant execute on function public.is_office() to anon, authenticated, service_role;
+grant execute on function public.is_manager() to anon, authenticated, service_role;
+grant execute on function public.current_manager_id() to anon, authenticated, service_role;
+grant execute on function public.manager_owns_trip(uuid) to anon, authenticated, service_role;
+
+
+-- ============================================================
+-- 5b. Хелперы менеджера для остальных таблиц
+-- ============================================================
+--
+-- Заказы менеджер видит (политика trips ниже), но без содержимого он
+-- не увидит расходы, груз, документы, клиентов и подрядчиков своих
+-- заказов — а без этого карточка заказа в приложении будет пустой.
+--
+-- Функции — security definer и с row_security = off: внутри них мы
+-- читаем trips/trip_segments напрямую. Прямой подзапрос в политике
+-- здесь дал бы рекурсию политик (та же ошибка, что чинили в фазе 35).
+
+-- Клиент стоит на заказе, который менеджер ведёт.
+create or replace function public.manager_has_client(p_client_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path to 'public'
+set row_security to 'off'
+as $$
+  select exists (
+    select 1 from public.trips t
+    where t.client_id = p_client_id
+      and public.manager_owns_trip(t.id)
+  );
+$$;
+
+-- Подрядчик работает на сегменте заказа менеджера.
+create or replace function public.manager_uses_contractor(p_contractor_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path to 'public'
+set row_security to 'off'
+as $$
+  select exists (
+    select 1 from public.trip_segments s
+    where s.contractor_id = p_contractor_id
+      and public.manager_owns_trip(s.trip_id)
+  );
+$$;
+
+-- Груз лежит на сегменте заказа менеджера.
+create or replace function public.manager_owns_segment_cargo(p_segment_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path to 'public'
+set row_security to 'off'
+as $$
+  select exists (
+    select 1 from public.trip_segments s
+    where s.id = p_segment_id
+      and public.manager_owns_trip(s.trip_id)
+  );
+$$;
+
+grant execute on function public.manager_has_client(uuid) to anon, authenticated, service_role;
+grant execute on function public.manager_uses_contractor(uuid) to anon, authenticated, service_role;
+grant execute on function public.manager_owns_segment_cargo(uuid) to anon, authenticated, service_role;
+
 -- 6. Политики
 --
 -- trips: менеджер видит свои + неназначенные.
@@ -240,6 +310,75 @@ create policy trip_segments_select_own_or_office
 
 
 -- ============================================================
+
+-- ============================================================
+-- 6b. Политики для содержимого заказов менеджера
+-- ============================================================
+--
+-- Менеджер ведёт заказы, поэтому должен видеть их содержимое:
+-- расходы, груз, документы, клиентов, подрядчиков.
+-- Политики master работают только через driver_owns_trip()/is_office(),
+-- то есть для менеджера они не срабатывают — карточка заказа была бы
+-- пустой. Поэтому пересоздаём их с веткой менеджера.
+--
+-- Запись (insert/update/delete) остаётся только у офиса: менеджер
+-- правит заказ через server action с проверкой скоупа в коде, а не
+-- прямыми вставками в таблицы.
+
+drop policy if exists trip_expenses_select_own_or_office on public.trip_expenses;
+create policy trip_expenses_select_own_or_office
+  on public.trip_expenses for select to authenticated
+  using (
+    is_office()
+    or driver_owns_trip(trip_expenses.trip_id)
+    or (is_manager() and manager_owns_trip(trip_expenses.trip_id))
+  );
+
+drop policy if exists trip_cargo_select_own_or_office on public.trip_cargo;
+create policy trip_cargo_select_own_or_office
+  on public.trip_cargo for select to authenticated
+  using (
+    is_office()
+    or driver_owns_trip(trip_cargo.trip_id)
+    or (is_manager() and manager_owns_trip(trip_cargo.trip_id))
+  );
+
+drop policy if exists trip_segment_cargo_select_own_or_office on public.trip_segment_cargo;
+create policy trip_segment_cargo_select_own_or_office
+  on public.trip_segment_cargo for select to authenticated
+  using (
+    is_office()
+    or driver_owns_segment_cargo(trip_segment_cargo.segment_id)
+    or (is_manager() and manager_owns_segment_cargo(trip_segment_cargo.segment_id))
+  );
+
+drop policy if exists trip_documents_select_own_or_office on public.trip_documents;
+create policy trip_documents_select_own_or_office
+  on public.trip_documents for select to authenticated
+  using (
+    is_office()
+    or driver_owns_trip(trip_documents.trip_id)
+    or (is_manager() and manager_owns_trip(trip_documents.trip_id))
+  );
+
+drop policy if exists clients_select_own_or_office on public.clients;
+create policy clients_select_own_or_office
+  on public.clients for select to authenticated
+  using (
+    is_office()
+    or driver_has_client(clients.id)
+    or (is_manager() and manager_has_client(clients.id))
+  );
+
+drop policy if exists contractors_select_own_or_office on public.contractors;
+create policy contractors_select_own_or_office
+  on public.contractors for select to authenticated
+  using (
+    is_office()
+    or driver_uses_contractor(contractors.id)
+    or (is_manager() and manager_uses_contractor(contractors.id))
+  );
+
 -- 8. RLS справочника managers
 -- ============================================================
 --
