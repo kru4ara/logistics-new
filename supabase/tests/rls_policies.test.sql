@@ -80,14 +80,19 @@ insert into public.contractors (id, name) values
   ('bbbb2222-2222-2222-2222-222222222222', 'Подрядчик 2'),
   ('cccc3333-3333-3333-3333-333333333333', 'Подрядчик 3');
 
+--
+-- Фаза 39: T-3 — заказ менеджера А, T-4 — заказ менеджера Б,
+-- T-5 — общий пул (без менеджера), его видят все менеджеры.
+--
+-- У T-3/T-4/T-5 driver_id = NULL и у их сегментов driver_id = NULL
+-- НАМЕРЕННО: иначе водители А/Б получили бы лишние заказы и
+-- сломались бы счётчики ниже (проверки водителей считают «свои» заказы).
 insert into public.trips (id, trip_number, driver_id, manager_id, client_id, status) values
   ('11111111-aaaa-1111-1111-111111111111', 'T-1', 'dddddddd-dddd-dddd-dddd-dddddddddddd', null, 'cccccccc-cccc-cccc-cccc-cccccccccccc', 'active'),
   ('22222222-bbbb-2222-2222-222222222222', 'T-2', 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', null, 'ffffffff-ffff-ffff-ffff-ffffffffffff', 'active'),
-  -- Фаза 39: T-3 — заказ менеджера А, T-4 — заказ менеджера Б,
-  -- T-5 — общий пул (без менеджера), его видят все менеджеры.
-  ('66666666-6666-6666-6666-666666666666', 'T-3', 'dddddddd-dddd-dddd-dddd-dddddddddddd', 'aaaa1111-1111-1111-1111-111111111111', 'cccccccc-cccc-cccc-cccc-cccccccccccc', 'active'),
-  ('77777777-7777-7777-7777-777777777777', 'T-4', 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'bbbb2222-2222-2222-2222-222222222222', 'ffffffff-ffff-ffff-ffff-ffffffffffff', 'active'),
-  ('88888888-8888-8888-8888-888888888888', 'T-5', 'dddddddd-dddd-dddd-dddd-dddddddddddd', null, 'cccccccc-cccc-cccc-cccc-cccccccccccc', 'active');
+  ('66666666-6666-6666-6666-666666666666', 'T-3', null, 'aaaa1111-1111-1111-1111-111111111111', 'cccccccc-cccc-cccc-cccc-cccccccccccc', 'active'),
+  ('77777777-7777-7777-7777-777777777777', 'T-4', null, 'bbbb2222-2222-2222-2222-222222222222', 'ffffffff-ffff-ffff-ffff-ffffffffffff', 'active'),
+  ('88888888-8888-8888-8888-888888888888', 'T-5', null, null, 'cccccccc-cccc-cccc-cccc-cccccccccccc', 'active');
 
 -- Сегмент 1: водитель А ведёт рейс T-1 целиком, сегмент его.
 -- Сегмент 2: водитель Б назначен на СЕГМЕНТ рейса T-1 (рейс ведёт А).
@@ -98,8 +103,10 @@ insert into public.trip_segments (id, trip_id, driver_id, contractor_id, positio
   ('33333333-cccc-3333-3333-333333333333', '11111111-aaaa-1111-1111-111111111111', 'dddddddd-dddd-dddd-dddd-dddddddddddd', 'aaaa1111-1111-1111-1111-111111111111', 1, 'us'),
   ('44444444-dddd-4444-4444-444444444444', '11111111-aaaa-1111-1111-111111111111', 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'bbbb2222-2222-2222-2222-222222222222', 2, 'us'),
   ('55556666-eeee-5555-6666-555566667777', '22222222-bbbb-2222-2222-222222222222', 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'cccc3333-3333-3333-3333-333333333333', 1, 'us'),
-  -- Сегмент заказа менеджера А (T-3): водитель А, но менеджер — А.
-  ('66667777-ffff-7777-8888-777777778888', '66666666-6666-6666-6666-666666666666', 'dddddddd-dddd-dddd-dddd-dddddddddddd', 'aaaa1111-1111-1111-1111-111111111111', 1, 'us');
+  -- Сегменты заказов менеджеров (T-3 — менеджер А, T-4 — менеджер Б).
+  -- Без водителя: чтобы не менять периметр водителей А/Б.
+  ('66667777-ffff-7777-8888-777777778888', '66666666-6666-6666-6666-666666666666', null, 'aaaa1111-1111-1111-1111-111111111111', 1, 'us'),
+  ('77778888-ffff-8888-9999-888899999999', '77777777-7777-7777-7777-777777777777', null, 'bbbb2222-2222-2222-2222-222222222222', 1, 'us');
 
 insert into public.trip_expenses (id, trip_id, category, amount_eur) values
   ('55555555-eeee-5555-5555-555555555555', '11111111-aaaa-1111-1111-111111111111', 'fuel', 100),
@@ -138,17 +145,17 @@ select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111
 select public.assert_count('office: is_office() is true', 1,
   'select case when public.is_office() then 1 else 0 end');
 
-select public.assert_count('office: trips', 2, 'select count(*) from public.trips');
+select public.assert_count('office: trips', 5, 'select count(*) from public.trips');
 select public.assert_count('office: expenses', 2, 'select count(*) from public.trip_expenses');
 select public.assert_count('office: cargo', 2, 'select count(*) from public.trip_cargo');
 select public.assert_count('office: drivers', 2, 'select count(*) from public.drivers');
 select public.assert_count('office: clients', 2, 'select count(*) from public.clients');
 select public.assert_count('office: contractors', 3, 'select count(*) from public.contractors');
 select public.assert_count('office: reminders', 1, 'select count(*) from public.reminders');
-select public.assert_count('office: profiles', 3, 'select count(*) from public.profiles');
+select public.assert_count('office: profiles', 5, 'select count(*) from public.profiles');
 select public.assert_count('office: documents', 1, 'select count(*) from public.documents');
 select public.assert_count('office: driver_transactions', 1, 'select count(*) from public.driver_transactions');
-select public.assert_count('office: trip_segments', 3, 'select count(*) from public.trip_segments');
+select public.assert_count('office: trip_segments', 5, 'select count(*) from public.trip_segments');
 select public.assert_count('office: trip_documents', 1, 'select count(*) from public.trip_documents');
 select public.assert_count('office: rates', 1, 'select count(*) from public.rates');
 select public.assert_count('office: trucks', 1, 'select count(*) from public.trucks');
@@ -305,6 +312,11 @@ select public.assert_count('anon: no contractors', 0, 'select count(*) from publ
 --   - заказы, назначенные на другого менеджера.
 --
 -- Офис при этом видит всё.
+--
+-- ВАЖНО про «общий пул»: в фикстуре заказы T-1, T-2 и T-5 менеджера
+-- не назначены, поэтому менеджер А видит их ВСЕ, а не только T-5.
+-- Это следует из самого правила «без менеджера ИЛИ мой» — общий пул
+-- виден всем менеджерам, пока заказы не разложены по менеджерам.
 
 reset role;
 set role authenticated;
@@ -336,54 +348,44 @@ begin
 end;
 $$;
 
--- Заказы: свой (T-3) + общий пул (T-5) + те, что ведёт водитель А (T-1).
---
--- ВАЖНО: водитель А назначен на T-1, и политика trips допускает
--- driver_owns_trip(id). Но менеджер — не водитель: у его профиля
--- driver_id = NULL, поэтому driver_owns_trip для него ложно.
--- Значит менеджер А видит ровно T-3 и T-5.
+-- Свой заказ T-3 виден.
 select public.assert_count(
-  'менеджер А: только свой заказ и общий пул', 2,
-  'select count(*) from public.trips');
+  'менеджер А: свой заказ виден', 1,
+  $q$select count(*) from public.trips where trip_number = 'T-3'$q$);
 
 -- Чужой заказ менеджера Б недоступен.
 select public.assert_count(
   'менеджер А: нет чужих заказов', 0,
   $q$select count(*) from public.trips where trip_number = 'T-4'$q$);
 
--- Свой заказ доступен.
+-- Общий пул (заказы без менеджера: T-1, T-2, T-5) виден целиком.
 select public.assert_count(
-  'менеджер А: свой заказ виден', 1,
-  $q$select count(*) from public.trips where trip_number = 'T-3'$q$);
+  'менеджер А: общий пул виден', 3,
+  $q$select count(*) from public.trips where manager_id is null and trip_number in ('T-1','T-2','T-5')$q$);
 
--- Общий пул виден.
+-- Итог: свой заказ + общий пул = 4 (T-1, T-2, T-3, T-5), без T-4.
 select public.assert_count(
-  'менеджер А: общий пул виден', 1,
-  $q$select count(*) from public.trips where trip_number = 'T-5'$q$);
+  'менеджер А: видит свои и общие, чужие скрыты', 4,
+  'select count(*) from public.trips');
 
--- Сегменты: менеджер видит сегменты своего заказа (T-3) и общих (T-5 у T-1 нет).
--- Сегмент T-3 принадлежит менеджеру А -> виден.
+-- Сегменты: видны сегменты заказов в периметре.
+-- У T-1 — два сегмента, у T-2 — один, у T-3 — один. Итого 4.
 select public.assert_count(
-  'менеджер А: сегмент своего заказа виден', 1,
-  $q$select count(*) from public.trip_segments where trip_id = '66666666-6666-6666-6666-666666666666'$q$);
+  'менеджер А: сегменты своих и общих заказов', 4,
+  'select count(*) from public.trip_segments');
 
--- Сегмент чужого заказа T-4 не виден.
+-- Сегмент заказа менеджера Б не виден.
 select public.assert_count(
   'менеджер А: сегменты чужих заказов не видны', 0,
   $q$select count(*) from public.trip_segments where trip_id = '77777777-7777-7777-7777-777777777777'$q$);
 
--- Справочник менеджеров: менеджер не обязан видеть чужие карточки —
--- проверяем, что он хотя бы не видит данные, которых быть не должно.
--- Конкретный состав выдачи задаёт политика managers_select в миграции;
--- здесь фиксируем инвариант: карточка менеджера А не отдаётся анониму
--- (проверяется отдельным блоком ниже).
+-- Карточка менеджера: менеджер видит свою.
+select public.assert_count(
+  'менеджер А: своя карточка менеджера видна', 1,
+  $q$select count(*) from public.managers where id = 'aaaa1111-1111-1111-1111-111111111111'$q$);
 
 -- --- Менеджер Б: симметрично ---
 select set_config('request.jwt.claim.sub', '55555555-5555-5555-5555-555555555555', false);
-
-select public.assert_count(
-  'менеджер Б: только свой заказ и общий пул', 2,
-  'select count(*) from public.trips');
 
 select public.assert_count(
   'менеджер Б: чужой заказ (T-3) не виден', 0,
@@ -393,6 +395,14 @@ select public.assert_count(
   'менеджер Б: свой заказ T-4 виден', 1,
   $q$select count(*) from public.trips where trip_number = 'T-4'$q$);
 
+select public.assert_count(
+  'менеджер Б: сегмент своего заказа виден', 1,
+  $q$select count(*) from public.trip_segments where trip_id = '77777777-7777-7777-7777-777777777777'$q$);
+
+select public.assert_count(
+  'менеджер Б: видит свои и общие, чужие скрыты', 4,
+  'select count(*) from public.trips');
+
 -- --- Офис видит всё ---
 select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', false);
 
@@ -401,8 +411,12 @@ select public.assert_count(
   'select count(*) from public.trips');
 
 select public.assert_count(
-  'офис: видит все сегменты', 4,
+  'офис: видит все сегменты', 5,
   'select count(*) from public.trip_segments');
+
+select public.assert_count(
+  'офис: видит все карточки менеджеров', 2,
+  'select count(*) from public.managers');
 
 reset role;
 
@@ -445,8 +459,6 @@ begin
   raise notice 'ok: прежний менеджер переведён в office';
 end;
 $$;
-
-reset role;
 
 reset role;
 
