@@ -74,10 +74,6 @@ create table if not exists public.managers (
 comment on table public.managers is
   'Справочник менеджеров по логистике. Связь с учётной записью — managers.user_id, с профилем — profiles.manager_id.';
 
--- Заказы без назначенного менеджера видны всем менеджерам,
--- поэтому индекс по manager_id нужен на фильтр.
-create index if not exists idx_trips_manager_id on public.trips (manager_id);
-create index if not exists idx_profiles_manager_id on public.profiles (manager_id);
 
 
 -- ============================================================
@@ -100,6 +96,16 @@ alter table public.trips
 
 comment on column public.trips.manager_id is
   'Ответственный менеджер. NULL = заказ не назначен, виден всем менеджерам (общий пул офиса).';
+
+-- Индексы по manager_id создаём ТОЛЬКО ЗДЕСЬ — после ALTER TABLE.
+--
+-- Раньше индексы стояли выше, до добавления колонок, и миграция падала
+-- с "42703: column manager_id does not exist": CREATE INDEX требует
+-- существующей колонки. Транзакция откатывала всё, включая таблицу
+-- managers, — база оставалась без изменений, а код в приложении уже
+-- читал profiles.manager_id и падал в редирект-цикл.
+create index if not exists idx_trips_manager_id on public.trips (manager_id);
+create index if not exists idx_profiles_manager_id on public.profiles (manager_id);
 
 
 -- ============================================================
