@@ -130,7 +130,10 @@ export default async function ManagerDetailPage({ params }: { params: Promise<{ 
             </div>
 
             <div className="flex justify-end pt-2">
-              <SubmitButton>
+              <SubmitButton
+                className="btn btn-primary text-center"
+                pendingText="Сохраняю менеджера…"
+              >
                 <Save className="w-4 h-4" strokeWidth={2} />
                 Сохранить
               </SubmitButton>
@@ -171,7 +174,10 @@ export default async function ManagerDetailPage({ params }: { params: Promise<{ 
             </div>
 
             <div className="flex justify-end pt-2">
-              <SubmitButton>
+              <SubmitButton
+                className="btn btn-primary text-center"
+                pendingText="Привязываю…"
+              >
                 <Link2 className="w-4 h-4" strokeWidth={2} />
                 Привязать
               </SubmitButton>
