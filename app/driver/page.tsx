@@ -52,7 +52,11 @@ export default async function DriverPage({
   const driverId = profile?.driver_id;
 
   if (role !== 'driver' || !driverId) {
-    redirect('/login');
+    // Не водитель. Отправляем на главную, а НЕ на /login:
+    // proxy.ts перебрасывает залогиненного пользователя с /login
+    // обратно на '/', и если оттуда снова ведёт в /driver — получается
+    // бесконечный цикл редиректов.
+    redirect('/');
   }
 
   // Данные читаем через RLS-клиент (anon-ключ + сессия), а не через

@@ -6,6 +6,34 @@ import { cookies } from 'next/headers';
 
 export type LoginState = { error?: string } | null;
 
+/**
+ * Ошибка «колонки нет» (42703 / PGRST204) — миграция с новой колонкой
+ * ещё не применена.
+ */
+function isMissingColumn(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  const code = String(error.code ?? '');
+  const message = String(error.message ?? '').toLowerCase();
+  return (
+    code === '42703' ||
+    code === 'PGRST204' ||
+    message.includes('does not exist')
+  );
+}
+
+/**
+ * Строка профиля, как её видит приложение.
+ *
+ * manager_id может отсутствовать в БД (миграция 012 ещё не применена),
+ * поэтому вводим единый тип для обоих вариантов чтения.
+ */
+type ProfileRow = {
+  role: string | null;
+  driver_id: string | null;
+  manager_id: string | null;
+  full_name: string | null;
+};
+
 export async function login(
   _prev: LoginState,
   formData: FormData
@@ -59,11 +87,29 @@ export async function login(
   }
 
   // Получаем роль, driver_id и manager_id из profiles
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('role, driver_id, manager_id, full_name')
     .eq('id', data.user.id)
     .single();
+
+  // Миграция 012 ещё не применена — колонки profiles.manager_id нет,
+  // запрос падает с 42703, профиль приходит null, роль становится
+  // 'driver', и пользователь уходит в цикл редиректов
+  // (/ -> /driver -> /login -> /). Читаем профиль без manager_id.
+  let resolvedProfile: ProfileRow | null = profile;
+  if (!resolvedProfile && profileError && isMissingColumn(profileError)) {
+    const { data: baseProfile } = await supabase
+      .from('profiles')
+      .select('role, driver_id, full_name')
+      .eq('id', data.user.id)
+      .single();
+    // Fallback-профиль читается без manager_id (колонки ещё нет в БД),
+    // поэтому приводим его к общему типу: manager_id остаётся null.
+    resolvedProfile = baseProfile
+      ? { ...baseProfile, manager_id: null }
+      : null;
+  }
 
   // Роль берём только из profiles и только из известного набора.
   // Раньше здесь был fallback на 'admin' — это значило, что пользователь
@@ -72,12 +118,12 @@ export async function login(
   // а не синоним офиса. 'office' добавляем в список явно: офисные
   // профили после миграции 012 имеют role='office'.
   const KNOWN_ROLES = ['admin', 'office', 'manager', 'driver'];
-  const rawRole = String(profile?.role || '').trim().toLowerCase();
+  const rawRole = String(resolvedProfile?.role || '').trim().toLowerCase();
   const role = KNOWN_ROLES.includes(rawRole) ? rawRole : 'driver';
-  const driverId = profile?.driver_id || '';
-  const managerId = profile?.manager_id || '';
+  const driverId = resolvedProfile?.driver_id || '';
+  const managerId = resolvedProfile?.manager_id || '';
   const userName =
-    profile?.full_name ||
+    resolvedProfile?.full_name ||
     (role === 'driver' ? 'Водитель' : role === 'manager' ? 'Менеджер' : 'Офис');
 
   // Куки роли и driver_id — быстрый путь для UI и старых страниц,
