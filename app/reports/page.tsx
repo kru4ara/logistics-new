@@ -136,15 +136,21 @@ export default async function ReportsPage({
   }
 
   // 2. Сегменты для маршрута
+  //
+  // Фаза 39: сегменты читаем по всем заказам, но маршрут строим только
+  // по заказам в периметре пользователя.
   const { data: segmentsData } = await supabase
     .from('trip_segments')
     .select('trip_id, position, from_city, from_country, to_city, to_country');
 
-  const segments = (segmentsData || []) as SegmentRouteRow[];
+  const tripIds = (trips || []).map((t) => t.id).filter(Boolean) as string[];
+  const visibleTripIds = new Set(tripIds);
+  const segments = ((segmentsData || []) as SegmentRouteRow[]).filter((s) =>
+    visibleTripIds.has(s.trip_id)
+  );
   const routeByTrip = buildRouteMap(segments);
 
   // 3. Расходы только по отфильтрованным рейсам
-  const tripIds = (trips || []).map((t) => t.id).filter(Boolean) as string[];
 
   let expenses: { trip_id: string | null; amount_eur: number | null }[] = [];
   if (tripIds.length > 0) {

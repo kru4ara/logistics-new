@@ -52,7 +52,12 @@ export default async function RoutesPage() {
   const expenses = expensesResult.data || [];
   const segments = (segmentsResult.data || []) as SegmentRouteRow[];
 
-  const routeByTrip = buildRouteMap(segments);
+  // Фаза 39: сегменты прочитаны по всем заказам — в маршруты попадают
+  // только заказы в периметре пользователя.
+  const visibleTripIds = new Set(trips.map((t: any) => t.id as string));
+  const routeByTrip = buildRouteMap(
+    segments.filter((s) => visibleTripIds.has(s.trip_id))
+  );
 
   const expensesByTrip = expenses.reduce((acc, e) => {
     if (!e.trip_id) return acc;

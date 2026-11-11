@@ -102,7 +102,11 @@ export default async function TodayPage() {
   const activeTrips = allTrips.filter((t) => t.status === 'active');
 
   // 2. ПОДРЯДЧИКИ — участки-подрядчики в рейсах
-  const { data: subs } = await supabase
+  //
+  // Фаза 39: сегменты читаем по всем заказам (индекс по trip_id быстрее),
+  // поэтому фильтруем по периметру менеджера — иначе в ленту попадали бы
+  // подрядчики с чужих заказов.
+  const { data: subsRaw } = await supabase
     .from('trip_segments')
     .select(`
       id, trip_id, position,
@@ -112,6 +116,10 @@ export default async function TodayPage() {
       contractors(name)
     `)
     .eq('executor_type', 'contractor');
+
+  // Заказы в периметре пользователя (allTrips уже отфильтрован скоупом).
+  const visibleTripIds = new Set(allTrips.map((t: any) => t.id as string));
+  const subs = (subsRaw || []).filter((s: any) => visibleTripIds.has(s.trip_id));
 
   const subEventsToday: EventItem[] = [];
   (subs || []).forEach((s: any) => {
