@@ -57,6 +57,9 @@ export async function createCargoWithTrip(formData: FormData) {
   const clientId = ((formData.get('client_id') as string) || '').trim() || null;
   const clientRequestNumber = ((formData.get('client_request_number') as string) || '').trim() || null;
   const clientRequestDate = ((formData.get('client_request_date') as string) || '').trim() || null;
+  // Ответственный менеджер (фаза 39). Пусто = заказ без назначенного
+  // менеджера, такой виден всем менеджерам (общий пул офиса).
+  const managerId = ((formData.get('manager_id') as string) || '').trim() || null;
   const dateForRate = clientRequestDate || new Date().toISOString().slice(0, 10);
 
   // ---- Маршрут: откуда ----
@@ -136,6 +139,7 @@ export async function createCargoWithTrip(formData: FormData) {
         truck_id: null,
         trailer_id: null,
         driver_id: null,
+        manager_id: managerId,
         start_date: null,
         revenue_eur: revenueEur,
         start_fuel_level: 0,

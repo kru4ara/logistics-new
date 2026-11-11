@@ -1,6 +1,6 @@
 'use server';
 
-import { requireOffice } from '../lib/require-office';
+import { requireOffice, requireCapability } from '../lib/require-office';
 import { createClient } from '../lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
@@ -230,7 +230,10 @@ export async function updateExpense(expenseId: string, formData: FormData) {
 // из trip_segments и trip_cargo.
 // ============================================================
 export async function updateTrip(tripId: string, formData: FormData) {
-  await requireOffice();
+  // Фаза 39: requireOffice() закрывал бы доступ менеджеру, который ведёт
+  // заказы. Право trips.editAny есть и у офиса, и у менеджера.
+  // Что менеджер может редактировать — решает скоуп (lib/scope.ts).
+  await requireCapability('trips.editAny');
   const supabase = await createClient();
 
   const clientId = formData.get('client_id') as string;
@@ -238,6 +241,8 @@ export async function updateTrip(tripId: string, formData: FormData) {
 
   const clientRequestNumber = formData.get('client_request_number') as string;
   const clientRequestDate = formData.get('client_request_date') as string;
+  // Ответственный менеджер (фаза 39). Пусто = без назначенного менеджера.
+  const managerId = (formData.get('manager_id') as string) || null;
 
   const fromCountry = formData.get('from_country') as string;
   const fromPostalCode = formData.get('from_postal_code') as string;
@@ -249,7 +254,7 @@ export async function updateTrip(tripId: string, formData: FormData) {
 
   const { data: before } = await supabase
     .from('trips')
-    .select('trip_number, revenue_eur, driver_id, truck_id, client_id, start_date, end_date, profit_mode, client_request_number, start_fuel_level, start_lat, start_lng, end_lat, end_lng')
+    .select('trip_number, revenue_eur, driver_id, truck_id, client_id, start_date, end_date, profit_mode, client_request_number, start_fuel_level, start_lat, start_lng, end_lat, end_lng, manager_id')
     .eq('id', tripId)
     .single();
 
@@ -288,6 +293,7 @@ export async function updateTrip(tripId: string, formData: FormData) {
       // Даты — всегда фактические, в start_date / end_date.
       start_date: startDate,
       end_date: endDate,
+      manager_id: managerId,
     })
     .eq('id', tripId);
 
@@ -301,6 +307,7 @@ export async function updateTrip(tripId: string, formData: FormData) {
         start_fuel_level: before.start_fuel_level,
         start_date: before.start_date,
         end_date: before.end_date,
+        manager_id: before.manager_id,
       },
       {
         client_id: clientId || null,
@@ -308,8 +315,9 @@ export async function updateTrip(tripId: string, formData: FormData) {
         start_fuel_level: startFuelLevel,
         start_date: startDate,
         end_date: endDate,
+        manager_id: managerId,
       },
-      ['client_id', 'client_request_number', 'start_fuel_level', 'start_date', 'end_date']
+      ['client_id', 'client_request_number', 'start_fuel_level', 'start_date', 'end_date', 'manager_id']
     );
 
     const changedCount = Object.keys(changes).length;
