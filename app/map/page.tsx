@@ -3,8 +3,8 @@ import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase/admin';
 import { buildRouteMap } from '../../lib/trip-route';
 import MapView from './MapViewWrapper';
-import {
 import { getScope, applyTripScope } from '../../lib/scope';
+import {
   Map as MapIcon,
   MapPin,
   Package,

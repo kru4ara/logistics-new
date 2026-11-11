@@ -4,8 +4,8 @@ import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase/admin';
 import { deleteClient } from '../client-actions';
 import ClientCardActions from './ClientCardActions';
-import {
 import { getScope, applyTripScope } from '../../lib/scope';
+import {
   Users,
   Plus,
   User as UserIcon,

@@ -1,11 +1,11 @@
 import { getSessionContext } from '../../lib/session';
+import { getScope, applyTripScope } from '../../lib/scope';
 import { can } from '../../lib/roles';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase/admin';
 import { buildRouteMap, type SegmentRouteRow } from '../../lib/trip-route';
 import DownloadButton, { type RouteCardData } from './DownloadButton';
 import {
-import { getScope, applyTripScope } from '../../lib/scope';
   Route as RouteIcon,
   TrendingUp,
   TrendingDown,

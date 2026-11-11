@@ -3,8 +3,8 @@ import { redirect } from 'next/navigation';
 import { createClient } from '../../../../lib/supabase/admin';
 import { can } from '../../../../lib/roles';
 import { getSessionContext } from '../../../../lib/session';
-import { getScope, applyTripScope } from '../../../../lib/scope';
 import EditTripForm from './EditTripForm';
+import { getScope, applyTripScope } from '../../../../lib/scope';
 
 export const dynamic = 'force-dynamic';
 

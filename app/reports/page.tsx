@@ -1,11 +1,11 @@
 import Link from 'next/link';
+import { getScope, applyTripScope } from '../../lib/scope';
 import { getSessionContext } from '../../lib/session';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase/admin';
 import { buildRouteMap, type SegmentRouteRow } from '../../lib/trip-route';
 import DownloadButton, { type ReportRow } from './DownloadButton';
 import {
-import { getScope, applyTripScope } from '../../lib/scope';
   Coins,
   BarChart3,
   Download,

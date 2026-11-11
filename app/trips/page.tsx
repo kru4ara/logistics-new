@@ -10,9 +10,9 @@ import SearchInput from './SearchInput';
 import TripFilters from './TripFilters';
 import RecalcAllCoordsButton from './RecalcAllCoordsButton';
 import TripsBulkList from './TripsBulkListWrapper';
+import { getScope, applyTripScope } from '../../lib/scope';
 import type { TripCardData, MonthGroup } from './TripsBulkList';
 import {
-import { getScope, applyTripScope } from '../../lib/scope';
   Package,
   Plus,
   Inbox,

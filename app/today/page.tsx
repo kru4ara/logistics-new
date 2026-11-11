@@ -16,12 +16,12 @@ import TodayStats from './components/TodayStats';
 import ActiveTripCard from './components/ActiveTripCard';
 import FuelList, { type FuelRow } from './components/FuelList';
 import TodayAttention from './components/TodayAttention';
+import { getScope, applyTripScope } from '../../lib/scope';
 import { todayIso, currentTimestamp } from './lib/dates';
 import { hasUnloadDate } from '../../lib/orders-core';
 import { pickName, pickOne, getDriverName, getTruckNumber } from './lib/relations';
 import { fetchFuelLevels } from '../../lib/fuel-server';
 import { type EventItem } from './lib/events';
-import { getScope, applyTripScope } from '../../lib/scope';
 
 export const dynamic = 'force-dynamic';
 // react-hooks/purity: impure-вызовы (Date.now) нельзя делать прямо в теле

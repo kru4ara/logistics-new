@@ -8,11 +8,11 @@ import AdminOnboardingCard from './components/AdminOnboardingCard';
 import DashboardMonthStats from './components/dashboard/DashboardMonthStats';
 import DashboardAttention from './components/dashboard/DashboardAttention';
 import DashboardTotals from './components/dashboard/DashboardTotals';
+import { getScope, applyTripScope } from '../lib/scope';
 import { CHART_PALETTE, CATEGORY_META } from '../lib/dashboard/category';
 import { splitReminders } from '../lib/dashboard/reminders';
 import { getOrderUnloadDate } from '../lib/orders-core';
 import { isStatsCompleted } from '../lib/statistics';
-import { getScope, applyTripScope } from '../lib/scope';
 
 export const dynamic = 'force-dynamic';
 

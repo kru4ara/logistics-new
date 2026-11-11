@@ -1,9 +1,9 @@
 import Link from 'next/link';
+import { getScope, applyTripScope } from '../../../lib/scope';
 import { getSessionContext } from '../../../lib/session';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../../lib/supabase/admin';
 import {
-import { getScope, applyTripScope } from '../../lib/scope';
   ArrowLeft,
   BarChart3,
   User as UserIcon,

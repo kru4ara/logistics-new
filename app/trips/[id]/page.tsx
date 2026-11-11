@@ -1,5 +1,4 @@
 import { createClient } from '../../../lib/supabase/admin';
-import { getScope, applyTripScope } from '../../../lib/scope';
 import AddExpenseForm from '../AddExpenseForm';
 import FileUpload from '../../driver/FileUpload';
 import DocumentList from '../../driver/DocumentList';
@@ -13,6 +12,7 @@ import { buildDriverTaskText } from '../../../lib/trip-task-text';
 import TripHeader from './TripHeader';
 import TripInfo from './TripInfo';
 import TripEconomics from './TripEconomics';
+import { getScope, applyTripScope } from '../../../lib/scope';
 import {
   AlertTriangle,
   Paperclip,

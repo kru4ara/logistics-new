@@ -19,6 +19,7 @@ create table public.profiles (
   id uuid primary key,
   role text,
   driver_id uuid,
+  manager_id uuid,
   full_name text
 );
 
@@ -34,6 +35,19 @@ create table public.drivers (
   last_name text,
   email text,
   onboarded_at timestamptz
+);
+
+-- Фаза 39: справочник менеджеров (каркас для RLS-тестов).
+create table public.managers (
+  id uuid primary key,
+  full_name text not null,
+  phone text,
+  email text,
+  telegram_chat_id text,
+  user_id uuid,
+  notes text,
+  active boolean not null default true,
+  created_at timestamptz not null default now()
 );
 
 create table public.clients (
@@ -53,6 +67,7 @@ create table public.trips (
   id uuid primary key,
   trip_number text,
   driver_id uuid,
+  manager_id uuid,
   client_id uuid,
   status text,
   start_date date,
