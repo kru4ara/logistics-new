@@ -137,7 +137,8 @@ export async function managerTripVisible(
   if (!tripId) return false;
   if (!managerId) return true;
 
-  const { data, error } = await createAdminClient()
+  const admin = await createAdminClient();
+  const { data, error } = await admin
     .from('trips')
     .select('id, manager_id')
     .eq('id', tripId)
