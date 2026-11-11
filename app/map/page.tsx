@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase/admin';
 import { buildRouteMap } from '../../lib/trip-route';
 import MapView from './MapViewWrapper';
+import { getScope, applyTripScope } from '../../lib/scope';
 import {
   Map as MapIcon,
   MapPin,
@@ -19,9 +20,14 @@ export default async function MapPage() {
 
   const supabase = await createClient();
 
-  const { data: tripsRaw, error } = await supabase
-    .from('trips')
-    .select('id, trip_number, status, start_lat, start_lng, end_lat, end_lng, start_date')
+  const scope = await getScope();
+
+  const { data: tripsRaw, error } = await applyTripScope(
+      supabase
+        .from('trips')
+        .select('id, trip_number, status, start_lat, start_lng, end_lat, end_lng, start_date'),
+      scope
+    )
     .not('start_lat', 'is', null)
     .not('start_lng', 'is', null);
 

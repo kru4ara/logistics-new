@@ -1,4 +1,5 @@
 import { getSessionContext } from '../../lib/session';
+import { getScope, applyTripScope } from '../../lib/scope';
 import { can } from '../../lib/roles';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase/admin';
@@ -22,10 +23,15 @@ export default async function RoutesPage() {
 
   const supabase = await createClient();
 
+  const scope = await getScope();
+
   const [tripsResult, expensesResult, segmentsResult] = await Promise.all([
-    supabase
-      .from('trips')
-      .select('id, revenue_eur'),
+    applyTripScope(
+      supabase
+        .from('trips')
+        .select('id, revenue_eur'),
+      scope
+    ),
     supabase
       .from('trip_expenses')
       .select('trip_id, amount_eur'),
@@ -46,7 +52,12 @@ export default async function RoutesPage() {
   const expenses = expensesResult.data || [];
   const segments = (segmentsResult.data || []) as SegmentRouteRow[];
 
-  const routeByTrip = buildRouteMap(segments);
+  // Фаза 39: сегменты прочитаны по всем заказам — в маршруты попадают
+  // только заказы в периметре пользователя.
+  const visibleTripIds = new Set(trips.map((t: any) => t.id as string));
+  const routeByTrip = buildRouteMap(
+    segments.filter((s) => visibleTripIds.has(s.trip_id))
+  );
 
   const expensesByTrip = expenses.reduce((acc, e) => {
     if (!e.trip_id) return acc;

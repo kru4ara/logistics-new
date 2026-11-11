@@ -1,12 +1,16 @@
 'use server';
 
-import { requireOffice } from '../lib/require-office';
+import { requireOffice, requireCapability } from '../lib/require-office';
+import { getSessionContext } from '../lib/session';
+import { can } from '../lib/roles';
 import { createClient } from '../lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { logAudit, diffFields } from '../lib/audit';
 import { geocode } from '../lib/geocode';
 import { requireExpenseAccess, requireTripAccess } from '../lib/driver-access';
+import { getScope } from '../lib/scope';
+import { tripVisibleToScope } from '../lib/scope-rules';
 
 // ============================================================
 // Добавление расхода
@@ -230,7 +234,10 @@ export async function updateExpense(expenseId: string, formData: FormData) {
 // из trip_segments и trip_cargo.
 // ============================================================
 export async function updateTrip(tripId: string, formData: FormData) {
-  await requireOffice();
+  // Фаза 39: requireOffice() закрывал бы доступ менеджеру, который ведёт
+  // заказы. Право trips.editAny есть и у офиса, и у менеджера.
+  // Что менеджер может редактировать — решает скоуп (lib/scope.ts).
+  await requireCapability('trips.editAny');
   const supabase = await createClient();
 
   const clientId = formData.get('client_id') as string;
@@ -249,9 +256,27 @@ export async function updateTrip(tripId: string, formData: FormData) {
 
   const { data: before } = await supabase
     .from('trips')
-    .select('trip_number, revenue_eur, driver_id, truck_id, client_id, start_date, end_date, profit_mode, client_request_number, start_fuel_level, start_lat, start_lng, end_lat, end_lng')
+    .select('trip_number, revenue_eur, driver_id, truck_id, client_id, start_date, end_date, profit_mode, client_request_number, start_fuel_level, start_lat, start_lng, end_lat, end_lng, manager_id')
     .eq('id', tripId)
     .single();
+
+  // Фаза 39: менеджер не может править чужой заказ, даже если знает его id.
+  // Проверяем по скоупу — тем же правилом, что и списки.
+  const scope = await getScope();
+  if (!tripVisibleToScope(scope, before)) {
+    throw new Error('Заказ не найден или недоступен для правки');
+  }
+
+  // Ответственный менеджер (фаза 39). Пусто = без назначенного менеджера.
+  //
+  // Менеджер не может переназначать заказ — это делает офис. Поэтому
+  // поле читаем только у роли с правом managers.edit; для менеджера
+  // manager_id не меняется (в форме у него его нет).
+  const { role } = await getSessionContext();
+  const canChangeManager = can(role, 'managers.edit');
+  const managerId = canChangeManager
+    ? (formData.get('manager_id') as string) || null
+    : (before?.manager_id ?? null);
 
   // Старт и финиш — ФАКТИЧЕСКИЕ даты заказа (start_date / end_date)
   // для любого режима расчёта.
@@ -288,6 +313,7 @@ export async function updateTrip(tripId: string, formData: FormData) {
       // Даты — всегда фактические, в start_date / end_date.
       start_date: startDate,
       end_date: endDate,
+      manager_id: managerId,
     })
     .eq('id', tripId);
 
@@ -301,6 +327,7 @@ export async function updateTrip(tripId: string, formData: FormData) {
         start_fuel_level: before.start_fuel_level,
         start_date: before.start_date,
         end_date: before.end_date,
+        manager_id: before.manager_id,
       },
       {
         client_id: clientId || null,
@@ -308,8 +335,9 @@ export async function updateTrip(tripId: string, formData: FormData) {
         start_fuel_level: startFuelLevel,
         start_date: startDate,
         end_date: endDate,
+        manager_id: managerId,
       },
-      ['client_id', 'client_request_number', 'start_fuel_level', 'start_date', 'end_date']
+      ['client_id', 'client_request_number', 'start_fuel_level', 'start_date', 'end_date', 'manager_id']
     );
 
     const changedCount = Object.keys(changes).length;
@@ -332,6 +360,8 @@ export async function updateTrip(tripId: string, formData: FormData) {
 // Удаление рейса
 // ============================================================
 export async function deleteTrip(tripId: string) {
+  // Удаление заказа — только офис: действие необратимое, менеджеру
+  // его вести не нужно.
   await requireOffice();
   const supabase = await createClient();
 
@@ -376,6 +406,7 @@ export async function deleteTrip(tripId: string) {
 // Пересчёт координат рейса по сегментам
 // ============================================================
 export async function recalcTripCoords(tripId: string): Promise<{ success: boolean; error?: string }> {
+  // Пересчёт координат по геокодингу — только офис.
   await requireOffice();
   const supabase = await createClient();
 

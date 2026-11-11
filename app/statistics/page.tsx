@@ -8,6 +8,7 @@ import StatisticsBreakdown from './StatisticsBreakdown';
 import StatisticsCapex from './StatisticsCapex';
 import StatisticsTable from './StatisticsTable';
 import StatisticsLegend from './StatisticsLegend';
+import { getScope, applyTripScope } from '../../lib/scope';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,10 +27,16 @@ export default async function StatisticsPage({ searchParams }: { searchParams: P
   // ============================================================
 
   // 1. Все заказы (рейсы + экспедиции) одним запросом
-  const { data: orders } = await supabase
-    .from('trips')
-    .select(
+  // Статистика менеджера — только по его заказам (фаза 39).
+  const scope = await getScope();
+
+  const { data: orders } = await applyTripScope(
+      supabase
+        .from('trips')
+        .select(
       'id, revenue_eur, start_date, end_date, status, profit_mode, is_forwarding'
+    ),
+      scope
     );
 
   const orderIds = orders?.map((o) => o.id) || [];

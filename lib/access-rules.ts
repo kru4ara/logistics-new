@@ -4,13 +4,16 @@
  *
  * Фаза 38: вынесено из lib/driver-access.ts, где те же решения
  * принимались вперемешку с запросами к базе.
+ *
+ * Фаза 39: добавлена роль manager (менеджер по логистике).
  */
 
-export type ActorRole = 'office' | 'driver';
+export type ActorRole = 'office' | 'manager' | 'driver';
 
 export type ActorState = {
   role: ActorRole | null;
   driverId: string | null;
+  managerId: string | null;
 };
 
 /**
@@ -28,6 +31,7 @@ export function actorOwnsTrip(
   tripVisible: boolean
 ): boolean {
   if (actor.role === 'office') return true;
+  if (actor.role === 'manager') return tripVisible;
   if (actor.role !== 'driver') return false;
   if (!actor.driverId) return false;
   return tripVisible;
@@ -36,13 +40,25 @@ export function actorOwnsTrip(
 /**
  * Доступ к рейсу для server-actions.
  *
- * Офис (office / admin / manager) имеет доступ ко всем рейсам.
+ * Офис (office / admin) имеет доступ ко всем рейсам.
+ *
+ * Менеджер имеет доступ к рейсу, если он его ведёт (manager_id совпадает)
+ * ИЛИ если менеджер у рейса не назначен (общий пул офиса).
+ * Чужой рейс менеджеру недоступен.
  */
 export function evaluateTripAccess(
   actor: ActorState,
   tripVisible: boolean
 ): { ok: true } | { ok: false; reason: string } {
   if (actor.role === 'office') return { ok: true };
+
+  if (actor.role === 'manager') {
+    if (!actor.managerId) return { ok: true };
+    if (!tripVisible) {
+      return { ok: false, reason: 'Заказ не принадлежит вам' };
+    }
+    return { ok: true };
+  }
 
   if (actor.role !== 'driver' || !actor.driverId) {
     return { ok: false, reason: 'Нет доступа' };
@@ -68,6 +84,14 @@ export function evaluateExpenseAccess(
   expenseVisible: boolean
 ): { ok: true } | { ok: false; reason: string } {
   if (actor.role === 'office') return { ok: true };
+
+  if (actor.role === 'manager') {
+    if (!actor.managerId) return { ok: true };
+    if (!expenseVisible) {
+      return { ok: false, reason: 'Расход не принадлежит вам' };
+    }
+    return { ok: true };
+  }
 
   if (actor.role !== 'driver' || !actor.driverId) {
     return { ok: false, reason: 'Нет доступа' };

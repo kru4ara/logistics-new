@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { getScope, applyTripScope } from '../../../lib/scope';
 import { getSessionContext } from '../../../lib/session';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../../lib/supabase/admin';
@@ -29,9 +30,15 @@ export default async function DriverKpiPage() {
     return <div className="p-8 text-red-500">Ошибка загрузки водителей: {driversError.message}</div>;
   }
 
-  const { data: trips } = await supabase
-    .from('trips')
-    .select('id, driver_id, revenue_eur, actual_km, actual_liters, start_date, end_date, status');
+  // KPI считается по периметру заказов менеджера (фаза 39).
+  const scope = await getScope();
+
+  const { data: trips } = await applyTripScope(
+      supabase
+        .from('trips')
+        .select('id, driver_id, revenue_eur, actual_km, actual_liters, start_date, end_date, status'),
+      scope
+    );
 
   // ⬅️ ВСЕ расходы (не только ЗП)
   const { data: allExpenses } = await supabase

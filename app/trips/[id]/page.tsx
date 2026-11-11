@@ -12,6 +12,7 @@ import { buildDriverTaskText } from '../../../lib/trip-task-text';
 import TripHeader from './TripHeader';
 import TripInfo from './TripInfo';
 import TripEconomics from './TripEconomics';
+import { getScope, applyTripScope } from '../../../lib/scope';
 import {
   AlertTriangle,
   Paperclip,
@@ -44,14 +45,31 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
 
   const supabase = await createClient();
 
-  const { data: trip, error: tripError } = await supabase
-    .from('trips')
-    .select('*, clients(name), drivers!driver_id(first_name, last_name, phone_by, phone_pl, telegram_chat_id), trucks!truck_id(registration_number)')
+  // Скоуп (фаза 39): менеджер не открывает чужой заказ по прямой ссылке.
+  const scope = await getScope();
+
+  const { data: trip, error: tripError } = await applyTripScope(
+      supabase
+        .from('trips')
+        .select('*, clients(name), drivers!driver_id(first_name, last_name, phone_by, phone_pl, telegram_chat_id), trucks!truck_id(registration_number)'),
+      scope
+    )
     .eq('id', tripId)
     .single();
 
   if (tripError) {
     return <div className="p-8 text-red-500">Ошибка загрузки: {tripError.message}</div>;
+  }
+
+  // Имя ответственного менеджера (фаза 39).
+  let managerName: string | null = null;
+  if (trip.manager_id) {
+    const { data: manager } = await supabase
+      .from('managers')
+      .select('full_name')
+      .eq('id', trip.manager_id)
+      .maybeSingle();
+    managerName = manager?.full_name || null;
   }
 
   let trailerNumber: string | null = null;
@@ -340,6 +358,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
           truck={truck}
           trailerNumber={trailerNumber}
           computedRoute={computedRoute}
+          managerName={managerName}
         />
 
         <TripCargoBlock

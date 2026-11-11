@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { getScope, applyTripScope } from '../../lib/scope';
 import { getSessionContext } from '../../lib/session';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase/admin';
@@ -113,9 +114,15 @@ export default async function ReportsPage({
   const statuses = STATUS_MAP[statusKey] ?? STATUS_MAP.money;
 
   // 1. Запрос рейсов с фильтрами
-  let tripsQuery = supabase
-    .from('trips')
-    .select('*, clients(name)');
+  // Отчёты менеджера — только по его заказам (фаза 39).
+  const scope = await getScope();
+
+  let tripsQuery = applyTripScope(
+      supabase
+        .from('trips')
+        .select('*, clients(name)'),
+      scope
+    );
 
   if (from) tripsQuery = tripsQuery.gte('start_date', from);
   if (to) tripsQuery = tripsQuery.lte('start_date', to);
@@ -129,15 +136,21 @@ export default async function ReportsPage({
   }
 
   // 2. Сегменты для маршрута
+  //
+  // Фаза 39: сегменты читаем по всем заказам, но маршрут строим только
+  // по заказам в периметре пользователя.
   const { data: segmentsData } = await supabase
     .from('trip_segments')
     .select('trip_id, position, from_city, from_country, to_city, to_country');
 
-  const segments = (segmentsData || []) as SegmentRouteRow[];
+  const tripIds = (trips || []).map((t) => t.id).filter(Boolean) as string[];
+  const visibleTripIds = new Set(tripIds);
+  const segments = ((segmentsData || []) as SegmentRouteRow[]).filter((s) =>
+    visibleTripIds.has(s.trip_id)
+  );
   const routeByTrip = buildRouteMap(segments);
 
   // 3. Расходы только по отфильтрованным рейсам
-  const tripIds = (trips || []).map((t) => t.id).filter(Boolean) as string[];
 
   let expenses: { trip_id: string | null; amount_eur: number | null }[] = [];
   if (tripIds.length > 0) {

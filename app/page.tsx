@@ -8,6 +8,7 @@ import AdminOnboardingCard from './components/AdminOnboardingCard';
 import DashboardMonthStats from './components/dashboard/DashboardMonthStats';
 import DashboardAttention from './components/dashboard/DashboardAttention';
 import DashboardTotals from './components/dashboard/DashboardTotals';
+import { getScope, applyTripScope } from '../lib/scope';
 import { CHART_PALETTE, CATEGORY_META } from '../lib/dashboard/category';
 import { splitReminders } from '../lib/dashboard/reminders';
 import { getOrderUnloadDate } from '../lib/orders-core';
@@ -33,10 +34,16 @@ export default async function Home() {
   // ============================================================
   // ЗАКАЗЫ (единая модель: рейсы + экспедирование)
   // ============================================================
-  const { data: trips } = await supabase
-    .from('trips')
-    .select(
+  // Главная: менеджер видит только свой периметр заказов (фаза 39).
+  const scope = await getScope();
+
+  const { data: trips } = await applyTripScope(
+      supabase
+        .from('trips')
+        .select(
       'id, client_id, revenue_eur, start_date, end_date, status, profit_mode, is_forwarding'
+    ),
+      scope
     );
 
   const { data: tripExpenses } = await supabase

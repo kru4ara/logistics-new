@@ -16,6 +16,7 @@ import TodayStats from './components/TodayStats';
 import ActiveTripCard from './components/ActiveTripCard';
 import FuelList, { type FuelRow } from './components/FuelList';
 import TodayAttention from './components/TodayAttention';
+import { getScope, applyTripScope } from '../../lib/scope';
 import { todayIso, currentTimestamp } from './lib/dates';
 import { hasUnloadDate } from '../../lib/orders-core';
 import { pickName, pickOne, getDriverName, getTruckNumber } from './lib/relations';
@@ -35,17 +36,23 @@ export default async function TodayPage() {
   const supabase = await createClient();
   const today = todayIso();
 
+  // Скоуп: менеджер видит только свои заказы и неназначенные (фаза 39).
+  const scope = await getScope();
+
   // 1. РЕЙСЫ
-  const { data: tripsRaw, error: tripsError } = await supabase
-    .from('trips')
-    .select(`
+  const { data: tripsRaw, error: tripsError } = await applyTripScope(
+      supabase
+        .from('trips')
+        .select(`
       id, trip_number, status, start_date, end_date,
       profit_mode,
       driver_id, truck_id,
       clients(name),
       drivers!driver_id(first_name, last_name, phone_by, phone_pl),
       trucks!truck_id(registration_number)
-    `);
+    `),
+      scope
+    );
 
   if (tripsError) {
     console.error('[today] trips query error:', tripsError.message);
@@ -95,7 +102,11 @@ export default async function TodayPage() {
   const activeTrips = allTrips.filter((t) => t.status === 'active');
 
   // 2. ПОДРЯДЧИКИ — участки-подрядчики в рейсах
-  const { data: subs } = await supabase
+  //
+  // Фаза 39: сегменты читаем по всем заказам (индекс по trip_id быстрее),
+  // поэтому фильтруем по периметру менеджера — иначе в ленту попадали бы
+  // подрядчики с чужих заказов.
+  const { data: subsRaw } = await supabase
     .from('trip_segments')
     .select(`
       id, trip_id, position,
@@ -105,6 +116,10 @@ export default async function TodayPage() {
       contractors(name)
     `)
     .eq('executor_type', 'contractor');
+
+  // Заказы в периметре пользователя (allTrips уже отфильтрован скоупом).
+  const visibleTripIds = new Set(allTrips.map((t: any) => t.id as string));
+  const subs = (subsRaw || []).filter((s: any) => visibleTripIds.has(s.trip_id));
 
   const subEventsToday: EventItem[] = [];
   (subs || []).forEach((s: any) => {
@@ -160,12 +175,15 @@ export default async function TodayPage() {
   // 3. ЭКСПЕДИРОВАНИЕ — заказы с profit_mode='forwarding'.
   //    Точки маршрута лежат в trip_segments.stops (jsonb) в общем
   //    с рейсами формате: type 'load' | 'reload' | 'unload' | 'customs'.
-  const { data: fwdOrders } = await supabase
-    .from('trips')
-    .select(`
+  const { data: fwdOrders } = await applyTripScope(
+      supabase
+        .from('trips')
+        .select(`
       id, trip_number,
       clients(name)
-    `)
+    `),
+      scope
+    )
     .eq('profit_mode', 'forwarding');
 
   const fwdOrderIds = (fwdOrders || []).map((o: any) => o.id).filter(Boolean) as string[];
@@ -252,13 +270,16 @@ export default async function TodayPage() {
   ];
   
   // 3.5. ЗАВЕРШЁННЫЕ РЕЙСЫ БЕЗ ЗП
-  const { data: completedTrips } = await supabase
-    .from('trips')
-    .select(`
+  const { data: completedTrips } = await applyTripScope(
+      supabase
+        .from('trips')
+        .select(`
       id, trip_number, end_date,
       clients(name),
       drivers!driver_id(first_name, last_name)
-    `)
+    `),
+      scope
+    )
     .eq('status', 'completed')
     .not('driver_id', 'is', null);
 

@@ -13,6 +13,14 @@ export default async function NewTripPage() {
     .select('id, name')
     .order('name');
 
+  // Менеджеры для назначения на заказ (фаза 39).
+  // Показываем только активных.
+  const { data: managers } = await supabase
+    .from('managers')
+    .select('id, full_name')
+    .eq('active', true)
+    .order('full_name');
+
   const { data: loadingLocations } = await supabase
     .from('locations')
     .select('*')
@@ -55,6 +63,7 @@ export default async function NewTripPage() {
 
         <NewTripForm
           clients={(clients || []).map((c) => ({ id: c.id, label: c.name }))}
+          managers={(managers || []).map((m) => ({ id: m.id, label: m.full_name }))}
           loadingLocations={(loadingLocations || []) as any}
           unloadingLocations={(unloadingLocations || []) as any}
           customsLocations={(customsLocations || []) as any}

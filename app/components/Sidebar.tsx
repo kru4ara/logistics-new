@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { can, isDriverRole } from '../../lib/roles';
+import { can, isDriverRole, capabilityForPath } from '../../lib/roles';
 import { useEffect, useState } from 'react';
 import {
   Package,
@@ -11,6 +11,7 @@ import {
   Users,
   UserCircle,
   Truck,
+  Briefcase,
   Building2,
   MapPin,
   BarChart3,
@@ -55,6 +56,7 @@ const adminSections: NavSection[] = [
     items: [
       { href: '/clients', label: 'Клиенты', icon: Users },
       { href: '/drivers', label: 'Водители', icon: UserCircle },
+      { href: '/managers', label: 'Менеджеры', icon: Briefcase },
       { href: '/trucks', label: 'Транспорт', icon: Truck },
       { href: '/contractors', label: 'Подрядчики', icon: Building2 },
       { href: '/locations', label: 'Локации', icon: MapPin },
@@ -189,7 +191,18 @@ function SidebarContent({
             )}
 
             <div className="px-2 space-y-0.5">
-              {section.items.map((item) => {
+              {section.items
+                .filter((item) => {
+                  // Пункт показывается, только если у роли есть право
+                  // на этот путь. Для менеджера так автоматически
+                  // исчезают «Аудит» (нет audit.view) и «Менеджеры»
+                  // (нет managers.view), а у водителя — всё, кроме
+                  // его разделов.
+                  const cap = capabilityForPath(item.href);
+                  if (!cap) return true;
+                  return can(role, cap);
+                })
+                .map((item) => {
                 const Icon = item.icon;
                 const active = isActivePath(pathname, item.href);
                 return (

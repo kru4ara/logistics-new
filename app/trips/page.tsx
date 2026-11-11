@@ -10,6 +10,7 @@ import SearchInput from './SearchInput';
 import TripFilters from './TripFilters';
 import RecalcAllCoordsButton from './RecalcAllCoordsButton';
 import TripsBulkList from './TripsBulkListWrapper';
+import { getScope, applyTripScope } from '../../lib/scope';
 import type { TripCardData, MonthGroup } from './TripsBulkList';
 import {
   Package,
@@ -82,10 +83,16 @@ export default async function TripsPage({
   const hasExtraFilter =
     Boolean(q) || Boolean(statusFilter) || Boolean(driverFilter) || Boolean(truckFilter) || Boolean(clientFilter) || Boolean(modeFilter);
 
+  // Скоуп: менеджер видит только свои заказы и неназначенные (фаза 39).
+  const scope = await getScope();
+
   const [tripsResult, expensesResult, driversResult, tractorsResult, clientsResult, segmentsResult] = await Promise.all([
-    supabase
-      .from('trips')
-      .select('*, clients(name), drivers!driver_id(first_name, last_name)'),
+    applyTripScope(
+      supabase
+        .from('trips')
+        .select('*, clients(name), drivers!driver_id(first_name, last_name)'),
+      scope
+    ),
     supabase
       .from('trip_expenses')
       .select('trip_id, amount_eur'),
@@ -120,8 +127,12 @@ export default async function TripsPage({
   const clientsList = clientsResult.data || [];
   const segments = segmentsResult.data || [];
 
+  // Фаза 39: сегменты прочитаны по всем заказам, а карта маршрутов нужна
+  // только по заказам в периметре пользователя — иначе в выдаче были бы
+  // участки чужих заказов.
+  const visibleTripIds = new Set((trips || []).map((t: any) => t.id as string));
   const routeMap: Map<string, TripRouteInfo> = buildRouteMap(
-    segments as SegmentRouteRow[]
+    (segments as SegmentRouteRow[]).filter((s) => visibleTripIds.has(s.trip_id))
   );
 
   const expensesByTrip = expenses?.reduce((acc, e) => {

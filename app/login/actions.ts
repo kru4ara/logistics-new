@@ -58,21 +58,27 @@ export async function login(
     return { error: 'Неверный логин или пароль' };
   }
 
-  // Получаем роль и driver_id из profiles
+  // Получаем роль, driver_id и manager_id из profiles
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role, driver_id, full_name')
+    .select('role, driver_id, manager_id, full_name')
     .eq('id', data.user.id)
     .single();
 
   // Роль берём только из profiles и только из известного набора.
   // Раньше здесь был fallback на 'admin' — это значило, что пользователь
   // без профиля получал админскую роль и админские куки.
-  const KNOWN_ROLES = ['admin', 'manager', 'driver'];
+  // Фаза 39: 'manager' — теперь отдельная роль менеджера по логистике,
+  // а не синоним офиса. 'office' добавляем в список явно: офисные
+  // профили после миграции 012 имеют role='office'.
+  const KNOWN_ROLES = ['admin', 'office', 'manager', 'driver'];
   const rawRole = String(profile?.role || '').trim().toLowerCase();
   const role = KNOWN_ROLES.includes(rawRole) ? rawRole : 'driver';
   const driverId = profile?.driver_id || '';
-  const userName = profile?.full_name || (role === 'driver' ? 'Водитель' : 'Офис');
+  const managerId = profile?.manager_id || '';
+  const userName =
+    profile?.full_name ||
+    (role === 'driver' ? 'Водитель' : role === 'manager' ? 'Менеджер' : 'Офис');
 
   // Куки роли и driver_id — быстрый путь для UI и старых страниц,
   // которые читают роль из куки. Источник правды — profiles
@@ -98,6 +104,16 @@ export async function login(
 
   if (driverId) {
     cookieStore.set('driver_id', driverId, {
+      path: '/',
+      secure: isProd,
+      sameSite: 'lax',
+      httpOnly: true,
+      maxAge: COOKIE_MAX_AGE,
+    });
+  }
+
+  if (managerId) {
+    cookieStore.set('manager_id', managerId, {
       path: '/',
       secure: isProd,
       sameSite: 'lax',

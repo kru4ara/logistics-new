@@ -29,6 +29,8 @@ type Option = { id: string; label: string };
 
 type Props = {
   clients: Option[];
+  /** Менеджеры для назначения на заказ (фаза 39). */
+  managers: Option[];
   loadingLocations: Location[];
   unloadingLocations: Location[];
   customsLocations: Location[];
@@ -57,6 +59,7 @@ type CustomsState = typeof emptyCustoms;
 
 export default function NewTripForm({
   clients,
+  managers,
   loadingLocations,
   unloadingLocations,
   customsLocations,
@@ -174,6 +177,20 @@ export default function NewTripForm({
             <label className={labelClass}>Дата заявки</label>
             <input type="date" name="client_request_date" className={inputClass} />
           </div>
+        </div>
+        <div className="mt-3 md:mt-4">
+          <label className={labelClass}>
+            Ответственный менеджер
+            <span className="block text-xs text-slate-500 font-normal mt-0.5">
+              Пусто — заказ без назначенного менеджера, его видят все менеджеры.
+            </span>
+          </label>
+          <select name="manager_id" className={inputClass}>
+            <option value="">Без менеджера</option>
+            {managers.map((m) => (
+              <option key={m.id} value={m.id}>{m.label}</option>
+            ))}
+          </select>
         </div>
       </div>
 

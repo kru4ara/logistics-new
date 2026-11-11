@@ -14,7 +14,8 @@ export type AuditEntityType =
   | 'forwarding_expense'
   | 'document'
   | 'reminder'
-  | 'driver_transaction';
+  | 'driver_transaction'
+  | 'manager';
 
 type LogInput = {
   entity_type: AuditEntityType;
@@ -37,7 +38,13 @@ export async function logAudit(input: LogInput): Promise<void> {
     const driverId = session.driverId || null;
     const userName =
       session.userName ||
-      (role === 'admin' ? 'Офис' : role === 'driver' ? 'Водитель' : 'Неизвестно');
+      (role === 'admin' || role === 'office'
+        ? 'Офис'
+        : role === 'manager'
+          ? 'Менеджер'
+          : role === 'driver'
+            ? 'Водитель'
+            : 'Неизвестно');
 
     const supabase = await createClient();
 
