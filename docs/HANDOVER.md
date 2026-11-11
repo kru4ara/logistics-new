@@ -1,4 +1,4 @@
-# HANDOVER — Logistics CRM (01.11.2026)
+# HANDOVER — Logistics CRM (11.11.2026)
 
 ## Стек и инфраструктура
 - **Next.js 16.4.3** (App Router, Turbopack) + React 19.3.1 + Supabase + Vercel
@@ -79,11 +79,11 @@
 - `app/login/actions.ts` — вход через `signInWithPassword`
 
 ### Права доступа (`lib/roles.ts`)
-- **37 capability**, матрица роль → права: `office` (все), `driver` (5).
+- **41 capability**, матрица роль → права: `office` (все 41), `manager` (37), `driver` (5).
 - Проверка — только `can(role, 'cap.capability')`. Путь → право — `capabilityForRequest(pathname, method)` (отдельно на чтение и запись).
-- `ROLE_ALIASES`: `admin`/`manager` из старых профилей БД → `office`, миграция не нужна.
+- `ROLE_ALIASES`: только `admin` → `office`. **`manager` больше не синоним офиса** — это отдельная роль (Фаза 40), у неё свой периметр (`lib/scope-rules.ts`).
+- Роли `logistics`, `accountant`, `client` заведены в коде, но не выдаются никому — правила доступа для них не определены.
 - `/trips` и `/routes` прикрыты централизованно через `proxy.ts` (включая `/trips/[id]`, `/trips/new`, `/trips/[id]/edit`, `/routes/export` — раньше они были без единой проверки).
-- Роли `logistics`, `accountant`, `client` заведены в коде, но не выдаются никому — правила доступа для них не определены (п. «Очередь задач»).
 
 ### Хелперы (`lib/`)
 - `trip-route.ts`, `trip-task-text.ts`, `trip-renumber.ts`, `statistics.ts`, `profitability.ts`, `geocode.ts`, `translate-pl.ts`, `company.ts`, `audit.ts`, `cron-alert.ts`, `telegram.ts`.
@@ -262,6 +262,13 @@
 ---
 
 ## ⏭️ Очередь задач
+0. **⚠️ Выкатить Фазу 40 на прод** (см. раздел ниже) — порядок обязателен:
+   1. Применить миграцию `20261111_012_managers.sql` в Supabase SQL Editor.
+   2. Завести карточки менеджеров в разделе «Менеджеры» (офис).
+   3. Проставить `profiles.manager_id` и `trips.manager_id`.
+   4. Перевести прежних `role='manager'` (они станут `office` автоматически миграцией) — проверить, что у офиса не пропало ничего.
+   5. Проверить деплой PR #55 — вышел ли в Production (автор коммитов — `Anatoli`).
+   **До этого пункта роль `manager` в коде есть, а в БД — нет: менеджер не сможет войти, а прежний офис-менеджер потеряет доступ.**
 1. **Проверить Production-деплой PR #48** — после мжера `d45dbdca` убедиться, что деплой вышел в Production, а не только в Preview (автор коммита — `Anatoli`, это сделано).
 2. **Перевести остальные страницы на RLS-клиент** — ~88 файлов всё ещё идут через `service_role`, и через них водитель видит больше, чем должен. По приоритету чувствительных данных: водители, документы, расчёты. Проверено в Фазе 38: страницы офиса удобно оставить на admin-клиенте, ограничение нужно там, где доступ различается.
 3. **Разбивка гигантских файлов** — актуальный список из issue #13: два docx-роута (`app/api/trips/[id]/segment/[segId]/docx/route.ts` — 29.9 КБ / 1010 строк, `app/api/forwarding/[id]/contractor/[cid]/docx/route.ts` — 27.9 КБ / 993 строки), домен forwarding (5 файлов 20–26 КБ), `app/today/page.tsx` (27.9 КБ), `app/page.tsx` (25.9 КБ), `CargoForm.tsx` (23.3 КБ). Ориентир — до ~500 строк / 15 КБ. Файлов крупнее 20 КБ всего 13.
@@ -309,11 +316,51 @@
 
 ---
 
+### Фаза 40 — Менеджер по логистике: отдельная роль со своим периметром — 11.11
+- **Проблема:** роль `manager` была синонимом офиса (`ROLE_ALIASES: manager → office`). Менеджер по логистике видел ВСЕ заказы, все расходы, аудит и экспорт. Одной роли «менеджер» для офиса и для линейного менеджера не хватало.
+- **Решение:** `manager` — отдельная роль. Права определяют, куда менеджер может зайти; **периметр** определяет, что он там видит. Разделение принципиальное:
+  | | роль `office` | роль `manager` | роль `driver` |
+  |---|---|---|---|
+  | capability | все 41 | 37 (офис минус 4) | 5 |
+  | заказы | все | свои + общий пул | свои (решает RLS) |
+- **Матрица прав (`lib/roles.ts`):** `MANAGER = OFFICE − {audit.view, export.view, managers.view, managers.edit}`. Менеджер **не** заходит в раздел «Менеджеры» (назначает менеджеров офис), **не** видит аудит и **не** выгружает в Excel.
+  - `ROLE_ALIASES` теперь только `admin → office`. Старое `manager → office` убрано — иначе новая роль не заработала бы.
+  - `ADMIN_ROLES = ['office']`.
+  - Новые capability: `managers.view`, `managers.edit`. Всего capability — **41** (было 37).
+- **Периметр — `lib/scope-rules.ts` (новый, чистые функции без Supabase и без `server-only`, покрыты юнит-тестами):**
+  ```ts
+  type Scope =
+    | { kind: 'office' }                        // видит все заказы
+    | { kind: 'manager'; managerId: string }   // свои + общий пул
+    | { kind: 'driver'; driverId: string | null };
+  managerTripFilter(scope)  // → 'manager_id.is.null,manager_id.eq.<id>' для .or()
+  tripVisibleToScope(scope, trip)   // одна строка заказа (карточка, action)
+  filterTripsByScope(scope, trips)  // фильтр в памяти (главная, /today, /map)
+  ```
+  Правило менеджера — **«без менеджера ИЛИ мой»**: заказы без `manager_id` (общий пул) видны всем менеджерам, пока не разложены по менеджерам. Чужие заказы (другой `manager_id`) не видны.
+- **БД — миграция `20261111_012_managers.sql`** (16-я в `supabase/migrations/`):
+  - таблица `public.managers` (карточки менеджеров: ФИО, телефон, email, telegram_chat_id, `user_id`, заметки, `active`);
+  - `profiles.manager_id` и `trips.manager_id` → ссылки на `public.managers(id)`;
+  - функции-владельцы для политик: `is_manager()`, `current_manager_id()`, `manager_owns_trip()`, `manager_has_client()`, `manager_uses_contractor()`, `manager_owns_segment_cargo()` — `security definer` + `row_security = off`, `grant execute` **после** создания функций (иначе миграция падала);
+  - политики `managers_*` и новые ветки для `trips`/`trip_segments`/`trip_expenses`/`trip_cargo`/`trip_documents`/`clients`/`contractors` — ограничены ролью `authenticated` (иначе `anon` видел чужие заказы);
+  - триггер `trg_profiles_manager_needs_card` — профиль с `role='manager'`, но без карточки, переводится в `office`;
+  - миграция **обёрнута в транзакцию** (`BEGIN`/`COMMIT`) — `psql -f` без неё оставлял базу в полуприменённом состоянии;
+  - старые `role='manager'` переводятся в `office` — иначе прежний офис-менеджер потерял бы доступ.
+- **Раздел «Менеджеры» — `app/managers/`:** список (`page.tsx`), создание (`new/`), карточка (`[id]/`), server-actions (`actions.ts`): заведение карточек, привязка учётной записи, назначение менеджера на заказ (форма создания + `updateTrip`), показ и смена менеджера в карточке заказа.
+- **Скоуп заказов менеджера** — на всех страницах: главная, `/today`, `/trips`, `/routes`, `/reports`, карточка заказа, поиск, `/map`.
+- **CI:** два воркфлоу — `CI` (lint → tsc → test → build) и `RLS` (миграции на чистом Postgres + проверка поведения политик). В `RLS` миграции применяются **дважды** — это намеренная проверка идемпотентности, не баг.
+- **⚠️ Грабли, на которые наступили (важно для будущих фаз):**
+  1. **Триггер `trg_trip_renumber` стирает `trip_number`.** После вставки заказов он гоняет `renumber_all_trips()`, а тот даёт номер **только заказу с назначенным исполнителем** (`executor_type='us'` + `truck_id` + `driver_id`, либо подрядчик). Заказы без исполнителя получают `trip_number = null`. **В тестах заказы надо искать по `id`, а не по `trip_number`.** На этом падал RLS-тест: фикстура искала `trip_number = 'T-3'`, а в базе уже был `NULL`.
+  2. **`diagnostics.sql` перечисляет функции-владельцы захардкоженным списком** — новые функции (`is_manager` и т.д.) в него не попали, и диагностика молчала. Список надо расширять при добавлении функции-владельца.
+  3. **Транзакция в миграции обязательна.** `psql -f` выполняет файл без отката при ошибке — база остаётся в полуприменённом состоянии (с `grant` до `create function` вообще не завелась).
+- **PR #55** (`feature/phase39-managers` → `master`), merge `5f3fe93c`, 16 коммитов, автор — `Anatoli <78858463+kru4ara@users.noreply.github.com>`. Финальный коммит `b96ca2d8` — починка RLS-теста.
+
 ## 📊 Состояние данных (01.11.2026)
 - `trips`: 108 (из них 31 — экспедирование, `profit_mode='forwarding'`; без номера — 0).
 - `trip_segments`: 134, `trip_cargo`: 114, `trip_expenses`: 523.
 - `profiles`: 3 записи (1 admin, 2 driver).
 - Режим расчёта у всех заказов **совпадает** с фактическими исполнителями (расхождений 0).
+- **Данные по менеджерам (после выкатки Фазы 40 на прод — проверить!):** таблица `managers` и колонки `profiles.manager_id` / `trips.manager_id` появляются только после применения миграции `012`. До этого таблиц нет — код это переживает (ветки под `managers` пустые), но роль `manager` в БД не завести.
 
 ---
 
@@ -322,21 +369,26 @@
 - **Supabase ref:** `smodijsj`**`i`**`wcvsscfgloh` (с буквой `i`!)
 - **Линт:** `npm run lint` (ESLint 9 + `eslint-config-next`, 0 warnings / 0 errors).
 - **Тесты:** `npm run test` (Vitest, **~95 тестов** в 8 файлах `lib/__tests__/`).
-- **CI:** GitHub Actions (Actions → CI) — lint → `tsc --noEmit` → test → build. Работает, покрывает всё.
+- **CI:** GitHub Actions — два воркфлоу: `CI` (lint → `tsc --noEmit` → test → build) и `RLS` (миграции на чистом Postgres + проверка поведения RLS-политик). `RLS` применяет миграции **дважды** — намеренная проверка идемпотентности.
 - **Права:** `can(role, 'cap')` из `lib/roles.ts`; путь → право через `capabilityForRequest(pathname, method)`.
+- **Роли (11.11):** `office` (все 41 capability) · `manager` (37 = офис минус `audit.view`, `export.view`, `managers.view`, `managers.edit`) · `driver` (5). `ROLE_ALIASES` = только `admin → office`; **`manager` больше не синоним офиса**.
+- **Периметр менеджера:** `lib/scope-rules.ts` — `managerTripFilter()` → `manager_id.is.null,manager_id.eq.<id>` («без менеджера ИЛИ мой»), `tripVisibleToScope()` для заказа по id, `filterTripsByScope()` для списков в памяти. Правило данных, не capability.
+- **Менеджеры:** раздел `/managers` (список, создание, карточка) — только для офиса; менеджер туда не заходит.
+- **⚠️ `trip_number` нестабилен:** триггер `trg_trip_renumber` обнуляет номер у заказов без исполнителя. В тестах и в разборе данных искать заказы по `id`.
 - **Доступ к рейсу/расходу:** `requireTripAccess` / `requireExpenseAccess` из `lib/driver-access.ts`; чистые правила — в `lib/access-rules.ts`; владение решает БД (политика `driver_owns_trip`), в коде его не дублировать.
 - **`next.config.js`:** без `eslint`, только `experimental` (serverActions, optimizePackageImports).
 - **`eslint.config.mjs`:** `@eslint/js` + `typescript-eslint` + `react` + `react-hooks` + `globals`.
 - **`postcss.config.js`:** только `@tailwindcss/postcss`.
 - **Режим расчёта:** не выбирается — `deriveProfitMode()` в `lib/orders-core.ts` / `public.derive_profit_mode(uuid)` в БД. Правило: наш транспорт (машина+водитель) → рейс, только подрядчик → экспедирование, смешанный → рейс, нет сегментов → без номера.
-- **Миграции:** `supabase/migrations/`, применяются **вручную** в Supabase SQL Editor. Последняя — `20261101_007_profit_mode_from_segments.sql` (применена 01.11.2026).
+- **Миграции:** `supabase/migrations/`, применяются **вручную** в Supabase SQL Editor. Последняя — `20261111_012_managers.sql` (Фаза 40; **на проде ещё не применена**). Перед `20261101_007` применялась 01.11.2026.
+- **Миграция обязана быть в транзакции** (`BEGIN`/`COMMIT`) — иначе `psql -f` при ошибке оставит базу в полуприменённом состоянии.
 - **DDL из приложения недоступен:** RPC `exec_sql_json` даёт `select`, но не `create/alter`.
 - **`exceljs`:** в `dependencies`, ленивый импорт в клиентах, статический — в API.
 - **`npm audit`:** 5 moderate (`postcss-selector-parser` через Tailwind) — принятый dev-риск.
 - **Аккаунты:** админ — `raibuilding@gmail.com`, водители — `vasiliuk@...`, `kavaliou@...`.
 - **PWA:** установка через «Добавить на главный экран».
 
-**Закрыто:** Фазы 3.1–3.39.
+**Закрыто:** Фазы 3.1–3.39, 40 (код смержен, выкатка на прод — нет).
 
 ---
 
