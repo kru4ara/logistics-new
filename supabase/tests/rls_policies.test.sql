@@ -292,6 +292,12 @@ $$;
 reset role;
 set role anon;
 
+-- Сбрасываем JWT-claim: до этого здесь стоял id водителя Б, и auth.uid()
+-- его возвращал. Для честной проверки "до входа" claim должен быть пустым.
+-- Ставим заведомо несуществующий uuid: даже если какая-то политика
+-- окажется без `to authenticated`, никто под него не подпадёт.
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000000', false);
+
 select public.assert_count('anon: no trips', 0, 'select count(*) from public.trips');
 select public.assert_count('anon: no drivers', 0, 'select count(*) from public.drivers');
 select public.assert_count('anon: no users', 0, 'select count(*) from public.users');
@@ -299,6 +305,7 @@ select public.assert_count('anon: no expenses', 0, 'select count(*) from public.
 select public.assert_count('anon: no clients', 0, 'select count(*) from public.clients');
 select public.assert_count('anon: no profiles', 0, 'select count(*) from public.profiles');
 select public.assert_count('anon: no contractors', 0, 'select count(*) from public.contractors');
+select public.assert_count('anon: no managers', 0, 'select count(*) from public.managers');
 
 -- ============================================================
 -- ФАЗА 39: ПОВЕДЕНИЕ МЕНЕДЖЕРА
@@ -417,20 +424,6 @@ select public.assert_count(
 select public.assert_count(
   'офис: видит все карточки менеджеров', 2,
   'select count(*) from public.managers');
-
-reset role;
-
--- ============================================================
--- ФАЗА 39: СПРАВОЧНИК МЕНЕДЖЕРОВ И АНОНИМ
--- ============================================================
---
--- Карточки менеджеров — персональные данные (телефон, e-mail,
--- заметки). Анонимный посетитель не должен их получать.
-
-reset role;
-set role anon;
-
-select public.assert_count('anon: no managers', 0, 'select count(*) from public.managers');
 
 reset role;
 

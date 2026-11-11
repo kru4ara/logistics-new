@@ -45,6 +45,18 @@
 -- 1. Справочник менеджеров
 -- ============================================================
 
+
+-- Права на функции-владельцы (фаза 39).
+--
+-- Политики вызывают их от имени пользователя (менеджера), поэтому явный
+-- grant execute обязателен: без него вызов падает с "permission denied for
+-- function ...", и политика молча отсекает ВСЕ строки — менеджер увидит
+-- пустую выдачу вместо своих заказов.
+grant execute on function public.is_office() to anon, authenticated, service_role;
+grant execute on function public.is_manager() to anon, authenticated, service_role;
+grant execute on function public.current_manager_id() to anon, authenticated, service_role;
+grant execute on function public.manager_owns_trip(uuid) to anon, authenticated, service_role;
+
 create table if not exists public.managers (
   id uuid primary key default gen_random_uuid(),
   full_name text not null,
@@ -199,8 +211,16 @@ $$;
 
 drop policy if exists trips_select_own_or_office on public.trips;
 
+--
+-- ВАЖНО: `to authenticated` обязателен.
+--
+-- Политика без указания роли применяется ко ВСЕМ, включая anon. А
+-- auth.uid() при set role anon всё равно читает request.jwt.claim.sub,
+-- который в тестах не сброшен. Без `to authenticated` анонимный
+-- посетитель получал чужие заказы (найдено на CI в фазе 39).
+--
 create policy trips_select_own_or_office
-  on public.trips for select
+  on public.trips for select to authenticated
   using (
     is_office()
     or driver_owns_trip(id)
@@ -210,7 +230,7 @@ create policy trips_select_own_or_office
 drop policy if exists trip_segments_select_own_or_office on public.trip_segments;
 
 create policy trip_segments_select_own_or_office
-  on public.trip_segments for select
+  on public.trip_segments for select to authenticated
   using (
     is_office()
     or driver_owns_segment(id)
@@ -242,7 +262,7 @@ alter table public.managers enable row level security;
 drop policy if exists managers_select_own_or_office on public.managers;
 
 create policy managers_select_own_or_office
-  on public.managers for select
+  on public.managers for select to authenticated
   using (
     is_office()
     or (is_manager() and id = public.current_manager_id())
@@ -251,20 +271,20 @@ create policy managers_select_own_or_office
 drop policy if exists managers_insert_office on public.managers;
 
 create policy managers_insert_office
-  on public.managers for insert
+  on public.managers for insert to authenticated
   with check (is_office());
 
 drop policy if exists managers_update_office on public.managers;
 
 create policy managers_update_office
-  on public.managers for update
+  on public.managers for update to authenticated
   using (is_office())
   with check (is_office());
 
 drop policy if exists managers_delete_office on public.managers;
 
 create policy managers_delete_office
-  on public.managers for delete
+  on public.managers for delete to authenticated
   using (is_office());
 
 -- Грант SELECT на managers у anon остаётся (как на все таблицы public
