@@ -21,6 +21,19 @@ function isMissingColumn(error: { code?: string; message?: string } | null): boo
   );
 }
 
+/**
+ * Строка профиля, как её видит приложение.
+ *
+ * manager_id может отсутствовать в БД (миграция 012 ещё не применена),
+ * поэтому вводим единый тип для обоих вариантов чтения.
+ */
+type ProfileRow = {
+  role: string | null;
+  driver_id: string | null;
+  manager_id: string | null;
+  full_name: string | null;
+};
+
 export async function login(
   _prev: LoginState,
   formData: FormData
@@ -84,14 +97,18 @@ export async function login(
   // запрос падает с 42703, профиль приходит null, роль становится
   // 'driver', и пользователь уходит в цикл редиректов
   // (/ -> /driver -> /login -> /). Читаем профиль без manager_id.
-  let resolvedProfile = profile;
+  let resolvedProfile: ProfileRow | null = profile;
   if (!resolvedProfile && profileError && isMissingColumn(profileError)) {
     const { data: baseProfile } = await supabase
       .from('profiles')
       .select('role, driver_id, full_name')
       .eq('id', data.user.id)
       .single();
-    resolvedProfile = baseProfile;
+    // Fallback-профиль читается без manager_id (колонки ещё нет в БД),
+    // поэтому приводим его к общему типу: manager_id остаётся null.
+    resolvedProfile = baseProfile
+      ? { ...baseProfile, manager_id: null }
+      : null;
   }
 
   // Роль берём только из profiles и только из известного набора.
