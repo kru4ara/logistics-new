@@ -82,11 +82,17 @@ export default async function NewManagerPage() {
             <textarea id="notes" name="notes" rows={3} className="input" placeholder="Зона ответственности, график и т.п." />
           </div>
 
-          <div className="flex justify-end gap-3 pt-2">
-            <Link href="/managers" className="btn btn-secondary">
+          <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-2">
+            <Link
+              href="/managers"
+              className="btn btn-secondary w-full sm:w-auto text-center"
+            >
               Отмена
             </Link>
-            <SubmitButton>
+            <SubmitButton
+              className="btn btn-primary w-full sm:w-auto text-center"
+              pendingText="Сохраняю менеджера…"
+            >
               <Save className="w-4 h-4" strokeWidth={2} />
               Сохранить
             </SubmitButton>
