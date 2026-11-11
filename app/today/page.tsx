@@ -21,6 +21,7 @@ import { hasUnloadDate } from '../../lib/orders-core';
 import { pickName, pickOne, getDriverName, getTruckNumber } from './lib/relations';
 import { fetchFuelLevels } from '../../lib/fuel-server';
 import { type EventItem } from './lib/events';
+import { getScope, applyTripScope } from '../../lib/scope';
 
 export const dynamic = 'force-dynamic';
 // react-hooks/purity: impure-вызовы (Date.now) нельзя делать прямо в теле
@@ -35,9 +36,15 @@ export default async function TodayPage() {
   const supabase = await createClient();
   const today = todayIso();
 
+  // Скоуп: менеджер видит только свои заказы и неназначенные (фаза 39).
+  const scope = await getScope();
+
   // 1. РЕЙСЫ
-  const { data: tripsRaw, error: tripsError } = await supabase
-    .from('trips')
+  const { data: tripsRaw, error: tripsError } = await applyTripScope(
+    supabase
+      .from('trips'),
+    scope
+  )
     .select(`
       id, trip_number, status, start_date, end_date,
       profit_mode,
@@ -160,8 +167,11 @@ export default async function TodayPage() {
   // 3. ЭКСПЕДИРОВАНИЕ — заказы с profit_mode='forwarding'.
   //    Точки маршрута лежат в trip_segments.stops (jsonb) в общем
   //    с рейсами формате: type 'load' | 'reload' | 'unload' | 'customs'.
-  const { data: fwdOrders } = await supabase
-    .from('trips')
+  const { data: fwdOrders } = await applyTripScope(
+    supabase
+      .from('trips'),
+    scope
+  )
     .select(`
       id, trip_number,
       clients(name)
@@ -252,8 +262,11 @@ export default async function TodayPage() {
   ];
   
   // 3.5. ЗАВЕРШЁННЫЕ РЕЙСЫ БЕЗ ЗП
-  const { data: completedTrips } = await supabase
-    .from('trips')
+  const { data: completedTrips } = await applyTripScope(
+    supabase
+      .from('trips'),
+    scope
+  )
     .select(`
       id, trip_number, end_date,
       clients(name),

@@ -12,6 +12,7 @@ type Option = { id: string; label: string };
 
 type Trip = {
   client_id: string | null;
+  manager_id: string | null;
   start_fuel_level: number | null;
   client_request_number: string | null;
   client_request_date: string | null;
@@ -24,12 +25,18 @@ type Props = {
   trip: Trip;
   tripId: string;
   clients: Option[];
+  /** Менеджеры для назначения (фаза 39). */
+  managers: Option[];
+  /** Менеджер не может переназначать заказ — это делает офис. */
+  canChangeManager: boolean;
 };
 
 export default function EditTripForm({
   trip,
   tripId,
   clients,
+  managers,
+  canChangeManager,
 }: Props) {
   const inputClass = 'input';
   const isForwarding = trip.profit_mode === 'forwarding';
@@ -118,6 +125,28 @@ export default function EditTripForm({
           <input type="number" name="start_fuel_level" step="0.01" defaultValue={trip.start_fuel_level || 0} className={inputClass} />
         </div>
       </div>
+
+      {canChangeManager && (
+        <div className={sectionClass}>
+          <h2 className={sectionTitleClass}>
+            Ответственный менеджер
+          </h2>
+          <div>
+            <label className={labelClass}>
+              Менеджер
+              <span className="block text-xs text-slate-500 font-normal mt-0.5">
+                Пусто — заказ без назначенного менеджера, его видят все менеджеры.
+              </span>
+            </label>
+            <select name="manager_id" className={inputClass} defaultValue={trip.manager_id || ''}>
+              <option value="">Без менеджера</option>
+              {managers.map((m) => (
+                <option key={m.id} value={m.id}>{m.label}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-col-reverse sm:flex-row gap-3 sticky bottom-3 sm:static
                       bg-slate-50/95 sm:bg-transparent backdrop-blur-sm sm:backdrop-blur-none

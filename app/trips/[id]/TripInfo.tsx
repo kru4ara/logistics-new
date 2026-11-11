@@ -3,6 +3,7 @@ import {
   Truck,
   UserCircle,
   Phone,
+  Briefcase,
 } from 'lucide-react';
 import RecalcCoordsButton from './RecalcCoordsButton';
 
@@ -13,6 +14,7 @@ export default function TripInfo({
   truck,
   trailerNumber,
   computedRoute,
+  managerName,
 }: {
   tripId: string;
   trip: any;
@@ -20,6 +22,8 @@ export default function TripInfo({
   truck: any;
   trailerNumber: string | null;
   computedRoute: string;
+  /** Ответственный менеджер (фаза 39). */
+  managerName?: string | null;
 }) {
   // Старт/финиш — ФАКТИЧЕСКИЕ даты заказа (для обоих режимов).
   // Плановые даты (load_date/unload_date) в карточке не показываются.
@@ -29,6 +33,13 @@ export default function TripInfo({
   return (
     <div className="card p-5 md:p-6">
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+        <div>
+          <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Менеджер</div>
+          <div className="flex items-start gap-1.5 text-slate-800 font-medium text-sm">
+            <Briefcase className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" strokeWidth={2} />
+            <span className="break-words">{managerName || '—'}</span>
+          </div>
+        </div>
         <div className="col-span-2">
           <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Маршрут</div>
           <div className="flex items-start gap-1.5 text-slate-800 font-medium text-sm">

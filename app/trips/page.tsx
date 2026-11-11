@@ -12,6 +12,7 @@ import RecalcAllCoordsButton from './RecalcAllCoordsButton';
 import TripsBulkList from './TripsBulkListWrapper';
 import type { TripCardData, MonthGroup } from './TripsBulkList';
 import {
+import { getScope, applyTripScope } from '../../lib/scope';
   Package,
   Plus,
   Inbox,
@@ -82,9 +83,15 @@ export default async function TripsPage({
   const hasExtraFilter =
     Boolean(q) || Boolean(statusFilter) || Boolean(driverFilter) || Boolean(truckFilter) || Boolean(clientFilter) || Boolean(modeFilter);
 
+  // Скоуп: менеджер видит только свои заказы и неназначенные (фаза 39).
+  const scope = await getScope();
+
   const [tripsResult, expensesResult, driversResult, tractorsResult, clientsResult, segmentsResult] = await Promise.all([
-    supabase
-      .from('trips')
+    applyTripScope(
+      supabase
+        .from('trips'),
+      scope
+    )
       .select('*, clients(name), drivers!driver_id(first_name, last_name)'),
     supabase
       .from('trip_expenses')

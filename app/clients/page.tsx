@@ -5,6 +5,7 @@ import { createClient } from '../../lib/supabase/admin';
 import { deleteClient } from '../client-actions';
 import ClientCardActions from './ClientCardActions';
 import {
+import { getScope, applyTripScope } from '../../lib/scope';
   Users,
   Plus,
   User as UserIcon,
@@ -32,8 +33,14 @@ export default async function ClientsPage() {
     return <div className="p-8 text-red-500">Ошибка загрузки: {error.message}</div>;
   }
 
-  const { data: trips } = await supabase
-    .from('trips')
+  // Счётчик заказов у клиента — по периметру менеджера (фаза 39).
+  const scope = await getScope();
+
+  const { data: trips } = await applyTripScope(
+    supabase
+      .from('trips'),
+    scope
+  )
     .select('client_id');
 
   const tripsByClient = trips?.reduce((acc, t) => {

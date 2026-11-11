@@ -4,6 +4,7 @@ import { createClient } from '../../lib/supabase/admin';
 import { buildRouteMap } from '../../lib/trip-route';
 import MapView from './MapViewWrapper';
 import {
+import { getScope, applyTripScope } from '../../lib/scope';
   Map as MapIcon,
   MapPin,
   Package,
@@ -19,8 +20,13 @@ export default async function MapPage() {
 
   const supabase = await createClient();
 
-  const { data: tripsRaw, error } = await supabase
-    .from('trips')
+  const scope = await getScope();
+
+  const { data: tripsRaw, error } = await applyTripScope(
+    supabase
+      .from('trips'),
+    scope
+  )
     .select('id, trip_number, status, start_lat, start_lng, end_lat, end_lng, start_date')
     .not('start_lat', 'is', null)
     .not('start_lng', 'is', null);

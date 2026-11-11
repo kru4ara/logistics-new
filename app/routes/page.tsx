@@ -5,6 +5,7 @@ import { createClient } from '../../lib/supabase/admin';
 import { buildRouteMap, type SegmentRouteRow } from '../../lib/trip-route';
 import DownloadButton, { type RouteCardData } from './DownloadButton';
 import {
+import { getScope, applyTripScope } from '../../lib/scope';
   Route as RouteIcon,
   TrendingUp,
   TrendingDown,
@@ -22,9 +23,14 @@ export default async function RoutesPage() {
 
   const supabase = await createClient();
 
+  const scope = await getScope();
+
   const [tripsResult, expensesResult, segmentsResult] = await Promise.all([
-    supabase
-      .from('trips')
+    applyTripScope(
+      supabase
+        .from('trips'),
+      scope
+    )
       .select('id, revenue_eur'),
     supabase
       .from('trip_expenses')

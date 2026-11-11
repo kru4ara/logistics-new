@@ -12,6 +12,7 @@ import { CHART_PALETTE, CATEGORY_META } from '../lib/dashboard/category';
 import { splitReminders } from '../lib/dashboard/reminders';
 import { getOrderUnloadDate } from '../lib/orders-core';
 import { isStatsCompleted } from '../lib/statistics';
+import { getScope, applyTripScope } from '../lib/scope';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,8 +34,14 @@ export default async function Home() {
   // ============================================================
   // ЗАКАЗЫ (единая модель: рейсы + экспедирование)
   // ============================================================
-  const { data: trips } = await supabase
-    .from('trips')
+  // Главная: менеджер видит только свой периметр заказов (фаза 39).
+  const scope = await getScope();
+
+  const { data: trips } = await applyTripScope(
+    supabase
+      .from('trips'),
+    scope
+  )
     .select(
       'id, client_id, revenue_eur, start_date, end_date, status, profit_mode, is_forwarding'
     );

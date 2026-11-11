@@ -241,8 +241,6 @@ export async function updateTrip(tripId: string, formData: FormData) {
 
   const clientRequestNumber = formData.get('client_request_number') as string;
   const clientRequestDate = formData.get('client_request_date') as string;
-  // Ответственный менеджер (фаза 39). Пусто = без назначенного менеджера.
-  const managerId = (formData.get('manager_id') as string) || null;
 
   const fromCountry = formData.get('from_country') as string;
   const fromPostalCode = formData.get('from_postal_code') as string;
@@ -257,6 +255,17 @@ export async function updateTrip(tripId: string, formData: FormData) {
     .select('trip_number, revenue_eur, driver_id, truck_id, client_id, start_date, end_date, profit_mode, client_request_number, start_fuel_level, start_lat, start_lng, end_lat, end_lng, manager_id')
     .eq('id', tripId)
     .single();
+
+  // Ответственный менеджер (фаза 39). Пусто = без назначенного менеджера.
+  //
+  // Менеджер не может переназначать заказ — это делает офис. Поэтому
+  // поле читаем только у роли с правом managers.edit; для менеджера
+  // manager_id не меняется (в форме у него его нет).
+  const { role } = await getSessionContext();
+  const canChangeManager = can(role, 'managers.edit');
+  const managerId = canChangeManager
+    ? (formData.get('manager_id') as string) || null
+    : (before?.manager_id ?? null);
 
   // Старт и финиш — ФАКТИЧЕСКИЕ даты заказа (start_date / end_date)
   // для любого режима расчёта.

@@ -5,6 +5,7 @@ import { createClient } from '../../lib/supabase/admin';
 import { buildRouteMap, type SegmentRouteRow } from '../../lib/trip-route';
 import DownloadButton, { type ReportRow } from './DownloadButton';
 import {
+import { getScope, applyTripScope } from '../../lib/scope';
   Coins,
   BarChart3,
   Download,
@@ -113,8 +114,14 @@ export default async function ReportsPage({
   const statuses = STATUS_MAP[statusKey] ?? STATUS_MAP.money;
 
   // 1. Запрос рейсов с фильтрами
-  let tripsQuery = supabase
-    .from('trips')
+  // Отчёты менеджера — только по его заказам (фаза 39).
+  const scope = await getScope();
+
+  let tripsQuery = applyTripScope(
+    supabase
+      .from('trips'),
+    scope
+  )
     .select('*, clients(name)');
 
   if (from) tripsQuery = tripsQuery.gte('start_date', from);

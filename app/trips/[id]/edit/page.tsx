@@ -1,24 +1,47 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { createClient } from '../../../../lib/supabase/admin';
+import { can } from '../../../../lib/roles';
+import { getSessionContext } from '../../../../lib/session';
+import { getScope, applyTripScope } from '../../../../lib/scope';
 import EditTripForm from './EditTripForm';
 
 export const dynamic = 'force-dynamic';
 
 export default async function EditTripPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: tripId } = await params;
+
+  const { role } = await getSessionContext();
+  if (role === 'driver') redirect('/driver');
+  if (!can(role, 'trips.editAny')) redirect('/');
+
   const supabase = await createClient();
 
-  const { data: trip, error } = await supabase
-    .from('trips')
+  // Скоуп (фаза 39): менеджер не должен открыть чужой заказ по прямой
+  // ссылке — запрос ограничивается тем же фильтром, что и списки.
+  const scope = await getScope();
+
+  const { data: trip, error } = await applyTripScope(
+    supabase
+      .from('trips'),
+    scope
+  )
     .select('*')
     .eq('id', tripId)
     .single();
 
   const { data: clients } = await supabase.from('clients').select('id, name').order('name');
 
-
+  const { data: managers } = await supabase
+    .from('managers')
+    .select('id, full_name')
+    .eq('active', true)
+    .order('full_name');
 
   if (error) return <div className="p-8 text-red-500">Ошибка загрузки: {error.message}</div>;
+
+  // Переназначать заказ может только офис (фаза 39).
+  const canChangeManager = can(role, 'managers.edit');
 
   return (
     <main className="min-h-screen bg-slate-50">
@@ -35,6 +58,8 @@ export default async function EditTripPage({ params }: { params: Promise<{ id: s
           trip={trip}
           tripId={tripId}
           clients={(clients || []).map((c) => ({ id: c.id, label: c.name }))}
+          managers={(managers || []).map((m) => ({ id: m.id, label: m.full_name }))}
+          canChangeManager={canChangeManager}
         />  
       </div>
     </main>
