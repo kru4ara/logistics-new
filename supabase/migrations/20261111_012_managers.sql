@@ -47,6 +47,17 @@
 
 
 
+--
+-- ВАЖНО: вся миграция обёрнута в транзакцию.
+--
+-- `psql -f` без BEGIN применяет каждую команду отдельно и коммитит её:
+-- при ошибке на середине файла база остаётся в полуприменённом
+-- состоянии (часть таблиц и функций создана, часть — нет), и следующий
+-- прогон падает уже на другой строке. Транзакция откатывает всё
+-- целиком: либо миграция применена полностью, либо не тронута вовсе.
+--
+begin;
+
 create table if not exists public.managers (
   id uuid primary key default gen_random_uuid(),
   full_name text not null,
@@ -273,6 +284,38 @@ grant execute on function public.manager_has_client(uuid) to anon, authenticated
 grant execute on function public.manager_uses_contractor(uuid) to anon, authenticated, service_role;
 grant execute on function public.manager_owns_segment_cargo(uuid) to anon, authenticated, service_role;
 
+
+-- ============================================================
+-- 5c. Постоянное правило: role='manager' без карточки => office
+-- ============================================================
+--
+-- Одноразовый UPDATE выше чинит только уже существующие профили. Но
+-- профиль может появиться и позже (или карточка отвяжется), и тогда
+-- он снова окажется в состоянии "manager без карточки" — то есть
+-- без прав вообще: роль manager требует карточки.
+--
+-- Триггер делает правило постоянным: такой профиль автоматически
+-- становится офисом. Управление карточкой — отдельная операция.
+--
+create or replace function public.trg_profiles_manager_needs_card()
+returns trigger
+language plpgsql
+as $$
+begin
+  if lower(btrim(new.role)) = 'manager' and new.manager_id is null then
+    new.role := 'office';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_profiles_manager_needs_card on public.profiles;
+create trigger trg_profiles_manager_needs_card
+  before insert or update of role, manager_id on public.profiles
+  for each row execute function public.trg_profiles_manager_needs_card();
+
+grant execute on function public.trg_profiles_manager_needs_card() to anon, authenticated, service_role;
+
 -- 6. Политики
 --
 -- trips: менеджер видит свои + неназначенные.
@@ -481,3 +524,49 @@ begin
   return v_email;
 end;
 $$;
+
+-- ============================================================
+-- Проверка: все нужные политики и функции на месте
+-- ============================================================
+--
+-- Раньше такая проверка была только в миграции 004, и поломка
+-- обнаруживалась уже на следующем прогоне тестов — с невнятным
+-- "ожидалось 0, получено N". Здесь проверяем сразу после
+-- применения, чтобы падение было сразу и с точным текстом.
+do $$
+declare
+  missing text := '';
+  t text;
+begin
+  foreach t in array array[
+    'trips', 'trip_segments', 'trip_expenses', 'trip_cargo',
+    'trip_segment_cargo', 'trip_documents', 'clients', 'contractors',
+    'managers'
+  ] loop
+    if not exists (
+      select 1 from pg_policies
+      where schemaname = 'public'
+        and tablename = t
+        and policyname like '%_select_own_or_office'
+    ) then
+      missing := missing || t || ' ';
+    end if;
+  end loop;
+
+  if missing <> '' then
+    raise exception 'RLS: нет политики чтения для: %', missing;
+  end if;
+
+  if not exists (
+    select 1 from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and p.proname = 'is_manager'
+  ) then
+    raise exception 'RLS: функция public.is_manager() не создана';
+  end if;
+
+  raise notice 'ok: политики чтения и функции менеджера на месте';
+end;
+$$;
+
+commit;
