@@ -26,7 +26,7 @@ import 'server-only';
 
 import { getSessionContext } from './session';
 import { normalizeRole } from './roles';
-import type { Scope } from './scope-rules';
+import { managerTripFilter, type Scope } from './scope-rules';
 
 export type { Scope };
 
@@ -52,4 +52,26 @@ export async function getScope(): Promise<Scope> {
   }
 
   return { kind: 'office' };
+}
+
+/**
+ * Применяет скоуп к запросу заказов.
+ *
+ * Смысл: страницы ходят в базу через admin-клиент (service_role), который
+ * RLS обходит. Поэтому ограничение «менеджер не видит чужие заказы»
+ * приходится задавать в самом запросе, а не полагаться на политику БД.
+ *
+ * Офис и водитель получают запрос без изменений:
+ *   - офис видит всё;
+ *   - водитель ограничен политиками RLS на уровне сессии.
+ *
+ * Менеджер получает условие «без менеджера ИЛИ мой».
+ */
+export function applyTripScope<T extends { or: (filter: string) => T }>(
+  query: T,
+  scope: Scope
+): T {
+  const filter = managerTripFilter(scope);
+  if (!filter) return query;
+  return query.or(filter);
 }
