@@ -52,6 +52,32 @@ end;
 $$;
 
 
+-- Диагностика менеджера: печатает все значения, по которым решается
+-- видимость заказа. Без неё падение выглядит как "ожидалось 1, получено 0"
+-- и приходится гадать, что именно не сошлось.
+--
+-- Отдельно печатается trip_number: триггер trg_trip_renumber после вставки
+-- заказов перенумеровывает их по своему правилу (номер получает только
+-- заказ с назначенным исполнителем), поэтому номер из фикстуры может
+-- не совпадать с 'T-3'. Искать заказы в тестах надо по id.
+create or replace function public.dump_manager_state(p_trip_id uuid)
+returns void
+language plpgsql
+as $$
+begin
+  raise notice 'diag: is_manager=% | current_manager_id=% | owns_trip(%)=%',
+    public.is_manager(),
+    public.current_manager_id(),
+    p_trip_id,
+    public.manager_owns_trip(p_trip_id);
+  raise notice 'diag: trip_number в базе=% | manager_id в базе=%',
+    (select trip_number from public.trips where id = p_trip_id),
+    (select manager_id from public.trips where id = p_trip_id);
+end;
+$$;
+
+
+
 -- ============================================================
 -- Данные
 -- ============================================================
@@ -356,19 +382,24 @@ end;
 $$;
 
 -- Свой заказ T-3 виден.
+select public.dump_manager_state('66666666-6666-6666-6666-666666666666');
+
 select public.assert_count(
   'менеджер А: свой заказ виден', 1,
-  $q$select count(*) from public.trips where trip_number = 'T-3'$q$);
+  $q$select count(*) from public.trips where id = '66666666-6666-6666-6666-666666666666'$q$);
 
 -- Чужой заказ менеджера Б недоступен.
 select public.assert_count(
   'менеджер А: нет чужих заказов', 0,
-  $q$select count(*) from public.trips where trip_number = 'T-4'$q$);
+  $q$select count(*) from public.trips where id = '77777777-7777-7777-7777-777777777777'$q$);
 
 -- Общий пул (заказы без менеджера: T-1, T-2, T-5) виден целиком.
 select public.assert_count(
   'менеджер А: общий пул виден', 3,
-  $q$select count(*) from public.trips where manager_id is null and trip_number in ('T-1','T-2','T-5')$q$);
+  $q$select count(*) from public.trips where manager_id is null
+     and id in ('11111111-aaaa-1111-1111-111111111111',
+                '22222222-bbbb-2222-2222-222222222222',
+                '88888888-8888-8888-8888-888888888888')$q$);
 
 -- Итог: свой заказ + общий пул = 4 (T-1, T-2, T-3, T-5), без T-4.
 select public.assert_count(
@@ -423,11 +454,11 @@ select set_config('request.jwt.claim.sub', '55555555-5555-5555-5555-555555555555
 
 select public.assert_count(
   'менеджер Б: чужой заказ (T-3) не виден', 0,
-  $q$select count(*) from public.trips where trip_number = 'T-3'$q$);
+  $q$select count(*) from public.trips where id = '66666666-6666-6666-6666-666666666666'$q$);
 
 select public.assert_count(
   'менеджер Б: свой заказ T-4 виден', 1,
-  $q$select count(*) from public.trips where trip_number = 'T-4'$q$);
+  $q$select count(*) from public.trips where id = '77777777-7777-7777-7777-777777777777'$q$);
 
 select public.assert_count(
   'менеджер Б: сегмент своего заказа виден', 1,

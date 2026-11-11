@@ -48,7 +48,10 @@ select p.proname, pg_get_userbyid(p.proowner) as owner,
  where n.nspname='public'
    and p.proname in ('is_office','current_driver_id','driver_owns_trip',
                      'driver_owns_segment','driver_owns_segment_cargo',
-                     'driver_has_client','driver_uses_contractor')
+                     'driver_has_client','driver_uses_contractor',
+                     'is_manager','current_manager_id','manager_owns_trip',
+                     'manager_has_client','manager_uses_contractor',
+                     'manager_owns_segment_cargo')
  order by p.proname;
 
 \echo '--- grant execute на функции-владельцы ---'
@@ -58,7 +61,10 @@ select p.proname,
  where n.nspname='public'
    and p.proname in ('is_office','current_driver_id','driver_owns_trip',
                      'driver_owns_segment','driver_owns_segment_cargo',
-                     'driver_has_client','driver_uses_contractor')
+                     'driver_has_client','driver_uses_contractor',
+                     'is_manager','current_manager_id','manager_owns_trip',
+                     'manager_has_client','manager_uses_contractor',
+                     'manager_owns_segment_cargo')
  order by p.proname;
 
 \echo '--- владелец таблиц ---'
@@ -79,3 +85,26 @@ select count(*) as trips_via_service_role from public.trips;
 \echo ''
 
 reset role;
+
+\echo '--- менеджер: is_manager() / current_manager_id() под authenticated ---'
+set role authenticated;
+select set_config('request.jwt.claim.sub', '44444444-4444-4444-4444-444444444444', false);
+select
+  auth.uid() as uid,
+  public.is_manager() as is_manager,
+  public.is_office() as is_office,
+  public.current_manager_id() as current_manager_id,
+  public.manager_owns_trip('66666666-6666-6666-6666-666666666666') as owns_t3,
+  public.manager_owns_trip('77777777-7777-7777-7777-777777777777') as owns_t4;
+
+\echo '--- заказы менеджера: что реально лежит в trips ---'
+select id, trip_number, manager_id, driver_id
+  from public.trips order by id;
+
+\echo '--- политика trips_select_own_or_office (текст) ---'
+select policyname, cmd, qual
+  from pg_policies
+ where schemaname='public' and tablename='trips'
+   and policyname='trips_select_own_or_office';
+
+\echo '=== END RLS DIAGNOSTICS ==='''
