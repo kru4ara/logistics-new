@@ -3,6 +3,7 @@ import 'server-only';
 import { getSessionContext } from './session';
 import { normalizeRole } from './roles';
 import { createClient as createRlsClient } from './supabase/server';
+import { createClient as createAdminClient } from './supabase/admin';
 import {
   evaluateTripAccess,
   evaluateExpenseAccess,
@@ -12,7 +13,9 @@ import {
 export type ActorContext = {
   role: string;
   driverId: string | null;
+  managerId: string | null;
   isOffice: boolean;
+  isManager: boolean;
   isDriver: boolean;
 };
 
@@ -22,13 +25,15 @@ export type ActorContext = {
  * оперирует ролями office / driver, поэтому admin и manager -> office.
  */
 export async function getActorContext(): Promise<ActorContext> {
-  const { role, driverId } = await getSessionContext();
+  const { role, driverId, managerId } = await getSessionContext();
   const normalized = normalizeRole(role);
 
   return {
     role: normalized,
     driverId,
+    managerId,
     isOffice: normalized === 'office',
+    isManager: normalized === 'manager',
     isDriver: normalized === 'driver',
   };
 }
@@ -39,8 +44,14 @@ export async function getActorContext(): Promise<ActorContext> {
  */
 function toActorState(actor: ActorContext): ActorState {
   const role =
-    actor.role === 'office' ? 'office' : actor.role === 'driver' ? 'driver' : null;
-  return { role, driverId: actor.driverId };
+    actor.role === 'office'
+      ? 'office'
+      : actor.role === 'manager'
+        ? 'manager'
+        : actor.role === 'driver'
+          ? 'driver'
+          : null;
+  return { role, driverId: actor.driverId, managerId: actor.managerId };
 }
 
 /**
@@ -98,12 +109,51 @@ export async function requireTripAccess(tripId: string): Promise<AccessResult> {
 
   if (state.role === 'office') return { ok: true };
 
+  if (state.role === 'manager') {
+    // Менеджер: заказ виден, если он его ведёт ИЛИ если менеджер
+    // у заказа не назначен (общий пул офиса).
+    const visible = await managerTripVisible(tripId, state.managerId);
+    return evaluateTripAccess(state, visible);
+  }
+
   if (state.role !== 'driver' || !state.driverId) {
     return { ok: false, reason: 'Нет доступа' };
   }
 
   const owns = await driverOwnsTrip(tripId, state.driverId);
   return evaluateTripAccess(state, owns);
+}
+
+/**
+ * Виден ли заказ менеджеру.
+ *
+ * Заказ без назначенного менеджера виден всем менеджерам (общий пул),
+ * заказ на другого менеджера — нет.
+ */
+export async function managerTripVisible(
+  tripId: string,
+  managerId: string | null
+): Promise<boolean> {
+  if (!tripId) return false;
+  if (!managerId) return true;
+
+  const { data, error } = await createAdminClient()
+    .from('trips')
+    .select('id, manager_id')
+    .eq('id', tripId)
+    .maybeSingle();
+
+  if (error) {
+    console.error(
+      '[driver-access] чтение trips (менеджер) не удалось:',
+      error.message
+    );
+    return false;
+  }
+
+  if (!data) return false;
+  if (!data.manager_id) return true;
+  return data.manager_id === managerId;
 }
 
 /**

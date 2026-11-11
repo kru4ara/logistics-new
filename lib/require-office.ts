@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { getActorContext } from './driver-access';
+import { can, type Capability } from './roles';
 
 /**
  * Проверка офисного доступа для server-actions.
@@ -17,10 +18,31 @@ import { getActorContext } from './driver-access';
  * Правило:
  *   - мутации офисных справочников и денег -> requireOffice();
  *   - действия по рейсу, где есть и водитель -> requireTripAccess(tripId).
+ *
+ * Фаза 39: добавлен requireCapability() — проверка конкретного права.
+ * requireOffice() остаётся как requireCapability('office-only').
+ * Так видно, какое именно право требуется, и менеджер (у которого
+ * офисные права почти те же) отличается от офиса точечно.
  */
 export async function requireOffice(): Promise<void> {
   const actor = await getActorContext();
   if (!actor.isOffice) {
+    throw new Error('Нет доступа');
+  }
+}
+
+/**
+ * Проверка конкретного права для server-actions.
+ *
+ * Отличие от requireOffice(): менеджер по логистике имеет почти все
+ * офисные права (см. MANAGER в lib/roles.ts), но не имеет export.view
+ * и audit.view. Действия, которые должен уметь и менеджер, вызывают
+ * requireCapability('trips.editAny') вместо requireOffice() — и тогда
+ * право действительно различается, а не подменяется ролью.
+ */
+export async function requireCapability(capability: Capability): Promise<void> {
+  const actor = await getActorContext();
+  if (!can(actor.role, capability)) {
     throw new Error('Нет доступа');
   }
 }

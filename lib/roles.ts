@@ -6,7 +6,7 @@
  * забытое место = дыра в доступе. Поэтому проверяем capability (право),
  * а матрица ниже отображает роль -> набор прав.
  *
- * Роли сейчас: office (офис) и driver (водитель).
+ * Роли сейчас: office (офис), manager (менеджер), driver (водитель).
  * Заведены впрок: logistics, accountant, client — правила доступа для них
  * пока не финализированы, поэтому реальные профили их не получают.
  *
@@ -37,6 +37,9 @@ export const CAPABILITIES = [
   'locations.edit',
   'trucks.view',
   'trucks.edit',
+  // Менеджеры
+  'managers.view',
+  'managers.edit',
   // Аналитика и отчёты
   'reports.view',
   'statistics.view',
@@ -64,17 +67,43 @@ const DRIVER: Capability[] = [
   'reminders.view',
 ];
 
+/**
+ * Менеджер — офис без двух вещей:
+ *
+ *   1. без доступа к аудиту (audit.view) и экспорту в Excel (export.view);
+ *   2. без ЧУЖИХ заказов: менеджер видит только заказы, назначенные на
+ *      него, и заказы без назначенного менеджера (общий пул офиса).
+ *
+ * Второй пункт обеспечивается не правами, а скоупом данных —
+ * см. lib/scope.ts. Права определяют, куда менеджер вообще может
+ * зайти, скоуп — что он там увидит.
+ */
+const MANAGER: Capability[] = OFFICE.filter(
+  (c) => c !== 'audit.view' && c !== 'export.view'
+);
+
 export const ROLE_CAPABILITIES: Record<string, Capability[]> = {
   office: OFFICE,
+  manager: MANAGER,
   driver: DRIVER,
 };
 
 export const ADMIN_ROLES = ['office'] as const;
 
-/** Старые значения ролей в БД -> актуальные */
+/**
+ * Старые значения ролей в БД -> актуальные.
+ *
+ * ВНИМАНИЕ: 'manager' больше НЕ является синонимом офиса.
+ * Раньше manager -> office, и роль 'manager' в БД означала офис.
+ * Теперь 'manager' — это отдельная роль менеджера по логистике
+ * (см. миграцию 20261111_012_managers.sql), и её права отличаются
+ * от офисских.
+ *
+ * Перевод старых профилей с role='manager' на 'office' делает
+ * миграция 012: иначе прежний офис-менеджер потерял бы доступ.
+ */
 const ROLE_ALIASES: Record<string, string> = {
   admin: 'office',
-  manager: 'office',
 };
 
 export function normalizeRole(role: string | null | undefined): string {
@@ -102,6 +131,11 @@ export function isOfficeRole(role: string | null | undefined): boolean {
   return normalizeRole(role) === 'office';
 }
 
+/** Менеджер по логистике — не офис, но и не водитель. */
+export function isManagerRole(role: string | null | undefined): boolean {
+  return normalizeRole(role) === 'manager';
+}
+
 export interface PathRule {
   prefix: string;
   /** право для чтения (GET) */
@@ -121,6 +155,7 @@ export const PATH_CAPABILITIES: PathRule[] = [
   { prefix: '/clients', capability: 'clients.view', writeCapability: 'clients.edit' },
   { prefix: '/contractors', capability: 'contractors.view', writeCapability: 'contractors.edit' },
   { prefix: '/drivers', capability: 'drivers.view', writeCapability: 'drivers.edit' },
+  { prefix: '/managers', capability: 'managers.view', writeCapability: 'managers.edit' },
   { prefix: '/trucks', capability: 'trucks.view', writeCapability: 'trucks.edit' },
   { prefix: '/locations', capability: 'locations.view', writeCapability: 'locations.edit' },
   { prefix: '/reminders', capability: 'reminders.view', writeCapability: 'reminders.edit' },

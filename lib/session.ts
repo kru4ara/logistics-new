@@ -6,6 +6,8 @@ export type SessionContext = {
   userId: string | null;
   role: string | null;
   driverId: string | null;
+  /** Менеджер по логистике, которому назначен профиль. */
+  managerId: string | null;
   userName: string | null;
 };
 
@@ -13,6 +15,7 @@ const EMPTY: SessionContext = {
   userId: null,
   role: null,
   driverId: null,
+  managerId: null,
   userName: null,
 };
 
@@ -42,7 +45,7 @@ export async function getSessionContext(): Promise<SessionContext> {
 
     const { data: profile, error } = await authClient
       .from('profiles')
-      .select('role, driver_id, full_name')
+      .select('role, driver_id, manager_id, full_name')
       .eq('id', user.id)
       .maybeSingle();
 
@@ -51,6 +54,7 @@ export async function getSessionContext(): Promise<SessionContext> {
         userId: user.id,
         role: profile.role ?? null,
         driverId: profile.driver_id ?? null,
+        managerId: profile.manager_id ?? null,
         userName: profile.full_name ?? null,
       };
     }
@@ -63,7 +67,7 @@ export async function getSessionContext(): Promise<SessionContext> {
     const adminClient = await createAdminClient();
     const { data: adminProfile } = await adminClient
       .from('profiles')
-      .select('role, driver_id, full_name')
+      .select('role, driver_id, manager_id, full_name')
       .eq('id', user.id)
       .maybeSingle();
 
@@ -71,6 +75,7 @@ export async function getSessionContext(): Promise<SessionContext> {
       userId: user.id,
       role: adminProfile?.role ?? null,
       driverId: adminProfile?.driver_id ?? null,
+      managerId: adminProfile?.manager_id ?? null,
       userName: adminProfile?.full_name ?? null,
     };
   } catch (e) {
