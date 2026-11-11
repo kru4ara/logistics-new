@@ -386,6 +386,33 @@ select public.assert_count(
   'менеджер А: сегменты чужих заказов не видны', 0,
   $q$select count(*) from public.trip_segments where trip_id = '77777777-7777-7777-7777-777777777777'$q$);
 
+-- Содержимое заказов менеджера: расходы, груз, документы, клиенты,
+-- подрядчики. Без этой ветки карточка заказа у менеджера была бы пустой.
+--
+-- В фикстуре у T-3 (заказ менеджера А) расходов/груза/документов нет —
+-- они есть только у T-1 и T-2, а те без менеджера, то есть тоже в
+-- периметре (общий пул). Поэтому проверяем через общий пул: менеджер А
+-- должен видеть расходы и груз заказов T-1 и T-2.
+select public.assert_count(
+  'менеджер А: расходы заказов в периметре', 2,
+  'select count(*) from public.trip_expenses');
+
+select public.assert_count(
+  'менеджер А: груз заказов в периметре', 2,
+  'select count(*) from public.trip_cargo');
+
+select public.assert_count(
+  'менеджер А: документы заказов в периметре', 1,
+  'select count(*) from public.trip_documents');
+
+select public.assert_count(
+  'менеджер А: клиенты заказов в периметре', 2,
+  'select count(*) from public.clients');
+
+select public.assert_count(
+  'менеджер А: подрядчики заказов в периметре', 3,
+  'select count(*) from public.contractors');
+
 -- Карточка менеджера: менеджер видит свою.
 select public.assert_count(
   'менеджер А: своя карточка менеджера видна', 1,
