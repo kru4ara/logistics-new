@@ -9,6 +9,8 @@ import { redirect } from 'next/navigation';
 import { logAudit, diffFields } from '../lib/audit';
 import { geocode } from '../lib/geocode';
 import { requireExpenseAccess, requireTripAccess } from '../lib/driver-access';
+import { getScope } from '../lib/scope';
+import { tripVisibleToScope } from '../lib/scope-rules';
 
 // ============================================================
 // Добавление расхода
@@ -258,6 +260,13 @@ export async function updateTrip(tripId: string, formData: FormData) {
     .eq('id', tripId)
     .single();
 
+  // Фаза 39: менеджер не может править чужой заказ, даже если знает его id.
+  // Проверяем по скоупу — тем же правилом, что и списки.
+  const scope = await getScope();
+  if (!tripVisibleToScope(scope, before)) {
+    throw new Error('Заказ не найден или недоступен для правки');
+  }
+
   // Ответственный менеджер (фаза 39). Пусто = без назначенного менеджера.
   //
   // Менеджер не может переназначать заказ — это делает офис. Поэтому
@@ -351,6 +360,8 @@ export async function updateTrip(tripId: string, formData: FormData) {
 // Удаление рейса
 // ============================================================
 export async function deleteTrip(tripId: string) {
+  // Удаление заказа — только офис: действие необратимое, менеджеру
+  // его вести не нужно.
   await requireOffice();
   const supabase = await createClient();
 
@@ -395,6 +406,7 @@ export async function deleteTrip(tripId: string) {
 // Пересчёт координат рейса по сегментам
 // ============================================================
 export async function recalcTripCoords(tripId: string): Promise<{ success: boolean; error?: string }> {
+  // Пересчёт координат по геокодингу — только офис.
   await requireOffice();
   const supabase = await createClient();
 
