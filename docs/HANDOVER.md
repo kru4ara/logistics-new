@@ -1,4 +1,4 @@
-# HANDOVER — Logistics CRM (11.11.2026)
+# HANDOVER — Logistics CRM (12.11.2026)
 
 ## Стек и инфраструктура
 - **Next.js 16.4.3** (App Router, Turbopack) + React 19.3.1 + Supabase + Vercel
@@ -355,6 +355,18 @@
   3. **Транзакция в миграции обязательна.** `psql -f` выполняет файл без отката при ошибке — база остаётся в полуприменённом состоянии (с `grant` до `create function` вообще не завелась).
 - **PR #55** (`feature/phase39-managers` → `master`), merge `5f3fe93c`, 16 коммитов, автор — `Anatoli <78858463+kru4ara@users.noreply.github.com>`. Финальный коммит `b96ca2d8` — починка RLS-теста.
 
+### Фаза 41 — починка входа по логину (12.11.2026)
+- **Симптом:** вход по логину (имя менеджера, логин офиса, фамилия водителя) падал с `ERROR: 42703: column u.email does not exist`. Вход по e-mail работал (другой путь в коде).
+- **Причина:** `lookup_login_email` читала `public.users.email`, а в **реальной** базе у `public.users` колонки `email` нет (есть `id, login, role, password_hash`). В **стабах** `supabase/stubs/schema.sql` колонка была — поэтому CI был зелёным, а прод сломан. Расхождение стабов и реальной схемы и замаскировало баг.
+- **Миграция `20261112_015_fix_lookup_login_email.sql`** (применена на проде 12.11.2026):
+  - `alter table public.users add column if not exists email text` + бэкфилл из `auth.users` (по `id`, иначе по локальной части e-mail = `login`, и только если такой e-mail единственный);
+  - новая `lookup_login_email` — 7 источников поиска, каждый в своём шаге, без падения при отсутствии источника (`exception` → `null`);
+  - проверка в конце файла: функция существует, колонка на месте, пустой и неизвестный логин дают `null`.
+- **Стабы приведены к реальной схеме:** `public.users` без `email`, добавлен каркас `auth.users` (`id, email, encrypted_password, ...`).
+- **Тесты:** блок «Фаза 41» в `supabase/tests/rls_policies.test.sql` — 7 проверок: вход по e-mail, по имени менеджера, по фамилии водителя, по легаси-логину, пустой/неизвестный логин, наличие колонки, вызов под `anon`.
+- **Проверено вживую на проде:** `ANATOLI KURLIUK` → `kru4ara@gmail.com`; `office` → `office@raibuilding.pl`; `KAVALIOU` → `kavaliou@raibuilding.pl`; неизвестный логин → `null`.
+- **⚠️ Грабли:** стабы RLS обязаны повторять **реальную** схему. Расхождение (`public.users.email`) дважды давало зелёный CI при сломанном проде — при добавлении таблицы/колонки в `auth` или `public` править `supabase/stubs/schema.sql` в том же PR.
+
 ## 📊 Состояние данных (01.11.2026)
 - `trips`: 108 (из них 31 — экспедирование, `profit_mode='forwarding'`; без номера — 0).
 - `trip_segments`: 134, `trip_cargo`: 114, `trip_expenses`: 523.
@@ -372,6 +384,8 @@
 - **CI:** GitHub Actions — два воркфлоу: `CI` (lint → `tsc --noEmit` → test → build) и `RLS` (миграции на чистом Postgres + проверка поведения RLS-политик). `RLS` применяет миграции **дважды** — намеренная проверка идемпотентности.
 - **Права:** `can(role, 'cap')` из `lib/roles.ts`; путь → право через `capabilityForRequest(pathname, method)`.
 - **Роли (11.11):** `office` (все 41 capability) · `manager` (37 = офис минус `audit.view`, `export.view`, `managers.view`, `managers.edit`) · `driver` (5). `ROLE_ALIASES` = только `admin → office`; **`manager` больше не синоним офиса**.
+- **Вход по логину (Фаза 41):** `public.lookup_login_email(text)` — SECURITY DEFINER, ищет e-mail ДО авторизации. Порядок источников: `auth.users` (прямой e-mail) → `managers.full_name` → `managers.email` → `drivers.last_name` → `drivers.email` → `public.users.login` (легаси) → `auth.users` по локальной части e-mail. Вызывается из `app/login/actions.ts`; если вход содержит `@` — функция не вызывается, e-mail идёт напрямую.
+- **Пароли менеджеров:** хранятся **открытым текстом** в `public.manager_passwords` (`manager_id` PK, `password`, `updated_at`, `updated_by`). RLS: читает и пишет **только офис** (`manager_passwords_office_only`) — менеджер и водитель не видят ни одной строки. Форма `setManagerPassword` в `app/managers/actions.ts` синхронизирует три места: `auth.users` (пароль через admin API), карточку `managers` (`email`, `user_id`, `password_updated_at`) и `manager_passwords` (upsert по `manager_id`), плюс создаёт/обновляет `profiles` (`role='manager'`, `manager_id`) через `managerProfileUpdate`.
 - **Периметр менеджера:** `lib/scope-rules.ts` — `managerTripFilter()` → `manager_id.is.null,manager_id.eq.<id>` («без менеджера ИЛИ мой»), `tripVisibleToScope()` для заказа по id, `filterTripsByScope()` для списков в памяти. Правило данных, не capability.
 - **Менеджеры:** раздел `/managers` (список, создание, карточка) — только для офиса; менеджер туда не заходит.
 - **⚠️ `trip_number` нестабилен:** триггер `trg_trip_renumber` обнуляет номер у заказов без исполнителя. В тестах и в разборе данных искать заказы по `id`.
@@ -380,12 +394,12 @@
 - **`eslint.config.mjs`:** `@eslint/js` + `typescript-eslint` + `react` + `react-hooks` + `globals`.
 - **`postcss.config.js`:** только `@tailwindcss/postcss`.
 - **Режим расчёта:** не выбирается — `deriveProfitMode()` в `lib/orders-core.ts` / `public.derive_profit_mode(uuid)` в БД. Правило: наш транспорт (машина+водитель) → рейс, только подрядчик → экспедирование, смешанный → рейс, нет сегментов → без номера.
-- **Миграции:** `supabase/migrations/`, применяются **вручную** в Supabase SQL Editor. Последняя — `20261111_012_managers.sql` (Фаза 40; **на проде ещё не применена**). Перед `20261101_007` применялась 01.11.2026.
+- **Миграции:** `supabase/migrations/`, применяются **вручную** в Supabase SQL Editor. Последняя — `20261112_015_fix_lookup_login_email.sql` (Фаза 41; **применена на проде 12.11.2026**). Перед `20261101_007` применялась 01.11.2026.
 - **Миграция обязана быть в транзакции** (`BEGIN`/`COMMIT`) — иначе `psql -f` при ошибке оставит базу в полуприменённом состоянии.
 - **DDL из приложения недоступен:** RPC `exec_sql_json` даёт `select`, но не `create/alter`.
 - **`exceljs`:** в `dependencies`, ленивый импорт в клиентах, статический — в API.
 - **`npm audit`:** 5 moderate (`postcss-selector-parser` через Tailwind) — принятый dev-риск.
-- **Аккаунты:** админ — `raibuilding@gmail.com`, водители — `vasiliuk@...`, `kavaliou@...`.
+- **Аккаунты:** админ — `raibuilding.pl@gmail.com` (office@raibuilding.pl — легаси-логин `office`), менеджер — `kru4ara@gmail.com` (карточка ANATOLI KURLIUK, id `b0339d80-4e0d-45bf-896d-3fe6e80e8f3c`), водители — `vasiliuk@...`, `kavaliou@...`. **Пароль менеджера:** `Anatoli_123` (в БД открытым текстом, в `auth.users` — bcrypt).
 - **PWA:** установка через «Добавить на главный экран».
 
 **Закрыто:** Фазы 3.1–3.39, 40 (код смержен, выкатка на прод — нет).

@@ -23,10 +23,18 @@ create table public.profiles (
   full_name text
 );
 
+-- Legacy-таблица логинов офиса.
+--
+-- В РЕАЛЬНОЙ базе у неё колонки email НЕТ: id, login, role,
+-- password_hash. Стаб раньше содержал email — и это расхождение
+-- маскировало баг в lookup_login_email (миграция 015): в CI функция
+-- проходила, а на проде падала с 42703 column u.email does not exist.
+--
+-- Стаб приводим к реальной схеме. Колонку email добавляет
+-- миграция 20261112_015 (alter table ... add column if not exists).
 create table public.users (
   id uuid primary key,
-  login text,
-  email text
+  login text
 );
 
 create table public.drivers (
@@ -348,3 +356,27 @@ alter table public.locations add column if not exists name text;
 alter table public.fixed_costs add column if not exists amount_pln numeric;
 alter table public.forwarding_contractors add column if not exists original_price numeric default 0;
 alter table public.forwarding_expenses add column if not exists original_amount numeric default 0;
+
+-- ============================================================
+-- auth.users — каркас учётных записей Supabase Auth
+-- ============================================================
+--
+-- Нужна миграции 015 (поиск e-mail для входа) и функции
+-- lookup_login_email: она читает auth.users от имени владельца
+-- (SECURITY DEFINER), поэтому RLS на этой таблице не мешает.
+--
+-- Подготовка (роли, схема auth, auth.uid()) — в prepare.sql.
+
+create table if not exists auth.users (
+  id uuid primary key,
+  email text,
+  encrypted_password text,
+  email_confirmed_at timestamptz,
+  raw_app_meta_data jsonb,
+  raw_user_meta_data jsonb,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+-- Прямого SELECT на auth.users у ролей нет (как в реальном Supabase):
+-- функция lookup_login_email читает её от имени владельца.
