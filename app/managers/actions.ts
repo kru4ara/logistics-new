@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase/admin';
 import { requireCapability } from '../../lib/require-office';
+import { managerProfileUpdate } from '../../lib/roles';
 import { logAudit } from '../../lib/audit';
 
 /**
@@ -138,9 +139,30 @@ export async function linkManagerUser(formData: FormData): Promise<void> {
   }
 
   if (userId) {
+    // Роль понижаем до 'manager' только если профиль сейчас не офисный.
+    //
+    // Иначе можно потерять доступ к админским разделам: у роли
+    // 'manager' нет managers.view/managers.edit, audit.view и
+    // export.view (см. MANAGER в lib/roles.ts). Если менеджера
+    // привязывают к учётной записи, которая одновременно является
+    // рабочей офисной, профиль не должен терять офисные права —
+    // иначе он больше не сможет ни отвязать себя, ни открыть
+    // раздел «Менеджеры».
+    //
+    // Ссылка на карточку (manager_id) проставляется в любом случае:
+    // по ней определяется скоуп менеджера в lib/scope.ts.
+    const { data: profile, error: readError } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', userId)
+      .maybeSingle();
+    if (readError) throw new Error(`Ошибка чтения профиля: ${readError.message}`);
+
+    const patch = managerProfileUpdate(profile?.role, managerId);
+
     const { error } = await supabase
       .from('profiles')
-      .update({ role: 'manager', manager_id: managerId })
+      .update(patch)
       .eq('id', userId);
     if (error) throw new Error(`Ошибка привязки профиля: ${error.message}`);
   }
