@@ -138,6 +138,34 @@ export function isManagerRole(role: string | null | undefined): boolean {
   return normalizeRole(role) === 'manager';
 }
 
+/**
+ * Какие поля обновлять в profiles при привязке учётной записи к менеджеру.
+ *
+ * Проблема: роль 'manager' — это офис минус managers.view/managers.edit,
+ * audit.view и export.view (см. MANAGER выше). Если привязать менеджера
+ * к учётной записи, которая одновременно является рабочей офисной, и
+ * вслепую проставить role='manager', человек теряет доступ к админским
+ * разделам — и больше не может ни открыть раздел «Менеджеры», ни
+ * отвязать себя.
+ *
+ * Поэтому роль понижаем только у тех профилей, которые офисными не
+ * являются. Ссылка на карточку (manager_id) проставляется в любом
+ * случае: по ней определяется скоуп менеджера (lib/scope.ts).
+ *
+ * Чистая функция — чтобы правило можно было покрыть юнит-тестом без
+ * сервера и БД (как lib/scope-rules.ts).
+ */
+export function managerProfileUpdate(
+  currentRole: string | null | undefined,
+  managerId: string
+): { role?: string; manager_id: string } {
+  const normalized = normalizeRole(currentRole);
+  const isOfficeProfile = normalized === 'office';
+  return isOfficeProfile
+    ? { manager_id: managerId }
+    : { role: 'manager', manager_id: managerId };
+}
+
 export interface PathRule {
   prefix: string;
   /** право для чтения (GET) */
