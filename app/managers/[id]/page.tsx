@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '../../../lib/supabase/admin';
 import { can } from '../../../lib/roles';
 import { getSessionContext } from '../../../lib/session';
-import { updateManager, linkManagerUser } from '../actions';
+import { updateManager, linkManagerUser, setManagerPassword } from '../actions';
 import SubmitButton from '../../components/SubmitButton';
 import {
   ArrowLeft,
@@ -14,6 +14,7 @@ import {
   Package,
   Save,
   Link2,
+  KeyRound,
 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -50,6 +51,16 @@ export default async function ManagerDetailPage({ params }: { params: Promise<{ 
     .select('id, role, full_name')
     .eq('manager_id', managerId)
     .maybeSingle();
+
+  // Пароль менеджера. Таблица manager_passwords доступна только офису
+  // (RLS manager_passwords_office_only), поэтому менеджер и водитель
+  // её не читают — пароль показываем только офису.
+  const { data: passwordRow } = await supabase
+    .from('manager_passwords')
+    .select('password')
+    .eq('manager_id', managerId)
+    .maybeSingle();
+  const currentPassword = passwordRow?.password || '';
 
   const { data: trips } = await supabase
     .from('trips')
@@ -136,6 +147,76 @@ export default async function ManagerDetailPage({ params }: { params: Promise<{ 
               >
                 <Save className="w-4 h-4" strokeWidth={2} />
                 Сохранить
+              </SubmitButton>
+            </div>
+          </form>
+
+          {/* Логин и пароль менеджера */}
+          <form action={setManagerPassword} className="card p-5 md:p-6 space-y-5">
+            <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <KeyRound className="w-5 h-5 text-slate-400" strokeWidth={2} />
+              Логин и пароль
+            </h2>
+
+            <p className="text-sm text-slate-600">
+              Логин менеджера — его e-mail. Пароль задаёт офис: учётная запись
+              создаётся автоматически, а профиль получает роль
+              <b> manager</b> и ссылку на эту карточку. Менеджер сможет войти
+              и по e-mail, и по имени (например «ANATOLI KURLIUK»).
+            </p>
+
+            <input type="hidden" name="manager_id" value={manager.id} />
+
+            <div>
+              <label htmlFor="login_email" className="block text-sm font-medium text-slate-700 mb-1">
+                Логин (e-mail)
+              </label>
+              <input
+                id="login_email"
+                name="email"
+                type="email"
+                required
+                className="input"
+                defaultValue={manager.email || ''}
+                placeholder="manager@example.com"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="manager_password" className="block text-sm font-medium text-slate-700 mb-1">
+                Пароль
+              </label>
+              <input
+                id="manager_password"
+                name="password"
+                type="text"
+                required
+                minLength={6}
+                autoComplete="off"
+                className="input font-mono"
+                defaultValue={currentPassword}
+                placeholder="Не короче 6 символов"
+              />
+              <p className="text-xs text-slate-500 mt-1">
+                {currentPassword
+                  ? 'Пароль показан офису. Измените поле и нажмите «Сохранить пароль», чтобы сменить его.'
+                  : 'Пароль ещё не задан. Введите его и нажмите «Сохранить пароль».'}
+              </p>
+            </div>
+
+            {manager.password_updated_at && (
+              <p className="text-xs text-slate-500">
+                Последний раз пароль задан: {new Date(manager.password_updated_at).toLocaleString('ru-RU')}
+              </p>
+            )}
+
+            <div className="flex justify-end pt-2">
+              <SubmitButton
+                className="btn btn-primary text-center"
+                pendingText="Сохраняю пароль…"
+              >
+                <Save className="w-4 h-4" strokeWidth={2} />
+                Сохранить пароль
               </SubmitButton>
             </div>
           </form>
