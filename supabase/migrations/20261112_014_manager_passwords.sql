@@ -33,7 +33,13 @@ create table if not exists public.manager_passwords (
   manager_id uuid primary key references public.managers(id) on delete cascade,
   password text not null,
   updated_at timestamptz not null default now(),
-  updated_by uuid references auth.users(id) on delete set null
+  -- updated_by: id профиля офиса, который задал пароль.
+  --
+  -- Без ссылки на auth.users(id): в CI-окружении (чистый Postgres со
+  -- схемой auth) таблицы auth.users нет, и внешний ключ роняет
+  -- применение миграции. Здесь это справочная метка, а не
+  -- ссылочная целостность, поэтому ограничение не нужно.
+  updated_by uuid
 );
 
 comment on table public.manager_passwords is
