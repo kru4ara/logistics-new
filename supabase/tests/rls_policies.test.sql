@@ -624,4 +624,154 @@ exception
 end;
 $$;
 
+
+-- ============================================================
+-- ФАЗА 41: ВХОД ПО ЛОГИНУ (lookup_login_email)
+-- ============================================================
+--
+-- Функция ищет e-mail по логину ДО авторизации. Раньше она падала
+-- с 42703 (column u.email does not exist) на ЛЮБОМ входе по логину,
+-- потому что читала public.users.email — колонки, которой в реальной
+-- базе нет. Стабы это маскировали: там колонка была.
+--
+-- Проверяем все источники, из которых функция берёт e-mail.
+
+-- Фикстуры вставляем от имени владельца базы (reset role): у роли
+-- authenticated нет прав на INSERT в public.users и auth.users —
+-- RLS-политики разрешают только чтение. Права ролей проверяются
+-- отдельно и ниже, через set role.
+reset role;
+
+-- Учётные записи в auth.users.
+insert into auth.users (id, email) values
+  ('12121212-1212-1212-1212-121212121212', 'office@x.local'),
+  ('13131313-1313-1313-1313-131313131313', 'ma@x.local');
+
+-- Легаси-логин офиса. e-mail НЕ заполняем: миграция 015 бэкфиллит
+-- его из auth.users при применении, а к моменту теста auth.users
+-- ещё пуст — так проверяется запасной путь поиска (шаг 7 функции:
+-- e-mail подтягивается из auth.users по локальной части = login).
+insert into public.users (id, login) values
+  ('14141414-1414-1414-1414-141414141414', 'office');
+
+-- Легаси-логин с уже заполненным e-mail — проверяет прямой путь
+-- поиска по public.users.email (шаг 6 функции).
+insert into public.users (id, login, email) values
+  ('15151515-1515-1515-1515-151515151515', 'legacy', 'legacy@x.local');
+
+set role authenticated;
+
+-- 1. Прямой вход по e-mail.
+do $$
+declare
+  v_email text;
+begin
+  v_email := public.lookup_login_email('office@x.local');
+  if v_email is distinct from 'office@x.local' then
+    raise exception 'FAIL: вход по e-mail вернул %, ожидался office@x.local', v_email;
+  end if;
+  raise notice 'ok: вход по e-mail';
+end;
+$$;
+
+-- 2. Менеджер — по имени карточки (Менеджер А -> ma@x.local).
+do $$
+declare
+  v_email text;
+begin
+  v_email := public.lookup_login_email('Менеджер А');
+  if v_email is distinct from 'ma@x.local' then
+    raise exception 'FAIL: вход по имени менеджера вернул %, ожидался ma@x.local', v_email;
+  end if;
+  raise notice 'ok: вход по имени менеджера';
+end;
+$$;
+
+-- 3. Водитель — по фамилии (Водитель -> a@x.local).
+do $$
+declare
+  v_email text;
+begin
+  v_email := public.lookup_login_email('Водитель');
+  if v_email is distinct from 'a@x.local' then
+    raise exception 'FAIL: вход по фамилии водителя вернул %, ожидался a@x.local', v_email;
+  end if;
+  raise notice 'ok: вход по фамилии водителя';
+end;
+$$;
+
+-- 4. Легаси-логин офиса без e-mail в карточке: e-mail подтягивается
+--    из auth.users по локальной части (login = 'office').
+do $$
+declare
+  v_email text;
+begin
+  v_email := public.lookup_login_email('office');
+  if v_email is distinct from 'office@x.local' then
+    raise exception 'FAIL: вход по легаси-логину вернул %, ожидался office@x.local', v_email;
+  end if;
+  raise notice 'ok: вход по легаси-логину офиса';
+end;
+$$;
+
+-- 4a. Легаси-логин с готовым e-mail в карточке.
+do $$
+declare
+  v_email text;
+begin
+  v_email := public.lookup_login_email('legacy');
+  if v_email is distinct from 'legacy@x.local' then
+    raise exception 'FAIL: вход по легаси-логину с e-mail вернул %, ожидался legacy@x.local', v_email;
+  end if;
+  raise notice 'ok: вход по легаси-логину с e-mail в карточке';
+end;
+$$;
+
+-- 5. Пустой и неизвестный логин: null, без исключения.
+do $$
+declare
+  v_email text;
+begin
+  v_email := public.lookup_login_email('');
+  if v_email is not null then
+    raise exception 'FAIL: пустой логин вернул %', v_email;
+  end if;
+
+  v_email := public.lookup_login_email('такого-логина-нет-12345');
+  if v_email is not null then
+    raise exception 'FAIL: неизвестный логин вернул %', v_email;
+  end if;
+
+  raise notice 'ok: пустой и неизвестный логин дают null';
+end;
+$$;
+
+-- 6. Колонка public.users.email существует (на неё опирается
+--    поиск легаси-логинов).
+do $$
+begin
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'users' and column_name = 'email'
+  ) then
+    raise exception 'FAIL: колонки public.users.email нет';
+  end if;
+  raise notice 'ok: колонка public.users.email на месте';
+end;
+$$;
+
+-- 7. anon может вызвать функцию (она вызывается ДО входа) —
+--    но e-mail чужого менеджера это не утечка: функция и есть
+--    точка входа в логин, и она отдаёт e-mail только по точному
+--    совпадению логина.
+reset role;
+set role anon;
+
+select public.assert_count(
+  'anon: lookup_login_email по e-mail', 1,
+  $q$select count(*) from (select public.lookup_login_email('office@x.local') as e) t where t.e = 'office@x.local'$q$);
+
+reset role;
+set role authenticated;
+
 reset role;
