@@ -365,6 +365,8 @@
 - **Стабы приведены к реальной схеме:** `public.users` без `email`, добавлен каркас `auth.users` (`id, email, encrypted_password, ...`).
 - **Тесты:** блок «Фаза 41» в `supabase/tests/rls_policies.test.sql` — 7 проверок: вход по e-mail, по имени менеджера, по фамилии водителя, по легаси-логину, пустой/неизвестный логин, наличие колонки, вызов под `anon`.
 - **Проверено вживую на проде:** `ANATOLI KURLIUK` → `kru4ara@gmail.com`; `office` → `office@raibuilding.pl`; `KAVALIOU` → `kavaliou@raibuilding.pl`; неизвестный логин → `null`.
+- **⚠️ Грабли (CI):** фикстуры в `rls_policies.test.sql` вставляются под `reset role` (владелец базы) и только потом возвращается `set role authenticated`. У роли `authenticated` по RLS-политикам только чтение — прямая вставка в `public.users` / `auth.users` даёт `permission denied for table users` и роняет джобу.
+- **⚠️ Грабли (локальный прогон):** RLS-джобу можно повторить локально — Postgres 17 в песочнице, `initdb` в `/tmp/pgdata`, `pg_ctl` на порту 5433, база `rls_test`. Порядок как в `.github/workflows/rls.yml`: `prepare.sql` → `schema.sql` → `reset_policies.sql` → миграции → миграции повторно (идемпотентность) → `diagnostics.sql` → `rls_policies.test.sql`. Кластер обязательно пересоздавать с нуля: если в базе уже лежат фикстуры теста, миграция `20261102_008` падает на `profit_mode not null` (заказ без сегментов).
 - **⚠️ Грабли:** стабы RLS обязаны повторять **реальную** схему. Расхождение (`public.users.email`) дважды давало зелёный CI при сломанном проде — при добавлении таблицы/колонки в `auth` или `public` править `supabase/stubs/schema.sql` в том же PR.
 
 ## 📊 Состояние данных (01.11.2026)
