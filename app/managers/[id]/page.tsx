@@ -52,16 +52,6 @@ export default async function ManagerDetailPage({ params }: { params: Promise<{ 
     .eq('manager_id', managerId)
     .maybeSingle();
 
-  // Пароль менеджера. Таблица manager_passwords доступна только офису
-  // (RLS manager_passwords_office_only), поэтому менеджер и водитель
-  // её не читают — пароль показываем только офису.
-  const { data: passwordRow } = await supabase
-    .from('manager_passwords')
-    .select('password')
-    .eq('manager_id', managerId)
-    .maybeSingle();
-  const currentPassword = passwordRow?.password || '';
-
   const { data: trips } = await supabase
     .from('trips')
     .select('id, trip_number, status, start_date, end_date, revenue_eur, manager_id')
@@ -189,18 +179,16 @@ export default async function ManagerDetailPage({ params }: { params: Promise<{ 
               <input
                 id="manager_password"
                 name="password"
-                type="text"
+                type="password"
                 required
                 minLength={6}
-                autoComplete="off"
-                className="input font-mono"
-                defaultValue={currentPassword}
+                autoComplete="new-password"
+                className="input"
                 placeholder="Не короче 6 символов"
               />
               <p className="text-xs text-slate-500 mt-1">
-                {currentPassword
-                  ? 'Пароль показан офису. Измените поле и нажмите «Сохранить пароль», чтобы сменить его.'
-                  : 'Пароль ещё не задан. Введите его и нажмите «Сохранить пароль».'}
+                Пароль нигде не хранится и не показывается. Чтобы задать или
+                сменить его, введите новый и нажмите «Сохранить пароль».
               </p>
             </div>
 

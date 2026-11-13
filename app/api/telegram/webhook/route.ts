@@ -1,9 +1,17 @@
 import { NextResponse } from 'next/server';
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { createClient } from '../../../../lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
 
 const WEBHOOK_SECRET = process.env.TELEGRAM_WEBHOOK_SECRET;
+
+// Сравнение секрета за постоянное время (хэшируем, чтобы длины совпали).
+function safeEqual(a: string, b: string): boolean {
+  const ha = createHash('sha256').update(a).digest();
+  const hb = createHash('sha256').update(b).digest();
+  return timingSafeEqual(ha, hb);
+}
 
 export async function POST(request: Request) {
   // 1. Проверка секрета от Telegram (обязательно)
@@ -15,7 +23,7 @@ export async function POST(request: Request) {
   }
 
   const incoming = request.headers.get('x-telegram-bot-api-secret-token');
-  if (incoming !== WEBHOOK_SECRET) {
+  if (!incoming || !safeEqual(incoming, WEBHOOK_SECRET)) {
     console.warn('[telegram/webhook] Unauthorized: bad secret');
     return NextResponse.json({ ok: false }, { status: 401 });
   }
@@ -39,12 +47,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true });
   }
 
-  // 2. Команда /start <driver_id>
+  // 2. Команда /start <token>
+  //
+  // Токен одноразовый (driver_telegram_links, миграция 017): ссылку создаёт
+  // офис, срок жизни 24 часа. Раньше здесь был driver_id — постоянный
+  // идентификатор, по которому кто угодно мог перепривязать уведомления.
   if (text.startsWith('/start')) {
-    const parts = text.split(/\s+/);
-    const driverId = parts[1];
+    const token = text.split(/\s+/)[1];
 
-    if (!driverId) {
+    if (!token) {
       await sendMessage(
         chatId,
         '👋 Привет! Я бот Logistics CRM.\n\nЧтобы получать уведомления о новых рейсах, попросите у офиса персональную ссылку.'
@@ -53,28 +64,41 @@ export async function POST(request: Request) {
     }
 
     const supabase = await createClient();
-    const { data: driver } = await supabase
-      .from('drivers')
-      .select('id, first_name, last_name')
-      .eq('id', driverId)
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    const nowIso = new Date().toISOString();
+
+    // Атомарно «потребляем» токен: UPDATE сработает только один раз.
+    const { data: link } = await supabase
+      .from('driver_telegram_links')
+      .update({ used_at: nowIso })
+      .eq('token_hash', tokenHash)
+      .is('used_at', null)
+      .gt('expires_at', nowIso)
+      .select('driver_id')
       .maybeSingle();
 
-    if (!driver) {
+    if (!link) {
       await sendMessage(
         chatId,
-        '❌ Ссылка недействительна. Попросите офис прислать новую.'
+        '❌ Ссылка недействительна или устарела. Попросите офис прислать новую.'
       );
       return NextResponse.json({ ok: true });
     }
 
+    const { data: driver } = await supabase
+      .from('drivers')
+      .select('id, first_name')
+      .eq('id', link.driver_id)
+      .maybeSingle();
+
     const { error } = await supabase
       .from('drivers')
       .update({ telegram_chat_id: chatId })
-      .eq('id', driverId);
+      .eq('id', link.driver_id);
 
-    if (error) {
+    if (error || !driver) {
       console.error('[telegram/webhook] save chat_id error:', error);
-      await sendMessage(chatId, '⚠️ Ошибка сохранения. Попробуйте позже.');
+      await sendMessage(chatId, '⚠️ Ошибка сохранения. Попросите офис прислать новую ссылку.');
       return NextResponse.json({ ok: true });
     }
 

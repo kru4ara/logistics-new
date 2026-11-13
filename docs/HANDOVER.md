@@ -1,6 +1,6 @@
 # HANDOVER — Logistics CRM
 
-**Обновлено: 12.11.2026.** Файл — рабочая справка, не летопись. История фаз вынесена
+**Обновлено: 13.11.2026.** Файл — рабочая справка, не летопись. История фаз вынесена
 в [HANDOVER_PHASES.md](HANDOVER_PHASES.md).
 
 **Прод:** https://logistics-new-ebon.vercel.app (канонический домен; в API деплоя Vercel отдаёт
@@ -15,7 +15,7 @@
 
 - **Next.js 16.4.3** (App Router, Turbopack) + React 19.3.1 + Supabase + Vercel
 - **Tailwind CSS 4.3.3** — конфиг через `@theme` в `app/globals.css`, файла `tailwind.config.js` нет
-- **Vitest 5** — **132 теста в 11 файлах** `lib/__tests__/`, **eslint-config-next 16.4.3**, **exceljs 4.4**
+- **Vitest 5** — **140 тестов в 12 файлах** `lib/__tests__/`, **eslint-config-next 16.4.3**, **exceljs 4.4**
 
 ### ENV (Vercel → Settings → Environment Variables)
 `NEXT_PUBLIC_SUPABASE_URL` · `NEXT_PUBLIC_SUPABASE_ANON_KEY` (клиент, RLS действует) ·
@@ -57,7 +57,7 @@ trips (заказ)  ── trip_segments (участки: исполнитель
                 ── trip_expenses (расходы)
                 ── trip_documents (документы)
 trip_counter (нумерация) · profiles (роль, driver_id, manager_id)
-managers (карточки менеджеров) · manager_passwords (пароли менеджеров)
+managers (карточки менеджеров) · driver_telegram_links (одноразовые токены привязки Telegram)
 ```
 
 ### Режим расчёта — не выбирается
@@ -109,11 +109,12 @@ managers (карточки менеджеров) · manager_passwords (паро�
 
 - Таблица `managers`, колонки `profiles.manager_id` и `trips.manager_id` — **в проде есть**.
 - Раздел `/managers` (список, создание, карточка) — только для офиса.
-- **Пароли менеджеров** хранятся **открытым текстом** в `public.manager_passwords`
-  (`manager_id` PK, `password`, `updated_at`, `updated_by`). RLS: читает и пишет **только офис**
-  (`manager_passwords_office_only`) — менеджер и водитель не видят ни одной строки.
-- `setManagerPassword` (`app/managers/actions.ts`) синхронизирует: `auth.users` (пароль через admin API),
-  карточку `managers`, таблицу `manager_passwords`, плюс `profiles` (`role='manager'`, `manager_id`).
+- **Пароль менеджера нигде не хранится и не показывается** (Фаза 42): только хэш в `auth.users`.
+  Офис задаёт новый пароль в карточке — старый посмотреть нельзя. Таблица `manager_passwords`
+  удалена миграцией `018`.
+- `setManagerPassword` (`app/managers/actions.ts`) синхронизирует: `auth.users` (пароль через admin API,
+  поиск по e-mail обходит все страницы `listUsers`), карточку `managers`, `profiles`
+  (`role='manager'`, `manager_id`).
 
 ---
 
@@ -123,7 +124,9 @@ managers (карточки менеджеров) · manager_passwords (паро�
 Порядок источников: `auth.users` (прямой e-mail) → `managers.full_name` → `managers.email` →
 `drivers.last_name` → `drivers.email` → `public.users.login` (легаси) → `auth.users` по локальной части e-mail.
 
-Вызывается из `app/login/actions.ts`; если вход содержит `@` — функция не вызывается, e-mail идёт напрямую.
+Вызывается из `app/login/actions.ts` **через admin-клиент**; если вход содержит `@` — функция не вызывается,
+e-mail идёт напрямую. С миграции `016` вызывать её может **только `service_role`**: под `anon` любой мог
+перебором фамилий собрать e-mail сотрудников.
 
 **Проверено вживую на проде 12.11.2026:**
 `office` → `office@raibuilding.pl` · `ANATOLI KURLIUK` → `kru4ara@gmail.com` ·
@@ -135,9 +138,12 @@ managers (карточки менеджеров) · manager_passwords (паро�
 ## 7. Миграции
 
 - Папка `supabase/migrations/`, применяются **вручную** в Supabase SQL Editor.
-- Последняя — `20261112_015_fix_lookup_login_email.sql` (**применена на проде 12.11.2026**).
+- Последняя применённая на проде — `20261112_015_fix_lookup_login_email.sql` (12.11.2026).
   Перед ней: `014_manager_passwords`, `013_manager_role_check`, `012_managers`,
   `011_lock_backup_tables`, `010_plan_vs_actual_dates`.
+- **Ждут применения (Фаза 42, PR `fix/security-hardening`)** — строго **после** деплоя кода:
+  `016_lookup_login_email_server_only` → `017_driver_telegram_links` → `018_drop_manager_passwords`
+  (необратима). До деплоя `016` ломает вход по логину, `018` — карточку менеджера.
 - **Каждая миграция обязана быть в транзакции** (`BEGIN`/`COMMIT`) — иначе `psql -f` при ошибке
   оставит базу в полуприменённом состоянии.
 - **DDL из приложения недоступен:** RPC `exec_sql_json` даёт `select`, но не `create/alter`.
@@ -170,7 +176,7 @@ managers (карточки менеджеров) · manager_passwords (паро�
 - `trips`: **112** (31 — экспедирование, `profit_mode='forwarding'`); без номера — **0**.
 - `trip_segments`: 141 · `trip_expenses`: 563 · `profiles`: 4 (из них 1 — `role='manager'`).
 - `managers`: 1 (ANATOLI KURLIUK, `kru4ara@gmail.com`, id `b0339d80-4e0d-45bf-896d-3fe6e80e8f3c`).
-- `manager_passwords`: 1. `public.users` (легаси): 1.
+- `manager_passwords`: 1 (до миграции `018`). `public.users` (легаси): 1.
 - **Все 112 заказов** закреплены за менеджером; неназначенных — 0. Заказов без `end_date` — 2.
 - ⚠️ **`trip_number` нестабилен:** триггер `trg_trip_renumber` обнуляет номер у заказов
   без исполнителя. В разборе данных искать заказы по `id`.
@@ -209,7 +215,13 @@ managers (карточки менеджеров) · manager_passwords (паро�
 - `eslint.config.mjs` — `@eslint/js` + `typescript-eslint` + `react` + `react-hooks` + `globals`
   + готовый flat-конфиг `eslint-config-next`.
 - `postcss.config.js` — только `@tailwindcss/postcss`.
-- `proxy.ts` — проверка прав по capability; cron и вебхуки публичные.
+- `proxy.ts` — проверка прав по capability; cron (`/api/cron/*`, по `CRON_SECRET`) и вебхуки публичные.
+  Путь **без правила** в `PATH_CAPABILITIES` — только офис и менеджер; всем ролям открыты лишь
+  `isOpenToAllRoles()` (`/`, `/driver/*`, `/login`, статика PWA). Новый файл в `public/`, который нужен
+  водителю, — добавить в `OPEN_EXACT_PATHS`.
+- Telegram водителя — одноразовая ссылка на 24 ч (кнопка «Создать ссылку» в карточке водителя);
+  `?start=<driver_id>` больше не работает.
+- `next.config.js` — заголовки безопасности (nosniff, X-Frame-Options, HSTS, Referrer-/Permissions-Policy).
 - `exceljs` — в `dependencies`, ленивый импорт в клиентах, статический — в API.
 - `npm audit` — 5 moderate (`postcss-selector-parser` через Tailwind) — принятый dev-риск.
 - PWA — установка через «Добавить на главный экран».
