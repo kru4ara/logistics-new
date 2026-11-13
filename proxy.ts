@@ -1,6 +1,12 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-import { can, isDriverRole, capabilityForRequest } from './lib/roles'
+import {
+  can,
+  isDriverRole,
+  capabilityForRequest,
+  isOpenToAllRoles,
+  canUseUnlistedPath,
+} from './lib/roles'
 
 // Исключения: эти пути не требуют сессии (cron, вебхуки, публичные API)
 const PUBLIC_API_PATHS = [
@@ -107,6 +113,25 @@ export async function proxy(request: NextRequest) {
         }
         const url = request.nextUrl.clone()
         // Водителя — в его раздел, остальных — на главную
+        url.pathname = isDriverRole(role) ? '/driver' : '/'
+        return NextResponse.redirect(url)
+      }
+    } else if (!isOpenToAllRoles(pathname)) {
+      // Пути без правила в PATH_CAPABILITIES: только офис и менеджер.
+      // Иначе новая страница, забытая в матрице, открыта водителю.
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+      const role = profile?.role || 'driver';
+
+      if (!canUseUnlistedPath(role)) {
+        if (pathname.startsWith('/api/')) {
+          return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+        }
+        const url = request.nextUrl.clone()
         url.pathname = isDriverRole(role) ? '/driver' : '/'
         return NextResponse.redirect(url)
       }

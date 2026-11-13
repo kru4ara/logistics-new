@@ -221,3 +221,28 @@ export function capabilityForRequest(
 export function capabilityForPath(pathname: string): Capability | null {
   return capabilityForRequest(pathname, 'GET');
 }
+
+/**
+ * Пути, у которых нет правила в PATH_CAPABILITIES, но которые нужны
+ * любой роли: главная (редиректит по роли), раздел водителя, вход и
+ * статика PWA.
+ *
+ * Всё остальное без правила — только офис и менеджер (см.
+ * canUseUnlistedPath). Раньше путь без правила пропускался ЛЮБОМУ
+ * залогиненному, включая водителя: новая страница без записи в
+ * PATH_CAPABILITIES молча становилась открытой.
+ */
+const OPEN_EXACT_PATHS = ['/', '/manifest.webmanifest', '/icon.svg', '/apple-icon.svg'];
+const OPEN_PATH_PREFIXES = ['/driver', '/login'];
+
+export function isOpenToAllRoles(pathname: string): boolean {
+  if (OPEN_EXACT_PATHS.includes(pathname)) return true;
+  return OPEN_PATH_PREFIXES.some(
+    (p) => pathname === p || pathname.startsWith(p + '/')
+  );
+}
+
+/** Путь без правила: пускаем только офис и менеджера, водителя — нет. */
+export function canUseUnlistedPath(role: string | null | undefined): boolean {
+  return isOfficeRole(role) || isManagerRole(role);
+}
