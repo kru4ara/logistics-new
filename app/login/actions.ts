@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '../../lib/supabase/server';
+import { createClient as createAdminClient } from '../../lib/supabase/admin';
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 
@@ -54,13 +55,11 @@ export async function login(
   if (!loginValue.includes('@')) {
     // Ищем e-mail по логину через security-definer функцию.
     //
-    // Раньше здесь был прямой SELECT из users/drivers под anon-ключом.
-    // Это работало только потому, что RLS на этих таблицах был
-    // ВЫКЛЮЧЕН: anon-ключ публичный, лежит в клиентском бандле, и
-    // читать мог кто угодно из интернета. Теперь прямой доступ закрыт
-    // политиками RLS, а нужный e-mail отдаёт функция
-    // lookup_login_email (миграция 20261029_002).
-    const { data: foundEmail, error: lookupError } = await supabase.rpc(
+    // Функция отдаёт e-mail по фамилии/имени, поэтому с миграции 016
+    // вызывать её может только service_role. Зовём через admin-клиент
+    // на сервере: браузер и anon-ключ до неё не добираются.
+    const admin = await createAdminClient();
+    const { data: foundEmail, error: lookupError } = await admin.rpc(
       'lookup_login_email',
       { p_login: loginValue }
     );

@@ -659,7 +659,9 @@ insert into public.users (id, login) values
 insert into public.users (id, login, email) values
   ('15151515-1515-1515-1515-151515151515', 'legacy', 'legacy@x.local');
 
-set role authenticated;
+-- lookup_login_email с миграции 016 доступна только service_role
+-- (приложение зовёт её через admin-клиент), поэтому блоки 1-5 идут
+-- от имени владельца базы, а не от authenticated.
 
 -- 1. Прямой вход по e-mail.
 do $$
@@ -760,18 +762,34 @@ begin
 end;
 $$;
 
--- 7. anon может вызвать функцию (она вызывается ДО входа) —
---    но e-mail чужого менеджера это не утечка: функция и есть
---    точка входа в логин, и она отдаёт e-mail только по точному
---    совпадению логина.
+-- 7. anon и authenticated НЕ могут вызвать функцию.
+--
+-- Функция по фамилии/ФИО отдаёт e-mail. Если дать к ней доступ anon
+-- (публичный ключ), любой желающий перебором фамилий получит e-mail
+-- водителей и менеджеров. Поэтому с миграции 016 вызывать её может
+-- только service_role (приложение зовёт её через admin-клиент).
 reset role;
 set role anon;
-
-select public.assert_count(
-  'anon: lookup_login_email по e-mail', 1,
-  $q$select count(*) from (select public.lookup_login_email('office@x.local') as e) t where t.e = 'office@x.local'$q$);
+do $$
+begin
+  perform public.lookup_login_email('office@x.local');
+  raise exception 'FAIL: anon смог вызвать lookup_login_email';
+exception
+  when insufficient_privilege then
+    raise notice 'ok: anon не может вызвать lookup_login_email';
+end;
+$$;
 
 reset role;
 set role authenticated;
+do $$
+begin
+  perform public.lookup_login_email('office@x.local');
+  raise exception 'FAIL: authenticated смог вызвать lookup_login_email';
+exception
+  when insufficient_privilege then
+    raise notice 'ok: authenticated не может вызвать lookup_login_email';
+end;
+$$;
 
 reset role;
