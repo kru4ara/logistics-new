@@ -232,7 +232,19 @@ export function capabilityForPath(pathname: string): Capability | null {
  * залогиненному, включая водителя: новая страница без записи в
  * PATH_CAPABILITIES молча становилась открытой.
  */
-const OPEN_EXACT_PATHS = ['/', '/manifest.webmanifest', '/icon.svg', '/apple-icon.svg'];
+// sw.js и png-иконки лежат в public/ и тоже проходят через proxy (matcher
+// исключает только _next/* и favicon). Без них водителю отдаётся редирект
+// на /driver: браузер не регистрирует service worker за редиректом, и
+// PWA водителя теряет офлайн-режим и иконки установки.
+const OPEN_EXACT_PATHS = [
+  '/',
+  '/manifest.webmanifest',
+  '/icon.svg',
+  '/apple-icon.svg',
+  '/sw.js',
+  '/icon-192.png',
+  '/icon-512.png',
+];
 const OPEN_PATH_PREFIXES = ['/driver', '/login'];
 
 export function isOpenToAllRoles(pathname: string): boolean {

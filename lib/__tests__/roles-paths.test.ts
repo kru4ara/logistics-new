@@ -14,6 +14,27 @@ describe('пути без правила в PATH_CAPABILITIES', () => {
     expect(isOpenToAllRoles('/manifest.webmanifest')).toBe(true);
   });
 
+  it('статика PWA из public/ открыта водителю (иначе SW за редиректом)', () => {
+    expect(isOpenToAllRoles('/sw.js')).toBe(true);
+    expect(isOpenToAllRoles('/icon-192.png')).toBe(true);
+    expect(isOpenToAllRoles('/icon-512.png')).toBe(true);
+  });
+
+  it('все пути из public/sw.js и app/manifest.ts открыты всем', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const root = resolve(__dirname, '../..');
+    const sources = [
+      readFileSync(resolve(root, 'public/sw.js'), 'utf8'),
+      readFileSync(resolve(root, 'app/manifest.ts'), 'utf8'),
+    ].join('\n');
+    const paths = [...sources.matchAll(/'(\/[\w.\-/]+\.(?:js|png|svg|webmanifest))'/g)].map(
+      (m) => m[1]
+    );
+    expect(paths.length).toBeGreaterThan(0);
+    for (const p of paths) expect(isOpenToAllRoles(p), p).toBe(true);
+  });
+
   it('/drivers (офисный справочник) не путается с /driver', () => {
     expect(isOpenToAllRoles('/drivers')).toBe(false);
     expect(isOpenToAllRoles('/drivers/123')).toBe(false);
