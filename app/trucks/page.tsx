@@ -18,6 +18,7 @@ import {
   Inbox,
   Fuel,
 } from 'lucide-react';
+import { fetchAll } from '../../lib/fetch-all';
 
 export const dynamic = 'force-dynamic';
 
@@ -93,9 +94,9 @@ export default async function TrucksPage() {
   const fuelLevels = await fetchFuelLevels(supabase);
 
   // Считаем количество рейсов для каждой машины — и как тягач, и как прицеп
-  const { data: allTrips } = await supabase
+  const { data: allTrips } = await fetchAll(supabase
     .from('trips')
-    .select('truck_id, trailer_id');
+    .select('truck_id, trailer_id'));
 
   const tripsCountByTruck: Record<string, number> = {};
   allTrips?.forEach((t) => {

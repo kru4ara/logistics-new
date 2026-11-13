@@ -11,6 +11,7 @@ import TripFilters from './TripFilters';
 import RecalcAllCoordsButton from './RecalcAllCoordsButton';
 import TripsBulkList from './TripsBulkListWrapper';
 import { getScope, applyTripScope } from '../../lib/scope';
+import { fetchAll } from '../../lib/fetch-all';
 import type { TripCardData, MonthGroup } from './TripsBulkList';
 import {
   Package,
@@ -87,15 +88,20 @@ export default async function TripsPage({
   const scope = await getScope();
 
   const [tripsResult, expensesResult, driversResult, tractorsResult, clientsResult, segmentsResult] = await Promise.all([
-    applyTripScope(
-      supabase
-        .from('trips')
-        .select('*, clients(name), drivers!driver_id(first_name, last_name)'),
-      scope
+    // Заказы, расходы и сегменты — все строки, а не первые 1000 (lib/fetch-all.ts).
+    fetchAll(
+      applyTripScope(
+        supabase
+          .from('trips')
+          .select('*, clients(name), drivers!driver_id(first_name, last_name)'),
+        scope
+      )
     ),
-    supabase
-      .from('trip_expenses')
-      .select('trip_id, amount_eur'),
+    fetchAll(
+      supabase
+        .from('trip_expenses')
+        .select('trip_id, amount_eur')
+    ),
     supabase
       .from('drivers')
       .select('id, first_name, last_name')
@@ -109,9 +115,11 @@ export default async function TripsPage({
       .from('clients')
       .select('id, name')
       .order('name'),
-    supabase
-      .from('trip_segments')
-      .select('trip_id, position, from_city, from_country, to_city, to_country'),
+    fetchAll(
+      supabase
+        .from('trip_segments')
+        .select('trip_id, position, from_city, from_country, to_city, to_country')
+    ),
   ]);
 
   const trips = tripsResult.data;

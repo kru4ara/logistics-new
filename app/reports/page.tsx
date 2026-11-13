@@ -20,6 +20,7 @@ import {
   Package,
   type LucideIcon,
 } from 'lucide-react';
+import { fetchAll, fetchAllByIds } from '../../lib/fetch-all';
 
 export const dynamic = 'force-dynamic';
 
@@ -129,7 +130,7 @@ export default async function ReportsPage({
   if (statuses.length > 0) tripsQuery = tripsQuery.in('status', statuses);
   if (clientId) tripsQuery = tripsQuery.eq('client_id', clientId);
 
-  const { data: trips, error: tripsError } = await tripsQuery;
+  const { data: trips, error: tripsError } = await fetchAll(tripsQuery);
 
   if (tripsError) {
     return <div className="p-8 text-red-500">Ошибка загрузки: {tripsError.message}</div>;
@@ -139,9 +140,9 @@ export default async function ReportsPage({
   //
   // Фаза 39: сегменты читаем по всем заказам, но маршрут строим только
   // по заказам в периметре пользователя.
-  const { data: segmentsData } = await supabase
+  const { data: segmentsData } = await fetchAll(supabase
     .from('trip_segments')
-    .select('trip_id, position, from_city, from_country, to_city, to_country');
+    .select('trip_id, position, from_city, from_country, to_city, to_country'));
 
   const tripIds = (trips || []).map((t) => t.id).filter(Boolean) as string[];
   const visibleTripIds = new Set(tripIds);
@@ -154,10 +155,10 @@ export default async function ReportsPage({
 
   let expenses: { trip_id: string | null; amount_eur: number | null }[] = [];
   if (tripIds.length > 0) {
-    const { data, error } = await supabase
+    const { data, error } = await fetchAllByIds(tripIds, (chunk) => supabase
       .from('trip_expenses')
       .select('trip_id, amount_eur')
-      .in('trip_id', tripIds);
+      .in('trip_id', chunk));
     if (error) {
       return <div className="p-8 text-red-500">Ошибка загрузки: {error.message}</div>;
     }

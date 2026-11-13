@@ -12,6 +12,7 @@ import {
   Fuel,
   Package,
 } from 'lucide-react';
+import { fetchAll } from '../../../lib/fetch-all';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,17 +34,17 @@ export default async function DriverKpiPage() {
   // KPI считается по периметру заказов менеджера (фаза 39).
   const scope = await getScope();
 
-  const { data: trips } = await applyTripScope(
+  const { data: trips } = await fetchAll(applyTripScope(
       supabase
         .from('trips')
         .select('id, driver_id, revenue_eur, actual_km, actual_liters, start_date, end_date, status'),
       scope
-    );
+    ));
 
   // ⬅️ ВСЕ расходы (не только ЗП)
-  const { data: allExpenses } = await supabase
+  const { data: allExpenses } = await fetchAll(supabase
     .from('trip_expenses')
-    .select('trip_id, amount_eur, category, expense_date');
+    .select('trip_id, amount_eur, category, expense_date'));
 
   const tripToDriver: Record<string, string> = {};
   (trips || []).forEach((t) => {

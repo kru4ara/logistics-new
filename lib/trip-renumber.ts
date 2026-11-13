@@ -1,5 +1,6 @@
 import type { createClient } from './supabase/admin';
 import { FORWARDING_SUFFIX, orderByNumberingDate } from './orders-core';
+import { fetchAll } from './fetch-all';
 
 /**
  * Перенумеровывает все заказы по дате выгрузки ASC.
@@ -19,11 +20,11 @@ import { FORWARDING_SUFFIX, orderByNumberingDate } from './orders-core';
 export async function renumberAllTrips(
   supabase: Awaited<ReturnType<typeof createClient>>
 ): Promise<void> {
-  const { data: trips, error } = await supabase
+  const { data: trips, error } = await fetchAll(supabase
     .from('trips')
     .select('id, trip_number, start_date, end_date, created_at, profit_mode')
     .order('end_date', { ascending: true, nullsFirst: false })
-    .order('created_at', { ascending: true });
+    .order('created_at', { ascending: true }));
 
   if (error) {
     console.error('[renumber-trips] failed to load trips:', error.message);

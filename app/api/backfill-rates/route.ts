@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '../../../lib/supabase/admin';
+import { fetchAll } from '../../../lib/fetch-all';
 
 // Получить PLN → EUR на конкретную дату (frankfurter.app — данные ЕЦБ)
 async function fetchPlnToEur(date: string): Promise<number | null> {
@@ -44,11 +45,11 @@ export async function GET() {
     // 1. Собираем все уникальные даты из расходов
     const dates = new Set<string>();
 
-    const { data: e1 } = await supabase
+    const { data: e1 } = await fetchAll(supabase
       .from('trip_expenses')
       .select('expense_date')
       .in('currency', ['PLN', 'BYN'])
-      .not('expense_date', 'is', null);
+      .not('expense_date', 'is', null));
     e1?.forEach((r) => r.expense_date && dates.add(r.expense_date));
 
     const { data: e2 } = await supabase
@@ -60,12 +61,12 @@ export async function GET() {
 
     // Экспедирования переехали в заказы: сумма и валюта — в расходах заказа
     // (trip_expenses, категория 'forwarding'), дата — expense_date.
-    const { data: e3 } = await supabase
+    const { data: e3 } = await fetchAll(supabase
       .from('trip_expenses')
       .select('expense_date')
       .in('currency', ['PLN', 'BYN'])
       .eq('category', 'forwarding')
-      .not('expense_date', 'is', null);
+      .not('expense_date', 'is', null));
     e3?.forEach((r) => r.expense_date && dates.add(r.expense_date));
 
     const sortedDates = Array.from(dates).sort();

@@ -5,6 +5,7 @@ import { getSessionContext } from '../../../lib/session';
 import { can } from '../../../lib/roles';
 import { createClient } from '../../../lib/supabase/admin';
 import { buildRouteMap } from '../../../lib/trip-route';
+import { fetchAll, fetchAllByIds } from '../../../lib/fetch-all';
 
 export const dynamic = 'force-dynamic';
 
@@ -90,21 +91,21 @@ async function loadOrderExpenses(
   const contractor: Record<string, number> = {};
   if (orderIds.length === 0) return { direct, contractor };
 
-  const { data: exp, error: expErr } = await supabase
+  const { data: exp, error: expErr } = await fetchAllByIds(orderIds, (chunk) => supabase
     .from('trip_expenses')
     .select('trip_id, amount_eur')
-    .in('trip_id', orderIds);
+    .in('trip_id', chunk));
   if (expErr) console.error('[export] expenses error:', expErr);
   (exp || []).forEach((e: any) => {
     if (!e.trip_id) return;
     direct[e.trip_id] = (direct[e.trip_id] || 0) + toNumber(e.amount_eur);
   });
 
-  const { data: cs, error: csErr } = await supabase
+  const { data: cs, error: csErr } = await fetchAllByIds(orderIds, (chunk) => supabase
     .from('trip_segments')
     .select('trip_id, price')
-    .in('trip_id', orderIds)
-    .eq('executor_type', 'contractor');
+    .in('trip_id', chunk)
+    .eq('executor_type', 'contractor'));
   if (csErr) console.error('[export] contractor segments error:', csErr);
   (cs || []).forEach((s: any) => {
     if (!s.trip_id) return;
@@ -120,7 +121,7 @@ async function buildTripsSheet(
   to: string | null
 ): Promise<ExcelJS.Worksheet> {
   // Единый источник: заказы (рейсы + экспедирования).
-  const { data: orders, error } = await supabase
+  const { data: orders, error } = await fetchAll(supabase
     .from('trips')
     .select(`
       id, trip_number, start_date, end_date, status,
@@ -128,7 +129,7 @@ async function buildTripsSheet(
       clients(name),
       drivers!driver_id(first_name, last_name),
       trucks!truck_id(registration_number)
-    `);
+    `));
   if (error) console.error('[export/orders] orders error:', error);
 
   const rowsSrc = (orders || []).filter((o: any) => {
@@ -142,10 +143,10 @@ async function buildTripsSheet(
   const orderIds = rowsSrc.map((o: any) => o.id).filter(Boolean) as string[];
 
   const { data: segs } = orderIds.length > 0
-    ? await supabase
+    ? await fetchAllByIds(orderIds, (chunk) => supabase
         .from('trip_segments')
         .select('trip_id, position, from_city, from_country, to_city, to_country')
-        .in('trip_id', orderIds)
+        .in('trip_id', chunk))
     : { data: [] };
   const routeByTrip = buildRouteMap(segs || []);
 
@@ -234,7 +235,7 @@ async function buildExpensesSheet(
   if (from) query = query.gte('expense_date', from);
   if (to) query = query.lte('expense_date', to);
 
-  const { data, error } = await query;
+  const { data, error } = await fetchAll(query);
   if (error) console.error('[export/expenses] error:', error);
 
   const rows: Record<string, unknown>[] = (data || []).map((e: any) => ({
@@ -285,13 +286,13 @@ async function buildForwardingSheet(
   to: string | null
 ): Promise<ExcelJS.Worksheet> {
   // Экспедирования — это заказы с profit_mode='forwarding'.
-  const { data: orders, error } = await supabase
+  const { data: orders, error } = await fetchAll(supabase
     .from('trips')
     .select(`
       id, trip_number, start_date, end_date, status, revenue_eur,
       profit_mode, clients(name)
     `)
-    .eq('profit_mode', 'forwarding');
+    .eq('profit_mode', 'forwarding'));
 
   if (error) console.error('[export/forwarding] orders error:', error);
 
@@ -361,9 +362,9 @@ async function buildClientsSheet(
   supabase: Awaited<ReturnType<typeof createClient>>
 ): Promise<ExcelJS.Worksheet> {
   // Единый источник: заказы (рейсы + экспедиции).
-  const { data: orders } = await supabase
+  const { data: orders } = await fetchAll(supabase
     .from('trips')
-    .select('revenue_eur, profit_mode, clients(name)');
+    .select('revenue_eur, profit_mode, clients(name)'));
 
   const stats: Record<string, { name: string; revenue: number; count: number; type: string }> = {};
 

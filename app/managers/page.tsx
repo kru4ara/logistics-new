@@ -13,6 +13,7 @@ import {
   CheckCircle2,
   XCircle,
 } from 'lucide-react';
+import { fetchAll } from '../../lib/fetch-all';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,9 +34,9 @@ export default async function ManagersPage() {
   }
 
   // Сколько заказов у каждого менеджера (всего и неназначенных).
-  const { data: allTrips } = await supabase
+  const { data: allTrips } = await fetchAll(supabase
     .from('trips')
-    .select('manager_id');
+    .select('manager_id'));
 
   const tripsCountByManager: Record<string, number> = {};
   let unassignedCount = 0;

@@ -22,6 +22,7 @@ import { hasUnloadDate } from '../../lib/orders-core';
 import { pickName, pickOne, getDriverName, getTruckNumber } from './lib/relations';
 import { fetchFuelLevels } from '../../lib/fuel-server';
 import { type EventItem } from './lib/events';
+import { fetchAll, fetchAllByIds } from '../../lib/fetch-all';
 
 export const dynamic = 'force-dynamic';
 // react-hooks/purity: impure-вызовы (Date.now) нельзя делать прямо в теле
@@ -40,7 +41,7 @@ export default async function TodayPage() {
   const scope = await getScope();
 
   // 1. РЕЙСЫ
-  const { data: tripsRaw, error: tripsError } = await applyTripScope(
+  const { data: tripsRaw, error: tripsError } = await fetchAll(applyTripScope(
       supabase
         .from('trips')
         .select(`
@@ -52,7 +53,7 @@ export default async function TodayPage() {
       trucks!truck_id(registration_number)
     `),
       scope
-    );
+    ));
 
   if (tripsError) {
     console.error('[today] trips query error:', tripsError.message);
@@ -67,10 +68,10 @@ export default async function TodayPage() {
 
   // Сегменты — вычисляем route и from/to
   const { data: routeSegs } = tripIds.length > 0
-    ? await supabase
+    ? await fetchAllByIds(tripIds, (chunk) => supabase
         .from('trip_segments')
         .select('trip_id, position, from_city, from_country, to_city, to_country')
-        .in('trip_id', tripIds)
+        .in('trip_id', chunk))
     : { data: [] };
 
   const routeMap = buildRouteMap(routeSegs || []);
@@ -106,7 +107,7 @@ export default async function TodayPage() {
   // Фаза 39: сегменты читаем по всем заказам (индекс по trip_id быстрее),
   // поэтому фильтруем по периметру менеджера — иначе в ленту попадали бы
   // подрядчики с чужих заказов.
-  const { data: subsRaw } = await supabase
+  const { data: subsRaw } = await fetchAll(supabase
     .from('trip_segments')
     .select(`
       id, trip_id, position,
@@ -115,7 +116,7 @@ export default async function TodayPage() {
       stops,
       contractors(name)
     `)
-    .eq('executor_type', 'contractor');
+    .eq('executor_type', 'contractor'));
 
   // Заказы в периметре пользователя (allTrips уже отфильтрован скоупом).
   const visibleTripIds = new Set(allTrips.map((t: any) => t.id as string));
@@ -175,7 +176,7 @@ export default async function TodayPage() {
   // 3. ЭКСПЕДИРОВАНИЕ — заказы с profit_mode='forwarding'.
   //    Точки маршрута лежат в trip_segments.stops (jsonb) в общем
   //    с рейсами формате: type 'load' | 'reload' | 'unload' | 'customs'.
-  const { data: fwdOrders } = await applyTripScope(
+  const { data: fwdOrders } = await fetchAll(applyTripScope(
       supabase
         .from('trips')
         .select(`
@@ -184,15 +185,15 @@ export default async function TodayPage() {
     `),
       scope
     )
-    .eq('profit_mode', 'forwarding');
+    .eq('profit_mode', 'forwarding'));
 
   const fwdOrderIds = (fwdOrders || []).map((o: any) => o.id).filter(Boolean) as string[];
 
   const { data: fwdSegs } = fwdOrderIds.length > 0
-    ? await supabase
+    ? await fetchAllByIds(fwdOrderIds, (chunk) => supabase
         .from('trip_segments')
         .select('id, trip_id, executor_type, stops, contractors(name)')
-        .in('trip_id', fwdOrderIds)
+        .in('trip_id', chunk))
     : { data: [] };
 
   const segsByOrder: Record<string, any[]> = {};
@@ -270,7 +271,7 @@ export default async function TodayPage() {
   ];
   
   // 3.5. ЗАВЕРШЁННЫЕ РЕЙСЫ БЕЗ ЗП
-  const { data: completedTrips } = await applyTripScope(
+  const { data: completedTrips } = await fetchAll(applyTripScope(
       supabase
         .from('trips')
         .select(`
@@ -281,16 +282,16 @@ export default async function TodayPage() {
       scope
     )
     .eq('status', 'completed')
-    .not('driver_id', 'is', null);
+    .not('driver_id', 'is', null));
 
   const completedTripIds = (completedTrips || []).map((t: any) => t.id);
 
   const { data: salaryExpenses } = completedTripIds.length > 0
-    ? await supabase
+    ? await fetchAllByIds(completedTripIds, (chunk) => supabase
         .from('trip_expenses')
         .select('trip_id')
         .eq('category', 'salary')
-        .in('trip_id', completedTripIds)
+        .in('trip_id', chunk))
     : { data: [] };
 
   const tripsWithSalary = new Set((salaryExpenses || []).map((e: any) => e.trip_id));
@@ -306,11 +307,11 @@ export default async function TodayPage() {
     }));
 
   // 4. ВНИМАНИЕ
-  const { data: remindersRaw } = await supabase
+  const { data: remindersRaw } = await fetchAll(supabase
     .from('reminders')
     .select('id, title, due_date, status')
     .neq('status', 'done')
-    .order('due_date', { ascending: true });
+    .order('due_date', { ascending: true }));
 
   const overdueReminders: { id: string; title: string; days: number }[] = [];
   (remindersRaw || []).forEach((r) => {

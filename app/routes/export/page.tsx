@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { createClient } from '../../../lib/supabase/admin';
 import { buildRouteMap, type SegmentRouteRow } from '../../../lib/trip-route';
 import { ArrowLeft, Download } from 'lucide-react';
+import { fetchAll } from '../../../lib/fetch-all';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,15 +10,15 @@ export default async function ExportPage() {
   const supabase = await createClient();
 
   const [tripsResult, expensesResult, segmentsResult] = await Promise.all([
-    supabase
+    fetchAll(supabase
       .from('trips')
-      .select('id, revenue_eur'),
-    supabase
+      .select('id, revenue_eur')),
+    fetchAll(supabase
       .from('trip_expenses')
-      .select('trip_id, amount_eur'),
-    supabase
+      .select('trip_id, amount_eur')),
+    fetchAll(supabase
       .from('trip_segments')
-      .select('trip_id, position, from_city, from_country, to_city, to_country'),
+      .select('trip_id, position, from_city, from_country, to_city, to_country')),
   ]);
 
   const trips = tripsResult.data || [];

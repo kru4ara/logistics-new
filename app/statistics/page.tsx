@@ -9,6 +9,7 @@ import StatisticsCapex from './StatisticsCapex';
 import StatisticsTable from './StatisticsTable';
 import StatisticsLegend from './StatisticsLegend';
 import { getScope, applyTripScope } from '../../lib/scope';
+import { fetchAll } from '../../lib/fetch-all';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,14 +31,14 @@ export default async function StatisticsPage({ searchParams }: { searchParams: P
   // Статистика менеджера — только по его заказам (фаза 39).
   const scope = await getScope();
 
-  const { data: orders } = await applyTripScope(
+  const { data: orders } = await fetchAll(applyTripScope(
       supabase
         .from('trips')
         .select(
       'id, revenue_eur, start_date, end_date, status, profit_mode, is_forwarding'
     ),
       scope
-    );
+    ));
 
   const orderIds = orders?.map((o) => o.id) || [];
 
@@ -48,9 +49,9 @@ export default async function StatisticsPage({ searchParams }: { searchParams: P
   const expensesByOrder: Record<string, number> = {};
   const contractorByOrder: Record<string, number> = {};
   if (orderIds.length > 0) {
-    const { data: allExpenses } = await supabase
+    const { data: allExpenses } = await fetchAll(supabase
       .from('trip_expenses')
-      .select('amount_eur, trip_id, category');
+      .select('amount_eur, trip_id, category'));
     allExpenses?.forEach((e) => {
       if (!e.trip_id) return;
       const amount = e.amount_eur || 0;

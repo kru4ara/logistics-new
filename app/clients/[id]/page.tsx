@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { createClient } from '../../../lib/supabase/admin';
 import { buildRouteMap, type SegmentRouteRow } from '../../../lib/trip-route';
+import { fetchAllByIds } from '../../../lib/fetch-all';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,10 +55,10 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
   const tripIds = trips?.map((t) => t.id) || [];
   const routeByTrip = new Map<string, string>();
   if (tripIds.length > 0) {
-    const { data: segRows } = await supabase
+    const { data: segRows } = await fetchAllByIds(tripIds, (chunk) => supabase
       .from('trip_segments')
       .select('trip_id, position, from_city, from_country, to_city, to_country')
-      .in('trip_id', tripIds);
+      .in('trip_id', chunk));
 
     const routeMap = buildRouteMap((segRows || []) as SegmentRouteRow[]);
     routeMap.forEach((info, tripId) => {
@@ -65,9 +66,12 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
     });
   }
 
-  const { data: expenses } = await supabase
+  // Расходы только по заказам этого клиента (раньше читалась вся таблица
+  // и обрезалась на 1000 строк — суммы клиента могли быть неполными).
+  const { data: expenses } = await fetchAllByIds(tripIds, (chunk) => supabase
     .from('trip_expenses')
-    .select('trip_id, amount_eur');
+    .select('trip_id, amount_eur')
+    .in('trip_id', chunk));
 
   const expensesByTrip = expenses?.reduce((acc, e) => {
     if (!e.trip_id) return acc;
