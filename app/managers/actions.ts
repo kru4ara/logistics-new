@@ -6,7 +6,6 @@ import { createClient } from '../../lib/supabase/admin';
 import { requireCapability } from '../../lib/require-office';
 import { managerProfileUpdate } from '../../lib/roles';
 import { logAudit } from '../../lib/audit';
-import { getSessionContext } from '../../lib/session';
 
 /**
  * Экшены раздела «Менеджеры».
@@ -105,6 +104,26 @@ export async function updateManager(formData: FormData): Promise<void> {
 }
 
 /**
+ * Ищет учётную запись Auth по e-mail с постраничным обходом.
+ * listUsers() без параметров отдаёт только первую страницу (~50 записей),
+ * и при росте базы createUser падал бы с «already registered».
+ */
+async function findAuthUserByEmail(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  email: string
+) {
+  const perPage = 200;
+  for (let page = 1; page <= 20; page++) {
+    const { data, error } = await supabase.auth.admin.listUsers({ page, perPage });
+    if (error) throw new Error(`Ошибка чтения учётных записей: ${error.message}`);
+    const found = data.users.find((u) => (u.email || '').toLowerCase() === email);
+    if (found) return found;
+    if (data.users.length < perPage) break;
+  }
+  return null;
+}
+
+/**
  * Привязка учётной записи к карточке менеджера.
  *
  * Профиль (auth.users -> profiles) должен получить role='manager' и
@@ -114,9 +133,9 @@ export async function updateManager(formData: FormData): Promise<void> {
 /**
  * Задать или сменить пароль менеджера.
  *
- * Офис видит пароль в карточке и может его менять — поэтому здесь
- * пароль хранится открытым текстом (manager_passwords, RLS: только
- * офис) и одновременно выставляется в учётной записи Supabase Auth.
+ * Пароль выставляется в учётной записи Supabase Auth (там хранится
+ * только хэш) и нигде больше не сохраняется и не показывается.
+ * Забыл пароль — офис задаёт новый.
  *
  * Что происходит:
  *   1. e-mail карточки — это логин: именно по нему человек входит.
@@ -151,14 +170,7 @@ export async function setManagerPassword(formData: FormData): Promise<void> {
   }
 
   // Учётная запись: создаём, если её ещё нет.
-  const { data: existingList, error: listError } = await supabase.auth.admin.listUsers();
-  if (listError) {
-    throw new Error(`Ошибка чтения учётных записей: ${listError.message}`);
-  }
-
-  const existing = (existingList?.users || []).find(
-    (u) => (u.email || '').toLowerCase() === email
-  );
+  const existing = await findAuthUserByEmail(supabase, email);
 
   let userId = existing?.id || '';
 
@@ -180,7 +192,8 @@ export async function setManagerPassword(formData: FormData): Promise<void> {
 
   if (!userId) throw new Error('Не удалось определить учётную запись');
 
-  // Карточка: e-mail (он же логин), пароль и профиль.
+  // Карточка: e-mail (он же логин) и дата смены пароля. Сам пароль
+  // нигде не хранится — только в Supabase Auth (хэш).
   const { error: managerError } = await supabase
     .from('managers')
     .update({
@@ -190,19 +203,6 @@ export async function setManagerPassword(formData: FormData): Promise<void> {
     })
     .eq('id', managerId);
   if (managerError) throw new Error(`Ошибка сохранения карточки: ${managerError.message}`);
-
-  const { error: passwordError } = await supabase
-    .from('manager_passwords')
-    .upsert(
-      {
-        manager_id: managerId,
-        password,
-        updated_at: new Date().toISOString(),
-        updated_by: (await getSessionContext()).userId,
-      },
-      { onConflict: 'manager_id' }
-    );
-  if (passwordError) throw new Error(`Ошибка сохранения пароля: ${passwordError.message}`);
 
   // Профиль менеджера: роль 'manager' + ссылка на карточку.
   //
