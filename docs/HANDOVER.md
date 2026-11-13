@@ -15,13 +15,14 @@
 
 - **Next.js 16.4.3** (App Router, Turbopack) + React 19.3.1 + Supabase + Vercel
 - **Tailwind CSS 4.3.3** — конфиг через `@theme` в `app/globals.css`, файла `tailwind.config.js` нет
-- **Vitest 5** — **151 тест в 13 файлах** `lib/__tests__/`, **eslint-config-next 16.4.3**, **exceljs 4.4**
+- **Vitest 5** — **166 тестов в 15 файлах** `lib/__tests__/`, **eslint-config-next 16.4.3**, **exceljs 4.4**
 
 ### ENV (Vercel → Settings → Environment Variables)
 `NEXT_PUBLIC_SUPABASE_URL` · `NEXT_PUBLIC_SUPABASE_ANON_KEY` (клиент, RLS действует) ·
 `SUPABASE_SERVICE_ROLE_KEY` (server, обходит RLS) · `LOGISAT_SERVER` / `LOGISAT_USERNAME` /
 `LOGISAT_PASSWORD` · `TELEGRAM_BOT_TOKEN` (@raibuilding_bot) · `TELEGRAM_CHAT_ID` (`921520481`) ·
-`TELEGRAM_WEBHOOK_SECRET` ✅ · `CRON_SECRET` ✅
+`TELEGRAM_WEBHOOK_SECRET` ✅ · `CRON_SECRET` ✅ ·
+`BACKUP_ENCRYPTION_KEY` (32 байта base64, `openssl rand -base64 32`; **копия — в менеджере паролей**, без неё бэкап не расшифровать)
 
 ---
 
@@ -225,6 +226,10 @@ e-mail идёт напрямую. С миграции `016` вызывать е�
 - `next.config.js` — заголовки безопасности (nosniff, X-Frame-Options, HSTS, Referrer-/Permissions-Policy).
 - **Выборки из растущих таблиц — через `fetchAll` / `fetchAllByIds`** (`lib/fetch-all.ts`):
   PostgREST молча режет ответ на 1000 строк, а длинный `.in(ids)` падает по длине URL. Правило — в `AGENTS.md`.
+- **Бэкап** (`/api/cron/backup`, 07:00 UTC): все таблицы → JSON → gzip → AES-256-GCM → файл
+  `backup_*.json.gz.enc` в Telegram. Без `BACKUP_ENCRYPTION_KEY` не отправляется (алерт).
+  Расшифровка: `BACKUP_ENCRYPTION_KEY='…' node scripts/decrypt-backup.mjs <файл>`.
+  Новую таблицу — добавить в `TABLES` в роуте. Файлы из Storage (документы, фото) **не бэкапятся**.
 - `exceljs` — в `dependencies`, ленивый импорт в клиентах, статический — в API.
 - `npm audit` — 5 moderate (`postcss-selector-parser` через Tailwind) — принятый dev-риск.
 - PWA — установка через «Добавить на главный экран».
