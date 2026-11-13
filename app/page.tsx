@@ -13,6 +13,7 @@ import { CHART_PALETTE, CATEGORY_META } from '../lib/dashboard/category';
 import { splitReminders } from '../lib/dashboard/reminders';
 import { getOrderUnloadDate } from '../lib/orders-core';
 import { isStatsCompleted } from '../lib/statistics';
+import { fetchAll } from '../lib/fetch-all';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,18 +38,18 @@ export default async function Home() {
   // Главная: менеджер видит только свой периметр заказов (фаза 39).
   const scope = await getScope();
 
-  const { data: trips } = await applyTripScope(
+  const { data: trips } = await fetchAll(applyTripScope(
       supabase
         .from('trips')
         .select(
       'id, client_id, revenue_eur, start_date, end_date, status, profit_mode, is_forwarding'
     ),
       scope
-    );
+    ));
 
-  const { data: tripExpenses } = await supabase
+  const { data: tripExpenses } = await fetchAll(supabase
     .from('trip_expenses')
-    .select('trip_id, amount_eur, category');
+    .select('trip_id, amount_eur, category'));
 
   // Расходы делим на две части:
   //   подрядчик — запись в trip_expenses с category='contractor'
@@ -77,11 +78,11 @@ export default async function Home() {
   // ============================================================
   // НАПОМИНАНИЯ — для блока «Требует внимания»
   // ============================================================
-  const { data: remindersRaw } = await supabase
+  const { data: remindersRaw } = await fetchAll(supabase
     .from('reminders')
     .select('id, title, due_date, status')
     .neq('status', 'done')
-    .order('due_date', { ascending: true });
+    .order('due_date', { ascending: true }));
 
   const { expired, soon } = splitReminders(remindersRaw);
 

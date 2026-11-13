@@ -14,6 +14,7 @@ import {
   Package,
   Truck,
 } from 'lucide-react';
+import { fetchAll } from '../../lib/fetch-all';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,18 +27,18 @@ export default async function RoutesPage() {
   const scope = await getScope();
 
   const [tripsResult, expensesResult, segmentsResult] = await Promise.all([
-    applyTripScope(
+    fetchAll(applyTripScope(
       supabase
         .from('trips')
         .select('id, revenue_eur'),
       scope
-    ),
-    supabase
+    )),
+    fetchAll(supabase
       .from('trip_expenses')
-      .select('trip_id, amount_eur'),
-    supabase
+      .select('trip_id, amount_eur')),
+    fetchAll(supabase
       .from('trip_segments')
-      .select('trip_id, position, from_city, from_country, to_city, to_country'),
+      .select('trip_id, position, from_city, from_country, to_city, to_country')),
   ]);
 
   if (tripsResult.error) {

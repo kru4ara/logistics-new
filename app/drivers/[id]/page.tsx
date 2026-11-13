@@ -17,6 +17,7 @@ import {
   ScrollText,
   AlertTriangle,
 } from 'lucide-react';
+import { fetchAllByIds } from '../../../lib/fetch-all';
 
 export const dynamic = 'force-dynamic';
 
@@ -114,10 +115,10 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
   const tripIds = (trips || []).map((t) => t.id);
   const routeByTrip = new Map<string, string>();
   if (tripIds.length > 0) {
-    const { data: segRows } = await supabase
+    const { data: segRows } = await fetchAllByIds(tripIds, (chunk) => supabase
       .from('trip_segments')
       .select('trip_id, position, from_city, from_country, to_city, to_country')
-      .in('trip_id', tripIds);
+      .in('trip_id', chunk));
 
     const routeMap = buildRouteMap((segRows || []) as SegmentRouteRow[]);
     routeMap.forEach((info, tripId) => {

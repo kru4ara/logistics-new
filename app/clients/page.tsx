@@ -15,6 +15,7 @@ import {
   ArrowRight,
   Inbox,
 } from 'lucide-react';
+import { fetchAll } from '../../lib/fetch-all';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,12 +37,12 @@ export default async function ClientsPage() {
   // Счётчик заказов у клиента — по периметру менеджера (фаза 39).
   const scope = await getScope();
 
-  const { data: trips } = await applyTripScope(
+  const { data: trips } = await fetchAll(applyTripScope(
       supabase
         .from('trips')
         .select('client_id'),
       scope
-    );
+    ));
 
   const tripsByClient = trips?.reduce((acc, t) => {
     if (!t.client_id) return acc;

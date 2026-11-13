@@ -16,6 +16,7 @@ import {
   Truck as TruckIcon,
   UserCircle,
 } from 'lucide-react';
+import { fetchAll } from '../../lib/fetch-all';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,10 +35,10 @@ export default async function RemindersPage({
 
   const show = resolvedParams.show || 'active';
 
-  const { data: allReminders, error } = await supabase
+  const { data: allReminders, error } = await fetchAll(supabase
     .from('reminders')
     .select('*')
-    .order('due_date', { ascending: true });
+    .order('due_date', { ascending: true }));
 
   if (error) {
     return <div className="p-8 text-red-500">Ошибка загрузки: {error.message}</div>;

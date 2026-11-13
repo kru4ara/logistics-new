@@ -10,6 +10,7 @@ import {
   Search,
   X,
 } from 'lucide-react';
+import { fetchAllByIds } from '../../lib/fetch-all';
 
 export const dynamic = 'force-dynamic';
 
@@ -90,11 +91,11 @@ export default async function DriverPage({
   const segmentsByTrip: Record<string, TripRouteInfo> = {};
 
   if (tripIds.length > 0) {
-    const { data: segsAll } = await supabase
+    const { data: segsAll } = await fetchAllByIds(tripIds, (chunk) => supabase
       .from('trip_segments')
       .select('trip_id, position, executor_type, from_city, from_country, to_city, to_country, to_company, to_postal_code, to_address, date_to')
-      .in('trip_id', tripIds)
-      .order('position', { ascending: true });
+      .in('trip_id', chunk)
+      .order('position', { ascending: true }));
 
     // Консолидация: последний contractor-сегмент = точка C
     const best: Record<string, any> = {};
@@ -182,11 +183,11 @@ export default async function DriverPage({
   // ============================================================
   let salaryTotal = 0;
   if (tripIds.length > 0) {
-    const { data: salaryExpenses } = await supabase
+    const { data: salaryExpenses } = await fetchAllByIds(tripIds, (chunk) => supabase
       .from('trip_expenses')
       .select('amount_eur')
       .eq('category', 'salary')
-      .in('trip_id', tripIds);
+      .in('trip_id', chunk));
     salaryTotal = salaryExpenses?.reduce((sum, e) => sum + (e.amount_eur || 0), 0) || 0;
   }
 
@@ -210,13 +211,13 @@ export default async function DriverPage({
 
   let monthSalary = 0;
   if (tripIds.length > 0) {
-    const { data: monthSalaryExp } = await supabase
+    const { data: monthSalaryExp } = await fetchAllByIds(tripIds, (chunk) => supabase
       .from('trip_expenses')
       .select('amount_eur')
       .eq('category', 'salary')
-      .in('trip_id', tripIds)
+      .in('trip_id', chunk)
       .gte('expense_date', monthStart)
-      .lt('expense_date', nextMonthStart);
+      .lt('expense_date', nextMonthStart));
     monthSalary = monthSalaryExp?.reduce((sum, e) => sum + (e.amount_eur || 0), 0) || 0;
   }
 

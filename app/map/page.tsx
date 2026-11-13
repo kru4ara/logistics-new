@@ -11,6 +11,7 @@ import {
   ArrowRight,
   Inbox,
 } from 'lucide-react';
+import { fetchAll, fetchAllByIds } from '../../lib/fetch-all';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,14 +23,14 @@ export default async function MapPage() {
 
   const scope = await getScope();
 
-  const { data: tripsRaw, error } = await applyTripScope(
+  const { data: tripsRaw, error } = await fetchAll(applyTripScope(
       supabase
         .from('trips')
         .select('id, trip_number, status, start_lat, start_lng, end_lat, end_lng, start_date'),
       scope
     )
     .not('start_lat', 'is', null)
-    .not('start_lng', 'is', null);
+    .not('start_lng', 'is', null));
 
   if (error) {
     return <div className="p-8 text-red-500">Ошибка загрузки рейсов: {error.message}</div>;
@@ -38,10 +39,10 @@ export default async function MapPage() {
   // Маршрут и точки — из сегментов
   const tripIds = (tripsRaw || []).map((t: any) => t.id);
   const { data: segs } = tripIds.length > 0
-    ? await supabase
+    ? await fetchAllByIds(tripIds, (chunk) => supabase
         .from('trip_segments')
         .select('trip_id, position, from_city, from_country, to_city, to_country')
-        .in('trip_id', tripIds)
+        .in('trip_id', chunk))
     : { data: [] };
 
   const routeMap = buildRouteMap(segs || []);

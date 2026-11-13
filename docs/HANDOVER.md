@@ -15,7 +15,7 @@
 
 - **Next.js 16.4.3** (App Router, Turbopack) + React 19.3.1 + Supabase + Vercel
 - **Tailwind CSS 4.3.3** — конфиг через `@theme` в `app/globals.css`, файла `tailwind.config.js` нет
-- **Vitest 5** — **140 тестов в 12 файлах** `lib/__tests__/`, **eslint-config-next 16.4.3**, **exceljs 4.4**
+- **Vitest 5** — **151 тест в 13 файлах** `lib/__tests__/`, **eslint-config-next 16.4.3**, **exceljs 4.4**
 
 ### ENV (Vercel → Settings → Environment Variables)
 `NEXT_PUBLIC_SUPABASE_URL` · `NEXT_PUBLIC_SUPABASE_ANON_KEY` (клиент, RLS действует) ·
@@ -223,6 +223,8 @@ e-mail идёт напрямую. С миграции `016` вызывать е�
 - Telegram водителя — одноразовая ссылка на 24 ч (кнопка «Создать ссылку» в карточке водителя);
   `?start=<driver_id>` больше не работает.
 - `next.config.js` — заголовки безопасности (nosniff, X-Frame-Options, HSTS, Referrer-/Permissions-Policy).
+- **Выборки из растущих таблиц — через `fetchAll` / `fetchAllByIds`** (`lib/fetch-all.ts`):
+  PostgREST молча режет ответ на 1000 строк, а длинный `.in(ids)` падает по длине URL. Правило — в `AGENTS.md`.
 - `exceljs` — в `dependencies`, ленивый импорт в клиентах, статический — в API.
 - `npm audit` — 5 moderate (`postcss-selector-parser` через Tailwind) — принятый dev-риск.
 - PWA — установка через «Добавить на главный экран».

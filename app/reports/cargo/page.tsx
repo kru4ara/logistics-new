@@ -3,6 +3,7 @@ import { getSessionContext } from '../../../lib/session';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../../lib/supabase/admin';
 import { Package, ArrowLeft, Inbox } from 'lucide-react';
+import { fetchAll, fetchAllByIds } from '../../../lib/fetch-all';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,7 +36,7 @@ export default async function CargoReportPage({
   if (to) query = query.lte('trips.start_date', to);
   if (clientId) query = query.eq('client_id', clientId);
 
-  const { data: cargoRows, error } = await query;
+  const { data: cargoRows, error } = await fetchAll(query);
   if (error) {
     return <div className="p-8 text-red-500">Ошибка: {error.message}</div>;
   }
@@ -45,10 +46,10 @@ export default async function CargoReportPage({
   const expensesByTrip: Record<string, number> = {};
 
   if (tripIds.length > 0) {
-    const { data: expenses } = await supabase
+    const { data: expenses } = await fetchAllByIds(tripIds, (chunk) => supabase
       .from('trip_expenses')
       .select('trip_id, amount_eur')
-      .in('trip_id', tripIds);
+      .in('trip_id', chunk));
 
     (expenses || []).forEach((e: any) => {
       if (!e.trip_id) return;

@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { createClient } from '../../../lib/supabase/admin';
 import LogisatProblemsList, { type TripRow } from './LogisatProblemsList';
+import { fetchAll } from '../../../lib/fetch-all';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,7 +65,7 @@ export default async function LogisatReportPage() {
   const logisatTruckIds = new Set(tractorsWithLogisat.map((t) => t.id));
 
   // 2. РЕЙСЫ
-  const { data: tripsRaw } = await supabase
+  const { data: tripsRaw } = await fetchAll(supabase
     .from('trips')
     .select(`
       id, trip_number, status, start_date, end_date,
@@ -74,7 +75,7 @@ export default async function LogisatReportPage() {
     `)
     .in('status', ['active', 'completed', 'invoiced', 'paid'])
     .not('truck_id', 'is', null)
-    .order('start_date', { ascending: false, nullsFirst: false });
+    .order('start_date', { ascending: false, nullsFirst: false }));
 
   const allTrips: TripRow[] = (tripsRaw || [])
     .filter((t: any) => logisatTruckIds.has(t.truck_id))

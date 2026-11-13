@@ -10,6 +10,7 @@ import {
 import { createClient } from '../../../lib/supabase/admin';
 import { calculateProfitability, toNum, getOrderPeriodDate } from '../../../lib/profitability';
 import { isStatsCompleted } from '../../../lib/statistics';
+import { fetchAll, fetchAllByIds } from '../../../lib/fetch-all';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,14 +50,14 @@ export default async function ProfitabilityPage({
   const supabase = await createClient();
 
   // ЗАКАЗЫ (рейсы + экспедиции)
-  const { data: orders } = await supabase
+  const { data: orders } = await fetchAll(supabase
     .from('trips')
     .select(`
       id, client_id, truck_id, revenue_eur, actual_km, start_date,
       end_date, load_date, unload_date, profit_mode, status,
       clients(name),
       trucks!truck_id(registration_number)
-    `);
+    `));
 
   // Только завершённые заказы: в пути и без даты выгрузки в прибыльность не идут.
   const filteredOrders = (orders || []).filter((o: any) => {
@@ -71,10 +72,10 @@ export default async function ProfitabilityPage({
   // Расходы заказов
   const expensesByOrder: Record<string, number> = {};
   if (orderIds.length > 0) {
-    const { data: exp } = await supabase
+    const { data: exp } = await fetchAllByIds(orderIds, (chunk) => supabase
       .from('trip_expenses')
       .select('trip_id, amount_eur')
-      .in('trip_id', orderIds);
+      .in('trip_id', chunk));
     (exp || []).forEach((e: any) => {
       if (!e.trip_id) return;
       expensesByOrder[e.trip_id] = (expensesByOrder[e.trip_id] || 0) + toNum(e.amount_eur);
@@ -84,11 +85,11 @@ export default async function ProfitabilityPage({
   // Подрядчики заказов
   const contractorByOrder: Record<string, number> = {};
   if (orderIds.length > 0) {
-    const { data: segs } = await supabase
+    const { data: segs } = await fetchAllByIds(orderIds, (chunk) => supabase
       .from('trip_segments')
       .select('trip_id, price, executor_type')
-      .in('trip_id', orderIds)
-      .eq('executor_type', 'contractor');
+      .in('trip_id', chunk)
+      .eq('executor_type', 'contractor'));
     (segs || []).forEach((s: any) => {
       if (!s.trip_id) return;
       contractorByOrder[s.trip_id] = (contractorByOrder[s.trip_id] || 0) + toNum(s.price);

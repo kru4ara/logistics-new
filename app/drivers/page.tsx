@@ -13,6 +13,7 @@ import {
   CheckCircle2,
   Clock,
 } from 'lucide-react';
+import { fetchAll } from '../../lib/fetch-all';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,9 +33,9 @@ export default async function DriversPage() {
   }
 
   // Считаем количество рейсов у каждого водителя
-  const { data: allTrips } = await supabase
+  const { data: allTrips } = await fetchAll(supabase
     .from('trips')
-    .select('driver_id');
+    .select('driver_id'));
 
   const tripsCountByDriver: Record<string, number> = {};
   allTrips?.forEach((t) => {

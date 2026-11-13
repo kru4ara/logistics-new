@@ -4,19 +4,23 @@ import { renumberAllTrips } from '../trip-renumber';
 function createMockSupabase(mockTrips: any[]) {
   const updatesMap = new Map<string, string>();
 
+  const sorted = [...mockTrips].sort((a, b) => {
+    if (a.start_date === b.start_date) return a.id.localeCompare(b.id);
+    return new Date(a.start_date).getTime() - new Date(b.start_date).getTime();
+  });
+
+  // Билдер как в postgrest-js: order() возвращает его же, range() выполняет
+  // запрос (renumberAllTrips читает заказы постранично через fetchAll).
+  const builder = {
+    order: vi.fn(() => builder),
+    range: vi.fn((from: number, to: number) =>
+      Promise.resolve({ data: sorted.slice(from, to + 1), error: null })
+    ),
+  };
+
   const mock = {
     from: vi.fn().mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        order: vi.fn().mockReturnValue({
-          order: vi.fn().mockResolvedValue({
-            data: [...mockTrips].sort((a, b) => {
-              if (a.start_date === b.start_date) return a.id.localeCompare(b.id);
-              return new Date(a.start_date).getTime() - new Date(b.start_date).getTime();
-            }),
-            error: null,
-          }),
-        }),
-      }),
+      select: vi.fn().mockReturnValue(builder),
       update: vi.fn().mockImplementation((payload: { trip_number: string }) => ({
         eq: vi.fn().mockImplementation((column: string, value: string) => {
           if (column === 'id') {
