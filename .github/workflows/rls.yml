@@ -8,8 +8,10 @@ name: RLS
 # ПОВЕДЕНИЕ политик (водитель не видит чужой рейс), а не только
 # синтаксис.
 #
-# Схема в supabase/stubs/ — упрощённый каркас таблиц, на которые
-# ссылаются политики. Это НЕ реальная схема проекта.
+# Схема — настоящая схема прода: supabase/migrations/00000000_000_baseline.sql
+# (выгрузка 14.11.2026, scripts/export-schema.sql + scripts/build-baseline.py).
+# supabase/stubs/ — только то, что в Supabase создаёт сама платформа:
+# роли, auth.uid(), auth.users, storage, права по умолчанию.
 
 on:
   pull_request:
@@ -54,8 +56,8 @@ jobs:
       - name: Подготовить роли и схему auth
         run: psql -v ON_ERROR_STOP=1 -f supabase/stubs/prepare.sql
 
-      - name: Создать каркас схемы
-        run: psql -v ON_ERROR_STOP=1 -f supabase/stubs/schema.sql
+      - name: Каркас платформы Supabase (auth.users, storage, права по умолчанию)
+        run: psql -v ON_ERROR_STOP=1 -f supabase/stubs/platform.sql
 
       - name: Снять старые политики (чистая база — no-op)
         run: psql -v ON_ERROR_STOP=1 -f supabase/stubs/reset_policies.sql

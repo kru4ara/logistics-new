@@ -81,13 +81,16 @@ $$;
 -- ============================================================
 -- Данные
 -- ============================================================
-insert into public.profiles (id, role, driver_id, manager_id, full_name) values
-  ('11111111-1111-1111-1111-111111111111', 'admin',  null,                          null,                          'Офис'),
-  ('22222222-2222-2222-2222-222222222222', 'driver','dddddddd-dddd-dddd-dddd-dddddddddddd', null,                          'Водитель А'),
-  ('33333333-3333-3333-3333-333333333333', 'driver','eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', null,                          'Водитель Б'),
-  -- Фаза 39: менеджер А и менеджер Б
-  ('44444444-4444-4444-4444-444444444444', 'manager', null, 'aaaa1111-1111-1111-1111-111111111111', 'Менеджер А'),
-  ('55555555-5555-5555-5555-555555555555', 'manager', null, 'bbbb2222-2222-2222-2222-222222222222', 'Менеджер Б');
+-- Порядок важен: на проде у profiles внешние ключи на auth.users,
+-- drivers и managers (базовая схема 000). Учётная запись в auth.users
+-- сама создаёт профиль (триггер on_auth_user_created → handle_new_user,
+-- роль 'driver'), поэтому профили ниже — upsert.
+insert into auth.users (id) values
+  ('11111111-1111-1111-1111-111111111111'),
+  ('22222222-2222-2222-2222-222222222222'),
+  ('33333333-3333-3333-3333-333333333333'),
+  ('44444444-4444-4444-4444-444444444444'),
+  ('55555555-5555-5555-5555-555555555555');
 
 insert into public.managers (id, full_name, email) values
   ('aaaa1111-1111-1111-1111-111111111111', 'Менеджер А', 'ma@x.local'),
@@ -96,6 +99,17 @@ insert into public.managers (id, full_name, email) values
 insert into public.drivers (id, first_name, last_name, email) values
   ('dddddddd-dddd-dddd-dddd-dddddddddddd', 'А', 'Водитель', 'a@x.local'),
   ('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'Б', 'Водитель', 'b@x.local');
+
+insert into public.profiles (id, role, driver_id, manager_id, full_name) values
+  ('11111111-1111-1111-1111-111111111111', 'admin',  null,                          null,                          'Офис'),
+  ('22222222-2222-2222-2222-222222222222', 'driver','dddddddd-dddd-dddd-dddd-dddddddddddd', null,                          'Водитель А'),
+  ('33333333-3333-3333-3333-333333333333', 'driver','eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', null,                          'Водитель Б'),
+  -- Фаза 39: менеджер А и менеджер Б
+  ('44444444-4444-4444-4444-444444444444', 'manager', null, 'aaaa1111-1111-1111-1111-111111111111', 'Менеджер А'),
+  ('55555555-5555-5555-5555-555555555555', 'manager', null, 'bbbb2222-2222-2222-2222-222222222222', 'Менеджер Б')
+on conflict (id) do update
+  set role = excluded.role, driver_id = excluded.driver_id,
+      manager_id = excluded.manager_id, full_name = excluded.full_name;
 
 insert into public.clients (id, name) values
   ('cccccccc-cccc-cccc-cccc-cccccccccccc', 'Клиент 1'),
@@ -145,8 +159,8 @@ insert into public.trip_cargo (id, trip_id, client_id, position, label) values
 insert into public.trip_documents (id, trip_id, document_type, file_path) values
   ('99955555-aaaa-9999-9999-999999999999', '11111111-aaaa-1111-1111-111111111111', 'cmr', 'a.pdf');
 
-insert into public.driver_transactions (id, driver_id, type, amount_eur) values
-  ('aaaa5555-bbbb-aaaa-bbbb-aaaaaaaaaaaa', 'dddddddd-dddd-dddd-dddd-dddddddddddd', 'accrual', 500);
+insert into public.driver_transactions (id, driver_id, type, amount_eur, date) values
+  ('aaaa5555-bbbb-aaaa-bbbb-aaaaaaaaaaaa', 'dddddddd-dddd-dddd-dddd-dddddddddddd', 'accrual', 500, '2026-01-01');
 
 insert into public.documents (id, entity_type, entity_id, file_path) values
   ('bbbb5555-cccc-bbbb-cccc-bbbbbbbbbbbb', 'driver', 'dddddddd-dddd-dddd-dddd-dddddddddddd', 'passport-a.pdf');
@@ -156,8 +170,8 @@ insert into public.trucks (id, registration_number, type, logisat_enabled, logis
 
 insert into public.rates (rate_date, pln_to_eur, byn_to_eur) values ('2026-01-01', 0.23, 0.28);
 
-insert into public.reminders (id, title, entity_type, entity_id, status) values
-  ('dddd5555-eeee-dddd-eeee-dddddddddddd', 'Права', 'driver', 'dddddddd-dddd-dddd-dddd-dddddddddddd', 'active');
+insert into public.reminders (id, title, entity_type, entity_id, status, due_date) values
+  ('dddd5555-eeee-dddd-eeee-dddddddddddd', 'Права', 'driver', 'dddddddd-dddd-dddd-dddd-dddddddddddd', 'active', '2026-12-31');
 
 
 -- ============================================================
@@ -495,8 +509,12 @@ reset role;
 --
 -- Проверяем на свежем профиле: он должен стать офисом.
 
+insert into auth.users (id) values ('99999999-9999-9999-9999-999999999999');
 insert into public.profiles (id, role, driver_id, manager_id, full_name)
-values ('99999999-9999-9999-9999-999999999999', 'manager', null, null, 'Прежний менеджер');
+values ('99999999-9999-9999-9999-999999999999', 'manager', null, null, 'Прежний менеджер')
+on conflict (id) do update
+  set role = excluded.role, driver_id = excluded.driver_id,
+      manager_id = excluded.manager_id, full_name = excluded.full_name;
 
 do $$
 begin
@@ -832,3 +850,46 @@ end;
 $$;
 
 reset role;
+
+-- ============================================================
+-- ВЫПОЛНЕНИЕ ПРОИЗВОЛЬНОГО SQL И СЛИЯНИЕ (миграция 020)
+-- ============================================================
+--
+-- exec_sql / exec_sql_json выполняют ЛЮБОЙ SQL с правами владельца базы.
+-- До 14.11.2026 их мог вызвать anon (публичный ключ) — вся база была открыта.
+reset role;
+do $$
+declare
+  f text;
+  r text;
+begin
+  foreach f in array array[
+    'public.exec_sql(text)', 'public.exec_sql_json(text)',
+    'public.merge_contractors(uuid,uuid)', 'public.merge_clients(uuid,uuid)'
+  ] loop
+    foreach r in array array['anon', 'authenticated'] loop
+      if has_function_privilege(r, f, 'execute') then
+        raise exception 'FAIL: % может выполнить %', r, f;
+      end if;
+    end loop;
+    if not has_function_privilege('service_role', f, 'execute') then
+      raise exception 'FAIL: service_role не может выполнить % (приложение зовёт через admin-клиент)', f;
+    end if;
+    raise notice 'ok: % — только service_role', f;
+  end loop;
+end;
+$$;
+
+-- Хранилище: никаких политик для public/anon на storage.objects.
+do $$
+begin
+  if exists (
+    select 1 from pg_policies
+    where schemaname = 'storage' and tablename = 'objects'
+      and (roles && array['public', 'anon']::name[])
+  ) then
+    raise exception 'FAIL: на storage.objects есть политики для public/anon';
+  end if;
+  raise notice 'ok: storage.objects без политик для public/anon';
+end;
+$$;
