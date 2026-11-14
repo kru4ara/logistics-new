@@ -13,7 +13,7 @@ import {
 } from 'docx';
 import { fmtDate, txt, divider, cellLabel, cellValue, FONT, LINE, BLUE, RED, GREEN, GRAY, AMBER } from '../../../../../../../lib/docx/helpers';
 import { createClient } from '../../../../../../../lib/supabase/admin';
-import { COMPANY } from '../../../../../../../lib/company';
+import { getCompany } from '../../../../../../../lib/company';
 import { can } from '../../../../../../../lib/roles';
 
 export const dynamic = 'force-dynamic';
@@ -91,6 +91,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string; segId: string }> }
 ) {
+  const COMPANY = await getCompany();
   const { id: tripId, segId: segmentId } = await params;
   const supabase = await createClient();
 

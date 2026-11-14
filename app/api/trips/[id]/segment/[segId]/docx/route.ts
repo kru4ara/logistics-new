@@ -18,7 +18,7 @@ import {
 import { fmtDate, txt, divider, cellLabel, cellValue, FONT, LINE, BLUE, RED, GREEN, GRAY, AMBER } from '../../../../../../../lib/docx/helpers';
 import { getImageDimensions, scaleImage, downloadAsset, generateQrBuffer } from '../../../../../../../lib/docx/assets';
 import { createClient } from '../../../../../../../lib/supabase/admin';
-import { COMPANY, APP_URL, getTerms } from '../../../../../../../lib/company';
+import { getCompany, renderTerms, APP_URL, STAMP_PATH } from '../../../../../../../lib/company';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -114,6 +114,8 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string; segId: string }> }
 ) {
+  // Реквизиты и условия — из настроек компании (/settings, lib/company.ts).
+  const COMPANY = await getCompany();
   const { id: tripId, segId: segmentId } = await params;
 
   const supabase = await createClient();
@@ -184,10 +186,10 @@ export async function GET(
 
   const paymentDays = segment.contractor_payment_days ?? 30;
   const paymentDocType = (segment.contractor_payment_document_type === 'scans' ? 'scans' : 'originals') as 'originals' | 'scans';
-  const terms = getTerms(paymentDays, paymentDocType);
+  const terms = renderTerms(COMPANY, paymentDays, paymentDocType);
 
   const [stampBuf, qrBuf] = await Promise.all([
-    downloadAsset(supabase, 'assets/stamp.png', 'STAMP', 'DOCX-SEG'),
+    downloadAsset(supabase, STAMP_PATH, 'STAMP', 'DOCX-SEG'),
     generateQrBuffer(`${APP_URL}/trips/${tripId}`, 'DOCX-SEG'),
   ]);
 
@@ -313,7 +315,7 @@ export async function GET(
 
   children.push(
     txt(
-      'RAIBUILDING SP. Z O.O. działając w imieniu swoich Klientów oraz w oparciu o przepisy Konwencji CMR zleca wykonanie przewozu firmie:',
+      `${COMPANY.name} działając w imieniu swoich Klientów oraz w oparciu o przepisy Konwencji CMR zleca wykonanie przewozu firmie:`,
       { size: 18, after: 120, color: '475569' }
     )
   );

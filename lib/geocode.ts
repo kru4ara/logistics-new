@@ -1,3 +1,4 @@
+import { getCompany } from './company';
 /**
  * Единая функция геокодирования через Nominatim.
  *
@@ -69,7 +70,8 @@ async function nominatimSearch(
 
   try {
     const res = await fetch(url, {
-      headers: { 'User-Agent': 'LogisticsCRM/1.0 (contact@raibuilding.pl)' },
+      // Nominatim требует контакт в User-Agent — e-mail компании из настроек.
+      headers: { 'User-Agent': `LogisticsCRM/1.0 (${(await getCompany()).email || 'no-contact'})` },
     });
     if (!res.ok) return null;
 

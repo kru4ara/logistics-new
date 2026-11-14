@@ -1,9 +1,11 @@
 import { RadioTower, Lock } from 'lucide-react';
 import LoginForm from './LoginForm';
+import { getCompany } from '../../lib/company';
 
 export const dynamic = 'force-dynamic';
 
-export default function LoginPage() {
+export default async function LoginPage() {
+  const company = await getCompany();
   return (
     <main className="min-h-screen flex">
       {/* ЛЕВАЯ ЧАСТЬ: брендинг (только на десктопе) */}
@@ -36,7 +38,7 @@ export default function LoginPage() {
               </svg>
             </div>
             <div>
-              <div className="text-xl font-bold tracking-wide">RAIBUILDING</div>
+              <div className="text-xl font-bold tracking-wide">{company.shortName}</div>
               <div className="text-xs text-amber-300/70 tracking-widest uppercase">
                 Logistics CRM
               </div>
@@ -96,7 +98,7 @@ export default function LoginPage() {
                 </svg>
               </div>
             </div>
-            <div className="text-lg font-bold text-slate-900 tracking-wide">RAIBUILDING</div>
+            <div className="text-lg font-bold text-slate-900 tracking-wide">{company.shortName}</div>
             <div className="text-xs text-slate-500 tracking-widest uppercase mt-0.5">
               Logistics CRM
             </div>
@@ -116,7 +118,7 @@ export default function LoginPage() {
 
           {/* Мелкий футер */}
           <div className="text-center mt-6 text-xs text-slate-400">
-            © {new Date().getFullYear()} Raibuilding Sp. z o.o.
+            © {new Date().getFullYear()} {company.name}
           </div>
         </div>
       </div>

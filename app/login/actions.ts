@@ -2,6 +2,7 @@
 
 import { createClient } from '../../lib/supabase/server';
 import { createClient as createAdminClient } from '../../lib/supabase/admin';
+import { getCompany } from '../../lib/company';
 import { redirect } from 'next/navigation';
 import { cookies, headers } from 'next/headers';
 import { checkLoginThrottle, recordLoginFailure, clearLoginFailures } from '../../lib/login-throttle';
@@ -74,7 +75,9 @@ export async function login(
     if (foundEmail) {
       realEmail = foundEmail as string;
     } else {
-      realEmail = `${loginValue}@raibuilding.local`;
+      // Старые логины без e-mail: «логин@домен» (у RAIBUILDING — raibuilding.local).
+      const { legacyLoginDomain } = await getCompany();
+      realEmail = legacyLoginDomain ? `${loginValue}@${legacyLoginDomain}` : loginValue;
     }
   }
 

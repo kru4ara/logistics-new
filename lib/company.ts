@@ -1,18 +1,50 @@
-// ============================================================
-// Реквизиты компании (для DOCX заявок)
-// ============================================================
-export const COMPANY = {
-  name: 'RAIBUILDING SP. Z O.O.',
-  address: 'PL21-345 WOLA OSOWIŃSKA, ul. PARKOWA 12',
-  nip: '7011162939',
-  regon: '526314665',
-  bank: 'PKO Bank Polski S.A. - SWIFT BPKOPLPW',
-  eori: 'PL701116293900000',
-  accountEur: 'PL25 1020 3206 0000 8302 0215 5406',
-  accountPln: 'PL82 1020 3206 0000 8402 0215 5398',
-  city: 'WOLA OSOWIŃSKA',
-  email: 'raibuilding.pl@gmail.com',
-};
+import 'server-only';
+
+import { cache } from 'react';
+import { createClient } from './supabase/admin';
+import {
+  companyFromRow,
+  LEGACY_COMPANY,
+  UNCONFIGURED_COMPANY,
+  type Company,
+  type CompanyRow,
+} from './company-rules';
+
+export type { Company } from './company-rules';
+export { renderTerms } from './company-rules';
+
+/**
+ * Настройки компании (реквизиты, условия перевозки, Telegram-бот).
+ *
+ * Источник — public.company_settings (миграция 022), правка — /settings.
+ * Один запрос к БД на HTTP-запрос (React cache).
+ *
+ *   таблицы нет (миграция 022 не применена) → LEGACY_COMPANY (прежние реквизиты);
+ *   строки нет (новая база, не настроена)    → UNCONFIGURED_COMPANY (без чужих данных);
+ *   другая ошибка БД                         → исключение: лучше ошибка,
+ *                                              чем заявка с чужими реквизитами.
+ */
+export const COMPANY_COLUMNS =
+  'name, short_name, address, city, nip, regon, eori, bank, account_eur, account_pln, email, terms, telegram_bot, legacy_login_domain';
+
+/** PostgREST: таблицы нет в схеме (PGRST205) / Postgres: relation does not exist (42P01). */
+export function isMissingTable(error: { code?: string; message?: string }): boolean {
+  return error.code === 'PGRST205' || error.code === '42P01' || /relation .* does not exist|Could not find the table/i.test(error.message ?? '');
+}
+
+export const getCompany = cache(async (): Promise<Company> => {
+  const admin = await createClient();
+  const { data, error } = await admin
+    .from('company_settings')
+    .select(COMPANY_COLUMNS)
+    .eq('id', 1)
+    .maybeSingle();
+  if (error) {
+    if (isMissingTable(error)) return LEGACY_COMPANY;
+    throw new Error(`Настройки компании недоступны: ${error.message}`);
+  }
+  return data ? companyFromRow(data as CompanyRow) : UNCONFIGURED_COMPANY;
+});
 
 // ============================================================
 // URL приложения (для QR-кода в заявках)
@@ -23,29 +55,7 @@ export const APP_URL =
     ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
     : 'https://logistics-new-ebon.vercel.app');
 
-// Печать и логотип для заявок — файлы assets/stamp.png и assets/logo.png
-// в бакете documents. Скачиваются сервером (lib/docx/assets.ts →
-// downloadAsset), поэтому работают и в закрытом бакете. Публичных ссылок
-// на них нет: бакет закрытый (миграция 021).
-
-// ============================================================
-// Условия перевозки (8 пунктов)
-// ============================================================
-export function getTerms(paymentDays: number, docType: 'originals' | 'scans' = 'originals'): string[] {
-  const docText = docType === 'scans'
-    ? 'skanów CMR (potwierdzonych podpisem, pieczątką odbiorcy) przesłanych drogą mailową'
-    : 'oryginała CMR (potwierdzonego podpisem, pieczątką odbiorcy)';
-
-  return [
-    `1) Termin płatności ${paymentDays} dni po dostarczeniu ${docText} oraz prawidłowo wystawionej faktury, vat = 0% (Część transportu drogowego, stawka podatku vat wynosi 0%, zgodnie z przepisami art. 28b, ust.1 w odniesieniu do art 83 ust 1pkt 23 ustawy o podatku od towarów i usług, trasa stanowi czesc transportu miedzynarodowego w rozumieniu przepisów rozporzadzenia ministra finansów z dn 28 listopada 2008 par 9 ust 1 pkt 1 i 2.)`,
-    `2) W celu terminowej płatności, przed wysłaniem dokumentów, należy przesłać skan faktury i CMR na ${COMPANY.email}`,
-    `3) Ustalony normatywny postój na terenie UE-24 godziny, BY/RUS-48 godzin. Opłata ponadnormatywnego postoju wynosi 100 EUR za każde rozpoczęte dobę.`,
-    `4) Faktura powinna być wystawiona w miesiącu wykonania usługi!!! Data zakończenia dostawy/usługi = dacie rozładunku.`,
-    `5) Za opóźnienie na załadunek powyżej godziny przewoźnik może być obciążany mandatem 30 EUR za każde rozpoczętą godzinę opóźnienia, ale nie więcej 300 EUR za dobę.`,
-    `6) ZAKAZ POKAZYWANIA NASZEGO ZLECENIA NA MIEJSCU ZAŁADUNKU i ROZŁADUNKU!!!`,
-    `7) Kierowca ma pilnować sprawność towaru pod czas załadunku i rozładunku. Po załadunku wysłać zdjęcie załadowanego towaru i dokumentów!!!`,
-    `8) Przeładunek towaru w tranzycie jest zabroniony! Mandat 1000 euro.`,
-    `9) W przypadku braku podstawienia pojazdu w ustalonym terminie, przewoźnik ponosi karę umowną w wysokości 500 EUR.`,
-    `10) Przewoźnik zobowiązany jest do stałego kontaktu telefonicznego z kierowcą i przekazywania statusów na żądanie zleceniodawcy.`,
-  ];
-}
+// Печать для заявок — файл assets/stamp.png
+// в бакете documents (загрузка — /settings). Скачиваются сервером
+// (lib/docx/assets.ts → downloadAsset), бакет закрытый.
+export const STAMP_PATH = 'assets/stamp.png';
