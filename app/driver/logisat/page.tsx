@@ -2,13 +2,14 @@ import { redirect } from 'next/navigation';
 import { getSessionContext } from '../../../lib/session';
 import { createClient as createAuthClient } from '../../../lib/supabase/server';
 import LogisatForm from './LogisatForm';
+import { isDriverRole } from '../../../lib/roles';
 
 export const dynamic = 'force-dynamic';
 
 export default async function DriverLogisatPage() {
   const { role, driverId } = await getSessionContext();
 
-  if (role !== 'driver' || !driverId) {
+  if (!isDriverRole(role) || !driverId) {
     redirect('/login');
   }
 

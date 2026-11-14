@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../../../lib/supabase/admin';
-import { can } from '../../../../lib/roles';
+import { can, deniedRedirect } from '../../../../lib/roles';
 import { getSessionContext } from '../../../../lib/session';
 import EditTripForm from './EditTripForm';
 import { getScope, applyTripScope } from '../../../../lib/scope';
@@ -12,7 +12,8 @@ export default async function EditTripPage({ params }: { params: Promise<{ id: s
   const { id: tripId } = await params;
 
   const { role } = await getSessionContext();
-  if (role === 'driver') redirect('/driver');
+  const denied = deniedRedirect(role, 'trips.editAny');
+  if (denied) redirect(denied);
   if (!can(role, 'trips.editAny')) redirect('/');
 
   const supabase = await createClient();

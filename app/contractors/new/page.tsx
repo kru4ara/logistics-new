@@ -12,12 +12,14 @@ import {
   FileText,
   Plus,
 } from 'lucide-react';
+import { deniedRedirect } from '../../../lib/roles';
 
 export const dynamic = 'force-dynamic';
 
 export default async function NewContractorPage() {
   const { role } = await getSessionContext();
-  if (role === 'driver') redirect('/driver');
+  const denied = deniedRedirect(role, 'contractors.edit');
+  if (denied) redirect(denied);
 
   return (
     <main className="min-h-screen bg-slate-50">

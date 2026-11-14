@@ -1,5 +1,6 @@
 import { createClient } from './supabase/admin';
 import { getSessionContext } from './session';
+import { roleLabel } from './roles';
 
 export type AuditAction = 'create' | 'update' | 'delete' | 'status_change' | 'merge';
 
@@ -38,13 +39,7 @@ export async function logAudit(input: LogInput): Promise<void> {
     const driverId = session.driverId || null;
     const userName =
       session.userName ||
-      (role === 'admin' || role === 'office'
-        ? 'Офис'
-        : role === 'manager'
-          ? 'Менеджер'
-          : role === 'driver'
-            ? 'Водитель'
-            : 'Неизвестно');
+      roleLabel(session.role);
 
     const supabase = await createClient();
 

@@ -21,6 +21,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { fetchAll, fetchAllByIds } from '../../lib/fetch-all';
+import { deniedRedirect } from '../../lib/roles';
 
 export const dynamic = 'force-dynamic';
 
@@ -101,7 +102,8 @@ export default async function ReportsPage({
   searchParams: Promise<{ from?: string; to?: string; status?: string; client?: string }>;
 }) {
   const { role } = await getSessionContext();
-  if (role === 'driver') redirect('/driver');
+  const denied = deniedRedirect(role, 'reports.view');
+  if (denied) redirect(denied);
 
   const resolvedParams = await searchParams;
   const supabase = await createClient();

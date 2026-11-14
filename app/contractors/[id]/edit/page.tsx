@@ -13,6 +13,7 @@ import {
   FileText,
   Save,
 } from 'lucide-react';
+import { deniedRedirect } from '../../../../lib/roles';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,7 +21,8 @@ export default async function EditContractorPage({ params }: { params: Promise<{
   const { id } = await params;
 
   const { role } = await getSessionContext();
-  if (role === 'driver') redirect('/driver');
+  const denied = deniedRedirect(role, 'contractors.edit');
+  if (denied) redirect(denied);
 
   const supabase = await createClient();
 

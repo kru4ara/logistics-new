@@ -19,12 +19,14 @@ import {
   Trash2,
   Inbox,
 } from 'lucide-react';
+import { deniedRedirect } from '../../lib/roles';
 
 export const dynamic = 'force-dynamic';
 
 export default async function ContractorsPage() {
   const { role } = await getSessionContext();
-  if (role === 'driver') redirect('/driver');
+  const denied = deniedRedirect(role, 'contractors.view');
+  if (denied) redirect(denied);
 
   const supabase = await createClient();
 

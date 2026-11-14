@@ -14,6 +14,7 @@ import {
 import { fmtDate, txt, divider, cellLabel, cellValue, FONT, LINE, BLUE, RED, GREEN, GRAY, AMBER } from '../../../../../../../lib/docx/helpers';
 import { createClient } from '../../../../../../../lib/supabase/admin';
 import { COMPANY } from '../../../../../../../lib/company';
+import { can } from '../../../../../../../lib/roles';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -105,8 +106,9 @@ export async function GET(
     .eq('id', user.id)
     .single();
 
-  const role = String(profile?.role || 'driver').trim().toLowerCase();
-  const isAdmin = role === 'admin' || role === 'manager';
+  // Было role === 'admin' || role === 'manager': офис с ролью 'office'
+  // считался водителем без driver_id и получал отказ.
+  const isAdmin = can(profile?.role || 'driver', 'trips.viewAll');
 
   // 2. Получаем рейс
   const { data: trip, error: tripErr } = await supabase

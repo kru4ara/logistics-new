@@ -12,13 +12,14 @@ import {
   Wallet,
 } from 'lucide-react';
 import { createClient as createAuthClient } from '../../../lib/supabase/server';
+import { isDriverRole } from '../../../lib/roles';
 
 export const dynamic = 'force-dynamic';
 
 export default async function DriverStatsPage() {
   const { role, driverId } = await getSessionContext();
 
-  if (role !== 'driver' || !driverId) {
+  if (!isDriverRole(role) || !driverId) {
     redirect('/login');
   }
 

@@ -19,6 +19,7 @@ import {
   Fuel,
 } from 'lucide-react';
 import { fetchAll } from '../../lib/fetch-all';
+import { deniedRedirect } from '../../lib/roles';
 
 export const dynamic = 'force-dynamic';
 
@@ -77,7 +78,8 @@ function countTotalDocs(truck: any) {
 
 export default async function TrucksPage() {
   const { role } = await getSessionContext();
-  if (role === 'driver') redirect('/driver');
+  const denied = deniedRedirect(role, 'trucks.view');
+  if (denied) redirect(denied);
 
   const supabase = await createClient();
 

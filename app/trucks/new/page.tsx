@@ -3,12 +3,14 @@ import { getSessionContext } from '../../../lib/session';
 import { redirect } from 'next/navigation';
 import NewTruckForm from './NewTruckForm';
 import { ArrowLeft, Truck as TruckIcon } from 'lucide-react';
+import { deniedRedirect } from '../../../lib/roles';
 
 export const dynamic = 'force-dynamic';
 
 export default async function NewTruckPage() {
   const { role } = await getSessionContext();
-  if (role === 'driver') redirect('/driver');
+  const denied = deniedRedirect(role, 'trucks.edit');
+  if (denied) redirect(denied);
 
   return (
     <main className="min-h-screen bg-slate-50">

@@ -6,6 +6,7 @@ import { redirect } from 'next/navigation';
 import { cookies, headers } from 'next/headers';
 import { checkLoginThrottle, recordLoginFailure, clearLoginFailures } from '../../lib/login-throttle';
 import { clientIpFrom, normalizeLoginKey, throttleMessage } from '../../lib/login-throttle-rules';
+import { isDriverRole, roleLabel } from '../../lib/roles';
 
 export type LoginState = { error?: string } | null;
 
@@ -137,7 +138,7 @@ export async function login(
   const managerId = resolvedProfile?.manager_id || '';
   const userName =
     resolvedProfile?.full_name ||
-    (role === 'driver' ? 'Водитель' : role === 'manager' ? 'Менеджер' : 'Офис');
+    roleLabel(role);
 
   // Куки роли и driver_id — быстрый путь для UI и старых страниц,
   // которые читают роль из куки. Источник правды — profiles
@@ -181,7 +182,7 @@ export async function login(
     });
   }
 
-  if (role === 'driver') {
+  if (isDriverRole(role)) {
     redirect('/driver');
   } else {
     redirect('/');

@@ -12,6 +12,7 @@ import {
 import { createClient } from '../../../lib/supabase/admin';
 import LogisatProblemsList, { type TripRow } from './LogisatProblemsList';
 import { fetchAll } from '../../../lib/fetch-all';
+import { deniedRedirect } from '../../../lib/roles';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,8 +43,8 @@ function currentTimestamp(): number {
 
 export default async function LogisatReportPage() {
   const { role } = await getSessionContext();
-  if (role === 'driver') redirect('/driver');
-  if (role !== 'admin') redirect('/login');
+  const denied = deniedRedirect(role, 'reports.viewAll');
+  if (denied) redirect(denied);
 
   const supabase = await createClient();
 

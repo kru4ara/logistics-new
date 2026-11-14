@@ -8,6 +8,7 @@ import {
   ArrowUpCircle,
   Inbox,
 } from 'lucide-react';
+import { isDriverRole } from '../../../lib/roles';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,7 +24,7 @@ function fmtDate(d: string | null): string {
 export default async function DriverBalancePage() {
   const { role, driverId } = await getSessionContext();
 
-  if (role !== 'driver' || !driverId) {
+  if (!isDriverRole(role) || !driverId) {
     redirect('/login');
   }
 
