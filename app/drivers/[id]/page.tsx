@@ -19,16 +19,12 @@ import {
 } from 'lucide-react';
 import { fetchAllByIds } from '../../../lib/fetch-all';
 import { signDocumentPaths } from '../../../lib/storage-urls';
+import { getT } from '../../../lib/i18n/server';
+import { formatDate } from '../../../lib/i18n/format';
+import { tripStatusKey, TRIP_STATUSES } from '../../../lib/i18n/labels';
 
 export const dynamic = 'force-dynamic';
 
-const statusLabels: Record<string, string> = {
-  planned: 'Планируется',
-  active: 'В пути',
-  completed: 'Завершён',
-  invoiced: 'Выставлен счёт',
-  paid: 'Оплачен',
-};
 
 const statusColors: Record<string, string> = {
   planned: 'bg-slate-100 text-slate-700 border-slate-200',
@@ -55,8 +51,9 @@ function isImagePath(path: string): boolean {
 }
 
 export default async function DriverDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { t, locale } = await getT();
   const { id: driverId } = await params;
-  if (!driverId) return <div className="p-8">Ошибка: ID водителя не передан</div>;
+  if (!driverId) return <div className="p-8">{t('drvCard.noId')}</div>;
 
   const supabase = await createClient();
 
@@ -66,7 +63,7 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
     .eq('id', driverId)
     .single();
 
-  if (driverError) return <div className="p-8 text-red-500">Ошибка загрузки: {driverError.message}</div>;
+  if (driverError) return <div className="p-8 text-red-500">{t('trip.loadError', { msg: driverError.message })}</div>;
 
   const { data: documents } = await supabase
     .from('documents')
@@ -146,20 +143,20 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
   function daysBadge(dateString: string | null) {
     const days = getDaysUntil(dateString);
     if (days === null) return { color: 'bg-slate-100 text-slate-500 border-slate-200', label: '—' };
-    if (days < 0) return { color: 'bg-red-50 text-red-700 border-red-200', label: `${days} дн.` };
-    if (days < 30) return { color: 'bg-orange-50 text-orange-700 border-orange-200', label: `${days} дн.` };
-    return { color: 'bg-green-50 text-green-700 border-green-200', label: `${days} дн.` };
+    if (days < 0) return { color: 'bg-red-50 text-red-700 border-red-200', label: t('drvCard.days', { n: days }) };
+    if (days < 30) return { color: 'bg-orange-50 text-orange-700 border-orange-200', label: t('drvCard.days', { n: days }) };
+    return { color: 'bg-green-50 text-green-700 border-green-200', label: t('drvCard.days', { n: days }) };
   }
 
   function downloadBadge(lastDate: string | null, warnAfter: number, maxAfter: number) {
     const days = getDaysUntil(lastDate);
     if (lastDate === null || days === null) {
-      return { color: 'bg-slate-100 text-slate-500 border-slate-200', label: 'нет данных', daysAgo: null as number | null };
+      return { color: 'bg-slate-100 text-slate-500 border-slate-200', label: t('drvCard.noData'), daysAgo: null as number | null };
     }
     const daysAgo = -days;
-    if (daysAgo > maxAfter) return { color: 'bg-red-50 text-red-700 border-red-200', label: `просрочено · ${daysAgo} дн.`, daysAgo };
-    if (daysAgo > warnAfter) return { color: 'bg-orange-50 text-orange-700 border-orange-200', label: `${daysAgo} дн.`, daysAgo };
-    return { color: 'bg-green-50 text-green-700 border-green-200', label: `${daysAgo} дн.`, daysAgo };
+    if (daysAgo > maxAfter) return { color: 'bg-red-50 text-red-700 border-red-200', label: t('drvCard.overdueDays', { n: daysAgo }), daysAgo };
+    if (daysAgo > warnAfter) return { color: 'bg-orange-50 text-orange-700 border-orange-200', label: t('drvCard.days', { n: daysAgo }), daysAgo };
+    return { color: 'bg-green-50 text-green-700 border-green-200', label: t('drvCard.days', { n: daysAgo }), daysAgo };
   }
 
   const DRIVER_CARD_PERIOD = 28;
@@ -169,12 +166,12 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
   const initials = `${driver.first_name?.[0] || ''}${driver.last_name?.[0] || ''}`.toUpperCase();
 
   const documentFields = [
-    { label: 'Паспорт', value: driver.passport_expiry, Icon: BookOpen },
-    { label: 'Виза', value: driver.visa_expiry, Icon: Globe },
-    { label: 'Водительское', value: driver.license_expiry, Icon: Car },
-    { label: 'Карта тахографа', value: driver.tachograph_card_expiry, Icon: CreditCard },
-    { label: 'Код 95', value: driver.code_95_expiry, Icon: ScrollText },
-    { label: 'АДР', value: driver.adr_expiry, Icon: AlertTriangle },
+    { label: t('drvCard.passport'), value: driver.passport_expiry, Icon: BookOpen },
+    { label: t('drv.visa'), value: driver.visa_expiry, Icon: Globe },
+    { label: t('drvCard.licenseShort'), value: driver.license_expiry, Icon: Car },
+    { label: t('drvCard.tachoCard'), value: driver.tachograph_card_expiry, Icon: CreditCard },
+    { label: t('drvCard.code95'), value: driver.code_95_expiry, Icon: ScrollText },
+    { label: t('drvCard.adr'), value: driver.adr_expiry, Icon: AlertTriangle },
   ];
 
   return (
@@ -183,7 +180,7 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
 
         <Link href="/drivers" className="inline-flex items-center gap-2 text-slate-600 hover:text-brand-600 transition-colors text-sm font-medium">
           <ArrowLeft className="w-4 h-4" strokeWidth={2} />
-          Все водители
+          {t('drv.all')}
         </Link>
 
         <DriverHeader
@@ -223,7 +220,7 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
           lastTrips={lastTrips}
           totalTrips={totalTrips}
           routeByTrip={routeByTrip}
-          statusLabels={statusLabels}
+          statusLabels={Object.fromEntries(TRIP_STATUSES.map((s) => [s, t(tripStatusKey(s)!)]))}
           statusColors={statusColors}
         />
 
@@ -236,7 +233,7 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
         <div className="card p-5 md:p-6">
           <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
             <Calendar className="w-5 h-5 text-brand-600" strokeWidth={2} />
-            Сроки документов
+            {t('drvCard.docExpiry')}
           </h2>
           <div className="grid gap-3 md:gap-4 sm:grid-cols-2 md:grid-cols-3">
             {documentFields.map((doc) => {
@@ -249,7 +246,7 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
                     <span className="text-sm font-semibold text-slate-700">{doc.label}</span>
                   </div>
                   <div className="text-slate-800 font-medium mb-2 tabular-nums">
-                    {doc.value ? new Date(doc.value).toLocaleDateString('ru-RU') : '—'}
+                    {formatDate(doc.value, locale)}
                   </div>
                   <div className={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold border tabular-nums ${badge.color}`}>
                     {badge.label}

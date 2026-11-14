@@ -4,6 +4,7 @@ import { randomBytes, createHash } from 'node:crypto';
 import { createClient } from '../../../lib/supabase/admin';
 import { requireCapability } from '../../../lib/require-office';
 import { getCompany } from '../../../lib/company';
+import { getT } from '../../../lib/i18n/server';
 
 // Срок жизни ссылки привязки Telegram.
 const TTL_HOURS = 24;
@@ -18,9 +19,10 @@ const TTL_HOURS = 24;
 export async function createDriverTelegramLink(
   driverId: string
 ): Promise<{ link?: string; error?: string }> {
+  const { t } = await getT();
   await requireCapability('drivers.edit');
 
-  if (!driverId) return { error: 'Водитель не найден' };
+  if (!driverId) return { error: t('task.driverNotFound') };
 
   const supabase = await createClient();
 
@@ -34,12 +36,12 @@ export async function createDriverTelegramLink(
 
   if (error) {
     console.error('[telegram-link] insert failed:', error.message);
-    return { error: 'Не удалось создать ссылку' };
+    return { error: t('drvCard.linkFailed') };
   }
 
   const { telegramBot } = await getCompany();
   if (!telegramBot) {
-    return { error: 'Не задан Telegram-бот компании: Настройки → Telegram-бот' };
+    return { error: t('drvCard.noBot') };
   }
   return { link: `https://t.me/${telegramBot}?start=${token}` };
 }

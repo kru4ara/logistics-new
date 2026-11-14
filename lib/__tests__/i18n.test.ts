@@ -123,6 +123,19 @@ const TRANSLATED_FILES = [
   'app/driver/DocumentList.tsx',
   'app/driver/TripStatusButtons.tsx',
   'app/driver/FileUpload.tsx',
+  // Водители
+  'app/drivers/page.tsx',
+  // new/page.tsx не в списке: в нём текст журнала аудита (данные)
+  'app/drivers/kpi/page.tsx',
+  'app/drivers/[id]/page.tsx',
+  'app/drivers/[id]/edit/page.tsx',
+  'app/drivers/[id]/DriverHeader.tsx',
+  'app/drivers/[id]/DriverStats.tsx',
+  'app/drivers/[id]/DriverTrips.tsx',
+  'app/drivers/[id]/DriverCardDownload.tsx',
+  'app/drivers/[id]/DriverFinance.tsx',
+  'app/drivers/[id]/TelegramLinkCard.tsx',
+  'app/drivers/[id]/telegram-link-actions.ts',
 ];
 
 function cyrillicLiterals(file: string): string[] {
