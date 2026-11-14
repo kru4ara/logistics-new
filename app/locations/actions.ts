@@ -4,6 +4,7 @@ import { createClient } from '../../lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { logAudit, diffFields } from '../../lib/audit';
+import { requireCapability } from '../../lib/require-office';
 
 // ============================================================
 // Парсинг формы
@@ -30,6 +31,9 @@ const TRACKED_FIELDS = [
 // СОЗДАНИЕ
 // ============================================================
 export async function createLocation(formData: FormData) {
+  // proxy.ts проверяет путь страницы, но экшен — отдельный эндпоинт:
+  // проверяем право здесь же (см. lib/require-office.ts).
+  await requireCapability('locations.edit');
   const supabase = await createClient();
 
   const data = parseLocationForm(formData);
@@ -60,6 +64,9 @@ export async function createLocation(formData: FormData) {
 // ОБНОВЛЕНИЕ
 // ============================================================
 export async function updateLocation(locationId: string, formData: FormData) {
+  // proxy.ts проверяет путь страницы, но экшен — отдельный эндпоинт:
+  // проверяем право здесь же (см. lib/require-office.ts).
+  await requireCapability('locations.edit');
   const supabase = await createClient();
 
   const data = parseLocationForm(formData);
@@ -105,6 +112,9 @@ export async function updateLocation(locationId: string, formData: FormData) {
 // УДАЛЕНИЕ
 // ============================================================
 export async function deleteLocation(locationId: string) {
+  // proxy.ts проверяет путь страницы, но экшен — отдельный эндпоинт:
+  // проверяем право здесь же (см. lib/require-office.ts).
+  await requireCapability('locations.edit');
   const supabase = await createClient();
 
   const { data: before } = await supabase

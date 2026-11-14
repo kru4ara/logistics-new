@@ -2,11 +2,14 @@
 
 import { createClient } from '../../lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
+import { requireCapability } from '../../lib/require-office';
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
 export async function sendReminderNotification(reminderId: string) {
+  // Иначе любой залогиненный мог слать сообщения в рабочий Telegram-чат.
+  await requireCapability('reminders.edit');
   const supabase = await createClient();
 
   const { data: reminder } = await supabase

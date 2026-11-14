@@ -2,6 +2,7 @@
 
 import { createClient } from '../../../lib/supabase/admin';
 import { getSessionContext } from '../../../lib/session';
+import { can } from '../../../lib/roles';
 import { fetchLogisatSummary, type SummaryResult } from '../../../lib/logisat';
 
 export async function checkLogisat(
@@ -10,7 +11,9 @@ export async function checkLogisat(
   toIso: string
 ): Promise<SummaryResult> {
   const { role } = await getSessionContext();
-  if (role !== 'driver' && role !== 'admin') {
+  // Было role !== 'driver' && role !== 'admin': роль из БД не нормализована,
+  // и офис с ролью 'office' и менеджер получали «Нет доступа».
+  if (!can(role, 'logisat.view')) {
     return { success: false, stage: 'auth', error: 'Нет доступа' };
   }
 
