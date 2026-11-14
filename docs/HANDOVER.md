@@ -15,7 +15,7 @@
 
 - **Next.js 16.4.3** (App Router, Turbopack) + React 19.3.1 + Supabase + Vercel
 - **Tailwind CSS 4.3.3** — конфиг через `@theme` в `app/globals.css`, файла `tailwind.config.js` нет
-- **Vitest 5** — **194 теста в 18 файлах** `lib/__tests__/`, **eslint-config-next 16.4.3**, **exceljs 4.4**
+- **Vitest 5** — **199 тестов в 19 файлах** `lib/__tests__/`, **eslint-config-next 16.4.3**, **exceljs 4.4**
 
 ### ENV (Vercel → Settings → Environment Variables)
 `NEXT_PUBLIC_SUPABASE_URL` · `NEXT_PUBLIC_SUPABASE_ANON_KEY` (клиент, RLS действует) ·
@@ -146,6 +146,9 @@ e-mail идёт напрямую. С миграции `016` вызывать е�
 - **`00000000_000_baseline.sql` — полная схема прода на 14.11.2026** (выгрузка `scripts/export-schema.sql`,
   сборка `scripts/build-baseline.py`). Новая база клиента = все миграции по порядку. На проде её
   не применять — там всё уже есть. Обновлять базовую схему не нужно: новые изменения — миграциями 021+.
+- **Ждёт применения: `021_private_documents_bucket`** — СТРОГО после деплоя кода (страницы
+  переходят на временные ссылки). Файлы бакета `documents` — только по временной ссылке на 1 час
+  (`lib/storage-urls.ts`); прямой адрес `/object/public/` больше не работает.
 - **`020_lock_dangerous_rpc` применена на проде вручную 14.11.2026** (через SQL Editor), файл — для git
   и новых баз. См. «Безопасность» ниже.
 - **Миграция, которая меняет права или удаляет то, чем пользуется код, — строго после деплоя кода.**

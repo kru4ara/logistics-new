@@ -23,16 +23,10 @@ export const APP_URL =
     ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
     : 'https://logistics-new-ebon.vercel.app');
 
-// ============================================================
-// Ссылки на картинки
-// ============================================================
-export const STAMP_URL =
-  process.env.COMPANY_STAMP_URL ||
-  'https://smodijsjwcvsscfgloh.supabase.co/storage/v1/object/public/documents/assets/stamp.png';
-
-export const LOGO_URL =
-  process.env.COMPANY_LOGO_URL ||
-  'https://smodijsjwcvsscfgloh.supabase.co/storage/v1/object/public/documents/assets/logo.png';
+// Печать и логотип для заявок — файлы assets/stamp.png и assets/logo.png
+// в бакете documents. Скачиваются сервером (lib/docx/assets.ts →
+// downloadAsset), поэтому работают и в закрытом бакете. Публичных ссылок
+// на них нет: бакет закрытый (миграция 021).
 
 // ============================================================
 // Условия перевозки (8 пунктов)
