@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Download, Loader2 } from 'lucide-react';
+import { useT } from '../../components/I18nProvider';
 
 export default function SegmentDocxButton({
   tripId,
@@ -14,6 +15,7 @@ export default function SegmentDocxButton({
   contractorName: string;
   segmentPosition: number;
 }) {
+  const { t } = useT();
   const [isLoading, setIsLoading] = useState(false);
 
   async function handleDownload() {
@@ -25,8 +27,8 @@ export default function SegmentDocxButton({
       const res = await fetch(url, { cache: 'no-store' });
 
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: 'Ошибка' }));
-        alert(`${err.error || 'Не удалось сгенерировать'}`);
+        const err = await res.json().catch(() => ({ error: '' }));
+        alert(err.error || t('seg.genFailed'));
         return;
       }
 
@@ -59,7 +61,7 @@ export default function SegmentDocxButton({
       {isLoading ? (
         <>
           <Loader2 className="w-3 h-3 animate-spin" />
-          Генерация...
+          {t('seg.generating')}
         </>
       ) : (
         <>

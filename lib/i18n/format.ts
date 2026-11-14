@@ -28,3 +28,10 @@ export function formatDate(d: string | null | undefined, locale: Locale): string
   const date = new Date(d);
   return Number.isNaN(date.getTime()) ? d : date.toLocaleDateString(INTL_LOCALE[locale]);
 }
+
+/** Дата и время по-местному. Пусто — «—». */
+export function formatDateTime(d: string | null | undefined, locale: Locale): string {
+  if (!d) return '—';
+  const date = new Date(d);
+  return Number.isNaN(date.getTime()) ? d : date.toLocaleString(INTL_LOCALE[locale]);
+}

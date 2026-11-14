@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import CargoForm from './CargoForm';
 import { deleteCargo } from './cargo-actions';
+import { useT } from '../../components/I18nProvider';
 
 type Location = {
   id: string;
@@ -96,6 +97,7 @@ export default function TripCargoBlock({
   customsLocations: Location[];
   defaultClientId: string | null;
 }) {
+  const { t } = useT();
   const router = useRouter();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -118,14 +120,14 @@ export default function TripCargoBlock({
   }
 
   function handleDelete(id: string, label: string) {
-    if (!confirm(`Удалить груз «${label}»?`)) return;
+    if (!confirm(t('trip.cargoDeleteConfirm', { label }))) return;
     setIsDeletingId(id);
     startTransition(async () => {
       try {
         await deleteCargo(id, tripId);
         router.refresh();
       } catch (e) {
-        alert('Ошибка удаления: ' + (e as Error).message);
+        alert(t('trip.deleteError', { msg: (e as Error).message }));
       } finally {
         setIsDeletingId(null);
       }
@@ -169,7 +171,7 @@ export default function TripCargoBlock({
       <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
         <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
           <Package className="w-5 h-5 text-brand-600" strokeWidth={2.2} />
-          Грузы
+          {t('trip.cargo')}
           {cargoList.length > 0 && (
             <span className="text-xs bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full font-medium tabular-nums">
               {cargoList.length}
@@ -182,17 +184,17 @@ export default function TripCargoBlock({
           className="btn-primary inline-flex items-center gap-2 text-sm"
         >
           <Plus className="w-4 h-4" strokeWidth={2.5} />
-          Добавить груз
+          {t('trip.addCargo')}
         </button>
       </div>
 
       <p className="text-xs text-slate-500 mb-4">
-        Данные заявки: маршрут, клиент, вес, паллеты, таможня и фрахт.
+        {t('trip.cargoHint')}
       </p>
 
       {cargoList.length === 0 ? (
         <div className="text-center py-8 text-slate-400 text-sm">
-          Грузов пока нет. Добавьте первый груз, чтобы указать маршрут и данные заявки.
+          {t('trip.cargoEmpty')}
         </div>
       ) : (
         <div className="space-y-3">
@@ -218,7 +220,7 @@ export default function TripCargoBlock({
                         </div>
                         {c.client_name && (
                           <div className="text-xs text-slate-500 mt-0.5">
-                            Клиент: <b className="text-slate-700">{c.client_name}</b>
+                            {t('trip.client')} <b className="text-slate-700">{c.client_name}</b>
                           </div>
                         )}
                       </div>
@@ -232,7 +234,7 @@ export default function TripCargoBlock({
                                      hover:bg-white text-xs font-medium transition-all active:scale-[0.97] disabled:opacity-50"
                         >
                           <Pencil className="w-3 h-3" strokeWidth={2.2} />
-                          Изменить
+                          {t('trip.change')}
                         </button>
                         <button
                           type="button"
@@ -246,7 +248,7 @@ export default function TripCargoBlock({
                           ) : (
                             <Trash2 className="w-3 h-3" strokeWidth={2.2} />
                           )}
-                          Удалить
+                          {t('trip.delete')}
                         </button>
                       </div>
                     </div>
@@ -266,7 +268,7 @@ export default function TripCargoBlock({
                         <div className="flex items-start gap-1.5">
                           <ShieldCheck className="w-3.5 h-3.5 text-slate-500 mt-0.5 shrink-0" strokeWidth={2.2} />
                           <div className="text-sm text-slate-700 break-words">
-                            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide mr-1.5">Таможня:</span>
+                            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide mr-1.5">{t('trip.customs')}</span>
                             {fmtPlace(
                                 c.customs_place ?? null,
                                 c.customs_city ?? null,
@@ -292,19 +294,19 @@ export default function TripCargoBlock({
                       <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-200/60">
                         {c.cargo_type && (
                           <span className="inline-flex items-center gap-1 text-xs text-slate-600 bg-white border border-slate-200 rounded-md px-2 py-0.5">
-                            Тип: {c.cargo_type}
+                            {t('trip.type', { v: c.cargo_type })}
                           </span>
                         )}
                         {c.weight_kg != null && (
                           <span className="inline-flex items-center gap-1 text-xs text-slate-600 bg-white border border-slate-200 rounded-md px-2 py-0.5 tabular-nums">
                             <Weight className="w-3 h-3 text-slate-400" strokeWidth={2} />
-                            {c.weight_kg} кг
+                            {c.weight_kg} {t('units.kg')}
                           </span>
                         )}
                         {c.pallets != null && (
                           <span className="inline-flex items-center gap-1 text-xs text-slate-600 bg-white border border-slate-200 rounded-md px-2 py-0.5 tabular-nums">
                             <Layers className="w-3 h-3 text-slate-400" strokeWidth={2} />
-                            {c.pallets} пал.
+                            {c.pallets} {t('units.pal')}
                           </span>
                         )}
                         {c.freight_amount != null && c.freight_amount > 0 && (

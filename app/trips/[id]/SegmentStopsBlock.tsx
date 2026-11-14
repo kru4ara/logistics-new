@@ -2,6 +2,7 @@
 
 import { ArrowRight, Plus, Trash2 } from 'lucide-react';
 import type { Location, Stop } from './types';
+import { useT } from '../../components/I18nProvider';
 
 const STOP_TYPE_COLORS: Record<Stop['type'], string> = {
   load: 'bg-green-100 text-green-800 border-green-300',
@@ -29,12 +30,13 @@ export default function SegmentStopsBlock({
   onUpdate: (idx: number, field: keyof Stop, value: string) => void;
   onFillFromLocation: (idx: number, locId: string) => void;
 }) {
+  const { t } = useT();
   return (
     <div className="bg-amber-50 rounded-xl p-4 space-y-3 border border-amber-200">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2">
           <ArrowRight className="w-4 h-4 text-amber-700" strokeWidth={2.2} />
-          <h4 className="text-sm font-bold text-amber-800">Промежуточные точки</h4>
+          <h4 className="text-sm font-bold text-amber-800">{t('seg.stopsTitle')}</h4>
           {stops.length > 0 && (
             <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-medium tabular-nums">
               {stops.length}
@@ -44,7 +46,7 @@ export default function SegmentStopsBlock({
       </div>
 
       <p className="text-[11px] text-amber-700">
-        Заезды по пути (догруз, перегруз, таможня, промежуточная выгрузка). Если машина везёт без остановок — оставьте пустым.
+        {t('seg.stopsHint')}
       </p>
 
       {stops.map((stop, idx) => (
@@ -62,10 +64,10 @@ export default function SegmentStopsBlock({
                 onChange={(e) => onUpdate(idx, 'type', e.target.value)}
                 className={`text-[11px] font-semibold px-2 py-0.5 rounded border cursor-pointer ${STOP_TYPE_COLORS[stop.type]}`}
               >
-                <option value="load">Загрузка</option>
-                <option value="reload">Догруз / перегруз</option>
-                <option value="unload">Выгрузка</option>
-                <option value="customs">Таможня</option>
+                <option value="load">{t('seg.optLoad')}</option>
+                <option value="reload">{t('seg.optReload')}</option>
+                <option value="unload">{t('seg.optUnload')}</option>
+                <option value="customs">{t('seg.optCustoms')}</option>
               </select>
             </div>
             <button
@@ -74,12 +76,12 @@ export default function SegmentStopsBlock({
               className="text-red-600 hover:text-red-700 text-xs font-medium inline-flex items-center gap-1 px-2 py-1 rounded hover:bg-red-50"
             >
               <Trash2 className="w-3 h-3" strokeWidth={2.2} />
-              Удалить
+              {t('trip.delete')}
             </button>
           </div>
 
           <div>
-            <label className="block text-[11px] font-medium text-slate-600 mb-1">Подставить из справочника</label>
+            <label className="block text-[11px] font-medium text-slate-600 mb-1">{t('addr.fromDirectory')}</label>
             <select
               onChange={(e) => {
                 onFillFromLocation(idx, e.target.value);
@@ -88,7 +90,7 @@ export default function SegmentStopsBlock({
               className="w-full rounded-lg border-2 border-dashed border-amber-300 bg-amber-50/50 px-2 py-1.5 text-sm text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-amber-500"
               defaultValue=""
             >
-              <option value="">— Выберите локацию —</option>
+              <option value="">{t('addr.pickLocation')}</option>
               {(() => {
                 let filtered: Location[] = [];
                 if (stop.type === 'customs') {
@@ -112,7 +114,7 @@ export default function SegmentStopsBlock({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             <div>
-              <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Компания</label>
+              <label className="block text-[11px] font-medium text-slate-600 mb-0.5">{t('addr.company')}</label>
               <input
                 type="text"
                 value={stop.company}
@@ -122,7 +124,7 @@ export default function SegmentStopsBlock({
               />
             </div>
             <div>
-              <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Страна</label>
+              <label className="block text-[11px] font-medium text-slate-600 mb-0.5">{t('addr.country')}</label>
               <input
                 type="text"
                 value={stop.country}
@@ -131,7 +133,7 @@ export default function SegmentStopsBlock({
               />
             </div>
             <div>
-              <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Город</label>
+              <label className="block text-[11px] font-medium text-slate-600 mb-0.5">{t('addr.city')}</label>
               <input
                 type="text"
                 value={stop.city}
@@ -140,7 +142,7 @@ export default function SegmentStopsBlock({
               />
             </div>
             <div>
-              <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Почтовый код</label>
+              <label className="block text-[11px] font-medium text-slate-600 mb-0.5">{t('addr.postal')}</label>
               <input
                 type="text"
                 value={stop.postal_code}
@@ -149,7 +151,7 @@ export default function SegmentStopsBlock({
               />
             </div>
             <div className="md:col-span-2">
-              <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Адрес</label>
+              <label className="block text-[11px] font-medium text-slate-600 mb-0.5">{t('addr.address')}</label>
               <input
                 type="text"
                 value={stop.address}
@@ -158,7 +160,7 @@ export default function SegmentStopsBlock({
               />
             </div>
             <div>
-              <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Дата</label>
+              <label className="block text-[11px] font-medium text-slate-600 mb-0.5">{t('addr.date')}</label>
               <input
                 type="date"
                 value={stop.date}
@@ -178,7 +180,7 @@ export default function SegmentStopsBlock({
                    inline-flex items-center justify-center gap-2"
       >
         <Plus className="w-4 h-4" strokeWidth={2.5} />
-        Добавить промежуточную точку
+        {t('seg.addStop')}
       </button>
     </div>
   );

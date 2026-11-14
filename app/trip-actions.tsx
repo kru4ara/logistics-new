@@ -11,11 +11,13 @@ import { geocode } from '../lib/geocode';
 import { requireExpenseAccess, requireTripAccess } from '../lib/driver-access';
 import { getScope } from '../lib/scope';
 import { tripVisibleToScope } from '../lib/scope-rules';
+import { getT } from '../lib/i18n/server';
 
 // ============================================================
 // Добавление расхода
 // ============================================================
 export async function addExpense(formData: FormData) {
+  const { t } = await getT();
   const supabase = await createClient();
 
   const tripId = formData.get('trip_id') as string;
@@ -77,7 +79,7 @@ export async function addExpense(formData: FormData) {
     .select('id')
     .single();
 
-  if (error) throw new Error(`Ошибка добавления: ${error.message}`);
+  if (error) throw new Error(t('tripErr.add', { msg: error.message }));
 
   if (created?.id) {
     await logAudit({
@@ -153,6 +155,7 @@ export async function addExpense(formData: FormData) {
 // Удаление расхода
 // ============================================================
 export async function deleteExpense(expenseId: string, tripId: string) {
+  const { t } = await getT();
   // Экшен вызывается и со страницы офиса, и со страницы водителя.
   // Офис удаляет любой расход, водитель — только расход своего рейса.
   const access = await requireExpenseAccess(expenseId);
@@ -172,7 +175,7 @@ export async function deleteExpense(expenseId: string, tripId: string) {
     .from('trip_expenses')
     .delete()
     .eq('id', expenseId);
-  if (error) throw new Error(`Ошибка удаления: ${error.message}`);
+  if (error) throw new Error(t('tripErr.delete', { msg: error.message }));
 
   await logAudit({
     entity_type: 'trip_expense',
@@ -189,6 +192,7 @@ export async function deleteExpense(expenseId: string, tripId: string) {
 }
 
 export async function updateExpense(expenseId: string, formData: FormData) {
+  const { t } = await getT();
   // Та же проверка, что и в deleteExpense: водитель правит только свои расходы.
   const access = await requireExpenseAccess(expenseId);
   if (!access.ok) {
@@ -219,7 +223,7 @@ export async function updateExpense(expenseId: string, formData: FormData) {
     })
     .eq('id', expenseId);
 
-  if (error) throw new Error(`Ошибка обновления расхода: ${error.message}`);
+  if (error) throw new Error(t('tripErr.updateExpense', { msg: error.message }));
 
   // Пересчитываем баланс водителя, если это ЗП или оплачено им
   // (упрощенно: просто ревалидируем пути)
@@ -234,6 +238,7 @@ export async function updateExpense(expenseId: string, formData: FormData) {
 // из trip_segments и trip_cargo.
 // ============================================================
 export async function updateTrip(tripId: string, formData: FormData) {
+  const { t } = await getT();
   // Фаза 39: requireOffice() закрывал бы доступ менеджеру, который ведёт
   // заказы. Право trips.editAny есть и у офиса, и у менеджера.
   // Что менеджер может редактировать — решает скоуп (lib/scope.ts).
@@ -264,7 +269,7 @@ export async function updateTrip(tripId: string, formData: FormData) {
   // Проверяем по скоупу — тем же правилом, что и списки.
   const scope = await getScope();
   if (!tripVisibleToScope(scope, before)) {
-    throw new Error('Заказ не найден или недоступен для правки');
+    throw new Error(t('tripErr.notEditable'));
   }
 
   // Ответственный менеджер (фаза 39). Пусто = без назначенного менеджера.
@@ -317,7 +322,7 @@ export async function updateTrip(tripId: string, formData: FormData) {
     })
     .eq('id', tripId);
 
-  if (error) throw new Error(`Ошибка обновления: ${error.message}`);
+  if (error) throw new Error(t('tripErr.update', { msg: error.message }));
 
   if (before) {
     const changes = diffFields(
@@ -360,6 +365,7 @@ export async function updateTrip(tripId: string, formData: FormData) {
 // Удаление рейса
 // ============================================================
 export async function deleteTrip(tripId: string) {
+  const { t } = await getT();
   // Удаление заказа — только офис: действие необратимое, менеджеру
   // его вести не нужно.
   await requireOffice();
@@ -375,19 +381,19 @@ export async function deleteTrip(tripId: string) {
     .from('trip_expenses')
     .delete()
     .eq('trip_id', tripId);
-  if (expensesError) throw new Error(`Ошибка удаления расходов: ${expensesError.message}`);
+  if (expensesError) throw new Error(t('tripErr.deleteExpenses', { msg: expensesError.message }));
 
   const { error: docsError } = await supabase
     .from('trip_documents')
     .delete()
     .eq('trip_id', tripId);
-  if (docsError) throw new Error(`Ошибка удаления документов: ${docsError.message}`);
+  if (docsError) throw new Error(t('tripErr.deleteDocs', { msg: docsError.message }));
 
   const { error } = await supabase
     .from('trips')
     .delete()
     .eq('id', tripId);
-  if (error) throw new Error(`Ошибка удаления рейса: ${error.message}`);
+  if (error) throw new Error(t('tripErr.deleteTrip', { msg: error.message }));
 
   await logAudit({
     entity_type: 'trip',
@@ -406,6 +412,7 @@ export async function deleteTrip(tripId: string) {
 // Пересчёт координат рейса по сегментам
 // ============================================================
 export async function recalcTripCoords(tripId: string): Promise<{ success: boolean; error?: string }> {
+  const { t } = await getT();
   // Пересчёт координат по геокодингу — только офис.
   await requireOffice();
   const supabase = await createClient();
@@ -417,7 +424,7 @@ export async function recalcTripCoords(tripId: string): Promise<{ success: boole
     .order('position', { ascending: true });
 
   if (!segments || segments.length === 0) {
-    return { success: false, error: 'У рейса нет сегментов' };
+    return { success: false, error: t('tripErr.noSegments') };
   }
 
   const first = segments[0];
@@ -437,7 +444,7 @@ export async function recalcTripCoords(tripId: string): Promise<{ success: boole
   }
 
   if (Object.keys(updateData).length === 0) {
-    return { success: false, error: 'Не удалось геокодировать ни один город' };
+    return { success: false, error: t('tripErr.geocodeFailed') };
   }
 
   const { error } = await supabase
@@ -467,16 +474,17 @@ const MAX_RECALC_BATCH = 20;
 export async function recalcAllTripsCoords(
   tripIds: string[]
 ): Promise<{ success: boolean; updated: number; failed: number; error?: string }> {
+  const { t } = await getT();
   await requireOffice();
   if (tripIds.length === 0) {
-    return { success: false, updated: 0, failed: 0, error: 'Нет рейсов для пересчёта' };
+    return { success: false, updated: 0, failed: 0, error: t('tripErr.nothingToRecalc') };
   }
   if (tripIds.length > MAX_RECALC_BATCH) {
     return {
       success: false,
       updated: 0,
       failed: 0,
-      error: `Слишком много рейсов (${tripIds.length}). Максимум ${MAX_RECALC_BATCH} за раз. Отфильтруйте список.`,
+      error: t('tripErr.tooMany', { n: tripIds.length, max: MAX_RECALC_BATCH }),
     };
   }
 

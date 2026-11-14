@@ -20,6 +20,8 @@ import {
   PlusCircle,
 } from 'lucide-react';
 import { withSignedUrls } from '../../../lib/storage-urls';
+import { getT } from '../../../lib/i18n/server';
+import { tripStatusKey, TRIP_STATUSES } from '../../../lib/i18n/labels';
 
 export const dynamic = 'force-dynamic';
  
@@ -41,8 +43,9 @@ function pickOne<T>(rel: unknown): T | null {
 }
 
 export default async function TripDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { t } = await getT();
   const { id: tripId } = await params;
-  if (!tripId) return <div className="p-8">Ошибка: ID рейса не передан</div>;
+  if (!tripId) return <div className="p-8">{t('trip.noId')}</div>;
 
   const supabase = await createClient();
 
@@ -59,7 +62,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
     .single();
 
   if (tripError) {
-    return <div className="p-8 text-red-500">Ошибка загрузки: {tripError.message}</div>;
+    return <div className="p-8 text-red-500">{t('trip.loadError', { msg: tripError.message })}</div>;
   }
 
   // Имя ответственного менеджера (фаза 39).
@@ -300,18 +303,14 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
   const driverHasTelegram = Boolean(driver?.telegram_chat_id);
   const sendDisabled = !driver || !driverHasTelegram;
   const sendHint = !driver
-    ? 'Сначала назначьте водителя в рейсе'
+    ? t('trip.sendNoDriver')
     : !driverHasTelegram
-      ? `Водитель ${driver.first_name} ${driver.last_name} не подключён к Telegram. Откройте его карточку и пришлите ему персональную ссылку.`
+      ? t('trip.sendNoTelegram', { name: `${driver.first_name} ${driver.last_name}` })
       : undefined;
 
-  const statusLabels: Record<string, string> = {
-    planned: 'Планируется',
-    active: 'В пути',
-    completed: 'Завершён',
-    invoiced: 'Выставлен счёт',
-    paid: 'Оплачен',
-  };
+  const statusLabels: Record<string, string> = Object.fromEntries(
+    TRIP_STATUSES.map((s) => [s, t(tripStatusKey(s)!)])
+  );
 
   const statusColors: Record<string, string> = {
     planned: 'bg-slate-100 text-slate-700 border-slate-200',
@@ -343,12 +342,11 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
               <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" strokeWidth={2.2} />
               <div className="min-w-0">
                 <div className="font-bold text-amber-900 text-sm md:text-base">
-                  ЗП водителю не начислена
+                  {t('trip.salaryTitle')}
                 </div>
                 <div className="text-xs md:text-sm text-amber-800 mt-1">
-                  Рейс завершён, но расход <b>«💶 ЗП водителя»</b> не создан.
-                  Добавьте его ниже в блоке <b>«Добавить расход»</b> — или переведите рейс обратно
-                  в «В пути», если работа не закончена.
+                  {t('trip.salaryA')} <b>«💶 {t('expenseCat.salary')}»</b> {t('trip.salaryB')}{' '}
+                  <b>«{t('trip.addExpense')}»</b> {t('trip.salaryC', { status: t('status.active') })}
                 </div>
               </div>
             </div>
@@ -412,7 +410,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
         <div className="card p-5 md:p-6">
           <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
             <Paperclip className="w-5 h-5 text-brand-600" strokeWidth={2} />
-            Загрузить документы
+            {t('trip.uploadDocs')}
           </h2>
           <FileUpload tripId={tripId} />
         </div>
@@ -420,7 +418,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
         <div className="card p-5 md:p-6">
           <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
             <FolderOpen className="w-5 h-5 text-brand-600" strokeWidth={2} />
-            Загруженные файлы
+            {t('trip.uploadedFiles')}
           </h2>
           <DocumentList documents={documents || []} tripId={tripId} canDelete={true} />
         </div>
@@ -442,11 +440,10 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
         <div className="card p-5 md:p-6">
           <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
             <PlusCircle className="w-5 h-5 text-brand-600" strokeWidth={2} />
-            Добавить расход
+            {t('trip.addExpense')}
           </h2>
           <p className="text-xs text-slate-500 mb-4">
-            Расход подрядчику создаётся автоматически из участка. Здесь — прочие расходы:
-            топливо, EPI, стоянки, дозволы, ЗП водителя и т.д.
+            {t('trip.addExpenseHint')}
           </p>
           <AddExpenseForm
             tripId={tripId}

@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { Send, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import { sendTaskToDriver } from './task-actions';
+import { useT } from '../../components/I18nProvider';
 
 export default function SendTaskButton({
   tripId,
@@ -13,6 +14,7 @@ export default function SendTaskButton({
   disabled?: boolean;
   disabledHint?: string;
 }) {
+  const { t } = useT();
   const [isPending, startTransition] = useTransition();
   const [status, setStatus] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
 
@@ -24,7 +26,7 @@ export default function SendTaskButton({
       try {
         const res = await sendTaskToDriver(tripId);
         if (res.success) {
-          setStatus({ kind: 'ok', text: 'Задание отправлено водителю' });
+          setStatus({ kind: 'ok', text: t('trip.taskSent') });
           setTimeout(() => setStatus(null), 5000);
         } else {
           setStatus({ kind: 'err', text: res.error });
@@ -51,12 +53,12 @@ export default function SendTaskButton({
         {isPending ? (
           <>
             <Loader2 className="w-4 h-4 animate-spin" />
-            Отправка...
+            {t('trip.sending')}
           </>
         ) : (
           <>
             <Send className="w-4 h-4" />
-            Отправить водителю в Telegram
+            {t('trip.sendTelegram')}
           </>
         )}
       </button>

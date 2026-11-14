@@ -2,6 +2,7 @@
 
 import { useFormStatus } from 'react-dom';
 import type { ReactNode } from 'react';
+import { useT } from './I18nProvider';
 
 type Props = {
   children?: ReactNode;
@@ -17,10 +18,11 @@ type Props = {
  * читает статус родительской формы и вне неё не работает.
  */
 export default function SubmitButton({
-  children = 'Сохранить',
-  pendingText = 'Сохранение…',
+  children,
+  pendingText,
   className,
 }: Props) {
+  const { t } = useT();
   const { pending } = useFormStatus();
 
   const baseClass =
@@ -32,10 +34,10 @@ export default function SubmitButton({
       {pending ? (
         <span className="inline-flex items-center justify-center gap-2">
           <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-          {pendingText}
+          {pendingText ?? t('shared.saving')}
         </span>
       ) : (
-        children
+        children ?? t('common.save')
       )}
     </button>
   );

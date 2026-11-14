@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { updateTrip } from '../../../trip-actions';
 import SubmitButton from '../../../components/SubmitButton';
+import { useT } from '../../../components/I18nProvider';
 
 type Option = { id: string; label: string };
 
@@ -38,6 +39,7 @@ export default function EditTripForm({
   managers,
   canChangeManager,
 }: Props) {
+  const { t } = useT();
   const inputClass = 'input';
   const isForwarding = trip.profit_mode === 'forwarding';
   const labelClass = 'block text-sm font-medium text-slate-700 mb-1';
@@ -51,32 +53,32 @@ export default function EditTripForm({
       <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800 flex items-start gap-2">
         <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" strokeWidth={2.2} />
         <div>
-          <b>Транспорт, даты и фрахт</b> теперь редактируются в карточке рейса:
-          <br />• Машина, водитель, даты — в блоке <b>«Участки»</b> (кнопка «Добавить участок»).
-          <br />• Фрахт — в блоке <b>«Грузы»</b> (кнопка «Изменить» у груза).
-          <br />Здесь вы можете изменить только данные заявки.
+          <b>{t('tripForm.editWarnTitle')}</b> {t('tripForm.editWarnA')}
+          <br />{t('tripForm.editWarnB')} <b>«{t('tripForm.legs')}»</b> {t('tripForm.button', { btn: t('seg.add') })}
+          <br />{t('tripForm.editWarnC')} <b>«{t('trip.cargo')}»</b> {t('tripForm.buttonCargo', { btn: t('trip.change') })}
+          <br />{t('tripForm.editWarnD')}
         </div>
       </div>
 
       <div className={sectionClass}>
         <h2 className={sectionTitleClass}>
           <FileText className="w-5 h-5 text-brand-600" strokeWidth={2.2} />
-          Заявка клиента
+          {t('tripForm.clientOrder')}
         </h2>
         <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-3">
           <div>
-            <label className={labelClass}>Клиент</label>
+            <label className={labelClass}>{t('cargo.client')}</label>
             <select name="client_id" defaultValue={trip.client_id || ''} className={inputClass}>
-              <option value="">Выберите клиента...</option>
+              <option value="">{t('tripForm.pickClient')}</option>
               {clients.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
             </select>
           </div>
           <div>
-            <label className={labelClass}>Номер заявки</label>
+            <label className={labelClass}>{t('tripForm.requestNo')}</label>
             <input type="text" name="client_request_number" defaultValue={trip.client_request_number || ''} className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>Дата заявки</label>
+            <label className={labelClass}>{t('tripForm.requestDate')}</label>
             <input type="date" name="client_request_date" defaultValue={trip.client_request_date || ''} className={inputClass} />
           </div>
         </div>
@@ -85,11 +87,11 @@ export default function EditTripForm({
       <div className={sectionClass}>
         <h2 className={sectionTitleClass}>
           <CalendarDays className="w-5 h-5 text-brand-600" strokeWidth={2.2} />
-          Даты заказа
+          {t('tripForm.orderDates')}
         </h2>
         <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
           <div>
-            <label className={labelClass}>Старт</label>
+            <label className={labelClass}>{t('trip.start')}</label>
             <input
               type="date"
               name="start_date"
@@ -98,7 +100,7 @@ export default function EditTripForm({
             />
           </div>
           <div>
-            <label className={labelClass}>Финиш</label>
+            <label className={labelClass}>{t('trip.finish')}</label>
             <input
               type="date"
               name="end_date"
@@ -109,19 +111,19 @@ export default function EditTripForm({
         </div>
         <p className="text-xs text-slate-500">
           {isForwarding
-            ? 'Фактические даты экспедирования: когда груз реально погрузили и разгрузили.'
-            : 'Фактические даты рейса: когда машина реально выехала и вернулась.'}
-          {' '}Плановые даты задаются в участках и автоматически сюда не подставляются.
+            ? t('tripForm.datesFwd')
+            : t('tripForm.datesTrip')}
+          {' '}{t('tripForm.datesPlanned')}
         </p>
       </div>
 
       <div className={sectionClass}>
         <h2 className={sectionTitleClass}>
           <FileText className="w-5 h-5 text-brand-600" strokeWidth={2.2} />
-          Технические данные
+          {t('tripForm.technical')}
         </h2>
         <div>
-          <label className={labelClass}>Остаток топлива (л)</label>
+          <label className={labelClass}>{t('tripForm.fuelLeft')}</label>
           <input type="number" name="start_fuel_level" step="0.01" defaultValue={trip.start_fuel_level || 0} className={inputClass} />
         </div>
       </div>
@@ -129,17 +131,17 @@ export default function EditTripForm({
       {canChangeManager && (
         <div className={sectionClass}>
           <h2 className={sectionTitleClass}>
-            Ответственный менеджер
+            {t('tripForm.manager')}
           </h2>
           <div>
             <label className={labelClass}>
-              Менеджер
+              {t('tripForm.managerShort')}
               <span className="block text-xs text-slate-500 font-normal mt-0.5">
-                Пусто — заказ без назначенного менеджера, его видят все менеджеры.
+                {t('tripForm.managerHint')}
               </span>
             </label>
             <select name="manager_id" className={inputClass} defaultValue={trip.manager_id || ''}>
-              <option value="">Без менеджера</option>
+              <option value="">{t('tripForm.noManager')}</option>
               {managers.map((m) => (
                 <option key={m.id} value={m.id}>{m.label}</option>
               ))}
@@ -157,13 +159,13 @@ export default function EditTripForm({
           className="w-full sm:w-auto text-center px-6 py-3 rounded-xl border border-slate-300 text-slate-700 font-semibold
                      hover:bg-slate-100 transition-all duration-150"
         >
-          Отмена
+          {t('seg.cancel')}
         </a>
         <SubmitButton
           className="w-full sm:flex-1 bg-brand-600 hover:bg-brand-700 disabled:bg-brand-400 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl shadow-brand transition-all duration-150 active:scale-[0.98]"
-          pendingText="Сохраняю изменения…"
+          pendingText={t('tripForm.savingChanges')}
         >
-          Сохранить изменения
+          {t('tripForm.saveChanges')}
         </SubmitButton>
       </div>
 
