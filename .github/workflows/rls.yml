@@ -18,11 +18,13 @@ on:
     branches: [master]
     paths:
       - 'supabase/**'
+      - 'scripts/migrate*.mjs'
       - '.github/workflows/rls.yml'
   push:
     branches: [master]
     paths:
       - 'supabase/**'
+      - 'scripts/migrate*.mjs'
       - '.github/workflows/rls.yml'
 
 jobs:
@@ -85,3 +87,26 @@ jobs:
 
       - name: Проверить поведение политик
         run: psql -v ON_ERROR_STOP=1 -f supabase/tests/rls_policies.test.sql
+
+      # Как подключается новый клиент: пустая база Supabase → scripts/migrate.mjs.
+      # Второй запуск обязан ничего не применять (журнал schema_migrations).
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Установить зависимости (драйвер pg для scripts/migrate.mjs)
+        run: npm ci --ignore-scripts
+
+      - name: Новая база клиента через scripts/migrate.mjs
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/tenant_test
+        run: |
+          set -euo pipefail
+          createdb tenant_test
+          psql -d tenant_test -v ON_ERROR_STOP=1 -f supabase/stubs/prepare.sql
+          psql -d tenant_test -v ON_ERROR_STOP=1 -f supabase/stubs/platform.sql
+          node scripts/migrate.mjs
+          node scripts/migrate.mjs | tee second.log
+          grep -q 'актуальна' second.log
+          psql -d tenant_test -v ON_ERROR_STOP=1 -f supabase/tests/rls_policies.test.sql > /dev/null

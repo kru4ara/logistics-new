@@ -35,3 +35,6 @@ next-env.d.ts
 # backup dumps
 backup_*.json
 .env*
+
+# Строки подключения к базам клиентов (scripts/migrate.mjs --all)
+scripts/tenants.json

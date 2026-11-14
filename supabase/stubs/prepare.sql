@@ -2,9 +2,14 @@
 -- Создаём роли и схему auth — то, что в реальном Supabase есть
 -- по умолчанию, а в чистом Postgres нет.
 
-create role anon nologin;
-create role authenticated nologin;
-create role service_role nologin bypassrls;
+-- Роли — на весь кластер: при второй базе (CI: новая база клиента) уже есть.
+do $$
+begin
+  if not exists (select 1 from pg_roles where rolname = 'anon') then create role anon nologin; end if;
+  if not exists (select 1 from pg_roles where rolname = 'authenticated') then create role authenticated nologin; end if;
+  if not exists (select 1 from pg_roles where rolname = 'service_role') then create role service_role nologin bypassrls; end if;
+end;
+$$;
 
 create schema if not exists auth;
 
