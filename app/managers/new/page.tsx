@@ -5,10 +5,12 @@ import { getSessionContext } from '../../../lib/session';
 import { createManager } from '../actions';
 import SubmitButton from '../../components/SubmitButton';
 import { ArrowLeft, UserPlus, Save } from 'lucide-react';
+import { getT } from '../../../lib/i18n/server';
 
 export const dynamic = 'force-dynamic';
 
 export default async function NewManagerPage() {
+  const { t } = await getT();
   const { role } = await getSessionContext();
   const denied = deniedRedirect(role, 'managers.edit');
   if (denied) redirect(denied);
@@ -23,37 +25,37 @@ export default async function NewManagerPage() {
           className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" strokeWidth={2} />
-          К списку менеджеров
+          {t('mgr.backToList')}
         </Link>
 
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2.5 tracking-tight">
             <UserPlus className="w-6 h-6 md:w-7 md:h-7 text-brand-600" strokeWidth={2.2} />
-            Новый менеджер
+            {t('mgr.newTitle')}
           </h1>
           <p className="text-slate-500 mt-1 text-sm md:text-base">
-            Карточка менеджера. Заказы назначаются на него из карточки заказа.
+            {t('mgr.newHint')}
           </p>
         </div>
 
         <form action={createManager} className="card p-5 md:p-6 space-y-5">
           <div>
             <label htmlFor="full_name" className="block text-sm font-medium text-slate-700 mb-1">
-              Имя и фамилия <span className="text-red-500">*</span>
+              {t('mgr.fullName')}{' '}<span className="text-red-500">*</span>
             </label>
             <input
               id="full_name"
               name="full_name"
               required
               className="input"
-              placeholder="Иванов Иван"
+              placeholder={t('mgr.phName')}
             />
           </div>
 
           <div className="grid gap-5 md:grid-cols-2">
             <div>
               <label htmlFor="phone" className="block text-sm font-medium text-slate-700 mb-1">
-                Телефон
+                {t('drv.phone')}
               </label>
               <input id="phone" name="phone" className="input" placeholder="+375 29 000 00 00" />
             </div>
@@ -64,7 +66,7 @@ export default async function NewManagerPage() {
               </label>
               <input id="email" name="email" type="email" className="input" placeholder="manager@example.com" />
               <p className="text-xs text-slate-500 mt-1">
-                По этому e-mail менеджер входит в систему. Учётную запись создаёт администратор.
+                {t('mgr.emailHint')}
               </p>
             </div>
           </div>
@@ -78,9 +80,9 @@ export default async function NewManagerPage() {
 
           <div>
             <label htmlFor="notes" className="block text-sm font-medium text-slate-700 mb-1">
-              Заметки
+              {t('seg.notes')}
             </label>
-            <textarea id="notes" name="notes" rows={3} className="input" placeholder="Зона ответственности, график и т.п." />
+            <textarea id="notes" name="notes" rows={3} className="input" placeholder={t('mgr.phNotes')} />
           </div>
 
           <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-2">
@@ -88,14 +90,14 @@ export default async function NewManagerPage() {
               href="/managers"
               className="btn btn-secondary w-full sm:w-auto text-center"
             >
-              Отмена
+              {t('seg.cancel')}
             </Link>
             <SubmitButton
               className="btn btn-primary w-full sm:w-auto text-center"
-              pendingText="Сохраняю менеджера…"
+              pendingText={t('mgr.saving')}
             >
               <Save className="w-4 h-4" strokeWidth={2} />
-              Сохранить
+              {t('common.save')}
             </SubmitButton>
           </div>
         </form>

@@ -2,11 +2,20 @@ import { createClient } from '../../../../lib/supabase/admin';
 import { updateFixedCost } from '../../../fixed-cost-actions';
 import SubmitButton from '../../../components/SubmitButton';
 import { ArrowLeft, Banknote, Pencil, Save, TrendingUp } from 'lucide-react';
-import { classifyCapex, capexRuleLabel } from '../../../../lib/capex';
+import { classifyCapex } from '../../../../lib/capex';
+import { getT } from '../../../../lib/i18n/server';
+import type { MessageKey } from '../../../../lib/i18n/translate';
+
+const CAPEX_RULE_KEY: Record<string, MessageKey> = {
+  asset: 'fc.ruleAsset',
+  purchase: 'fc.rulePurchase',
+  below_threshold: 'fc.ruleBelow',
+};
 
 export const dynamic = 'force-dynamic';
 
 export default async function EditFixedCostPage({ params }: { params: Promise<{ id: string }> }) {
+  const { t } = await getT();
   const { id: costId } = await params;
 
   const supabase = await createClient();
@@ -17,7 +26,7 @@ export default async function EditFixedCostPage({ params }: { params: Promise<{ 
     .eq('id', costId)
     .single();
 
-  if (error) return <div className="p-8 text-red-500">Ошибка: {error.message}</div>;
+  if (error) return <div className="p-8 text-red-500">{t('dir.error')}{' '}{error.message}</div>;
 
   const currentAmount = cost.original_amount ?? cost.amount_pln ?? cost.amount_eur ?? 0;
   const capex = classifyCapex(cost.category, cost.amount_eur);
@@ -31,13 +40,13 @@ export default async function EditFixedCostPage({ params }: { params: Promise<{ 
           className="inline-flex items-center gap-2 text-slate-600 hover:text-brand-600 transition-colors text-sm font-medium"
         >
           <ArrowLeft className="w-4 h-4" strokeWidth={2} />
-          Все общие расходы
+          {t('fc.all')}
         </a>
 
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2.5 tracking-tight">
             <Pencil className="w-6 h-6 md:w-7 md:h-7 text-brand-600" strokeWidth={2.2} />
-            Редактировать расход
+            {t('expense.editTitle')}
           </h1>
         </div>
 
@@ -46,11 +55,11 @@ export default async function EditFixedCostPage({ params }: { params: Promise<{ 
           <div className="card p-5 md:p-6 space-y-4">
             <h2 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2">
               <Banknote className="w-5 h-5 text-brand-600" strokeWidth={2} />
-              Данные расхода
+              {t('fc.details')}
             </h2>
             <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Месяц *</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{t('fc.month')}</label>
                 <input
                   type="month"
                   name="month_key"
@@ -60,7 +69,7 @@ export default async function EditFixedCostPage({ params }: { params: Promise<{ 
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Дата расхода *</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{t('fc.date')}</label>
                 <input
                   type="date"
                   name="expense_date"
@@ -70,21 +79,21 @@ export default async function EditFixedCostPage({ params }: { params: Promise<{ 
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Тип расхода *</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{t('fc.costType')}</label>
                 <select
                   name="cost_type"
                   required
                   defaultValue={cost.cost_type || 'monthly'}
                   className="input"
                 >
-                  <option value="yearly">Годовой</option>
-                  <option value="monthly">Месячный</option>
-                  <option value="installment">Рата (часть платежа)</option>
-                  <option value="one_time">Одноразовый</option>
+                  <option value="yearly">{t('fc.typeYearly')}</option>
+                  <option value="monthly">{t('fc.typeMonthly')}</option>
+                  <option value="installment">{t('fc.optInstallment')}</option>
+                  <option value="one_time">{t('fc.typeOneTime')}</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Категория *</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{t('fc.category')}</label>
                 <input
                   type="text"
                   name="category"
@@ -94,7 +103,7 @@ export default async function EditFixedCostPage({ params }: { params: Promise<{ 
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Валюта *</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{t('fc.currency')}</label>
                 <select
                   name="currency"
                   required
@@ -107,7 +116,7 @@ export default async function EditFixedCostPage({ params }: { params: Promise<{ 
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Сумма *</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{t('fc.amount')}</label>
                 <input
                   type="number"
                   name="amount"
@@ -124,8 +133,8 @@ export default async function EditFixedCostPage({ params }: { params: Promise<{ 
               <TrendingUp className="w-4 h-4 shrink-0 mt-0.5" strokeWidth={2} />
               <span>
                 {capex.isCapex
-                  ? 'Инвестиция - определяется автоматически по категории и сумме (вне P&L, в прибыль не входит).'
-                  : 'Операционный расход - попадёт в прибыль (правило: ' + capexRuleLabel(capex.rule) + ').'}
+                  ? t('fc.isCapex')
+                  : t('fc.isOpex', { rule: t(CAPEX_RULE_KEY[capex.rule] ?? 'fc.ruleOpex') })}
               </span>
             </div>
           </div>
@@ -139,14 +148,14 @@ export default async function EditFixedCostPage({ params }: { params: Promise<{ 
               className="w-full sm:w-auto text-center px-6 py-3 rounded-xl border border-slate-300 text-slate-700 font-semibold
                          hover:bg-slate-100 transition-all duration-150"
             >
-              Отмена
+              {t('seg.cancel')}
             </a>
             <SubmitButton
               className="btn btn-primary w-full sm:flex-1 py-3"
-              pendingText="Сохраняю изменения…"
+              pendingText={t('tripForm.savingChanges')}
             >
               <Save className="w-4 h-4" strokeWidth={2.5} />
-              Сохранить изменения
+              {t('tripForm.saveChanges')}
             </SubmitButton>
           </div>
         </form>

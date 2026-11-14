@@ -6,6 +6,7 @@ import { createClient } from '../../lib/supabase/admin';
 import { requireCapability } from '../../lib/require-office';
 import { managerProfileUpdate } from '../../lib/roles';
 import { logAudit } from '../../lib/audit';
+import { getT } from '../../lib/i18n/server';
 
 /**
  * Экшены раздела «Менеджеры».
@@ -17,6 +18,7 @@ import { logAudit } from '../../lib/audit';
 
 export async function createManager(formData: FormData): Promise<void> {
   'use server';
+  const { t } = await getT();
 
   await requireCapability('managers.edit');
 
@@ -28,7 +30,7 @@ export async function createManager(formData: FormData): Promise<void> {
   const telegramChatId = ((formData.get('telegram_chat_id') as string) || '').trim() || null;
   const notes = ((formData.get('notes') as string) || '').trim() || null;
 
-  if (!fullName) throw new Error('Укажите имя менеджера');
+  if (!fullName) throw new Error(t('mgr.needName'));
 
   const { data, error } = await supabase
     .from('managers')
@@ -44,7 +46,7 @@ export async function createManager(formData: FormData): Promise<void> {
     .select('id')
     .single();
 
-  if (error) throw new Error(`Ошибка добавления: ${error.message}`);
+  if (error) throw new Error(t('dir.addError', { msg: error.message }));
 
   if (data?.id) {
     await logAudit({
@@ -61,6 +63,7 @@ export async function createManager(formData: FormData): Promise<void> {
 
 export async function updateManager(formData: FormData): Promise<void> {
   'use server';
+  const { t } = await getT();
 
   await requireCapability('managers.edit');
 
@@ -74,8 +77,8 @@ export async function updateManager(formData: FormData): Promise<void> {
   const notes = ((formData.get('notes') as string) || '').trim() || null;
   const active = formData.get('active') === 'true';
 
-  if (!managerId) throw new Error('Менеджер не найден');
-  if (!fullName) throw new Error('Укажите имя менеджера');
+  if (!managerId) throw new Error(t('mgr.notFound'));
+  if (!fullName) throw new Error(t('mgr.needName'));
 
   const { error } = await supabase
     .from('managers')
@@ -89,7 +92,7 @@ export async function updateManager(formData: FormData): Promise<void> {
     })
     .eq('id', managerId);
 
-  if (error) throw new Error(`Ошибка сохранения: ${error.message}`);
+  if (error) throw new Error(t('mgr.errSave', { msg: error.message }));
 
   await logAudit({
     entity_type: 'manager',
@@ -112,10 +115,11 @@ async function findAuthUserByEmail(
   supabase: Awaited<ReturnType<typeof createClient>>,
   email: string
 ) {
+  const { t } = await getT();
   const perPage = 200;
   for (let page = 1; page <= 20; page++) {
     const { data, error } = await supabase.auth.admin.listUsers({ page, perPage });
-    if (error) throw new Error(`Ошибка чтения учётных записей: ${error.message}`);
+    if (error) throw new Error(t('mgr.errReadAccounts', { msg: error.message }));
     const found = data.users.find((u) => (u.email || '').toLowerCase() === email);
     if (found) return found;
     if (data.users.length < perPage) break;
@@ -152,6 +156,7 @@ async function findAuthUserByEmail(
  */
 export async function setManagerPassword(formData: FormData): Promise<void> {
   'use server';
+  const { t } = await getT();
 
   await requireCapability('managers.edit');
 
@@ -161,12 +166,12 @@ export async function setManagerPassword(formData: FormData): Promise<void> {
   const email = ((formData.get('email') as string) || '').trim().toLowerCase();
   const password = (formData.get('password') as string) || '';
 
-  if (!managerId) throw new Error('Менеджер не найден');
+  if (!managerId) throw new Error(t('mgr.notFound'));
   if (!email || !email.includes('@')) {
-    throw new Error('Укажите e-mail менеджера — это его логин в системе');
+    throw new Error(t('mgr.needEmail'));
   }
   if (password.length < 6) {
-    throw new Error('Пароль должен быть не короче 6 символов');
+    throw new Error(t('mgr.passShort'));
   }
 
   // Учётная запись: создаём, если её ещё нет.
@@ -179,18 +184,18 @@ export async function setManagerPassword(formData: FormData): Promise<void> {
       password,
       email_confirm: true,
     });
-    if (error) throw new Error(`Ошибка смены пароля: ${error.message}`);
+    if (error) throw new Error(t('mgr.errPassword', { msg: error.message }));
   } else {
     const { data: created, error } = await supabase.auth.admin.createUser({
       email,
       password,
       email_confirm: true,
     });
-    if (error) throw new Error(`Ошибка создания учётной записи: ${error.message}`);
+    if (error) throw new Error(t('mgr.errCreateAccount', { msg: error.message }));
     userId = created.user?.id || '';
   }
 
-  if (!userId) throw new Error('Не удалось определить учётную запись');
+  if (!userId) throw new Error(t('mgr.noAccount'));
 
   // Карточка: e-mail (он же логин) и дата смены пароля. Сам пароль
   // нигде не хранится — только в Supabase Auth (хэш).
@@ -202,7 +207,7 @@ export async function setManagerPassword(formData: FormData): Promise<void> {
       password_updated_at: new Date().toISOString(),
     })
     .eq('id', managerId);
-  if (managerError) throw new Error(`Ошибка сохранения карточки: ${managerError.message}`);
+  if (managerError) throw new Error(t('mgr.errSaveCard', { msg: managerError.message }));
 
   // Профиль менеджера: роль 'manager' + ссылка на карточку.
   //
@@ -221,7 +226,7 @@ export async function setManagerPassword(formData: FormData): Promise<void> {
       .from('profiles')
       .insert({ id: userId, role: 'manager', manager_id: managerId });
     if (insertError) {
-      throw new Error(`Ошибка создания профиля менеджера: ${insertError.message}`);
+      throw new Error(t('mgr.errCreateProfile', { msg: insertError.message }));
     }
   } else {
     const patch = managerProfileUpdate(profile.role, managerId);
@@ -230,7 +235,7 @@ export async function setManagerPassword(formData: FormData): Promise<void> {
       .update(patch)
       .eq('id', userId);
     if (updateError) {
-      throw new Error(`Ошибка обновления профиля менеджера: ${updateError.message}`);
+      throw new Error(t('mgr.errUpdateProfile', { msg: updateError.message }));
     }
   }
 
@@ -249,6 +254,7 @@ export async function setManagerPassword(formData: FormData): Promise<void> {
 
 export async function linkManagerUser(formData: FormData): Promise<void> {
   'use server';
+  const { t } = await getT();
 
   await requireCapability('managers.edit');
 
@@ -258,7 +264,7 @@ export async function linkManagerUser(formData: FormData): Promise<void> {
   const userId = ((formData.get('user_id') as string) || '').trim();
   const email = ((formData.get('email') as string) || '').trim() || null;
 
-  if (!managerId) throw new Error('Менеджер не найден');
+  if (!managerId) throw new Error(t('mgr.notFound'));
 
   // e-mail карточки нужен для входа: по нему login ищет учётную запись.
   if (email) {
@@ -266,13 +272,13 @@ export async function linkManagerUser(formData: FormData): Promise<void> {
       .from('managers')
       .update({ email, user_id: userId || null })
       .eq('id', managerId);
-    if (error) throw new Error(`Ошибка сохранения: ${error.message}`);
+    if (error) throw new Error(t('mgr.errSave', { msg: error.message }));
   } else if (userId) {
     const { error } = await supabase
       .from('managers')
       .update({ user_id: userId })
       .eq('id', managerId);
-    if (error) throw new Error(`Ошибка сохранения: ${error.message}`);
+    if (error) throw new Error(t('mgr.errSave', { msg: error.message }));
   }
 
   if (userId) {
@@ -293,7 +299,7 @@ export async function linkManagerUser(formData: FormData): Promise<void> {
       .select('role')
       .eq('id', userId)
       .maybeSingle();
-    if (readError) throw new Error(`Ошибка чтения профиля: ${readError.message}`);
+    if (readError) throw new Error(t('mgr.errReadProfile', { msg: readError.message }));
 
     const patch = managerProfileUpdate(profile?.role, managerId);
 
@@ -301,7 +307,7 @@ export async function linkManagerUser(formData: FormData): Promise<void> {
       .from('profiles')
       .update(patch)
       .eq('id', userId);
-    if (error) throw new Error(`Ошибка привязки профиля: ${error.message}`);
+    if (error) throw new Error(t('mgr.errLinkProfile', { msg: error.message }));
   }
 
   await logAudit({

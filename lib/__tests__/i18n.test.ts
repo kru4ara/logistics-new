@@ -152,6 +152,21 @@ const TRANSLATED_FILES = [
   'app/locations/[id]/edit/page.tsx',
   'app/locations/new/page.tsx',
   'app/locations/page.tsx',
+  // Машины, менеджеры, общие расходы
+  'app/fixed-cost-actions.ts',
+  'app/fixed-costs/[id]/edit/page.tsx',
+  'app/fixed-costs/new/page.tsx',
+  'app/fixed-costs/page.tsx',
+  'app/managers/[id]/page.tsx',
+  'app/managers/new/page.tsx',
+  'app/managers/page.tsx',
+  'app/truck-actions.ts',
+  'app/trucks/[id]/edit/EditTruckForm.tsx',
+  'app/trucks/[id]/edit/page.tsx',
+  'app/trucks/[id]/page.tsx',
+  'app/trucks/new/NewTruckForm.tsx',
+  'app/trucks/new/page.tsx',
+  'app/trucks/page.tsx',
 ];
 
 function cyrillicLiterals(file: string): string[] {

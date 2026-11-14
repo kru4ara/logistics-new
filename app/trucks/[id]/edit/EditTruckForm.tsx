@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { updateTruck } from '../../../truck-actions';
 import SubmitButton from '../../../components/SubmitButton';
+import { useT } from '../../../components/I18nProvider';
 
 export type TruckData = {
   id: string;
@@ -24,6 +25,7 @@ export type TruckData = {
 };
 
 export default function EditTruckForm({ truck }: { truck: TruckData }) {
+  const { t } = useT();
   const [type, setType] = useState<'tractor' | 'trailer'>(
     truck.type === 'trailer' ? 'trailer' : 'tractor'
   );
@@ -44,10 +46,10 @@ export default function EditTruckForm({ truck }: { truck: TruckData }) {
 
       {/* ОСНОВНЫЕ ДАННЫЕ */}
       <div className={sectionClass}>
-        <h2 className={sectionTitleClass}>🚛 Основные данные</h2>
+        <h2 className={sectionTitleClass}>{t('trk.main')}</h2>
         <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
           <div>
-            <label className={labelClass}>Госномер *</label>
+            <label className={labelClass}>{t('trk.plate')}</label>
             <input
               type="text"
               name="registration_number"
@@ -57,7 +59,7 @@ export default function EditTruckForm({ truck }: { truck: TruckData }) {
             />
           </div>
           <div>
-            <label className={labelClass}>Тип *</label>
+            <label className={labelClass}>{t('trk.typeReq')}</label>
             <select
               name="type"
               required
@@ -65,12 +67,12 @@ export default function EditTruckForm({ truck }: { truck: TruckData }) {
               onChange={(e) => setType(e.target.value as 'tractor' | 'trailer')}
               className={inputClass}
             >
-              <option value="tractor">Тягач</option>
-              <option value="trailer">Прицеп</option>
+              <option value="tractor">{t('trips.filterTractor')}</option>
+              <option value="trailer">{t('seg.trailer')}</option>
             </select>
           </div>
           <div>
-            <label className={labelClass}>Марка</label>
+            <label className={labelClass}>{t('trk.make')}</label>
             <input
               type="text"
               name="brand"
@@ -80,7 +82,7 @@ export default function EditTruckForm({ truck }: { truck: TruckData }) {
             />
           </div>
           <div>
-            <label className={labelClass}>Модель</label>
+            <label className={labelClass}>{t('trk.model')}</label>
             <input
               type="text"
               name="model"
@@ -90,7 +92,7 @@ export default function EditTruckForm({ truck }: { truck: TruckData }) {
             />
           </div>
           <div>
-            <label className={labelClass}>Год выпуска</label>
+            <label className={labelClass}>{t('trk.yearMade')}</label>
             <input
               type="number"
               name="year"
@@ -116,10 +118,10 @@ export default function EditTruckForm({ truck }: { truck: TruckData }) {
 
       {/* СТРАХОВКИ — общие */}
       <div className={sectionClass}>
-        <h2 className={sectionTitleClass}>🛡 Страховки</h2>
+        <h2 className={sectionTitleClass}>{t('trk.insuranceT')}</h2>
         <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
           <div>
-            <label className={labelClass}>Страховка ОС (до)</label>
+            <label className={labelClass}>{t('trk.insuranceTo')}</label>
             <input
               type="date"
               name="truck_insurance_expiry"
@@ -128,7 +130,7 @@ export default function EditTruckForm({ truck }: { truck: TruckData }) {
             />
           </div>
           <div>
-            <label className={labelClass}>Пограничная страховка РБ (до)</label>
+            <label className={labelClass}>{t('trk.borderInsTo')}</label>
             <input
               type="date"
               name="border_insurance_expiry"
@@ -143,10 +145,10 @@ export default function EditTruckForm({ truck }: { truck: TruckData }) {
       {type === 'tractor' && (
         <>
           <div className={sectionClass}>
-            <h2 className={sectionTitleClass}>🔧 ТО и техосмотр</h2>
+            <h2 className={sectionTitleClass}>{t('trk.serviceT')}</h2>
             <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
               <div>
-                <label className={labelClass}>ТО — техобслуживание (до)</label>
+                <label className={labelClass}>{t('trk.serviceTo')}</label>
                 <input
                   type="date"
                   name="to_expiry"
@@ -154,11 +156,11 @@ export default function EditTruckForm({ truck }: { truck: TruckData }) {
                   className={inputClass}
                 />
                 <p className="text-xs text-slate-400 mt-1">
-                  Обычно раз в год или по километражу
+                  {t('trk.serviceHint')}
                 </p>
               </div>
               <div>
-                <label className={labelClass}>Техосмотр (до)</label>
+                <label className={labelClass}>{t('trk.inspectionTo')}</label>
                 <input
                   type="date"
                   name="tech_inspection_expiry"
@@ -170,10 +172,10 @@ export default function EditTruckForm({ truck }: { truck: TruckData }) {
           </div>
 
           <div className={sectionClass}>
-            <h2 className={sectionTitleClass}>⚙️ Тахограф и топливо</h2>
+            <h2 className={sectionTitleClass}>{t('trk.tachoFuel')}</h2>
             <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
               <div>
-                <label className={labelClass}>Калибровка тахографа (до)</label>
+                <label className={labelClass}>{t('trk.tachoCalTo')}</label>
                 <input
                   type="date"
                   name="tachograph_calibration_expiry"
@@ -182,17 +184,17 @@ export default function EditTruckForm({ truck }: { truck: TruckData }) {
                 />
               </div>
               <div>
-                <label className={labelClass}>Топливная карта</label>
+                <label className={labelClass}>{t('trk.fuelCard')}</label>
                 <input
                   type="text"
                   name="fuel_card_number"
                   defaultValue={textVal(truck.fuel_card_number)}
-                  placeholder="Номер карты"
+                  placeholder={t('trk.cardNo')}
                   className={inputClass}
                 />
               </div>
               <div className="md:col-span-2">
-                <label className={labelClass}>Последнее считывание тахографа</label>
+                <label className={labelClass}>{t('trk.tachoLast')}</label>
                 <input
                   type="date"
                   name="tachograph_last_download"
@@ -200,16 +202,16 @@ export default function EditTruckForm({ truck }: { truck: TruckData }) {
                   className={inputClass}
                 />
                 <p className="text-xs text-slate-400 mt-1">
-                  Лимит — не реже 96 дней. Обновляется, когда офис/водитель скачивает данные.
+                  {t('trk.tachoLimit')}
                 </p>
               </div>
             </div>
           </div>
 
           <div className={sectionClass}>
-            <h2 className={sectionTitleClass}>🔗 Прицеп</h2>
+            <h2 className={sectionTitleClass}>{t('trk.trailerT')}</h2>
             <div>
-              <label className={labelClass}>Номер прицепа (текстом)</label>
+              <label className={labelClass}>{t('trk.trailerNo')}</label>
               <input
                 type="text"
                 name="trailer_number"
@@ -218,7 +220,7 @@ export default function EditTruckForm({ truck }: { truck: TruckData }) {
                 className={inputClass}
               />
               <p className="text-xs text-slate-400 mt-1">
-                Временное поле. В будущем связь тягач ↔ прицеп будет через пул.
+                {t('trk.trailerHint')}
               </p>
             </div>
           </div>
@@ -229,9 +231,9 @@ export default function EditTruckForm({ truck }: { truck: TruckData }) {
       {type === 'trailer' && (
         <>
           <div className={sectionClass}>
-            <h2 className={sectionTitleClass}>🔧 Техосмотр</h2>
+            <h2 className={sectionTitleClass}>{t('trk.inspectionT')}</h2>
             <div>
-              <label className={labelClass}>Техосмотр (до)</label>
+              <label className={labelClass}>{t('trk.inspectionTo')}</label>
               <input
                 type="date"
                 name="tech_inspection_expiry"
@@ -242,9 +244,9 @@ export default function EditTruckForm({ truck }: { truck: TruckData }) {
           </div>
 
           <div className={sectionClass}>
-            <h2 className={sectionTitleClass}>📄 Таможенное свидетельство</h2>
+            <h2 className={sectionTitleClass}>{t('trk.customsCertT')}</h2>
             <div>
-              <label className={labelClass}>Таможенное свидетельство (до)</label>
+              <label className={labelClass}>{t('trk.customsCertTo')}</label>
               <input
                 type="date"
                 name="customs_certificate_expiry"
@@ -266,15 +268,15 @@ export default function EditTruckForm({ truck }: { truck: TruckData }) {
           className="w-full sm:w-auto text-center px-6 py-3 rounded-xl border border-slate-300 text-slate-700 font-semibold
                      hover:bg-slate-100 transition-all duration-150"
         >
-          Отмена
+          {t('seg.cancel')}
         </a>
         <SubmitButton
           className="w-full sm:flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed
                      text-white font-semibold py-3 rounded-xl shadow-md shadow-blue-600/20
                      transition-all duration-150 active:scale-[0.98]"
-          pendingText="⏳ Сохраняю изменения…"
+          pendingText={t('trk.savingChanges')}
         >
-          ✅ Сохранить изменения
+          {t('trk.saveChanges')}
         </SubmitButton>
       </div>
 

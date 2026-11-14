@@ -5,6 +5,7 @@ import { createClient } from '../lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { syncReminders } from './reminder-actions';
+import { getT } from '../lib/i18n/server';
 
 // ============================================================
 // Парсер формы — общий для create и update
@@ -55,12 +56,13 @@ function parseTruckForm(formData: FormData) {
 // Создание транспорта
 // ============================================================
 export async function createTruck(formData: FormData) {
+  const { t } = await getT();
   await requireOffice();
   const supabase = await createClient();
   const payload = parseTruckForm(formData);
 
   if (!payload.registration_number) {
-    throw new Error('Укажите госномер');
+    throw new Error(t('trk.needPlate'));
   }
 
   const { data, error } = await supabase
@@ -69,7 +71,7 @@ export async function createTruck(formData: FormData) {
     .select('id')
     .single();
 
-  if (error) throw new Error(`Ошибка добавления: ${error.message}`);
+  if (error) throw new Error(t('dir.addError', { msg: error.message }));
 
   // Автогенерация напоминаний по датам
   if (data?.id) {
@@ -85,12 +87,13 @@ export async function createTruck(formData: FormData) {
 // Обновление транспорта
 // ============================================================
 export async function updateTruck(truckId: string, formData: FormData) {
+  const { t } = await getT();
   await requireOffice();
   const supabase = await createClient();
   const payload = parseTruckForm(formData);
 
   if (!payload.registration_number) {
-    throw new Error('Укажите госномер');
+    throw new Error(t('trk.needPlate'));
   }
 
   const { error } = await supabase
@@ -98,7 +101,7 @@ export async function updateTruck(truckId: string, formData: FormData) {
     .update(payload)
     .eq('id', truckId);
 
-  if (error) throw new Error(`Ошибка обновления: ${error.message}`);
+  if (error) throw new Error(t('dir.updateError', { msg: error.message }));
 
   await syncReminders('truck', truckId);
 

@@ -1,10 +1,12 @@
 import { createFixedCost } from '../../fixed-cost-actions';
 import SubmitButton from '../../components/SubmitButton';
 import { ArrowLeft, Banknote, Save, Info } from 'lucide-react';
+import { getT } from '../../../lib/i18n/server';
 
 export const dynamic = 'force-dynamic';
 
-export default function NewFixedCostPage() {
+export default async function NewFixedCostPage() {
+  const { t } = await getT();
   return (
     <main className="min-h-screen bg-slate-50">
       <div className="max-w-[900px] mx-auto px-4 md:px-6 py-6 md:py-8 space-y-5 md:space-y-6">
@@ -14,16 +16,16 @@ export default function NewFixedCostPage() {
           className="inline-flex items-center gap-2 text-slate-600 hover:text-brand-600 transition-colors text-sm font-medium"
         >
           <ArrowLeft className="w-4 h-4" strokeWidth={2} />
-          Все общие расходы
+          {t('fc.all')}
         </a>
 
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2.5 tracking-tight">
             <Banknote className="w-6 h-6 md:w-7 md:h-7 text-brand-600" strokeWidth={2.2} />
-            Добавить общий расход
+            {t('fc.add')}
           </h1>
           <p className="text-slate-500 mt-1 text-sm md:text-base">
-            Затрата, не привязанная к конкретному рейсу
+            {t('fc.addHint')}
           </p>
         </div>
 
@@ -32,38 +34,38 @@ export default function NewFixedCostPage() {
           <div className="card p-5 md:p-6 space-y-4">
             <h2 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2">
               <Banknote className="w-5 h-5 text-brand-600" strokeWidth={2} />
-              Данные расхода
+              {t('fc.details')}
             </h2>
             <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Месяц *</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{t('fc.month')}</label>
                 <input type="month" name="month_key" required className="input" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Дата расхода *</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{t('fc.date')}</label>
                 <input type="date" name="expense_date" required className="input" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Тип расхода *</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{t('fc.costType')}</label>
                 <select name="cost_type" required className="input" defaultValue="one_time">
-                  <option value="yearly">Годовой</option>
-                  <option value="monthly">Месячный</option>
-                  <option value="installment">Рата (часть платежа)</option>
-                  <option value="one_time">Одноразовый</option>
+                  <option value="yearly">{t('fc.typeYearly')}</option>
+                  <option value="monthly">{t('fc.typeMonthly')}</option>
+                  <option value="installment">{t('fc.optInstallment')}</option>
+                  <option value="one_time">{t('fc.typeOneTime')}</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Категория *</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{t('fc.category')}</label>
                 <input
                   type="text"
                   name="category"
                   required
-                  placeholder="Например: Страховка OC"
+                  placeholder={t('fc.phCategory')}
                   className="input"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Валюта *</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{t('fc.currency')}</label>
                 <select name="currency" required className="input" defaultValue="PLN">
                   <option value="PLN">PLN</option>
                   <option value="BYN">BYN</option>
@@ -71,7 +73,7 @@ export default function NewFixedCostPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Сумма *</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{t('fc.amount')}</label>
                 <input
                   type="number"
                   name="amount"
@@ -84,7 +86,7 @@ export default function NewFixedCostPage() {
             </div>
             <div className="flex items-start gap-2 text-xs text-slate-500 bg-slate-50 rounded-lg p-3">
               <Info className="w-4 h-4 shrink-0 mt-0.5 text-slate-400" strokeWidth={2} />
-              <span>Сумма автоматически пересчитается в EUR по курсу на дату расхода. Инвестиция (покупка имущества от 1000 EUR) определяется автоматически и в прибыль не входит.</span>
+              <span>{t('fc.amountHint')}</span>
             </div>
           </div>
 
@@ -97,14 +99,14 @@ export default function NewFixedCostPage() {
               className="w-full sm:w-auto text-center px-6 py-3 rounded-xl border border-slate-300 text-slate-700 font-semibold
                          hover:bg-slate-100 transition-all duration-150"
             >
-              Отмена
+              {t('seg.cancel')}
             </a>
             <SubmitButton
               className="btn btn-primary w-full sm:flex-1 py-3"
-              pendingText="Сохраняю расход…"
+              pendingText={t('fc.saving')}
             >
               <Save className="w-4 h-4" strokeWidth={2.5} />
-              Сохранить расход
+              {t('fc.save')}
             </SubmitButton>
           </div>
 
