@@ -1,5 +1,7 @@
 import { createClient } from '../../../lib/supabase/admin';
 import CountryFlag from '../../../app/components/CountryFlag';
+import { getT } from '../../../lib/i18n/server';
+import { tPlural } from '../../../lib/i18n/translate';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,6 +46,7 @@ function fmtEurExact(n: number): string {
 }
 
 export default async function ContractorsStatsPage() {
+  const { t, locale } = await getT();
   const supabase = await createClient();
 
   // 1. Все подрядчики
@@ -53,7 +56,7 @@ export default async function ContractorsStatsPage() {
     .order('name');
 
   if (cErr) {
-    return <div className="p-8 text-red-500">Ошибка загрузки: {cErr.message}</div>;
+    return <div className="p-8 text-red-500">{t('dir.loadError')}{' '}{cErr.message}</div>;
   }
 
   // 2. Данные экспедирования — сегменты-подрядчики заказов
@@ -149,7 +152,7 @@ export default async function ContractorsStatsPage() {
           href="/reports"
           className="inline-flex items-center gap-2 text-slate-600 hover:text-blue-600 transition-colors text-sm font-medium"
         >
-          ← Все отчёты
+          {t('rep.allReports')}
         </a>
 
         {/* Заголовок */}
@@ -158,11 +161,10 @@ export default async function ContractorsStatsPage() {
             <div className="text-3xl shrink-0">🚛</div>
             <div className="min-w-0">
               <h1 className="text-2xl md:text-3xl font-bold text-slate-900">
-                Статистика по подрядчикам
+                {t('rep.ctrTitle')}
               </h1>
               <p className="text-sm text-slate-500 mt-1">
-                Сводная аналитика: сколько, кому и по какому направлению платили.
-                Учитываются комбинированные перевозки (рейсы) и экспедирование (заявки).
+                {t('rep.ctrHint')}
               </p>
             </div>
           </div>
@@ -172,7 +174,7 @@ export default async function ContractorsStatsPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-5">
             <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">
-              Всего подрядчиков
+              {t('rep.ctrTotal')}
             </div>
             <div className="text-2xl md:text-3xl font-bold text-slate-900">
               {totalContractors}
@@ -181,19 +183,19 @@ export default async function ContractorsStatsPage() {
 
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-5">
             <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">
-              Активных
+              {t('rep.ctrActive')}
             </div>
             <div className="text-2xl md:text-3xl font-bold text-emerald-600">
               {activeContractors}
             </div>
             <div className="text-xs text-slate-400 mt-1">
-              с хотя бы 1 работой
+              {t('rep.ctrActiveHint')}
             </div>
           </div>
 
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-5">
             <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">
-              Всего выплат
+              {t('rep.ctrPaid')}
             </div>
             <div className="text-2xl md:text-3xl font-bold text-red-500">
               {fmtEur(grandTotal)}
@@ -202,13 +204,13 @@ export default async function ContractorsStatsPage() {
 
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 md:p-5">
             <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">
-              Всего работ
+              {t('ctr.totalWorks')}
             </div>
             <div className="text-2xl md:text-3xl font-bold text-blue-600">
               {grandCount}
             </div>
             <div className="text-xs text-slate-400 mt-1">
-              рейсов + заявок
+              {t('rep.ctrPaidHint')}
             </div>
           </div>
         </div>
@@ -217,7 +219,7 @@ export default async function ContractorsStatsPage() {
         {top3.length > 0 && (
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
             <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-              🏆 Топ-3 по сумме
+              {t('rep.top3')}
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {top3.map((s, idx) => {
@@ -245,7 +247,7 @@ export default async function ContractorsStatsPage() {
                       </div>
                     )}
                     <div className="text-xs text-slate-400 mt-2">
-                      {s.totalCount} {s.totalCount === 1 ? 'работа' : 'работ'}
+                      {tPlural(t, locale, 'count3.job', s.totalCount)}
                     </div>
                   </a>
                 );
@@ -257,7 +259,7 @@ export default async function ContractorsStatsPage() {
         {/* Полная таблица */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 md:p-6">
           <h2 className="text-lg font-bold text-slate-900 mb-4">
-            📋 Все подрядчики
+            {t('rep.allCtr')}
           </h2>
 
           {/* Мобильная версия — карточки */}
@@ -296,7 +298,7 @@ export default async function ContractorsStatsPage() {
                   {isActive && (
                     <div className="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-slate-200/60">
                       <div>
-                        <div className="text-slate-400">Экспедирование</div>
+                        <div className="text-slate-400">{t('rep.xlFwd')}</div>
                         <div className="text-slate-700 font-medium">
                           {s.fwdCount > 0
                             ? `${s.fwdCount} · ${fmtEur(s.fwdSum)}`
@@ -304,7 +306,7 @@ export default async function ContractorsStatsPage() {
                         </div>
                       </div>
                       <div>
-                        <div className="text-slate-400">Комбинированные</div>
+                        <div className="text-slate-400">{t('rep.combined')}</div>
                         <div className="text-slate-700 font-medium">
                           {s.tripCount > 0
                             ? `${s.tripCount} · ${fmtEur(s.tripSum)}`
@@ -324,28 +326,28 @@ export default async function ContractorsStatsPage() {
               <thead>
                 <tr className="border-b border-slate-100">
                   <th className="text-left py-3 text-xs font-semibold text-slate-500 uppercase">
-                    Подрядчик
+                    {t('expenseCat.contractor')}
                   </th>
                   <th className="text-left py-3 text-xs font-semibold text-slate-500 uppercase">
-                    Страна
+                    {t('addr.country')}
                   </th>
                   <th className="text-center py-3 text-xs font-semibold text-slate-500 uppercase">
-                    Экспедирование
+                    {t('rep.xlFwd')}
                   </th>
                   <th className="text-right py-3 text-xs font-semibold text-slate-500 uppercase">
-                    Сумма эксп.
+                    {t('rep.sumFwd')}
                   </th>
                   <th className="text-center py-3 text-xs font-semibold text-slate-500 uppercase">
-                    Комбинир.
+                    {t('rep.combinedS')}
                   </th>
                   <th className="text-right py-3 text-xs font-semibold text-slate-500 uppercase">
-                    Сумма комб.
+                    {t('rep.sumComb')}
                   </th>
                   <th className="text-right py-3 text-xs font-semibold text-slate-500 uppercase">
-                    Всего
+                    {t('rep.total')}
                   </th>
                   <th className="text-center py-3 text-xs font-semibold text-slate-500 uppercase">
-                    Оплата
+                    {t('ctr.payment')}
                   </th>
                 </tr>
               </thead>
@@ -391,7 +393,7 @@ export default async function ContractorsStatsPage() {
                         {isActive ? fmtEurExact(s.totalSum) : '—'}
                       </td>
                       <td className="py-3 text-center text-xs text-slate-500">
-                        {s.paymentDays ? `${s.paymentDays} дн` : '—'}
+                        {s.paymentDays ? t('ctr.days', { n: s.paymentDays }) : '—'}
                       </td>
                     </tr>
                   );
@@ -404,11 +406,10 @@ export default async function ContractorsStatsPage() {
           {allStats.length > 0 && (
             <div className="mt-4 pt-4 border-t border-slate-100 flex flex-wrap justify-between items-baseline gap-2 text-sm">
               <span className="text-slate-500">
-                Показано: <b className="text-slate-700">{allStats.length}</b> подрядчиков,
-                из них с работами — <b className="text-slate-700">{activeContractors}</b>
+                {t('rep.shown')}{' '}<b className="text-slate-700">{allStats.length}</b>{' '}{t('rep.ctrWithWorks')}{' '}<b className="text-slate-700">{activeContractors}</b>
               </span>
               <span className="text-slate-500">
-                Общая сумма: <b className="text-red-500 text-base">{fmtEurExact(grandTotal)}</b>
+                {t('rep.sumTotal')}{' '}<b className="text-red-500 text-base">{fmtEurExact(grandTotal)}</b>
               </span>
             </div>
           )}
@@ -420,18 +421,11 @@ export default async function ContractorsStatsPage() {
             <span className="text-xl shrink-0">💡</span>
             <div className="text-sm text-blue-900 space-y-1">
               <p>
-                <b>Источники данных:</b> блок «Экспедирование» — из участков заказов в режиме
-                экспедирования
-                (<code className="text-xs bg-blue-100 px-1 rounded">trip_segments</code>,
-                где <code>executor_type = &apos;contractor&apos;</code> и
-                <code>trips.profit_mode = &apos;forwarding&apos;</code>),
-                блок «Комбинированные» — из участков рейсов
-                (<code className="text-xs bg-blue-100 px-1 rounded">trip_segments</code>,
-                где <code>executor_type = &apos;contractor&apos;</code>).
+                <b>{t('rep.sources')}</b>{' '}{t('rep.srcA')}<code className="text-xs bg-blue-100 px-1 rounded">trip_segments</code>{t('rep.srcWhere')}{' '}<code>executor_type = &apos;contractor&apos;</code>{' '}{t('rep.and')}
+                <code>trips.profit_mode = &apos;forwarding&apos;</code>{t('rep.srcB')}<code className="text-xs bg-blue-100 px-1 rounded">trip_segments</code>{t('rep.srcWhere')}{' '}<code>executor_type = &apos;contractor&apos;</code>).
               </p>
               <p className="text-xs text-blue-700">
-                Суммы приведены в EUR (поле <code>price</code> у участков).
-                Итоговая валюта исходных платежей может отличаться — смотрите карточку подрядчика.
+                {t('rep.srcC')}{' '}<code>price</code>{' '}{t('rep.srcD')}
               </p>
             </div>
           </div>

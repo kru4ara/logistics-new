@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { AlertTriangle, Clock, ArrowRight } from 'lucide-react';
 import { pickName } from '../lib/relations';
+import { getT } from '../../../lib/i18n/server';
 
 export type OverdueReminder = { id: string; title: string; days: number };
 
@@ -22,13 +23,14 @@ type Props = {
 };
 
 /** Блок «Требует внимания» на странице «Сегодня». */
-export default function TodayAttention({
+export default async function TodayAttention({
   overdueReminders,
   tripsWithoutDriver,
   tripsWithoutTruck,
   tripsWithoutSalary,
   tripsMissingUnloadDate,
 }: Props) {
+  const { t: tr } = await getT();
   const count =
     overdueReminders.length +
     tripsWithoutDriver.length +
@@ -41,7 +43,7 @@ export default function TodayAttention({
           <div className="card border-l-4 border-l-amber-500 p-5 md:p-6">
             <h2 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2 mb-4">
               <AlertTriangle className="w-5 h-5 text-amber-600" strokeWidth={2.2} />
-              Требует внимания
+              {tr('today.attention')}
             </h2>
 
             <div className="space-y-4">
@@ -49,7 +51,7 @@ export default function TodayAttention({
                 <div>
                   <div className="text-xs uppercase tracking-wide text-red-600 font-semibold mb-2 flex items-center gap-1.5">
                     <Clock className="w-3.5 h-3.5" strokeWidth={2.2} />
-                    Просроченные напоминания · {overdueReminders.length}
+                    {tr('today.overdueRem')}{' '}{overdueReminders.length}
                   </div>
                   <div className="space-y-1.5">
                     {overdueReminders.slice(0, 5).map((r) => (
@@ -57,13 +59,13 @@ export default function TodayAttention({
                         <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
                         <span className="truncate">{r.title}</span>
                         <span className="ml-auto text-xs text-red-600 whitespace-nowrap tabular-nums">
-                          {Math.abs(r.days)} дн.
+                          {Math.abs(r.days)}{' '}{tr('today.daysShort')}
                         </span>
                       </div>
                     ))}
                     {overdueReminders.length > 5 && (
                       <Link href="/reminders" className="text-xs text-brand-600 hover:underline inline-flex items-center gap-1 pl-4">
-                        и ещё {overdueReminders.length - 5}
+                        {tr('today.andMore')}{' '}{overdueReminders.length - 5}
                         <ArrowRight className="w-3 h-3" strokeWidth={2.5} />
                       </Link>
                     )}
@@ -74,7 +76,7 @@ export default function TodayAttention({
               {(tripsWithoutDriver.length > 0 || tripsWithoutTruck.length > 0) && (
                 <div>
                   <div className="text-xs uppercase tracking-wide text-amber-600 font-semibold mb-2">
-                    Заказы без назначения · {tripsWithoutDriver.length + tripsWithoutTruck.length}
+                    {tr('today.unassigned')}{' '}{tripsWithoutDriver.length + tripsWithoutTruck.length}
                   </div>
                   <div className="space-y-1.5">
                     {tripsWithoutDriver.slice(0, 3).map((t) => (
@@ -86,7 +88,7 @@ export default function TodayAttention({
                         <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
                         <span className="truncate">№{t.trip_number || '—'} · {pickName(t.clients) || '—'}</span>
                         <span className="ml-auto text-xs text-amber-600 whitespace-nowrap">
-                          нет водителя
+                          {tr('today.noDriver')}
                         </span>
                       </Link>
                     ))}
@@ -99,7 +101,7 @@ export default function TodayAttention({
                         <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
                         <span className="truncate">№{t.trip_number || '—'} · {pickName(t.clients) || '—'}</span>
                         <span className="ml-auto text-xs text-amber-600 whitespace-nowrap">
-                          нет машины
+                          {tr('today.noTruck')}
                         </span>
                       </Link>
                     ))}
@@ -110,7 +112,7 @@ export default function TodayAttention({
                 <div>
                   <div className="text-xs uppercase tracking-wide text-amber-600 font-semibold mb-2 flex items-center gap-1.5">
                     <Clock className="w-3.5 h-3.5" strokeWidth={2.2} />
-                    Нет даты выгрузки · {tripsMissingUnloadDate.length}
+                    {tr('today.noUnloadDate')}{' '}{tripsMissingUnloadDate.length}
                   </div>
                   <div className="space-y-1.5">
                     {tripsMissingUnloadDate.slice(0, 5).map((t) => (
@@ -121,17 +123,17 @@ export default function TodayAttention({
                       >
                         <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
                         <span className="truncate">
-                          {t.profit_mode === 'forwarding' ? 'Экспедиция' : 'Рейс'} №{t.trip_number || '—'}
+                          {t.profit_mode === 'forwarding' ? tr('trips.kindForwarding') : tr('trips.kindTrip')} №{t.trip_number || '—'}
                           {t.clientName && ` · ${t.clientName}`}
                         </span>
                         <span className="ml-auto text-xs text-amber-600 whitespace-nowrap">
-                          нет даты выгрузки
+                          {tr('today.noUnloadDateS')}
                         </span>
                       </Link>
                     ))}
                     {tripsMissingUnloadDate.length > 5 && (
                       <div className="text-xs text-slate-400 text-center pt-1">
-                        и ещё {tripsMissingUnloadDate.length - 5}
+                        {tr('today.andMore')}{' '}{tripsMissingUnloadDate.length - 5}
                       </div>
                     )}
                   </div>
@@ -140,7 +142,7 @@ export default function TodayAttention({
             {tripsWithoutSalary.length > 0 && (
                 <div>
                   <div className="text-xs uppercase tracking-wide text-amber-600 font-semibold mb-2">
-                    Завершённые заказы без ЗП · {tripsWithoutSalary.length}
+                    {tr('today.noSalary')}{' '}{tripsWithoutSalary.length}
                   </div>
                   <div className="space-y-1.5">
                     {tripsWithoutSalary.slice(0, 5).map((t) => (
@@ -156,13 +158,13 @@ export default function TodayAttention({
                           {t.driverName && ` · ${t.driverName}`}
                         </span>
                         <span className="ml-auto text-xs text-amber-600 whitespace-nowrap">
-                          нет ЗП
+                          {tr('today.noSalaryS')}
                         </span>
                       </Link>
                     ))}
                     {tripsWithoutSalary.length > 5 && (
                       <div className="text-xs text-slate-400 text-center pt-1">
-                        и ещё {tripsWithoutSalary.length - 5}
+                        {tr('today.andMore')}{' '}{tripsWithoutSalary.length - 5}
                       </div>
                     )}
                   </div>

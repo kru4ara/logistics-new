@@ -23,6 +23,8 @@ import { pickName, pickOne, getDriverName, getTruckNumber } from './lib/relation
 import { fetchFuelLevels } from '../../lib/fuel-server';
 import { type EventItem } from './lib/events';
 import { fetchAll, fetchAllByIds } from '../../lib/fetch-all';
+import { getT } from '../../lib/i18n/server';
+import { INTL_LOCALE } from '../../lib/i18n/config';
 
 export const dynamic = 'force-dynamic';
 // react-hooks/purity: impure-вызовы (Date.now) нельзя делать прямо в теле
@@ -30,6 +32,7 @@ export const dynamic = 'force-dynamic';
 // компонент серверный и force-dynamic — расхождение с клиентом невозможно,
 // поэтому impure-вызов изолирован в отдельной функции.
 export default async function TodayPage() {
+  const { t: tr, locale } = await getT();
   const { role } = await getSessionContext();
   if (!can(role, 'today.view')) redirect('/driver');
   if (!can(role, 'today.view')) redirect('/login');
@@ -59,7 +62,7 @@ export default async function TodayPage() {
     console.error('[today] trips query error:', tripsError.message);
     return (
       <div className="p-8 text-red-500">
-        Ошибка загрузки рейсов: {tripsError.message}
+        {tr('today.tripsLoadError')}{' '}{tripsError.message}
       </div>
     );
   }
@@ -225,7 +228,7 @@ export default async function TodayPage() {
           city: stop.city || null,
           country: stop.country || null,
           date: stop.date,
-          pointLabel: isUnload ? 'Выгрузка' : 'Загрузка',
+          pointLabel: isUnload ? tr('seg.optUnload') : tr('seg.optLoad'),
           href: `/trips/${o.id}`,
         });
       });
@@ -241,14 +244,14 @@ export default async function TodayPage() {
       city: t.from_city,
       country: t.from_country,
       date: t.start_date,
-      pointLabel: 'Старт рейса',
+      pointLabel: tr('today.tripStart'),
       driverName: getDriverName(t.drivers),
       truckNumber: getTruckNumber(t.trucks),
       href: `/trips/${t.id}`,
       tripStatus: t.status,
     })),
     ...subEventsToday.filter((e) => e.pointLabel !== 'C'),
-    ...fwdEventsToday.filter((e) => e.pointLabel === 'Загрузка'),
+    ...fwdEventsToday.filter((e) => e.pointLabel === tr('seg.optLoad')),
   ];
 
   const todayUnloadings: EventItem[] = [
@@ -260,14 +263,14 @@ export default async function TodayPage() {
       city: t.to_city,
       country: t.to_country,
       date: t.end_date,
-      pointLabel: 'Финиш рейса',
+      pointLabel: tr('today.tripFinish'),
       driverName: getDriverName(t.drivers),
       truckNumber: getTruckNumber(t.trucks),
       href: `/trips/${t.id}`,
       tripStatus: t.status,
     })),
     ...subEventsToday.filter((e) => e.pointLabel === 'C'),
-    ...fwdEventsToday.filter((e) => e.pointLabel === 'Выгрузка'),
+    ...fwdEventsToday.filter((e) => e.pointLabel === tr('seg.optUnload')),
   ];
   
   // 3.5. ЗАВЕРШЁННЫЕ РЕЙСЫ БЕЗ ЗП
@@ -372,7 +375,7 @@ export default async function TodayPage() {
     };
   });
 
-  const todayHuman = new Date().toLocaleDateString('ru-RU', {
+  const todayHuman = new Date().toLocaleDateString(INTL_LOCALE[locale], {
     day: '2-digit',
     month: 'long',
     year: 'numeric',
@@ -396,7 +399,7 @@ export default async function TodayPage() {
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2.5 tracking-tight">
             <Calendar className="w-6 h-6 md:w-7 md:h-7 text-brand-600" strokeWidth={2.2} />
-            Сегодня
+            {tr('nav.today')}
           </h1>
           <p className="text-slate-500 mt-1 text-sm md:text-base first-letter:uppercase">
             {todayHuman}
@@ -413,7 +416,7 @@ export default async function TodayPage() {
         <div>
           <h2 className="text-base md:text-lg font-bold text-slate-900 mb-3 flex items-center gap-2">
             <MapPin className="w-5 h-5 text-green-600" strokeWidth={2.2} />
-            Загрузки сегодня
+            {tr('today.loadsToday')}
             {todayLoadings.length > 0 && (
               <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium tabular-nums">
                 {todayLoadings.length}
@@ -422,7 +425,7 @@ export default async function TodayPage() {
           </h2>
 
           {todayLoadings.length === 0 ? (
-            <EmptyBlock text="Сегодня загрузок не запланировано" />
+            <EmptyBlock text={tr('today.noLoadsToday')} />
           ) : (
             <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
               {todayLoadings.map((e, i) => (
@@ -435,7 +438,7 @@ export default async function TodayPage() {
         <div>
           <h2 className="text-base md:text-lg font-bold text-slate-900 mb-3 flex items-center gap-2">
             <Flag className="w-5 h-5 text-red-500" strokeWidth={2.2} />
-            Выгрузки сегодня
+            {tr('today.unloadsToday')}
             {todayUnloadings.length > 0 && (
               <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium tabular-nums">
                 {todayUnloadings.length}
@@ -444,7 +447,7 @@ export default async function TodayPage() {
           </h2>
 
           {todayUnloadings.length === 0 ? (
-            <EmptyBlock text="Сегодня выгрузок не запланировано" />
+            <EmptyBlock text={tr('today.noUnloadsToday')} />
           ) : (
             <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
               {todayUnloadings.map((e, i) => (
@@ -457,7 +460,7 @@ export default async function TodayPage() {
         <div>
           <h2 className="text-base md:text-lg font-bold text-slate-900 mb-3 flex items-center gap-2">
             <RouteIcon className="w-5 h-5 text-brand-600" strokeWidth={2.2} />
-            В пути сейчас
+            {tr('today.inTransitNow')}
             {activeTrips.length > 0 && (
               <span className="text-xs bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full font-medium tabular-nums">
                 {activeTrips.length}
@@ -466,7 +469,7 @@ export default async function TodayPage() {
           </h2>
 
           {activeTrips.length === 0 ? (
-            <EmptyBlock text="Активных рейсов сейчас нет" />
+            <EmptyBlock text={tr('today.noActive')} />
           ) : (
             <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
               {activeTripCards.map((trip) => (
@@ -479,7 +482,7 @@ export default async function TodayPage() {
         <div>
           <h2 className="text-base md:text-lg font-bold text-slate-900 mb-3 flex items-center gap-2">
             <Fuel className="w-5 h-5 text-brand-600" strokeWidth={2.2} />
-            Топливо в баках
+            {tr('today.fuelInTanks')}
             {fuelRows.length > 0 && (
               <span className="text-xs bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full font-medium tabular-nums">
                 {fuelRows.length}
@@ -488,7 +491,7 @@ export default async function TodayPage() {
           </h2>
 
           {fuelRows.length === 0 ? (
-            <EmptyBlock text="Тягачей нет" />
+            <EmptyBlock text={tr('today.noTractors')} />
           ) : (
             <FuelList rows={fuelRows} />
           )}

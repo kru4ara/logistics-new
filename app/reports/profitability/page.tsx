@@ -12,6 +12,7 @@ import { calculateProfitability, toNum, getOrderPeriodDate } from '../../../lib/
 import { isStatsCompleted } from '../../../lib/statistics';
 import { fetchAll, fetchAllByIds } from '../../../lib/fetch-all';
 import { deniedRedirect } from '../../../lib/roles';
+import { getT } from '../../../lib/i18n/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,6 +41,7 @@ export default async function ProfitabilityPage({
 }: {
   searchParams: Promise<{ from?: string; to?: string }>;
 }) {
+  const { t: tr } = await getT();
   const { role } = await getSessionContext();
   const denied = deniedRedirect(role, 'reports.viewAll');
   if (denied) redirect(denied);
@@ -123,16 +125,16 @@ export default async function ProfitabilityPage({
           className="inline-flex items-center gap-2 text-slate-600 hover:text-brand-600 transition-colors text-sm font-medium"
         >
           <ArrowLeft className="w-4 h-4" />
-          Отчёты
+          {tr('nav.reports')}
         </Link>
 
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2">
             <Coins className="w-7 h-7 text-brand-600" />
-            Прибыльность
+            {tr('rep.qProfit')}
           </h1>
           <p className="text-slate-500 mt-1 text-sm md:text-base">
-            Кто из клиентов и какая техника приносят деньги
+            {tr('rep.qProfitHint')}
           </p>
         </div>
 
@@ -140,11 +142,11 @@ export default async function ProfitabilityPage({
         <form className="card p-4 md:p-5" method="GET">
           <div className="grid gap-3 grid-cols-2 md:grid-cols-4 items-end">
             <div>
-              <label className={labelClass}>С даты</label>
+              <label className={labelClass}>{tr('rep.dateFrom')}</label>
               <input type="date" name="from" defaultValue={from} className={inputClass} />
             </div>
             <div>
-              <label className={labelClass}>По дату</label>
+              <label className={labelClass}>{tr('rep.dateTo')}</label>
               <input type="date" name="to" defaultValue={to} className={inputClass} />
             </div>
             <div className="col-span-2 md:col-span-2 flex gap-2">
@@ -152,47 +154,47 @@ export default async function ProfitabilityPage({
                 type="submit"
                 className="flex-1 bg-brand-600 hover:bg-brand-700 text-white font-semibold py-2.5 rounded-lg transition-all active:scale-[0.98]"
               >
-                Показать
+                {tr('rep.show')}
               </button>
               <Link
                 href="/reports/profitability"
                 className="px-4 py-2.5 rounded-lg border border-slate-300 text-slate-700 font-medium hover:bg-slate-100 transition-all whitespace-nowrap"
               >
-                Сброс
+                {tr('rep.reset')}
               </Link>
             </div>
           </div>
           <div className="text-xs text-slate-400 mt-3">
-            Заказы-рейсы — по дате старта, заказы-экспедирования — по дате загрузки.
+            {tr('rep.pfRule')}
           </div>
         </form>
 
         {/* Общие итоги */}
         <div className="grid gap-3 md:gap-5 grid-cols-2 md:grid-cols-4">
           <div className="card p-4 md:p-5">
-            <div className="text-xs md:text-sm text-slate-500 font-medium mb-2">Сделок</div>
+            <div className="text-xs md:text-sm text-slate-500 font-medium mb-2">{tr('stat.deals')}</div>
             <div className="text-2xl md:text-3xl font-bold text-brand-600 tabular-nums">
               {clientRows.reduce((s, r) => s + r.count, 0)}
             </div>
           </div>
           <div className="card p-4 md:p-5">
-            <div className="text-xs md:text-sm text-slate-500 font-medium mb-2">Доход</div>
+            <div className="text-xs md:text-sm text-slate-500 font-medium mb-2">{tr('stat.income')}</div>
             <div className="text-xl md:text-2xl font-bold text-green-600 break-words tabular-nums">
               {fmt(totalRevenue)} €
             </div>
           </div>
           <div className="card p-4 md:p-5">
-            <div className="text-xs md:text-sm text-slate-500 font-medium mb-2">Расходы</div>
+            <div className="text-xs md:text-sm text-slate-500 font-medium mb-2">{tr('trips.expenses')}</div>
             <div className="text-xl md:text-2xl font-bold text-red-500 break-words tabular-nums">
               {fmt(totalExpenses)} €
             </div>
           </div>
           <div className="card p-4 md:p-5">
-            <div className="text-xs md:text-sm text-slate-500 font-medium mb-2">Прибыль / маржа</div>
+            <div className="text-xs md:text-sm text-slate-500 font-medium mb-2">{tr('rep.pfProfitMargin')}</div>
             <div className={`text-xl md:text-2xl font-bold break-words tabular-nums ${totalProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
               {fmt(totalProfit)} €
             </div>
-            <div className="text-xs text-slate-400 mt-1 tabular-nums">маржа {fmtPct(totalMargin)}</div>
+            <div className="text-xs text-slate-400 mt-1 tabular-nums">{tr('rep.margin')}{' '}{fmtPct(totalMargin)}</div>
           </div>
         </div>
 
@@ -200,7 +202,7 @@ export default async function ProfitabilityPage({
         <div>
           <h2 className="text-base md:text-lg font-bold text-slate-900 mb-3 flex items-center gap-2">
             <Handshake className="w-5 h-5 text-brand-600" />
-            Прибыльность клиентов
+            {tr('rep.pfClients')}
           </h2>
 
           {clientRows.length === 0 ? (
@@ -209,10 +211,10 @@ export default async function ProfitabilityPage({
                 <Handshake className="w-8 h-8 text-brand-600" strokeWidth={1.5} />
               </div>
               <h3 className="text-lg font-bold text-slate-900 mb-1">
-                Нет данных за период
+                {tr('rep.pfNoData')}
               </h3>
               <p className="text-sm text-slate-500 max-w-sm mx-auto">
-                Попробуйте расширить диапазон дат — возможно, за это время сделок не было.
+                {tr('rep.pfNoDataHint')}
               </p>
             </div>
           ) : (
@@ -230,7 +232,7 @@ export default async function ProfitabilityPage({
                           {r.name}
                         </div>
                         <div className="text-xs text-slate-400 mt-0.5">
-                          {r.type} · {r.count} сделок
+                          {r.type === 'Заказы' ? tr('rep.typeOrders') : tr('rep.xlFwd')} · {r.count}{' '}{tr('rep.deals')}
                         </div>
                       </div>
                       <span className={`shrink-0 font-bold text-sm whitespace-nowrap tabular-nums ${r.profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
@@ -239,15 +241,15 @@ export default async function ProfitabilityPage({
                     </div>
                     <div className="grid grid-cols-3 gap-2 text-xs pt-2 border-t border-slate-100">
                       <div>
-                        <div className="text-slate-400">Доход</div>
+                        <div className="text-slate-400">{tr('stat.income')}</div>
                         <div className="font-semibold text-green-600 tabular-nums">{fmt(r.revenue)}</div>
                       </div>
                       <div>
-                        <div className="text-slate-400">Расходы</div>
+                        <div className="text-slate-400">{tr('trips.expenses')}</div>
                         <div className="font-semibold text-red-500 tabular-nums">{fmt(r.expenses)}</div>
                       </div>
                       <div>
-                        <div className="text-slate-400">Маржа</div>
+                        <div className="text-slate-400">{tr('stat.marginC')}</div>
                         <div className={`font-semibold tabular-nums ${r.margin >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                           {fmtPct(r.margin)}
                         </div>
@@ -263,13 +265,13 @@ export default async function ProfitabilityPage({
                   <table className="w-full">
                     <thead>
                       <tr className="bg-slate-50/50 border-b border-slate-100">
-                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Клиент</th>
-                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Тип</th>
-                        <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Сделок</th>
-                        <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Доход</th>
-                        <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Расходы</th>
-                        <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Прибыль</th>
-                        <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Маржа</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{tr('trips.filterClient')}</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{tr('fc.type')}</th>
+                        <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{tr('stat.deals')}</th>
+                        <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{tr('stat.income')}</th>
+                        <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{tr('trips.expenses')}</th>
+                        <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{tr('trips.profit')}</th>
+                        <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{tr('stat.marginC')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -280,7 +282,7 @@ export default async function ProfitabilityPage({
                           </td>
                           <td className="px-4 py-3 text-sm text-slate-600">
                             <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${r.type === 'Заказы' ? 'bg-brand-50 text-brand-700' : 'bg-purple-50 text-purple-700'}`}>
-                              {r.type}
+                              {r.type === 'Заказы' ? tr('rep.typeOrders') : tr('rep.xlFwd')}
                             </span>
                           </td>
                           <td className="px-4 py-3 text-right text-sm text-slate-600 tabular-nums">{r.count}</td>
@@ -310,7 +312,7 @@ export default async function ProfitabilityPage({
         <div>
           <h2 className="text-base md:text-lg font-bold text-slate-900 mb-3 flex items-center gap-2">
             <Truck className="w-5 h-5 text-brand-600" />
-            Прибыльность тягачей (по рейсам)
+            {tr('rep.pfTrucks')}
           </h2>
 
           {truckRows.length === 0 ? (
@@ -319,10 +321,10 @@ export default async function ProfitabilityPage({
                 <Truck className="w-8 h-8 text-brand-600" strokeWidth={1.5} />
               </div>
               <h3 className="text-lg font-bold text-slate-900 mb-1">
-                Нет данных за период
+                {tr('rep.pfNoData')}
               </h3>
               <p className="text-sm text-slate-500 max-w-sm mx-auto">
-                За выбранный период не было рейсов с назначенным тягачом.
+                {tr('rep.pfNoTrucks')}
               </p>
             </div>
           ) : (
@@ -337,7 +339,7 @@ export default async function ProfitabilityPage({
                           {t.registration}
                         </div>
                         <div className="text-xs text-slate-400 mt-0.5 tabular-nums">
-                          {t.count} рейсов · {fmt(t.km)} км
+                          {t.count}{' '}{tr('rep.tripsDot')}{' '}{fmt(t.km)}{' '}{tr('units.km')}
                         </div>
                       </div>
                       <span className={`shrink-0 font-bold text-sm whitespace-nowrap tabular-nums ${t.profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
@@ -346,15 +348,15 @@ export default async function ProfitabilityPage({
                     </div>
                     <div className="grid grid-cols-3 gap-2 text-xs pt-2 border-t border-slate-100">
                       <div>
-                        <div className="text-slate-400">Фрахт</div>
+                        <div className="text-slate-400">{tr('trips.freight')}</div>
                         <div className="font-semibold text-green-600 tabular-nums">{fmt(t.revenue)}</div>
                       </div>
                       <div>
-                        <div className="text-slate-400">Расходы</div>
+                        <div className="text-slate-400">{tr('trips.expenses')}</div>
                         <div className="font-semibold text-red-500 tabular-nums">{fmt(t.expenses)}</div>
                       </div>
                       <div>
-                        <div className="text-slate-400">Маржа</div>
+                        <div className="text-slate-400">{tr('stat.marginC')}</div>
                         <div className={`font-semibold tabular-nums ${t.margin >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                           {fmtPct(t.margin)}
                         </div>
@@ -370,13 +372,13 @@ export default async function ProfitabilityPage({
                   <table className="w-full">
                     <thead>
                       <tr className="bg-slate-50/50 border-b border-slate-100">
-                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Тягач</th>
-                        <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Рейсов</th>
-                        <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Пробег, км</th>
-                        <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Фрахт</th>
-                        <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Расходы</th>
-                        <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Прибыль</th>
-                        <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Маржа</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{tr('trips.filterTractor')}</th>
+                        <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{tr('drv.trips')}</th>
+                        <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{tr('rep.mileageKm')}</th>
+                        <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{tr('trips.freight')}</th>
+                        <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{tr('trips.expenses')}</th>
+                        <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{tr('trips.profit')}</th>
+                        <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{tr('stat.marginC')}</th>
                       </tr>
                     </thead>
                     <tbody>

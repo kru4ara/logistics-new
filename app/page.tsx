@@ -14,14 +14,18 @@ import { splitReminders } from '../lib/dashboard/reminders';
 import { getOrderUnloadDate } from '../lib/orders-core';
 import { isStatsCompleted } from '../lib/statistics';
 import { fetchAll } from '../lib/fetch-all';
+import { getT } from '../lib/i18n/server';
+import { INTL_LOCALE } from '../lib/i18n/config';
+import type { MessageKey } from '../lib/i18n/translate';
 
 export const dynamic = 'force-dynamic';
 
 export default async function Home() {
+  const { t, locale } = await getT();
   const { role } = await getSessionContext();
   const userName = (await cookies()).get('user_name')?.value
     ? decodeURIComponent((await cookies()).get('user_name')!.value)
-    : 'Офис';
+    : t('nav.roleOffice');
   const adminOnboarded = (await cookies()).get('admin_onboarded')?.value === '1'; // ⬅️ НОВОЕ
 
   if (!can(role, 'trips.viewAll')) redirect('/driver');
@@ -169,7 +173,7 @@ export default async function Home() {
   const now = new Date();
   const currentMonth = now.getMonth();
   const currentYear = now.getFullYear();
-  const monthName = now.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
+  const monthName = now.toLocaleDateString(INTL_LOCALE[locale], { month: 'long', year: 'numeric' });
   const currentMonthKey = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
 
   const monthOrders = allOrders.filter((o) => orderMonthKey(o) === currentMonthKey);
@@ -235,7 +239,8 @@ export default async function Home() {
   const currentYearUtc = nowUtc.getUTCFullYear();
   const currentMonthUtc = nowUtc.getUTCMonth();
 
-  const monthNamesShort = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+  const monthFmt = new Intl.DateTimeFormat(INTL_LOCALE[locale], { month: 'short', timeZone: 'UTC' });
+  const monthNamesShort = Array.from({ length: 12 }, (_, i) => monthFmt.format(new Date(Date.UTC(2026, i, 15))).replace('.', ''));
 
   for (let i = 11; i >= 0; i--) {
     // Вычисляем год и месяц арифметически, без Date
@@ -303,7 +308,7 @@ export default async function Home() {
 
   const donutData = sortedCats.map(([key, amount], idx) => ({
     key,
-    label: CATEGORY_META[key]?.label || key,
+    label: CATEGORY_META[key] ? t(CATEGORY_META[key].label as MessageKey) : key,
     emoji: CATEGORY_META[key]?.emoji || '📌',
     color: CHART_PALETTE[idx % CHART_PALETTE.length],
     amount,
@@ -318,10 +323,10 @@ export default async function Home() {
         {/* ПРИВЕТСТВИЕ */}
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-slate-900 break-words">
-            Привет, {userName} 👋
+            {t('today.hello', { name: userName })}
           </h1>
           <p className="text-slate-500 mt-1 text-sm md:text-base">
-            Обзор вашей логистики за {monthName}
+            {t('today.overview', { month: monthName })}
           </p>
         </div>
 

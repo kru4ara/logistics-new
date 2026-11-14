@@ -13,6 +13,8 @@ import {
   FileText,
   type LucideIcon,
 } from 'lucide-react';
+import { useT } from '../../components/I18nProvider';
+import type { MessageKey } from '../../../lib/i18n/translate';
 
 type ExportType = 'trips' | 'expenses' | 'forwarding' | 'clients';
 type ExportFormat = 'xlsx' | 'csv';
@@ -20,27 +22,27 @@ type ExportFormat = 'xlsx' | 'csv';
 const OPTIONS: { value: ExportType; label: string; Icon: LucideIcon; hint: string }[] = [
   {
     value: 'trips',
-    label: 'Заказы',
+    label: 'rep.xlOrders',
     Icon: ClipboardList,
-    hint: 'Все рейсы с фрахтом, расходами и прибылью',
+    hint: 'rep.xlOrdersH',
   },
   {
     value: 'expenses',
-    label: 'Расходы по рейсам',
+    label: 'rep.xlExp',
     Icon: Receipt,
-    hint: 'Плоская таблица всех расходов',
+    hint: 'rep.xlExpH',
   },
   {
     value: 'forwarding',
-    label: 'Экспедирование',
+    label: 'rep.xlFwd',
     Icon: Package,
-    hint: 'Заявки с маржой по подрядчикам',
+    hint: 'rep.xlFwdH',
   },
   {
     value: 'clients',
-    label: 'Прибыльность клиентов',
+    label: 'rep.pfClients',
     Icon: Handshake,
-    hint: 'Сводная: кто сколько приносит (за всё время)',
+    hint: 'rep.xlClientsH',
   },
 ];
 
@@ -48,13 +50,13 @@ const FORMAT_OPTIONS: { value: ExportFormat; label: string; hint: string; Icon: 
   {
     value: 'xlsx',
     label: 'Excel (.xlsx)',
-    hint: 'Открывается в Excel/Google Sheets, сохраняет форматирование',
+    hint: 'rep.xlXlsxH',
     Icon: FileSpreadsheet,
   },
   {
     value: 'csv',
     label: 'CSV (.csv)',
-    hint: 'Универсальный формат, подходит для импорта в другие программы',
+    hint: 'rep.xlCsvH',
     Icon: FileText,
   },
 ];
@@ -69,6 +71,7 @@ function firstDayOfMonthIso() {
 }
 
 export default function ExportForm() {
+  const { t } = useT();
   const [type, setType] = useState<ExportType>('trips');
   const [format, setFormat] = useState<ExportFormat>('xlsx');
   const [from, setFrom] = useState(firstDayOfMonthIso);
@@ -80,7 +83,7 @@ export default function ExportForm() {
     if (isPeriodless) return;
     if (from > to) {
       e.preventDefault();
-      alert('Дата «с» позже даты «по»');
+      alert(t('rep.xlBadRange'));
     }
   }
 
@@ -96,9 +99,11 @@ export default function ExportForm() {
 
       {/* Тип выгрузки */}
       <div className="card p-5 space-y-3">
-        <h2 className="text-sm font-bold text-slate-700 mb-2">Что выгрузить</h2>
+        <h2 className="text-sm font-bold text-slate-700 mb-2">{t('rep.xlWhat')}</h2>
         <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
-          {OPTIONS.map(({ value, label, Icon, hint }) => {
+          {OPTIONS.map(({ value, label: labelKey, Icon, hint: hintKey }) => {
+            const label = t(labelKey as MessageKey);
+            const hint = t(hintKey as MessageKey);
             const active = type === value;
             return (
               <button
@@ -133,9 +138,10 @@ export default function ExportForm() {
 
       {/* Формат файла */}
       <div className="card p-5 space-y-3">
-        <h2 className="text-sm font-bold text-slate-700 mb-2">Формат файла</h2>
+        <h2 className="text-sm font-bold text-slate-700 mb-2">{t('rep.xlFormat')}</h2>
         <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
-          {FORMAT_OPTIONS.map(({ value, label, hint, Icon }) => {
+          {FORMAT_OPTIONS.map(({ value, label, hint: hintKey, Icon }) => {
+            const hint = t(hintKey as MessageKey);
             const active = format === value;
             return (
               <button
@@ -171,10 +177,10 @@ export default function ExportForm() {
       {/* Период */}
       {!isPeriodless && (
         <div className="card p-5">
-          <h2 className="text-sm font-bold text-slate-700 mb-3">Период</h2>
+          <h2 className="text-sm font-bold text-slate-700 mb-3">{t('rep.xlPeriod')}</h2>
           <div className="grid gap-3 grid-cols-2">
             <div>
-              <label className={labelClass}>С даты</label>
+              <label className={labelClass}>{t('rep.dateFrom')}</label>
               <input
                 type="date"
                 value={from}
@@ -183,7 +189,7 @@ export default function ExportForm() {
               />
             </div>
             <div>
-              <label className={labelClass}>По дату</label>
+              <label className={labelClass}>{t('rep.dateTo')}</label>
               <input
                 type="date"
                 value={to}
@@ -193,7 +199,7 @@ export default function ExportForm() {
             </div>
           </div>
           <p className="text-xs text-slate-400 mt-3">
-            Для рейсов фильтр по дате старта, для расходов — по дате расхода, для экспедирования — по дате загрузки.
+            {t('rep.xlPeriodHint')}
           </p>
         </div>
       )}
@@ -201,7 +207,7 @@ export default function ExportForm() {
       {isPeriodless && (
         <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
           <Info className="w-4 h-4 mt-0.5 shrink-0" />
-          <span>Сводный отчёт — считается <b>за всё время</b>, без фильтра по периоду.</span>
+          <span>{t('rep.xlSummaryA')}{' '}<b>{t('rep.xlAllTime')}</b>{t('rep.xlSummaryB')}</span>
         </div>
       )}
 
@@ -214,7 +220,7 @@ export default function ExportForm() {
                    transition-all active:scale-[0.98] text-base"
       >
         <Download className="w-5 h-5" />
-        Скачать {format === 'csv' ? '.csv' : '.xlsx'}
+        {t('rep.download')}{' '}{format === 'csv' ? '.csv' : '.xlsx'}
       </a>
 
     </div>

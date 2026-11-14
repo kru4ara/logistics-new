@@ -5,6 +5,8 @@ import { createClient } from '../../../lib/supabase/admin';
 import { Package, ArrowLeft, Inbox } from 'lucide-react';
 import { fetchAll, fetchAllByIds } from '../../../lib/fetch-all';
 import { deniedRedirect } from '../../../lib/roles';
+import { getT } from '../../../lib/i18n/server';
+import { INTL_LOCALE } from '../../../lib/i18n/config';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,6 +15,7 @@ export default async function CargoReportPage({
 }: {
   searchParams: Promise<{ from?: string; to?: string; client?: string }>;
 }) {
+  const { t, locale } = await getT();
   const { role } = await getSessionContext();
   const denied = deniedRedirect(role, 'reports.viewAll');
   if (denied) redirect(denied);
@@ -40,7 +43,7 @@ export default async function CargoReportPage({
 
   const { data: cargoRows, error } = await fetchAll(query);
   if (error) {
-    return <div className="p-8 text-red-500">Ошибка: {error.message}</div>;
+    return <div className="p-8 text-red-500">{t('dir.error')}{' '}{error.message}</div>;
   }
 
   // 2. Считаем расходы по рейсам
@@ -132,17 +135,17 @@ export default async function CargoReportPage({
     <main className="min-h-screen bg-slate-50">
       <div className="max-w-[1600px] mx-auto px-4 md:px-6 py-6 md:py-8 space-y-5 md:space-y-6">
         <Link href="/reports" className="inline-flex items-center gap-2 text-slate-600 hover:text-brand-600 text-sm font-medium">
-          <ArrowLeft className="w-4 h-4" /> Все отчёты
+          <ArrowLeft className="w-4 h-4" />{' '}{t('rep.allReportsS')}
         </Link>
 
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2">
             <Package className="w-6 h-6 text-brand-600" />
-            Фрахт по грузам
+            {t('rep.qCargo')}
           </h1>
           <p className="text-slate-500 mt-1 text-sm">
-            Прибыльность каждого груза. <br/>
-            <span className="text-xs text-slate-400">* Если фрахт не указан в грузе, он берётся из суммы рейса и делится поровну.</span>
+            {t('rep.cgHint')}{' '}<br/>
+            <span className="text-xs text-slate-400">{t('rep.cgNote')}</span>
           </p>
         </div>
 
@@ -150,38 +153,38 @@ export default async function CargoReportPage({
         <form className="card p-4 md:p-5" method="GET">
           <div className="grid gap-3 grid-cols-2 md:grid-cols-4 items-end">
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">С даты</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1">{t('rep.dateFrom')}</label>
               <input type="date" name="from" defaultValue={from} className="input" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">По дату</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1">{t('rep.dateTo')}</label>
               <input type="date" name="to" defaultValue={to} className="input" />
             </div>
             <div className="col-span-2 md:col-span-2">
-              <label className="block text-xs font-medium text-slate-600 mb-1">Клиент</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1">{t('trips.filterClient')}</label>
               <select name="client" defaultValue={clientId} className="input">
-                <option value="">— Все клиенты —</option>
+                <option value="">{t('rep.allClients')}</option>
                 {(clientsList || []).map((c) => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
               </select>
             </div>
           </div>
-          <button type="submit" className="mt-3 btn btn-primary text-sm">Показать</button>
+          <button type="submit" className="mt-3 btn btn-primary text-sm">{t('rep.show')}</button>
         </form>
 
         {/* Итоги */}
         <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
           <div className="card p-4">
-            <div className="text-xs text-slate-500 mb-1">Общий фрахт</div>
+            <div className="text-xs text-slate-500 mb-1">{t('drvCard.totalFreight')}</div>
             <div className="text-2xl font-bold text-green-600 tabular-nums">{totalFreight.toFixed(0)} €</div>
           </div>
           <div className="card p-4">
-            <div className="text-xs text-slate-500 mb-1">Расходы (распределённые)</div>
+            <div className="text-xs text-slate-500 mb-1">{t('rep.cgAlloc')}</div>
             <div className="text-2xl font-bold text-red-500 tabular-nums">{totalExpenses.toFixed(0)} €</div>
           </div>
           <div className="card p-4">
-            <div className="text-xs text-slate-500 mb-1">Прибыль</div>
+            <div className="text-xs text-slate-500 mb-1">{t('trips.profit')}</div>
             <div className={`text-2xl font-bold tabular-nums ${totalProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
               {totalProfit.toFixed(0)} €
             </div>
@@ -193,21 +196,21 @@ export default async function CargoReportPage({
           {reportRows.length === 0 ? (
             <div className="p-10 text-center text-slate-500">
               <Inbox className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-              Нет грузов за выбранный период
+              {t('rep.cgNone')}
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b bg-slate-50/50">
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500">Рейс</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500">Дата</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500">Клиент</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500">Груз</th>
-                    <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500">Вес / Паллеты</th>
-                    <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500">Фрахт</th>
-                    <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500">Расходы</th>
-                    <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500">Прибыль</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500">{t('trips.kindTrip')}</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500">{t('addr.date')}</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500">{t('trips.filterClient')}</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500">{t('tripForm.cargo')}</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500">{t('rep.cgWeight')}</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500">{t('trips.freight')}</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500">{t('trips.expenses')}</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500">{t('trips.profit')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -219,15 +222,15 @@ export default async function CargoReportPage({
                         </Link>
                       </td>
                       <td className="px-4 py-3 text-sm text-slate-600 tabular-nums">
-                        {r.tripDate ? new Date(r.tripDate).toLocaleDateString('ru-RU') : '—'}
+                        {r.tripDate ? new Date(r.tripDate).toLocaleDateString(INTL_LOCALE[locale]) : '—'}
                       </td>
                       <td className="px-4 py-3 text-sm">{r.clientName}</td>
                       <td className="px-4 py-3 text-sm max-w-[200px] truncate" title={r.cargoLabel}>
                         {r.cargoLabel}
-                        {r.isFallback && <span className="ml-1 text-[10px] text-amber-600 bg-amber-50 px-1 rounded border border-amber-200" title="Фрахт взят из суммы рейса">*</span>}
+                        {r.isFallback && <span className="ml-1 text-[10px] text-amber-600 bg-amber-50 px-1 rounded border border-amber-200" title={t('rep.cgFromTrip')}>*</span>}
                       </td>
                       <td className="px-4 py-3 text-right text-xs text-slate-500 tabular-nums">
-                        {r.weight ? `${r.weight} кг` : '—'} / {r.pallets ? `${r.pallets} пал.` : '—'}
+                        {r.weight ? `${r.weight} ${t('units.kg')}` : '—'} / {r.pallets ? `${r.pallets} ${t('units.pal')}` : '—'}
                       </td>
                       <td className="px-4 py-3 text-right font-semibold text-green-600 tabular-nums">
                         {r.freight.toFixed(2)} €

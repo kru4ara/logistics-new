@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Route as RouteIcon, Truck, UserCircle } from 'lucide-react';
 import { fmtDateRu } from '../lib/dates';
+import { getT } from '../../../lib/i18n/server';
 
 export type ActiveTrip = {
   id: string;
@@ -13,7 +14,8 @@ export type ActiveTrip = {
 };
 
 /** Карточка активного рейса в блоке «В пути сейчас». */
-export default function ActiveTripCard({ trip }: { trip: ActiveTrip }) {
+export default async function ActiveTripCard({ trip }: { trip: ActiveTrip }) {
+  const { locale } = await getT();
   const clientName = trip.clientName || '—';
   const driverName = trip.driverName;
   const truckNumber = trip.truckNumber;
@@ -50,7 +52,7 @@ export default function ActiveTripCard({ trip }: { trip: ActiveTrip }) {
                         )}
                         {trip.start_date && (
                           <span className="inline-flex items-center gap-1 ml-auto tabular-nums">
-                            {fmtDateRu(trip.start_date)}
+                            {fmtDateRu(trip.start_date, locale)}
                           </span>
                         )}
                       </div>
