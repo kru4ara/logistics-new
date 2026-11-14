@@ -17,6 +17,7 @@ import { fetchAll } from '../lib/fetch-all';
 import { getT } from '../lib/i18n/server';
 import { INTL_LOCALE } from '../lib/i18n/config';
 import type { MessageKey } from '../lib/i18n/translate';
+import SetupChecklist from './components/SetupChecklist';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,7 +27,8 @@ export default async function Home() {
   const userName = (await cookies()).get('user_name')?.value
     ? decodeURIComponent((await cookies()).get('user_name')!.value)
     : t('nav.roleOffice');
-  const adminOnboarded = (await cookies()).get('admin_onboarded')?.value === '1'; // ⬅️ НОВОЕ
+  const adminOnboarded = (await cookies()).get('admin_onboarded')?.value === '1';
+  const setupHidden = (await cookies()).get('setup_hidden')?.value === '1';
 
   if (!can(role, 'trips.viewAll')) redirect('/driver');
   if (!can(role, 'trips.viewAll')) redirect('/login');
@@ -334,6 +336,9 @@ export default async function Home() {
         {!adminOnboarded && (
           <AdminOnboardingCard userName={userName} />
         )}
+
+        {/* Первые шаги новой компании: пропадают, когда всё настроено */}
+        {!setupHidden && can(role, 'settings.edit') && <SetupChecklist />}
 
         <DashboardMonthStats
           monthName={monthName}

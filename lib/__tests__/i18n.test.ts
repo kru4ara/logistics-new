@@ -246,6 +246,11 @@ const TRANSLATED_FILES = [
   'lib/trip-task-text.ts',
   // DOCX-задание водителю
   'app/api/trips/[id]/segment/[segId]/driver-docx/route.ts',
+  // Первые шаги
+  'app/components/HideSetupButton.tsx',
+  'app/components/SetupChecklist.tsx',
+  'app/setup-actions.ts',
+  'lib/setup-steps.ts',
 ];
 
 function cyrillicLiterals(file: string): string[] {
