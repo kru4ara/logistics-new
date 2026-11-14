@@ -81,6 +81,8 @@ DATABASE_URL='<строка Session pooler>' node scripts/migrate.mjs   # вто
 | `TELEGRAM_CHAT_ID` | шаг 4.2 |
 | `TELEGRAM_WEBHOOK_SECRET` | шаг 4.3 🔐 |
 | `LOGISAT_SERVER` / `LOGISAT_USERNAME` / `LOGISAT_PASSWORD` | только если у клиента GPS Logisat 🔐 |
+| `TENANT_NAME` | `<client>` — имя компании в оповещениях о сбоях |
+| `OPS_TELEGRAM_BOT_TOKEN` / `OPS_TELEGRAM_CHAT_ID` | **ваш** бот и чат поддержки — одинаковые во всех проектах 🔐 (см. ниже) |
 
 3. **Deploy.** Cron-задачи (бэкап, напоминания, курсы валют) подхватятся из `vercel.json` сами.
 4. **Settings → Domains** → `<client>.<domain>` → у регистратора домена: CNAME на `cname.vercel-dns.com`.
@@ -102,6 +104,17 @@ curl "https://api.telegram.org/bot<TOKEN>/setWebhook" \
   без согласования); подстановки `{payment_days}`, `{documents}`, `{email}`;
 - печать (PNG с прозрачным фоном);
 - имя Telegram-бота из шага 4.1 (без `@`); «домен старых логинов» — пусто.
+
+### Оповещения о сбоях (один раз для всех клиентов)
+
+Сбои на сервере у любого клиента приходят **вам**, а не клиенту: `instrumentation.ts` →
+`lib/error-alerts.ts`. В сообщении — компания, страница (без query-строки), текст ошибки и `digest`
+для поиска в логах Vercel; данных пользователя (cookie, заголовков) нет. Одинаковая ошибка —
+не чаще раза в 30 минут.
+
+1. @BotFather → `/newbot` → бот поддержки (`<ваше-имя>_ops_bot`) → токен 🔐 → `OPS_TELEGRAM_BOT_TOKEN`.
+2. Написать боту `/start`, открыть `https://api.telegram.org/bot<TOKEN>/getUpdates` → `chat.id` → `OPS_TELEGRAM_CHAT_ID`.
+3. Эти две переменные — в каждый проект Vercel; `TENANT_NAME` — своё у каждого. Без них оповещения выключены.
 
 ## 8. Проверка
 
