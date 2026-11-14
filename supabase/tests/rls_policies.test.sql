@@ -904,3 +904,39 @@ begin
   raise notice 'ok: бакет documents закрытый';
 end;
 $$;
+
+-- ============================================================
+-- НАСТРОЙКИ КОМПАНИИ (миграция 022)
+-- ============================================================
+--
+-- В пустой базе (новый клиент) строка не создаётся: миграции применены
+-- до фикстур, заказов тогда не было. Чужие реквизиты в новую базу не попадают.
+reset role;
+select public.assert_count('новая база: company_settings пустая', 0,
+  'select count(*) from public.company_settings');
+
+insert into public.company_settings (id, name, account_eur) values (1, 'Тест', 'PL00');
+
+-- Офис читает реквизиты, водитель и менеджер — нет (банковские счета).
+set role authenticated;
+select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', false);
+select public.assert_count('office: видит настройки компании', 1,
+  'select count(*) from public.company_settings');
+select set_config('request.jwt.claim.sub', '22222222-2222-2222-2222-222222222222', false);
+select public.assert_count('driver: не видит настройки компании', 0,
+  'select count(*) from public.company_settings');
+select set_config('request.jwt.claim.sub', '44444444-4444-4444-4444-444444444444', false);
+select public.assert_count('manager: не видит настройки компании', 0,
+  'select count(*) from public.company_settings');
+
+reset role;
+set role anon;
+do $$
+begin
+  perform count(*) from public.company_settings;
+  raise exception 'FAIL: anon читает company_settings';
+exception when insufficient_privilege then
+  raise notice 'ok: anon не читает company_settings';
+end;
+$$;
+reset role;
