@@ -4,6 +4,7 @@ import { requireOffice } from '../../lib/require-office';
 import { createClient } from '../../lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
 import { logAudit } from '../../lib/audit';
+import { getT } from '../../lib/i18n/server';
 
 // Статус «completed» (Завершён) сознательно не разрешён для массовой установки —
 // он требует заполнения end_date (иначе «Рейсы за месяц» поедут). Меняйте точечно в карточке.
@@ -21,12 +22,12 @@ const STATUS_LABELS: Record<string, string> = {
 export async function bulkSetStatus(ids: string[], status: string) {
   await requireOffice();
   if (!Array.isArray(ids) || ids.length === 0) {
-    return { success: false as const, error: 'Не выбрано ни одного рейса' };
+    return { success: false as const, error: (await getT()).t('trips.bulkNoneSelected') };
   }
   if (!ALLOWED_STATUSES.includes(status as AllowedStatus)) {
     return {
       success: false as const,
-      error: 'Этот статус нельзя установить массово — требуется дата финиша. Откройте рейс и завершите его отдельно.',
+      error: (await getT()).t('trips.bulkStatusNotAllowed'),
     };
   }
 
@@ -68,7 +69,7 @@ export async function bulkSetStatus(ids: string[], status: string) {
 export async function bulkDelete(ids: string[]) {
   await requireOffice();
   if (!Array.isArray(ids) || ids.length === 0) {
-    return { success: false as const, error: 'Не выбрано ни одного рейса' };
+    return { success: false as const, error: (await getT()).t('trips.bulkNoneSelected') };
   }
 
   const supabase = await createClient();

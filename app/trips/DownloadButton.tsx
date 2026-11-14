@@ -3,8 +3,11 @@
 import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
 import type { TripCardData } from './TripsBulkList';
+import { tripStatusKey } from '../../lib/i18n/labels';
+import { useT } from '../components/I18nProvider';
 
 export default function DownloadButton({ data }: { data: TripCardData[] }) {
+  const { t } = useT();
   async function handleDownload() {
     const ExcelJS = (await import('exceljs')).default;
 
@@ -13,10 +16,10 @@ export default function DownloadButton({ data }: { data: TripCardData[] }) {
       const tripProfit = (trip.revenue_eur || 0) - tripExpenses;
       return {
         tripNumber: trip.trip_number || '',
-        clientName: trip.clientName || 'Не указан',
+        clientName: trip.clientName || t('trips.clientUnknown'),
         clientRequestNumber: trip.client_request_number || '',
         route: trip.route || '',
-        status: trip.status,
+        status: (() => { const k = tripStatusKey(trip.status); return k ? t(k) : trip.status; })(),
         revenue: trip.revenue_eur || 0,
         expenses: Math.round(tripExpenses * 100) / 100,
         profit: Math.round(tripProfit * 100) / 100,
@@ -28,7 +31,7 @@ export default function DownloadButton({ data }: { data: TripCardData[] }) {
     const profit = totalRevenue - totalExpenses;
 
     rows.push({
-      tripNumber: 'ИТОГО',
+      tripNumber: t('trips.excelTotal'),
       clientName: '',
       clientRequestNumber: '',
       route: '',
@@ -39,16 +42,16 @@ export default function DownloadButton({ data }: { data: TripCardData[] }) {
     });
 
     const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet('Заказы');
+    const worksheet = workbook.addWorksheet(t('trips.excelSheet'));
     worksheet.columns = [
-      { header: 'Рейс №', key: 'tripNumber', width: 10 },
-      { header: 'Клиент', key: 'clientName', width: 30 },
-      { header: 'Заявка', key: 'clientRequestNumber', width: 16 },
-      { header: 'Маршрут', key: 'route', width: 40 },
-      { header: 'Статус', key: 'status', width: 16 },
-      { header: 'Фрахт (€)', key: 'revenue', width: 14, style: { numFmt: '0.00' } },
-      { header: 'Расходы (€)', key: 'expenses', width: 14, style: { numFmt: '0.00' } },
-      { header: 'Прибыль (€)', key: 'profit', width: 14, style: { numFmt: '0.00' } },
+      { header: t('trips.colTripNo'), key: 'tripNumber', width: 10 },
+      { header: t('trips.colClient'), key: 'clientName', width: 30 },
+      { header: t('trips.colRequest'), key: 'clientRequestNumber', width: 16 },
+      { header: t('trips.colRoute'), key: 'route', width: 40 },
+      { header: t('trips.colStatus'), key: 'status', width: 16 },
+      { header: t('trips.colFreight'), key: 'revenue', width: 14, style: { numFmt: '0.00' } },
+      { header: t('trips.colExpenses'), key: 'expenses', width: 14, style: { numFmt: '0.00' } },
+      { header: t('trips.colProfit'), key: 'profit', width: 14, style: { numFmt: '0.00' } },
     ];
     worksheet.addRows(rows);
 
@@ -67,7 +70,7 @@ export default function DownloadButton({ data }: { data: TripCardData[] }) {
   return (
     <Button onClick={handleDownload} variant="default">
       <Download className="w-4 h-4 mr-2" />
-      Скачать Excel
+      {t('trips.downloadExcel')}
     </Button>
   );
 }

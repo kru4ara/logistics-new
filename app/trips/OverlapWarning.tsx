@@ -8,6 +8,9 @@ import {
   Loader2,
   CheckCircle2,
 } from 'lucide-react';
+import { tripStatusKey } from '../../lib/i18n/labels';
+import { useT } from '../components/I18nProvider';
+import { formatDate } from '../../lib/i18n/format';
 
 type Conflict = {
   id: string;
@@ -19,22 +22,6 @@ type Conflict = {
   client_name: string;
 };
 
-const statusLabels: Record<string, string> = {
-  planned: 'Планируется',
-  active: 'В пути',
-  completed: 'Завершён',
-  invoiced: 'Выставлен счёт',
-  paid: 'Оплачен',
-};
-
-function fmtDate(d: string | null): string {
-  if (!d) return '—';
-  try {
-    return new Date(d).toLocaleDateString('ru-RU');
-  } catch {
-    return d;
-  }
-}
 
 export default function OverlapWarning({
   truckId,
@@ -47,6 +34,7 @@ export default function OverlapWarning({
   endDate: string;
   excludeTripId?: string;
 }) {
+  const { t, locale } = useT();
   const [conflicts, setConflicts] = useState<Conflict[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasChecked, setHasChecked] = useState(false);
@@ -113,7 +101,7 @@ export default function OverlapWarning({
     return (
       <div className="mt-2 flex items-center gap-2 text-xs text-slate-400">
         <Loader2 className="w-3.5 h-3.5 animate-spin" />
-        <span>Проверяю пересечения…</span>
+        <span>{t('trips.overlapChecking')}</span>
       </div>
     );
   }
@@ -123,7 +111,7 @@ export default function OverlapWarning({
     return (
       <div className="mt-2 flex items-center gap-2 text-xs text-emerald-600">
         <CheckCircle2 className="w-3.5 h-3.5" strokeWidth={2.2} />
-        <span>Машина свободна на этот период</span>
+        <span>{t('trips.overlapFree')}</span>
       </div>
     );
   }
@@ -135,12 +123,12 @@ export default function OverlapWarning({
         <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" strokeWidth={2.2} />
         <div className="min-w-0 flex-1">
           <div className="text-sm font-semibold text-amber-800">
-            Машина уже занята на этот период
+            {t('trips.overlapBusy')}
           </div>
           <div className="text-xs text-amber-700 mt-0.5">
             {conflicts.length === 1
-              ? 'Найдено пересечение с одним рейсом'
-              : `Найдено пересечений: ${conflicts.length}`}
+              ? t('trips.overlapOne')
+              : t('trips.overlapMany', { n: conflicts.length })}
           </div>
         </div>
       </div>
@@ -159,13 +147,13 @@ export default function OverlapWarning({
                 <span className="tabular-nums">№ {c.trip_number || '—'}</span>
                 <span className="text-slate-400 font-normal">·</span>
                 <span className="text-slate-600 font-normal truncate">
-                  {c.client_name || 'Клиент не указан'}
+                  {c.client_name || t('trips.overlapNoClient')}
                 </span>
               </div>
               <div className="text-[11px] text-slate-500 mt-0.5 tabular-nums">
-                {fmtDate(c.start_date)} → {fmtDate(c.end_date)}
+                {formatDate(c.start_date, locale)} → {formatDate(c.end_date, locale)}
                 {' · '}
-                <span className="text-slate-400">{statusLabels[c.status] || c.status}</span>
+                <span className="text-slate-400">{(() => { const k = tripStatusKey(c.status); return k ? t(k) : c.status; })()}</span>
               </div>
             </div>
             <ExternalLink
@@ -176,13 +164,13 @@ export default function OverlapWarning({
         ))}
         {conflicts.length > 5 && (
           <div className="text-[11px] text-amber-700 pl-2">
-            …и ещё {conflicts.length - 5}
+            {t('trips.overlapMore', { n: conflicts.length - 5 })}
           </div>
         )}
       </div>
 
       <div className="text-[11px] text-amber-700 mt-3 pl-2 border-l-2 border-amber-300">
-        Можно сохранить, но проверьте — возможно, машина уже назначена на другой рейс.
+        {t('trips.overlapHint')}
       </div>
     </div>
   );

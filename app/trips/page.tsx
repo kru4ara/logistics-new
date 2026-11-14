@@ -13,6 +13,8 @@ import TripsBulkList from './TripsBulkListWrapper';
 import { getScope, applyTripScope } from '../../lib/scope';
 import { fetchAll } from '../../lib/fetch-all';
 import type { TripCardData, MonthGroup } from './TripsBulkList';
+import { getT } from '../../lib/i18n/server';
+import { monthNames as localeMonthNames } from '../../lib/i18n/format';
 import {
   Package,
   Plus,
@@ -53,6 +55,7 @@ export default async function TripsPage({
     mode?: string;
   }>;
 }) {
+  const { t: tr, locale } = await getT();
   const { role } = await getSessionContext();
   if (!can(role, 'trips.viewAll')) redirect('/driver');
 
@@ -126,7 +129,7 @@ export default async function TripsPage({
   const tripsError = tripsResult.error;
 
   if (tripsError) {
-    return <div className="p-8 text-red-500">Ошибка загрузки рейсов: {tripsError.message}</div>;
+    return <div className="p-8 text-red-500">{tr('trips.loadError', { message: tripsError.message })}</div>;
   }
 
   const expenses = expensesResult.data;
@@ -286,7 +289,7 @@ export default async function TripsPage({
   tripYears.add(currentYear);
   const years = Array.from(tripYears).sort((a, b) => b - a);
 
-  const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+  const monthNames = localeMonthNames(locale);
 
   const filteredRevenue = filteredTrips.reduce((sum, t) => sum + (t.revenue_eur || 0), 0);
   const filteredExpenses = filteredTrips.reduce((sum, t) => sum + (expensesByTrip[t.id] || 0), 0);
@@ -343,7 +346,7 @@ export default async function TripsPage({
       profit_mode: orderMode(t),
       revenue_eur: t.revenue_eur ?? null,
       expenses: expensesByTrip[t.id] || 0,
-      clientName: pickName(t.clients) || 'Не указан',
+      clientName: pickName(t.clients) || tr('trips.clientUnknown'),
       driverName,
       missingUnloadDate: !hasUnloadDate(t),
     };
@@ -377,13 +380,13 @@ export default async function TripsPage({
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2.5 tracking-tight">
               <Package className="w-6 h-6 md:w-7 md:h-7 text-brand-600" strokeWidth={2.2} />
-              Заказы
+              {tr('trips.title')}
             </h1>
             <p className="text-slate-500 mt-1 text-sm md:text-base">
               {isSearchMode ? (
-                <>Найдено: <b className="text-slate-700">{totalFiltered}</b>{q && <> · по запросу «{q}»</>}</>
+                <>{tr('trips.found')} <b className="text-slate-700">{totalFiltered}</b>{q && <> · {tr('trips.byQuery', { q })}</>}</>
               ) : (
-                <>Всего заказов: <b className="text-slate-700">{filteredTrips.length}</b></>
+                <>{tr('trips.total')} <b className="text-slate-700">{filteredTrips.length}</b></>
               )}
             </p>
           </div>
@@ -395,7 +398,7 @@ export default async function TripsPage({
               className="btn btn-primary text-sm md:text-base flex-1 sm:flex-none"
             >
               <Plus className="w-4 h-4 md:w-[18px] md:h-[18px]" strokeWidth={2.5} />
-              Создать заявку
+              {tr('trips.create')}
             </Link>
           </div>
         </div>
@@ -425,19 +428,19 @@ export default async function TripsPage({
 
           <div className="grid grid-cols-3 gap-3 pt-4 border-t border-slate-100">
             <div>
-              <div className="text-xs text-slate-400 font-medium">Фрахт</div>
+              <div className="text-xs text-slate-400 font-medium">{tr('trips.freight')}</div>
               <div className="text-base md:text-lg font-bold text-green-600 tabular-nums">
                 {filteredRevenue.toFixed(0)} €
               </div>
             </div>
             <div>
-              <div className="text-xs text-slate-400 font-medium">Расходы</div>
+              <div className="text-xs text-slate-400 font-medium">{tr('trips.expenses')}</div>
               <div className="text-base md:text-lg font-bold text-red-500 tabular-nums">
                 {filteredExpenses.toFixed(0)} €
               </div>
             </div>
             <div>
-              <div className="text-xs text-slate-400 font-medium">Прибыль</div>
+              <div className="text-xs text-slate-400 font-medium">{tr('trips.profit')}</div>
               <div className={`text-base md:text-lg font-bold tabular-nums ${filteredProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                 {filteredProfit.toFixed(0)} €
               </div>
@@ -451,12 +454,14 @@ export default async function TripsPage({
               <Inbox className="w-8 h-8 text-slate-300" strokeWidth={1.5} />
             </div>
             <h2 className="text-xl font-bold text-slate-900 mb-2">
-              {isSearchMode ? 'Ничего не найдено' : 'Заказов не найдено'}
+              {isSearchMode ? tr('trips.nothingFound') : tr('trips.noOrders')}
             </h2>
             <p className="text-slate-500 mb-6">
               {isSearchMode
-                ? 'Попробуйте изменить запрос или сбросить фильтры'
-                : (monthFilter ? `За ${monthNames[monthFilter - 1]} ${year} нет заказов` : `За ${year} год нет заказов`)}
+                ? tr('trips.tryChange')
+                : (monthFilter
+                    ? tr('trips.noOrdersMonth', { month: monthNames[monthFilter - 1], year })
+                    : tr('trips.noOrdersYear', { year }))}
             </p>
             {isSearchMode ? (
               <Link
@@ -464,7 +469,7 @@ export default async function TripsPage({
                 className="inline-flex items-center gap-2 bg-slate-200 hover:bg-slate-300 text-slate-700
                            font-semibold px-6 py-3 rounded-xl transition-all"
               >
-                Сбросить фильтры
+                {tr('trips.resetFilters')}
               </Link>
             ) : (
               <Link
@@ -472,7 +477,7 @@ export default async function TripsPage({
                 className="btn btn-primary inline-flex"
               >
                 <Plus className="w-4 h-4" strokeWidth={2.5} />
-                Создать заявку
+                {tr('trips.create')}
               </Link>
             )}
           </div>

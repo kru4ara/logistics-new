@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { useT } from '../components/I18nProvider';
 
 export default function SearchInput({
   initialQ,
@@ -14,6 +15,7 @@ export default function SearchInput({
   month: number | null;
   status: string | null;
 }) {
+  const { t } = useT();
   const router = useRouter();
   const [value, setValue] = useState(initialQ);
   const [isPending, startTransition] = useTransition();
@@ -69,7 +71,7 @@ export default function SearchInput({
         type="text"
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        placeholder="Поиск по № рейса или № заявки…"
+        placeholder={t('trips.searchPlaceholder')}
         className="w-full rounded-xl border border-slate-300 pl-10 pr-12 py-2.5 text-base text-slate-900
                    focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
       />
@@ -77,7 +79,7 @@ export default function SearchInput({
         {isPending && (
           <span
             className="inline-block w-4 h-4 border-2 border-slate-300 border-t-blue-500 rounded-full animate-spin"
-            aria-label="Идёт поиск"
+            aria-label={t('trips.searching')}
           />
         )}
         {!isPending && value && (
@@ -85,7 +87,7 @@ export default function SearchInput({
             type="button"
             onClick={handleClear}
             className="text-slate-400 hover:text-slate-700 text-xl leading-none px-1 transition-colors"
-            aria-label="Очистить"
+            aria-label={t('trips.clearSearch')}
           >
             ×
           </button>
