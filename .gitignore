@@ -38,3 +38,5 @@ backup_*.json
 
 # Строки подключения к базам клиентов (scripts/migrate.mjs --all)
 scripts/tenants.json
+# состояние и секреты развёртывания клиентов (scripts/provision-tenant.mjs)
+scripts/tenants/

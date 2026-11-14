@@ -12,6 +12,31 @@
 
 ---
 
+## Автоматически: `scripts/provision-tenant.mjs`
+
+Шаги 1–3, 5 и 6 ниже — одной командой (~10 минут, из них ~3 — Supabase создаёт проект):
+
+```bash
+SUPABASE_ACCESS_TOKEN=…  SUPABASE_ORG=<slug организации>  VERCEL_TOKEN=…  [VERCEL_TEAM_ID=…] \
+OPS_TELEGRAM_BOT_TOKEN=…  OPS_TELEGRAM_CHAT_ID=… \
+node scripts/provision-tenant.mjs --name acme --domain crm.example.com \
+     --office-email office@acme.pl --office-name "Jan Kowalski" --company "ACME Sp. z o.o." \
+     --region eu-central-1 [--telegram-token <токен бота клиента>] [--telegram-chat-id …]
+```
+
+- Сначала `--dry-run`: покажет шаги и переменные окружения, ничего не создавая.
+- Токены: Supabase → Account → Access Tokens; Vercel → Account Settings → Tokens. Репозиторий должен быть
+  подключён к Vercel через GitHub-интеграцию.
+- Регион — только ЕС; функции Vercel ставятся в тот же регион AWS (`eu-central-1` → `fra1`, `eu-west-1` → `dub1`).
+- Секреты (пароль базы, service_role, CRON_SECRET, ключ бэкапа, пароль офиса) скрипт генерирует сам и пишет
+  в `scripts/tenants/<name>.json` (в `.gitignore`, права 600) — **до** создания проекта, чтобы пароль базы
+  не потерялся при сбое. Оттуда — в менеджер паролей.
+- Упал на шаге — та же команда ещё раз: выполненные шаги пропускаются.
+- В конце клиент сам добавляется в `scripts/tenants.json` — его сразу видят `migrate.mjs --all` и `tenants-status.mjs`.
+
+Руками остаются: DNS у регистратора (CNAME), бот клиента у @BotFather (если клиент хочет Telegram),
+передача клиенту входа и ключа бэкапа, проверка (§8). Ниже — те же шаги вручную, если API недоступен.
+
 ## 1. Проект Supabase
 
 1. Supabase → организация → **New project**: имя `logistics-<client>`, **регион ЕС**
