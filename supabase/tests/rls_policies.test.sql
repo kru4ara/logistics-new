@@ -793,3 +793,42 @@ end;
 $$;
 
 reset role;
+
+-- ============================================================
+-- ФАЗА 43: ЖУРНАЛ НЕУДАЧНЫХ ВХОДОВ (login_failures, миграция 019)
+-- ============================================================
+--
+-- Пишет и читает только сервер (service_role). anon и authenticated не
+-- должны ни видеть журнал, ни писать в него: иначе можно стереть свои
+-- неудачи и снять ограничение подбора пароля.
+insert into public.login_failures (login_hash, ip_hash) values ('h1', 'ip1');
+
+do $$
+declare r record;
+begin
+  for r in select unnest(array['anon', 'authenticated']) as role_name loop
+    execute format('set local role %I', r.role_name);
+    begin
+      perform 1 from public.login_failures;
+      raise exception 'FAIL: % читает login_failures', r.role_name;
+    exception when insufficient_privilege then
+      raise notice 'ok: % не читает login_failures', r.role_name;
+    end;
+    begin
+      delete from public.login_failures;
+      raise exception 'FAIL: % удаляет из login_failures', r.role_name;
+    exception when insufficient_privilege then
+      raise notice 'ok: % не удаляет из login_failures', r.role_name;
+    end;
+    begin
+      insert into public.login_failures (login_hash) values ('x');
+      raise exception 'FAIL: % пишет в login_failures', r.role_name;
+    exception when insufficient_privilege then
+      raise notice 'ok: % не пишет в login_failures', r.role_name;
+    end;
+    reset role;
+  end loop;
+end;
+$$;
+
+reset role;
