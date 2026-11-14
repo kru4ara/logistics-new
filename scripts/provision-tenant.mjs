@@ -23,7 +23,7 @@ import { randomBytes } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import pg from 'pg';
 import {
-  STEPS, nextSteps, validateOptions, generateSecrets, buildEnv, poolerUrl, appUrl, mask, VERCEL_REGION,
+  nextSteps, validateOptions, generateSecrets, buildEnv, poolerUrl, appUrl, mask, VERCEL_REGION,
 } from './provision-plan.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
