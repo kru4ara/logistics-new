@@ -4,6 +4,7 @@ import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Camera, Loader2 } from 'lucide-react';
 import { replaceDriverPassport } from '../driver-actions';
+import { useT } from './I18nProvider';
 
 export default function DriverPassportUpload({
   driverId,
@@ -12,6 +13,7 @@ export default function DriverPassportUpload({
   driverId: string;
   hasPhoto: boolean;
 }) {
+  const { t } = useT();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -62,7 +64,7 @@ export default function DriverPassportUpload({
         ) : (
           <Camera className="w-3.5 h-3.5" strokeWidth={2.2} />
         )}
-        {hasPhoto ? 'Сменить фото' : 'Добавить фото'}
+        {hasPhoto ? t('cmp.changePhoto') : t('cmp.addPhoto')}
       </button>
       {error && (
         <div className="text-[10px] text-red-500 mt-1">{error}</div>

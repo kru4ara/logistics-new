@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { AlertTriangle, ArrowRight } from 'lucide-react';
+import { useT } from './I18nProvider';
 
 type Match = {
   id: string;
@@ -26,6 +27,7 @@ export default function DuplicateChecker({
   placeholder?: string;
   required?: boolean;
 }) {
+  const { t } = useT();
   const [value, setValue] = useState('');
   const [taxId, setTaxId] = useState('');
   const [matches, setMatches] = useState<Match[]>([]);
@@ -106,7 +108,7 @@ export default function DuplicateChecker({
         <div className="mt-2 p-3 rounded-xl bg-amber-50 border border-amber-200 space-y-2">
           <div className="flex items-center gap-2 text-xs font-semibold text-amber-900">
             <AlertTriangle className="w-3.5 h-3.5 shrink-0" strokeWidth={2.2} />
-            Похожие уже есть — возможно, дубль:
+            {t('cmp.dupes')}
           </div>
           <ul className="space-y-1">
             {matches.map((m) => (
@@ -132,7 +134,7 @@ export default function DuplicateChecker({
             ))}
           </ul>
           <div className="text-[10px] text-amber-700 pt-1">
-            Кликните на существующего, чтобы открыть — или продолжайте создавать нового.
+            {t('cmp.dupesHint')}
           </div>
         </div>
       )}

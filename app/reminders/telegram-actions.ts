@@ -3,11 +3,13 @@
 import { createClient } from '../../lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
 import { requireCapability } from '../../lib/require-office';
+import { getT } from '../../lib/i18n/server';
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
 export async function sendReminderNotification(reminderId: string) {
+  const { t } = await getT();
   // Иначе любой залогиненный мог слать сообщения в рабочий Telegram-чат.
   await requireCapability('reminders.edit');
   const supabase = await createClient();
@@ -19,7 +21,7 @@ export async function sendReminderNotification(reminderId: string) {
     .single();
 
   if (!reminder || !TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
-    return { success: false, message: 'Ошибка: Без токена/чата и данных' };
+    return { success: false, message: t('rem.tgNoData') };
   }
 
   const daysLeft = Math.ceil(
@@ -27,7 +29,7 @@ export async function sendReminderNotification(reminderId: string) {
   );
 
   if (daysLeft <= 0) {
-    return { success: false, message: 'Красная зона: напоминание уже просрочено' };
+    return { success: false, message: t('rem.tgRed') };
   }
 
   const payload = {
@@ -45,9 +47,9 @@ export async function sendReminderNotification(reminderId: string) {
   });
 
   if (!response.ok) {
-    return { success: false, message: 'Ошибка передачи в Telegram' };
+    return { success: false, message: t('rem.tgFailed') };
   }
 
   revalidatePath('/reminders');
-  return { success: true, message: 'Уведомление отправлено!' };
+  return { success: true, message: t('rem.tgSent') };
 }

@@ -12,43 +12,45 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { deniedRedirect, roleLabel } from '../../lib/roles';
+import { getT } from '../../lib/i18n/server';
+import type { MessageKey } from '../../lib/i18n/translate';
 
 export const dynamic = 'force-dynamic';
 
 const ENTITY_LABELS: Record<string, string> = {
-  trip: 'Рейс',
-  client: 'Клиент',
-  driver: 'Водитель',
-  contractor: 'Подрядчик',
-  location: 'Локация',
-  forwarding_order: 'Экспедирование',
-  trip_expense: 'Расход рейса',
-  forwarding_expense: 'Расход экспедиции',
-  document: 'Документ',
-  reminder: 'Напоминание',
+  trip: 'aud.eTrip',
+  client: 'aud.eClient',
+  driver: 'aud.eDriver',
+  contractor: 'rem.catContractor',
+  location: 'aud.eLocation',
+  forwarding_order: 'aud.eForwarding',
+  trip_expense: 'aud.eTripExp',
+  forwarding_expense: 'aud.eFwdExp',
+  document: 'aud.eDoc',
+  reminder: 'aud.eReminder',
 };
 
 const ACTION_META: Record<string, { text: string; badge: string; strip: string; Icon: LucideIcon }> = {
   create: {
-    text: 'Создано',
+    text: 'toast.created',
     badge: 'bg-emerald-50 text-emerald-700 border-emerald-200',
     strip: 'bg-emerald-500',
     Icon: Plus,
   },
   update: {
-    text: 'Изменено',
+    text: 'aud.aUpdated',
     badge: 'bg-brand-50 text-brand-700 border-brand-200',
     strip: 'bg-brand-500',
     Icon: Pencil,
   },
   delete: {
-    text: 'Удалено',
+    text: 'toast.deleted',
     badge: 'bg-red-50 text-red-700 border-red-200',
     strip: 'bg-red-500',
     Icon: Trash2,
   },
   status_change: {
-    text: 'Смена статуса',
+    text: 'aud.aStatus',
     badge: 'bg-amber-50 text-amber-700 border-amber-200',
     strip: 'bg-amber-500',
     Icon: ArrowRightLeft,
@@ -56,56 +58,56 @@ const ACTION_META: Record<string, { text: string; badge: string; strip: string; 
 };
 
 const FIELD_LABELS: Record<string, string> = {
-  revenue_eur: 'Фрахт (€)',
-  driver_id: 'Водитель',
-  truck_id: 'Тягач',
-  client_id: 'Клиент',
-  start_date: 'Дата старта',
-  end_date: 'Дата финиша',
-  route: 'Маршрут',
-  client_request_number: '№ заявки клиента',
-  start_fuel_level: 'Остаток топлива (л)',
-  status: 'Статус',
-  name: 'Название',
-  contact_person: 'Контактное лицо',
-  phone: 'Телефон',
+  revenue_eur: 'aud.fFreight',
+  driver_id: 'aud.eDriver',
+  truck_id: 'aud.fTractor',
+  client_id: 'aud.eClient',
+  start_date: 'aud.fStart',
+  end_date: 'aud.fFinish',
+  route: 'aud.fRoute',
+  client_request_number: 'aud.fClientReq',
+  start_fuel_level: 'aud.fFuel',
+  status: 'aud.fStatus',
+  name: 'aud.fName',
+  contact_person: 'aud.fContact',
+  phone: 'aud.fPhone',
   email: 'Email',
-  type: 'Тип локации',
-  company_name: 'Организация',
-  postal_code: 'Почтовый код',
-  city: 'Город',
-  address: 'Адрес',
-  full_name: 'Полное название',
+  type: 'aud.fLocType',
+  company_name: 'aud.fOrg',
+  postal_code: 'aud.fPostal',
+  city: 'aud.fCity',
+  address: 'aud.fAddress',
+  full_name: 'aud.fFullName',
   tax_id: 'NIP',
-  country: 'Страна',
-  notes: 'Заметки',
-  first_name: 'Имя',
-  last_name: 'Фамилия',
-  passport_number: '№ паспорта',
-  passport_expiry: 'Срок паспорта',
-  visa_expiry: 'Срок визы',
-  license_number: '№ прав',
-  license_expiry: 'Срок прав',
-  tachograph_card_number: '№ карты тахографа',
-  tachograph_card_expiry: 'Срок карты тахографа',
-  code_95_expiry: 'Срок Код 95',
-  adr_expiry: 'Срок АДР',
-  date_of_birth: 'Дата рождения',
-  order_number: '№ заявки',
-  client_price_eur: 'Сумма от клиента (€)',
-  original_client_price: 'Сумма (в валюте)',
-  original_currency: 'Валюта',
-  load_date: 'План: дата загрузки',
-  unload_date: 'План: дата выгрузки',
-  cargo_description: 'Описание груза',
-  transport_type: 'Тип транспорта',
-  transport_temperature: 'Температура',
-  cargo_type: 'Тип груза',
-  cargo_quantity: 'Количество груза',
-  customs_loading: 'Таможня (загрузка)',
-  customs_unloading: 'Таможня (выгрузка)',
-  loading_reference: 'Референс загрузки',
-  client_request_date: 'Дата заявки клиента',
+  country: 'aud.fCountry',
+  notes: 'aud.fNotes',
+  first_name: 'aud.fFirst',
+  last_name: 'aud.fLast',
+  passport_number: 'aud.fPassNo',
+  passport_expiry: 'aud.fPassExp',
+  visa_expiry: 'aud.fVisaExp',
+  license_number: 'aud.fLicNo',
+  license_expiry: 'aud.fLicExp',
+  tachograph_card_number: 'aud.fTachoNo',
+  tachograph_card_expiry: 'aud.fTachoExp',
+  code_95_expiry: 'aud.fC95',
+  adr_expiry: 'aud.fAdr',
+  date_of_birth: 'aud.fBirth',
+  order_number: 'aud.fReqNo',
+  client_price_eur: 'aud.fClientSum',
+  original_client_price: 'aud.fSumCur',
+  original_currency: 'aud.fCurrency',
+  load_date: 'aud.fPlanLoad',
+  unload_date: 'aud.fPlanUnload',
+  cargo_description: 'aud.fCargoDesc',
+  transport_type: 'aud.fTransport',
+  transport_temperature: 'aud.fTemp',
+  cargo_type: 'aud.fCargoType',
+  cargo_quantity: 'aud.fCargoQty',
+  customs_loading: 'aud.fCustomsLoad',
+  customs_unloading: 'aud.fCustomsUnload',
+  loading_reference: 'aud.fLoadRef',
+  client_request_date: 'aud.fClientReqDate',
 };
 
 const DATE_FIELDS = new Set([
@@ -151,6 +153,7 @@ export default async function AuditPage({
 }: {
   searchParams: Promise<{ entity?: string }>;
 }) {
+  const { t } = await getT();
   const { role } = await getSessionContext();
   const denied = deniedRedirect(role, 'audit.view');
   if (denied) redirect(denied);
@@ -175,7 +178,7 @@ export default async function AuditPage({
   if (error) {
     return (
       <div className="p-8 text-red-500">
-        Ошибка загрузки журнала: {error.message}
+        {t('aud.loadError')}{' '}{error.message}
       </div>
     );
   }
@@ -189,10 +192,10 @@ export default async function AuditPage({
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2.5 tracking-tight">
             <ScrollText className="w-6 h-6 md:w-7 md:h-7 text-brand-600" strokeWidth={2.2} />
-            Журнал изменений
+            {t('aud.title')}
           </h1>
           <p className="text-slate-500 mt-1 text-sm md:text-base">
-            Кто, что и когда менял в системе
+            {t('aud.hint')}
           </p>
         </div>
 
@@ -205,7 +208,7 @@ export default async function AuditPage({
                 ? 'bg-brand-600 text-white shadow-brand'
                 : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
           >
-            Все
+            {t('status.filterAll')}
           </a>
           {allEntities.map((key) => (
             <a
@@ -216,7 +219,7 @@ export default async function AuditPage({
                   ? 'bg-brand-600 text-white shadow-brand'
                   : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
             >
-              {ENTITY_LABELS[key]}
+              {t(ENTITY_LABELS[key] as MessageKey)}
             </a>
           ))}
         </div>
@@ -226,9 +229,9 @@ export default async function AuditPage({
             <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-slate-50 flex items-center justify-center">
               <Inbox className="w-8 h-8 text-slate-300" strokeWidth={1.5} />
             </div>
-            <h2 className="text-lg font-bold text-slate-900 mb-1">Записей пока нет</h2>
+            <h2 className="text-lg font-bold text-slate-900 mb-1">{t('aud.empty')}</h2>
             <p className="text-slate-500 text-sm">
-              Как только кто-то создаст, изменит или удалит рейс — запись появится здесь
+              {t('aud.emptyHint')}
             </p>
           </div>
         ) : (
@@ -241,7 +244,7 @@ export default async function AuditPage({
                 Icon: Pencil,
               };
               const ActionIcon = meta.Icon;
-              const entityLabel = ENTITY_LABELS[log.entity_type] || log.entity_type;
+              const entityLabel = ENTITY_LABELS[log.entity_type] ? t(ENTITY_LABELS[log.entity_type] as MessageKey) : log.entity_type;
 
               const changes = log.changes as Record<string, { before: unknown; after: unknown }> | null;
 
@@ -254,7 +257,7 @@ export default async function AuditPage({
                         <div className="flex flex-wrap items-center gap-2">
                           <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border ${meta.badge}`}>
                             <ActionIcon className="w-3 h-3" strokeWidth={2.5} />
-                            {meta.text}
+                            {ACTION_META[log.action] ? t(meta.text as MessageKey) : meta.text}
                           </span>
                           <span className="text-xs font-medium text-slate-500">
                             {entityLabel}
@@ -276,7 +279,7 @@ export default async function AuditPage({
                           {Object.entries(changes).map(([field, { before, after }]) => (
                             <div key={field} className="flex flex-wrap items-baseline gap-2 text-xs">
                               <span className="text-slate-500 font-medium">
-                                {FIELD_LABELS[field] || field}:
+                                {FIELD_LABELS[field] ? t(FIELD_LABELS[field] as MessageKey) : field}:
                               </span>
                               <span className="text-red-500 line-through tabular-nums">
                                 {formatFieldValue(field, before)}

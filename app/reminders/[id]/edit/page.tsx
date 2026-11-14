@@ -5,10 +5,12 @@ import { getSessionContext } from '../../../../lib/session';
 import SubmitButton from '../../../components/SubmitButton';
 import { ArrowLeft, Bell, Pencil, Lock, Save } from 'lucide-react';
 import { deniedRedirect } from '../../../../lib/roles';
+import { getT } from '../../../../lib/i18n/server';
 
 export const dynamic = 'force-dynamic';
 
 export default async function EditReminderPage({ params }: { params: Promise<{ id: string }> }) {
+  const { t } = await getT();
   const { id } = await params;
 
   const { role } = await getSessionContext();
@@ -24,7 +26,7 @@ export default async function EditReminderPage({ params }: { params: Promise<{ i
     .single();
 
   if (error || !reminder) {
-    return <div className="p-8 text-red-500">Напоминание не найдено</div>;
+    return <div className="p-8 text-red-500">{t('rem.notFound')}</div>;
   }
 
   // Авто-напоминания не редактируются
@@ -38,18 +40,17 @@ export default async function EditReminderPage({ params }: { params: Promise<{ i
             className="inline-flex items-center gap-2 text-slate-600 hover:text-brand-600 text-sm font-medium"
           >
             <ArrowLeft className="w-4 h-4" strokeWidth={2} />
-            Все напоминания
+            {t('rem.all')}
           </a>
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 md:p-6">
             <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center mb-3">
               <Lock className="w-6 h-6 text-amber-700" strokeWidth={2.2} />
             </div>
             <h2 className="text-lg font-bold text-amber-900 mb-2">
-              Это автоматическое напоминание
+              {t('rem.isAuto')}
             </h2>
             <p className="text-amber-800 text-sm">
-              Оно создано из карточки {reminder.entity_type === 'driver' ? 'водителя' : 'машины'} и обновляется автоматически
-              при изменении срока документа. Чтобы изменить дату — отредактируйте документ в карточке.
+              {t('rem.createdFrom')}{' '}{reminder.entity_type === 'driver' ? t('rem.ofDriver') : t('rem.ofTruck')}{' '}{t('rem.autoHint')}
             </p>
           </div>
         </div>
@@ -66,13 +67,13 @@ export default async function EditReminderPage({ params }: { params: Promise<{ i
           className="inline-flex items-center gap-2 text-slate-600 hover:text-brand-600 transition-colors text-sm font-medium"
         >
           <ArrowLeft className="w-4 h-4" strokeWidth={2} />
-          Все напоминания
+          {t('rem.all')}
         </a>
 
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2.5 tracking-tight">
             <Pencil className="w-6 h-6 md:w-7 md:h-7 text-brand-600" strokeWidth={2.2} />
-            Редактировать напоминание
+            {t('rem.editTitle')}
           </h1>
         </div>
 
@@ -81,11 +82,11 @@ export default async function EditReminderPage({ params }: { params: Promise<{ i
           <div className="card p-5 md:p-6 space-y-4">
             <h2 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2">
               <Bell className="w-5 h-5 text-brand-600" strokeWidth={2} />
-              Данные напоминания
+              {t('rem.details')}
             </h2>
             <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-slate-700 mb-1">Название *</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{t('rem.name')}</label>
                 <input
                   type="text"
                   name="title"
@@ -95,22 +96,22 @@ export default async function EditReminderPage({ params }: { params: Promise<{ i
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Категория *</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{t('fc.category')}</label>
                 <select
                   name="category"
                   required
                   defaultValue={reminder.category || 'insurance'}
                   className="input"
                 >
-                  <option value="insurance">Страховка</option>
-                  <option value="inspection">Техосмотр</option>
-                  <option value="driver_doc">Документы водителя</option>
-                  <option value="payment_to_contractor">Подрядчик</option>
-                  <option value="accounting">Бухгалтерия</option>
+                  <option value="insurance">{t('cmp.docInsurance')}</option>
+                  <option value="inspection">{t('rem.catInspection')}</option>
+                  <option value="driver_doc">{t('rem.catDriverDocs')}</option>
+                  <option value="payment_to_contractor">{t('rem.catContractor')}</option>
+                  <option value="accounting">{t('rem.catAccounting')}</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Срок (дата) *</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{t('rem.due')}</label>
                 <input
                   type="date"
                   name="due_date"
@@ -121,7 +122,7 @@ export default async function EditReminderPage({ params }: { params: Promise<{ i
               </div>
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Сумма (€) — если есть
+                  {t('rem.amount')}
                 </label>
                 <input
                   type="number"
@@ -144,14 +145,14 @@ export default async function EditReminderPage({ params }: { params: Promise<{ i
               className="w-full sm:w-auto text-center px-6 py-3 rounded-xl border border-slate-300 text-slate-700 font-semibold
                          hover:bg-slate-100 transition-all duration-150"
             >
-              Отмена
+              {t('seg.cancel')}
             </a>
             <SubmitButton
               className="btn btn-primary w-full sm:flex-1 py-3"
-              pendingText="Сохраняю изменения…"
+              pendingText={t('tripForm.savingChanges')}
             >
               <Save className="w-4 h-4" strokeWidth={2.5} />
-              Сохранить изменения
+              {t('tripForm.saveChanges')}
             </SubmitButton>
           </div>
 

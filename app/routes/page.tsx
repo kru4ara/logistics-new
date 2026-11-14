@@ -15,10 +15,12 @@ import {
   Truck,
 } from 'lucide-react';
 import { fetchAll } from '../../lib/fetch-all';
+import { getT } from '../../lib/i18n/server';
 
 export const dynamic = 'force-dynamic';
 
 export default async function RoutesPage() {
+  const { t: tr } = await getT();
   const { role } = await getSessionContext();
   if (!can(role, 'trips.viewAll')) redirect('/driver');
 
@@ -44,7 +46,7 @@ export default async function RoutesPage() {
   if (tripsResult.error) {
     return (
       <div className="p-8 text-red-500">
-        Ошибка загрузки рейсов: {tripsResult.error.message}
+        {tr('today.tripsLoadError')}{' '}{tripsResult.error.message}
       </div>
     );
   }
@@ -127,10 +129,10 @@ export default async function RoutesPage() {
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2.5 tracking-tight">
               <RouteIcon className="w-6 h-6 md:w-7 md:h-7 text-brand-600" strokeWidth={2.2} />
-              Маршруты
+              {tr('nav.routes')}
             </h1>
             <p className="text-slate-500 mt-1 text-sm md:text-base">
-              Всего маршрутов: <b className="text-slate-700">{sortedRoutes.length}</b>
+              {tr('rt.total')}{' '}<b className="text-slate-700">{sortedRoutes.length}</b>
             </p>
           </div>
           <DownloadButton data={cardData} />
@@ -140,7 +142,7 @@ export default async function RoutesPage() {
         <div className="grid gap-3 md:gap-4 grid-cols-2 md:grid-cols-3">
           <div className="card p-4 md:p-5">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs md:text-sm font-medium text-slate-500">Фрахт</span>
+              <span className="text-xs md:text-sm font-medium text-slate-500">{tr('trips.freight')}</span>
               <div className="w-9 h-9 rounded-xl bg-green-50 flex items-center justify-center">
                 <TrendingUp className="w-4 h-4 text-green-600" strokeWidth={2.2} />
               </div>
@@ -152,7 +154,7 @@ export default async function RoutesPage() {
 
           <div className="card p-4 md:p-5">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs md:text-sm font-medium text-slate-500">Расходы</span>
+              <span className="text-xs md:text-sm font-medium text-slate-500">{tr('trips.expenses')}</span>
               <div className="w-9 h-9 rounded-xl bg-red-50 flex items-center justify-center">
                 <TrendingDown className="w-4 h-4 text-red-500" strokeWidth={2.2} />
               </div>
@@ -164,7 +166,7 @@ export default async function RoutesPage() {
 
           <div className="card p-4 md:p-5 col-span-2 md:col-span-1">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs md:text-sm font-medium text-slate-500">Прибыль</span>
+              <span className="text-xs md:text-sm font-medium text-slate-500">{tr('trips.profit')}</span>
               <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${profit >= 0 ? 'bg-emerald-50' : 'bg-red-50'}`}>
                 <Wallet className={`w-4 h-4 ${profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`} strokeWidth={2.2} />
               </div>
@@ -180,7 +182,7 @@ export default async function RoutesPage() {
           <div className="p-4 md:p-6 border-b border-slate-100 flex items-center gap-2">
             <RouteIcon className="w-5 h-5 text-brand-600" strokeWidth={2} />
             <h2 className="text-base md:text-lg font-bold text-slate-900">
-              Статистика по маршрутам
+              {tr('rt.stats')}
             </h2>
           </div>
 
@@ -189,7 +191,7 @@ export default async function RoutesPage() {
               <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-slate-50 flex items-center justify-center">
                 <Inbox className="w-8 h-8 text-slate-300" strokeWidth={1.5} />
               </div>
-              <p className="text-slate-400 text-sm">Маршрутов пока нет</p>
+              <p className="text-slate-400 text-sm">{tr('rt.empty')}</p>
             </div>
           ) : (
             <>
@@ -207,26 +209,26 @@ export default async function RoutesPage() {
                           <div className="font-semibold text-slate-800 break-words">{r.route}</div>
                           <div className="flex items-center gap-1 text-xs text-slate-400 mt-0.5">
                             <Truck className="w-3 h-3" strokeWidth={2} />
-                            Рейсов: <b className="text-slate-600 tabular-nums">{r.count}</b>
+                            {tr('cli.trips')}{' '}<b className="text-slate-600 tabular-nums">{r.count}</b>
                           </div>
                         </div>
                       </div>
 
                       <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100">
                         <div>
-                          <div className="text-[10px] uppercase text-slate-400 font-medium">Фрахт</div>
+                          <div className="text-[10px] uppercase text-slate-400 font-medium">{tr('trips.freight')}</div>
                           <div className="text-sm font-bold text-green-600 break-words tabular-nums">
                             {r.revenue.toFixed(0)} €
                           </div>
                         </div>
                         <div>
-                          <div className="text-[10px] uppercase text-slate-400 font-medium">Расходы</div>
+                          <div className="text-[10px] uppercase text-slate-400 font-medium">{tr('trips.expenses')}</div>
                           <div className="text-sm font-bold text-red-500 break-words tabular-nums">
                             {r.expenses.toFixed(0)} €
                           </div>
                         </div>
                         <div>
-                          <div className="text-[10px] uppercase text-slate-400 font-medium">Прибыль</div>
+                          <div className="text-[10px] uppercase text-slate-400 font-medium">{tr('trips.profit')}</div>
                           <div className={`text-sm font-bold break-words tabular-nums ${rProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                             {rProfit.toFixed(0)} €
                           </div>
@@ -242,11 +244,11 @@ export default async function RoutesPage() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-slate-100 bg-slate-50/50">
-                      <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Маршрут</th>
-                      <th className="text-right px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Фрахт</th>
-                      <th className="text-right px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Расходы</th>
-                      <th className="text-right px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Прибыль</th>
-                      <th className="text-right px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Рейсов</th>
+                      <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{tr('aud.fRoute')}</th>
+                      <th className="text-right px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{tr('trips.freight')}</th>
+                      <th className="text-right px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{tr('trips.expenses')}</th>
+                      <th className="text-right px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{tr('trips.profit')}</th>
+                      <th className="text-right px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{tr('drv.trips')}</th>
                     </tr>
                   </thead>
                   <tbody>

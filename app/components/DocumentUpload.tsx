@@ -12,6 +12,7 @@ import {
   XCircle,
   Loader2,
 } from 'lucide-react';
+import { useT } from './I18nProvider';
 
 export default function DocumentUpload({
   entityType,
@@ -20,6 +21,7 @@ export default function DocumentUpload({
   entityType: string;
   entityId: string;
 }) {
+  const { t } = useT();
   const [file, setFile] = useState<File | null>(null);
   const [documentType, setDocumentType] = useState('passport');
   const [expiryDate, setExpiryDate] = useState('');
@@ -72,7 +74,7 @@ export default function DocumentUpload({
     <div className="border border-slate-200 rounded-2xl bg-white p-4 md:p-5">
       <h3 className="text-base font-bold text-slate-900 mb-3 flex items-center gap-2">
         <Paperclip className="w-5 h-5 text-brand-600" strokeWidth={2} />
-        Загрузить документ
+        {t('cmp.uploadDoc')}
       </h3>
 
       <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 mb-3">
@@ -81,17 +83,17 @@ export default function DocumentUpload({
           onChange={(e) => setDocumentType(e.target.value)}
           className="input text-sm"
         >
-          <option value="passport">Паспорт</option>
-          <option value="visa">Виза</option>
-          <option value="license">Водительское удостоверение</option>
-          <option value="tachograph_card">Карта водителя</option>
-          <option value="code95">Код 95</option>
-          <option value="adr">АДР</option>
-          <option value="insurance">Страховка</option>
-          <option value="tech_passport">Техпаспорт</option>
-          <option value="border_insurance">Пограничная страховка</option>
-          <option value="tachograph_legalization">Легализация тахографа</option>
-          <option value="other">Другое</option>
+          <option value="passport">{t('drvCard.passport')}</option>
+          <option value="visa">{t('drv.visa')}</option>
+          <option value="license">{t('drv.licenseTitle')}</option>
+          <option value="tachograph_card">{t('cmp.docDriverCard')}</option>
+          <option value="code95">{t('drvCard.code95')}</option>
+          <option value="adr">{t('drvCard.adr')}</option>
+          <option value="insurance">{t('cmp.docInsurance')}</option>
+          <option value="tech_passport">{t('cmp.docRegistration')}</option>
+          <option value="border_insurance">{t('cmp.docBorderIns')}</option>
+          <option value="tachograph_legalization">{t('cmp.docTachoLeg')}</option>
+          <option value="other">{t('expenseCat.other')}</option>
         </select>
 
         <input
@@ -99,7 +101,7 @@ export default function DocumentUpload({
           value={expiryDate}
           onChange={(e) => setExpiryDate(e.target.value)}
           className="input text-sm"
-          placeholder="Срок действия"
+          placeholder={t('cmp.validUntil')}
         />
       </div>
 
@@ -126,7 +128,7 @@ export default function DocumentUpload({
           className="btn btn-primary w-full text-sm py-3 justify-center"
         >
           <Camera className="w-4 h-4" strokeWidth={2.2} />
-          Сфотографировать
+          {t('shared.takePhoto')}
         </button>
 
         <button
@@ -135,7 +137,7 @@ export default function DocumentUpload({
           className="btn btn-secondary w-full text-sm py-3 justify-center"
         >
           <ImageIcon className="w-4 h-4" strokeWidth={2.2} />
-          Выбрать файл
+          {t('shared.chooseFile')}
         </button>
       </div>
 
@@ -145,7 +147,7 @@ export default function DocumentUpload({
           <span className="truncate">
             <b className="text-slate-700">{file.name}</b>
             {' · '}
-            {(file.size / 1024 / 1024).toFixed(2)} МБ
+            {(file.size / 1024 / 1024).toFixed(2)}{' '}{t('shared.mb')}
           </span>
         </div>
       )}
@@ -158,12 +160,12 @@ export default function DocumentUpload({
         {isPending ? (
           <>
             <Loader2 className="w-4 h-4 animate-spin" strokeWidth={2.5} />
-            Загрузка…
+            {t('cmp.uploading')}
           </>
         ) : (
           <>
             <Upload className="w-4 h-4" strokeWidth={2.5} />
-            Загрузить документ
+            {t('cmp.uploadDoc')}
           </>
         )}
       </button>
@@ -171,7 +173,7 @@ export default function DocumentUpload({
       {status === 'success' && (
         <p className="mt-3 text-sm text-emerald-600 flex items-center gap-1.5">
           <CheckCircle2 className="w-4 h-4" strokeWidth={2.5} />
-          Документ загружен
+          {t('cmp.docUploaded')}
         </p>
       )}
 

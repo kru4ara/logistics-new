@@ -12,36 +12,38 @@ import {
   Loader2,
 } from 'lucide-react';
 import { completeAdminOnboarding } from '../admin-onboarding-actions';
+import { useT } from './I18nProvider';
+import type { MessageKey } from '../../lib/i18n/translate';
 
 const LINKS = [
   {
     href: '/trips',
-    title: 'Заказы',
-    hint: 'Создание, редактирование, документы, участки и грузы',
+    title: 'cmp.obOrders',
+    hint: 'cmp.obOrdersH',
     Icon: Package,
     color: 'text-brand-600',
     bg: 'bg-brand-50',
   },
   {
     href: '/drivers',
-    title: 'Справочники',
-    hint: 'Клиенты, водители, машины, подрядчики, локации',
+    title: 'cmp.obDirs',
+    hint: 'cmp.obDirsH',
     Icon: Users,
     color: 'text-emerald-600',
     bg: 'bg-emerald-50',
   },
   {
     href: '/reports',
-    title: 'Отчёты',
-    hint: 'Прибыль, KPI водителей, ошибки Logisat, экспорт',
+    title: 'cmp.obReports',
+    hint: 'cmp.obReportsH',
     Icon: BarChart3,
     color: 'text-amber-600',
     bg: 'bg-amber-50',
   },
   {
     href: '/today',
-    title: 'Сегодня',
-    hint: 'Оперативный экран: загрузки, выгрузки, «требует внимания»',
+    title: 'cmp.obToday',
+    hint: 'cmp.obTodayH',
     Icon: Calendar,
     color: 'text-pink-600',
     bg: 'bg-pink-50',
@@ -49,6 +51,7 @@ const LINKS = [
 ];
 
 export default function AdminOnboardingCard({ userName }: { userName: string }) {
+  const { t } = useT();
   const [isPending, startTransition] = useTransition();
 
   function handleClose() {
@@ -66,10 +69,10 @@ export default function AdminOnboardingCard({ userName }: { userName: string }) 
           </div>
           <div className="min-w-0">
             <h2 className="text-lg md:text-xl font-bold text-slate-900">
-              Добро пожаловать, {userName}!
+              {t('cmp.welcome')}{' '}{userName}!
             </h2>
             <p className="text-sm text-slate-600 mt-0.5">
-              Вот ключевые разделы — с чего начать.
+              {t('cmp.keySections')}
             </p>
           </div>
         </div>
@@ -78,7 +81,7 @@ export default function AdminOnboardingCard({ userName }: { userName: string }) 
           onClick={handleClose}
           disabled={isPending}
           className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors disabled:opacity-50"
-          aria-label="Закрыть"
+          aria-label={t('trip.close')}
         >
           {isPending ? (
             <Loader2 className="w-4 h-4 animate-spin" strokeWidth={2.2} />
@@ -89,7 +92,7 @@ export default function AdminOnboardingCard({ userName }: { userName: string }) 
       </div>
 
       <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
-        {LINKS.map(({ href, title, hint, Icon, color, bg }) => (
+        {LINKS.map(({ href, title: titleKey, hint: hintKey, Icon, color, bg }) => { const title = t(titleKey as MessageKey); const hint = t(hintKey as MessageKey); return (
           <a
             key={href}
             href={href}
@@ -108,12 +111,12 @@ export default function AdminOnboardingCard({ userName }: { userName: string }) 
             </div>
             <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-brand-500 shrink-0 mt-1" strokeWidth={2.2} />
           </a>
-        ))}
+        ); })}
       </div>
 
       <div className="flex items-center justify-between gap-3 pt-2 border-t border-slate-100">
         <div className="text-xs text-slate-500">
-          Позже сможешь вернуться к любому разделу через меню слева.
+          {t('cmp.later')}
         </div>
         <button
           type="button"
@@ -126,7 +129,7 @@ export default function AdminOnboardingCard({ userName }: { userName: string }) 
           ) : (
             <Sparkles className="w-4 h-4" strokeWidth={2.2} />
           )}
-          Понятно, начать работу
+          {t('cmp.gotIt')}
         </button>
       </div>
     </div>

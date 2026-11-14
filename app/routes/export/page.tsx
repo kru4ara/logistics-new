@@ -3,10 +3,12 @@ import { createClient } from '../../../lib/supabase/admin';
 import { buildRouteMap, type SegmentRouteRow } from '../../../lib/trip-route';
 import { ArrowLeft, Download } from 'lucide-react';
 import { fetchAll } from '../../../lib/fetch-all';
+import { getT } from '../../../lib/i18n/server';
 
 export const dynamic = 'force-dynamic';
 
 export default async function ExportPage() {
+  const { t } = await getT();
   const supabase = await createClient();
 
   const [tripsResult, expensesResult, segmentsResult] = await Promise.all([
@@ -83,10 +85,10 @@ export default async function ExportPage() {
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2.5 tracking-tight">
               <Download className="w-6 h-6 md:w-7 md:h-7 text-brand-600" strokeWidth={2.2} />
-              Отчёт для бухгалтера
+              {t('rt.accountant')}
             </h1>
             <p className="text-slate-500 mt-1 text-sm md:text-base">
-              Сводка по маршрутам · всего: <b className="text-slate-700">{routes.length}</b>
+              {t('rt.summary')}{' '}<b className="text-slate-700">{routes.length}</b>
             </p>
           </div>
           <Link
@@ -95,7 +97,7 @@ export default async function ExportPage() {
                        font-semibold px-4 py-2.5 rounded-xl transition-all"
           >
             <ArrowLeft className="w-4 h-4" strokeWidth={2.5} />
-            Назад
+            {t('rt.back')}
           </Link>
         </div>
 
@@ -103,18 +105,18 @@ export default async function ExportPage() {
         <div className="card overflow-hidden">
           {routes.length === 0 ? (
             <div className="p-10 md:p-16 text-center">
-              <p className="text-slate-400 text-sm">Маршрутов пока нет</p>
+              <p className="text-slate-400 text-sm">{t('rt.empty')}</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50/50">
-                    <th className="text-left px-4 md:px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Маршрут</th>
-                    <th className="text-right px-4 md:px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Выручка (€)</th>
-                    <th className="text-right px-4 md:px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Расходы (€)</th>
-                    <th className="text-right px-4 md:px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Прибыль (€)</th>
-                    <th className="text-right px-4 md:px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Рейсов</th>
+                    <th className="text-left px-4 md:px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('aud.fRoute')}</th>
+                    <th className="text-right px-4 md:px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('rt.revenueEur')}</th>
+                    <th className="text-right px-4 md:px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('trips.colExpenses')}</th>
+                    <th className="text-right px-4 md:px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('trips.colProfit')}</th>
+                    <th className="text-right px-4 md:px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('drv.trips')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -141,7 +143,7 @@ export default async function ExportPage() {
                     );
                   })}
                   <tr className="border-t-2 border-slate-200 bg-slate-50/50 font-bold">
-                    <td className="px-4 md:px-6 py-4 text-slate-900">Общий итог</td>
+                    <td className="px-4 md:px-6 py-4 text-slate-900">{t('rt.grandTotal')}</td>
                     <td className="px-4 md:px-6 py-4 text-right text-green-600 whitespace-nowrap tabular-nums">
                       {totalRevenue.toFixed(2)} €
                     </td>
@@ -169,7 +171,7 @@ export default async function ExportPage() {
                        font-semibold px-4 py-2.5 rounded-xl transition-all"
           >
             <ArrowLeft className="w-4 h-4" strokeWidth={2.5} />
-            Назад
+            {t('rt.back')}
           </Link>
         </div>
 

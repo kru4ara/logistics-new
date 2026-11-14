@@ -2,6 +2,7 @@
 
 import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
+import { useT } from '../components/I18nProvider';
 
 export type RouteCardData = {
   route: string;
@@ -12,6 +13,7 @@ export type RouteCardData = {
 };
 
 export default function DownloadButton({ data }: { data: RouteCardData[] }) {
+  const { t } = useT();
   async function handleDownload() {
     const ExcelJS = (await import('exceljs')).default;
 
@@ -29,7 +31,7 @@ export default function DownloadButton({ data }: { data: RouteCardData[] }) {
     const totalCount = data.reduce((sum, r) => sum + (r.count || 0), 0);
 
     rows.push({
-      route: 'ИТОГО',
+      route: t('trips.excelTotal'),
       revenue: Math.round(totalRevenue * 100) / 100,
       expenses: Math.round(totalExpenses * 100) / 100,
       profit: Math.round(totalProfit * 100) / 100,
@@ -37,13 +39,13 @@ export default function DownloadButton({ data }: { data: RouteCardData[] }) {
     });
 
     const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet('Маршруты');
+    const worksheet = workbook.addWorksheet(t('nav.routes'));
     worksheet.columns = [
-      { header: 'Маршрут', key: 'route', width: 50 },
-      { header: 'Фрахт (€)', key: 'revenue', width: 14, style: { numFmt: '0.00' } },
-      { header: 'Расходы (€)', key: 'expenses', width: 14, style: { numFmt: '0.00' } },
-      { header: 'Прибыль (€)', key: 'profit', width: 14, style: { numFmt: '0.00' } },
-      { header: 'Количество рейсов', key: 'count', width: 18 },
+      { header: t('aud.fRoute'), key: 'route', width: 50 },
+      { header: t('aud.fFreight'), key: 'revenue', width: 14, style: { numFmt: '0.00' } },
+      { header: t('trips.colExpenses'), key: 'expenses', width: 14, style: { numFmt: '0.00' } },
+      { header: t('trips.colProfit'), key: 'profit', width: 14, style: { numFmt: '0.00' } },
+      { header: t('rt.tripsCount'), key: 'count', width: 18 },
     ];
     worksheet.addRows(rows);
 
@@ -62,7 +64,7 @@ export default function DownloadButton({ data }: { data: RouteCardData[] }) {
   return (
     <Button onClick={handleDownload} variant="default">
       <Download className="w-4 h-4 mr-2" />
-      Скачать Excel
+      {t('trips.downloadExcel')}
     </Button>
   );
 }

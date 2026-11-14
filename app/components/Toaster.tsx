@@ -8,6 +8,9 @@ import {
   Info,
   type LucideIcon,
 } from 'lucide-react';
+import type { MessageKey } from '../../lib/i18n/translate';
+import type { T } from '../../lib/i18n/translate';
+import { useT } from './I18nProvider';
 
 type ToastType = 'success' | 'error' | 'info';
 
@@ -21,60 +24,60 @@ type ToastConfig = {
 // ============================================================
 const MESSAGES: Record<string, ToastConfig> = {
   // Общее
-  saved: { type: 'success', text: 'Сохранено' },
-  created: { type: 'success', text: 'Создано' },
-  updated: { type: 'success', text: 'Изменения сохранены' },
-  deleted: { type: 'success', text: 'Удалено' },
+  saved: { type: 'success', text: 'toast.saved' },
+  created: { type: 'success', text: 'toast.created' },
+  updated: { type: 'success', text: 'toast.updated' },
+  deleted: { type: 'success', text: 'toast.deleted' },
 
   // Рейсы
-  trip_created: { type: 'success', text: 'Рейс создан' },
-  trip_updated: { type: 'success', text: 'Рейс обновлён' },
-  trip_deleted: { type: 'success', text: 'Рейс удалён' },
+  trip_created: { type: 'success', text: 'toast.tripCreated' },
+  trip_updated: { type: 'success', text: 'toast.tripUpdated' },
+  trip_deleted: { type: 'success', text: 'toast.tripDeleted' },
 
   // Клиенты
-  client_created: { type: 'success', text: 'Клиент добавлен' },
-  client_updated: { type: 'success', text: 'Клиент обновлён' },
-  client_deleted: { type: 'success', text: 'Клиент удалён' },
+  client_created: { type: 'success', text: 'toast.clientCreated' },
+  client_updated: { type: 'success', text: 'toast.clientUpdated' },
+  client_deleted: { type: 'success', text: 'toast.clientDeleted' },
 
   // Водители
-  driver_created: { type: 'success', text: 'Водитель добавлен' },
-  driver_updated: { type: 'success', text: 'Водитель обновлён' },
-  driver_deleted: { type: 'success', text: 'Водитель удалён' },
+  driver_created: { type: 'success', text: 'toast.driverCreated' },
+  driver_updated: { type: 'success', text: 'toast.driverUpdated' },
+  driver_deleted: { type: 'success', text: 'toast.driverDeleted' },
 
   // Подрядчики
-  contractor_created: { type: 'success', text: 'Подрядчик добавлен' },
-  contractor_updated: { type: 'success', text: 'Подрядчик обновлён' },
-  contractor_deleted: { type: 'success', text: 'Подрядчик удалён' },
+  contractor_created: { type: 'success', text: 'toast.ctrCreated' },
+  contractor_updated: { type: 'success', text: 'toast.ctrUpdated' },
+  contractor_deleted: { type: 'success', text: 'toast.ctrDeleted' },
 
   // Локации
-  location_created: { type: 'success', text: 'Локация добавлена' },
-  location_updated: { type: 'success', text: 'Локация обновлена' },
-  location_deleted: { type: 'success', text: 'Локация удалена' },
+  location_created: { type: 'success', text: 'toast.locCreated' },
+  location_updated: { type: 'success', text: 'toast.locUpdated' },
+  location_deleted: { type: 'success', text: 'toast.locDeleted' },
 
   // Экспедирование
-  forwarding_created: { type: 'success', text: 'Заявка создана' },
-  forwarding_updated: { type: 'success', text: 'Заявка обновлена' },
-  forwarding_deleted: { type: 'success', text: 'Заявка удалена' },
+  forwarding_created: { type: 'success', text: 'toast.fwdCreated' },
+  forwarding_updated: { type: 'success', text: 'toast.fwdUpdated' },
+  forwarding_deleted: { type: 'success', text: 'toast.fwdDeleted' },
 
   // Расходы
-  expense_added: { type: 'success', text: 'Расход добавлен' },
-  expense_deleted: { type: 'success', text: 'Расход удалён' },
+  expense_added: { type: 'success', text: 'toast.expAdded' },
+  expense_deleted: { type: 'success', text: 'toast.expDeleted' },
 
   // Телеметрия
-  telemetry_saved: { type: 'success', text: 'Телеметрия сохранена' },
+  telemetry_saved: { type: 'success', text: 'toast.telemetry' },
 
   // Документы
-  document_uploaded: { type: 'success', text: 'Документ загружен' },
+  document_uploaded: { type: 'success', text: 'cmp.docUploaded' },
 
   // Напоминания
-  reminder_created: { type: 'success', text: 'Напоминание создано' },
-  reminder_updated: { type: 'success', text: 'Напоминание обновлено' },
-  reminder_deleted: { type: 'success', text: 'Напоминание удалено' },
-  reminder_done: { type: 'success', text: 'Отмечено как выполнено' },
-  reminder_reopened: { type: 'info', text: 'Напоминание возвращено в работу' },
+  reminder_created: { type: 'success', text: 'toast.remCreated' },
+  reminder_updated: { type: 'success', text: 'toast.remUpdated' },
+  reminder_deleted: { type: 'success', text: 'toast.remDeleted' },
+  reminder_done: { type: 'success', text: 'toast.remDone' },
+  reminder_reopened: { type: 'info', text: 'toast.remReopened' },
 
   // Общие ошибки
-  error: { type: 'error', text: 'Что-то пошло не так' },
+  error: { type: 'error', text: 'toast.error' },
 };
 
 const TYPE_META: Record<ToastType, {
@@ -95,18 +98,20 @@ const TYPE_META: Record<ToastType, {
   },
 };
 
-function buildMessage(key: string | null, customMsg: string | null): ToastConfig | null {
+function buildMessage(key: string | null, customMsg: string | null, t: T): ToastConfig | null {
   if (!key) return null;
   if (key === 'error') {
     return {
       type: 'error',
-      text: customMsg || 'Что-то пошло не так',
+      text: customMsg || t('toast.error'),
     };
   }
-  return MESSAGES[key] ?? null;
+  const m = MESSAGES[key];
+  return m ? { ...m, text: t(m.text as MessageKey) } : null;
 }
 
 export default function Toaster() {
+  const { t } = useT();
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const router = useRouter();
@@ -118,7 +123,7 @@ export default function Toaster() {
   // setState в эффекте вызывал бы лишний каскадный рендер
   // (react-hooks/set-state-in-effect).
   const visible = useMemo(
-    () => buildMessage(toastKey, errorMsg),
+    () => buildMessage(toastKey, errorMsg, t),
     [toastKey, errorMsg]
   );
 

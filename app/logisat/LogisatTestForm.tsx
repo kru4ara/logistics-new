@@ -11,6 +11,7 @@ import {
   Battery,
   MapPin,
 } from 'lucide-react';
+import { useT } from '../components/I18nProvider';
 
 type Truck = { id: string; registration: string; deviceId: string };
 type NotConnected = { id: string; registration: string };
@@ -44,6 +45,7 @@ function daysAgoStr(days: number): string {
 }
 
 export default function LogisatTestForm({ connectedTrucks, notConnectedTrucks }: Props) {
+  const { t, t: tr } = useT();
   const [from, setFrom] = useState(daysAgoStr(1));
   const [to, setTo] = useState(todayStr());
   const [selectedIds, setSelectedIds] = useState<string[]>(
@@ -77,7 +79,7 @@ export default function LogisatTestForm({ connectedTrucks, notConnectedTrucks }:
 
   async function handleQuery() {
     if (selectedIds.length === 0) {
-      setError('Выберите хотя бы одну машину');
+      setError(tr('lgs.pickOne'));
       return;
     }
 
@@ -95,7 +97,7 @@ export default function LogisatTestForm({ connectedTrucks, notConnectedTrucks }:
         const data = await res.json();
 
         if (!data.success) {
-          setError(data.error || 'Ошибка');
+          setError(data.error || tr('trips.error'));
           return;
         }
 
@@ -119,11 +121,11 @@ export default function LogisatTestForm({ connectedTrucks, notConnectedTrucks }:
 
       {/* ФОРМА */}
       <div className="card p-5 md:p-6 space-y-4">
-        <h2 className="text-lg font-bold text-slate-900">Параметры запроса</h2>
+        <h2 className="text-lg font-bold text-slate-900">{tr('lgs.params')}</h2>
 
         <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
           <div>
-            <label className={labelClass}>Дата с</label>
+            <label className={labelClass}>{tr('seg.dateFrom')}</label>
             <input
               type="date"
               value={from}
@@ -132,7 +134,7 @@ export default function LogisatTestForm({ connectedTrucks, notConnectedTrucks }:
             />
           </div>
           <div>
-            <label className={labelClass}>Дата по</label>
+            <label className={labelClass}>{tr('seg.dateTo')}</label>
             <input
               type="date"
               value={to}
@@ -143,15 +145,15 @@ export default function LogisatTestForm({ connectedTrucks, notConnectedTrucks }:
         </div>
 
         <div>
-          <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2">Быстрый выбор</div>
+          <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2">{tr('lgs.quick')}</div>
           <div className="flex flex-wrap gap-2">
             {[
-              { d: 0, l: 'Сегодня' },
-              { d: 1, l: '2 дня' },
-              { d: 3, l: '3 дня' },
-              { d: 7, l: '7 дней' },
-              { d: 14, l: '14 дней' },
-              { d: 30, l: '30 дней' },
+              { d: 0, l: tr('cmp.obToday') },
+              { d: 1, l: tr('lgs.d2') },
+              { d: 3, l: tr('lgs.d3') },
+              { d: 7, l: tr('lgs.d7') },
+              { d: 14, l: tr('lgs.d14') },
+              { d: 30, l: tr('lgs.d30') },
             ].map(({ d, l }) => (
               <button
                 key={d}
@@ -168,15 +170,15 @@ export default function LogisatTestForm({ connectedTrucks, notConnectedTrucks }:
         <div>
           <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
             <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold">
-              Машины с Logisat ({connectedTrucks.length})
+              {tr('lgs.trucksWith')}{connectedTrucks.length})
             </div>
             <div className="flex gap-2 text-xs">
               <button type="button" onClick={selectAll} className="text-brand-600 hover:underline font-medium">
-                Все
+                {tr('status.filterAll')}
               </button>
               <span className="text-slate-300">·</span>
               <button type="button" onClick={selectNone} className="text-brand-600 hover:underline font-medium">
-                Ничего
+                {tr('lgs.none')}
               </button>
             </div>
           </div>
@@ -184,7 +186,7 @@ export default function LogisatTestForm({ connectedTrucks, notConnectedTrucks }:
           {connectedTrucks.length === 0 ? (
             <div className="flex items-start gap-2 text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3">
               <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
-              <span>Нет машин с привязкой к Logisat</span>
+              <span>{tr('lgs.noTrucks')}</span>
             </div>
           ) : (
             <div className="flex flex-wrap gap-2">
@@ -213,7 +215,7 @@ export default function LogisatTestForm({ connectedTrucks, notConnectedTrucks }:
 
           {notConnectedTrucks.length > 0 && (
             <div className="mt-3 text-xs text-slate-500">
-              Без Logisat: {notConnectedTrucks.map((t) => t.registration).join(', ')}
+              {tr('lgs.without')}{' '}{notConnectedTrucks.map((t) => t.registration).join(', ')}
             </div>
           )}
         </div>
@@ -237,12 +239,12 @@ export default function LogisatTestForm({ connectedTrucks, notConnectedTrucks }:
           {isPending ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin" />
-              Запрашиваем Logisat...
+              {tr('lgs.requesting')}
             </>
           ) : (
             <>
               <RadioTower className="w-4 h-4" />
-              Запросить данные
+              {tr('lgs.request')}
             </>
           )}
         </button>
@@ -253,10 +255,10 @@ export default function LogisatTestForm({ connectedTrucks, notConnectedTrucks }:
         <div className="card p-5 md:p-6 space-y-4 animate-fade-in">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-lg font-bold text-slate-900">
-              Результаты ({results.length} машин)
+              {tr('lgs.results')}{results.length}{' '}{tr('lgs.trucksC')}
             </h2>
             <div className="text-xs text-slate-500">
-              Период: {period.from.split('T')[0]} → {period.to.split('T')[0]} · {period.days} дн.
+              {tr('lgs.period')}{' '}{period.from.split('T')[0]} → {period.to.split('T')[0]} · {period.days}{' '}{tr('today.daysShort')}
             </div>
           </div>
 
@@ -289,7 +291,7 @@ export default function LogisatTestForm({ connectedTrucks, notConnectedTrucks }:
                         r.consumption > 30 ? 'bg-orange-100 text-orange-700 border-orange-200' :
                         r.consumption > 0 ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
                         'bg-slate-100 text-slate-500 border-slate-200'}`}>
-                      {r.consumption > 0 ? `${r.consumption} л/100км` : 'нет данных'}
+                      {r.consumption > 0 ? `${r.consumption} ${t('units.l100km')}` : tr('drvCard.noData')}
                     </div>
                   )}
                 </div>
@@ -298,22 +300,22 @@ export default function LogisatTestForm({ connectedTrucks, notConnectedTrucks }:
                   <>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                       <div className="bg-white rounded-xl p-3">
-                        <div className="text-[10px] uppercase text-slate-400 font-medium mb-1">Пробег</div>
+                        <div className="text-[10px] uppercase text-slate-400 font-medium mb-1">{tr('trip.mileage')}</div>
                         <div className="text-xl font-bold text-slate-900">{r.distanceKm}</div>
-                        <div className="text-xs text-slate-500">км</div>
+                        <div className="text-xs text-slate-500">{tr('units.km')}</div>
                       </div>
                       <div className="bg-white rounded-xl p-3">
-                        <div className="text-[10px] uppercase text-slate-400 font-medium mb-1">Топливо</div>
+                        <div className="text-[10px] uppercase text-slate-400 font-medium mb-1">{tr('trip.fuel')}</div>
                         <div className="text-xl font-bold text-slate-900">{r.fuelLiters}</div>
-                        <div className="text-xs text-slate-500">л</div>
+                        <div className="text-xs text-slate-500">{tr('units.l')}</div>
                       </div>
                       <div className="bg-white rounded-xl p-3">
-                        <div className="text-[10px] uppercase text-slate-400 font-medium mb-1">Расход</div>
+                        <div className="text-[10px] uppercase text-slate-400 font-medium mb-1">{tr('kpi.consumption')}</div>
                         <div className="text-xl font-bold text-slate-900">{r.consumption}</div>
-                        <div className="text-xs text-slate-500">л/100км</div>
+                        <div className="text-xs text-slate-500">{tr('units.l100km')}</div>
                       </div>
                       <div className="bg-white rounded-xl p-3">
-                        <div className="text-[10px] uppercase text-slate-400 font-medium mb-1">Кадров</div>
+                        <div className="text-[10px] uppercase text-slate-400 font-medium mb-1">{tr('lgs.frames')}</div>
                         <div className="text-xl font-bold text-slate-900">{r.framesCount}</div>
                         <div className="text-xs text-slate-500">GPS</div>
                       </div>
@@ -323,11 +325,11 @@ export default function LogisatTestForm({ connectedTrucks, notConnectedTrucks }:
                       <div className="bg-white rounded-xl p-3 text-xs">
                         <div className="font-semibold text-slate-700 mb-1 inline-flex items-center gap-1.5">
                           <Circle className="w-3 h-3 fill-brand-500 text-brand-500" />
-                          Первый кадр
+                          {tr('lgs.firstFrame')}
                         </div>
                         <div className="text-slate-600">{r.firstFrame.time}</div>
                         <div className="text-slate-500 mt-1 font-mono">
-                          {r.firstFrame.totaldistance} м · {r.firstFrame.totalfuel} мл
+                          {r.firstFrame.totaldistance}{' '}{tr('lgs.mDot')}{' '}{r.firstFrame.totalfuel}{' '}{tr('lgs.ml')}
                         </div>
                         <div className="text-slate-400 mt-1 inline-flex items-center gap-1.5">
                           <Battery className="w-3 h-3" />
@@ -341,11 +343,11 @@ export default function LogisatTestForm({ connectedTrucks, notConnectedTrucks }:
                       <div className="bg-white rounded-xl p-3 text-xs">
                         <div className="font-semibold text-slate-700 mb-1 inline-flex items-center gap-1.5">
                           <Circle className="w-3 h-3 fill-red-500 text-red-500" />
-                          Последний кадр
+                          {tr('lgs.lastFrame')}
                         </div>
                         <div className="text-slate-600">{r.lastFrame.time}</div>
                         <div className="text-slate-500 mt-1 font-mono">
-                          {r.lastFrame.totaldistance} м · {r.lastFrame.totalfuel} мл
+                          {r.lastFrame.totaldistance}{' '}{tr('lgs.mDot')}{' '}{r.lastFrame.totalfuel}{' '}{tr('lgs.ml')}
                         </div>
                         <div className="text-slate-400 mt-1 inline-flex items-center gap-1.5">
                           <Battery className="w-3 h-3" />

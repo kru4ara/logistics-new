@@ -5,6 +5,8 @@ import { getSessionContext } from '../../lib/session';
 import { can } from '../../lib/roles';
 import { FORWARDING_SUFFIX } from '../../lib/orders-core';
 import { buildRouteMap, type SegmentRouteRow } from '../../lib/trip-route';
+import { getT } from '../../lib/i18n/server';
+import { INTL_LOCALE } from '../../lib/i18n/config';
 
 export type SearchHit = {
   domain: 'trip' | 'client' | 'driver' | 'contractor' | 'forwarding';
@@ -38,6 +40,7 @@ function pickName(rel: unknown): string | undefined {
 }
 
 export async function globalSearch(rawQuery: string): Promise<SearchResult> {
+  const { t: tr, locale } = await getT();
   const query = (rawQuery ?? '').trim();
 
   const empty: SearchResult = {
@@ -119,7 +122,7 @@ export async function globalSearch(rawQuery: string): Promise<SearchResult> {
       tripsMap.set(t.id, {
         domain: 'trip',
         id: t.id,
-        title: `Рейс №${t.trip_number ?? '—'}${clientName ? ' · ' + clientName : ''}`,
+        title: tr('srch.trip', { n: t.trip_number ?? '—' }) + (clientName ? ' · ' + clientName : ''),
         subtitle: info?.route ?? null,
         icon: '📋',
         href: `/trips/${t.id}`,
@@ -205,11 +208,11 @@ export async function globalSearch(rawQuery: string): Promise<SearchResult> {
     fwdMap.set(o.id, {
       domain: 'forwarding',
       id: o.id,
-      title: `Заказ №${o.trip_number ?? '—'}${clientName ? ' · ' + clientName : ''}`,
+      title: tr('srch.order', { n: o.trip_number ?? '—' }) + (clientName ? ' · ' + clientName : ''),
       subtitle: o.client_request_number
-        ? `Заявка клиента № ${o.client_request_number}`
+        ? tr('srch.clientReq', { n: o.client_request_number })
         : o.start_date
-          ? new Date(o.start_date).toLocaleDateString('ru-RU')
+          ? new Date(o.start_date).toLocaleDateString(INTL_LOCALE[locale])
           : null,
       icon: '📦',
       href: `/trips/${o.id}`,
