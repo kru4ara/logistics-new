@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { CheckCircle2, Circle, ArrowRight, Rocket } from 'lucide-react';
+import { CheckCircle2, Circle, ArrowRight, Rocket, FileSpreadsheet } from 'lucide-react';
 import { createClient } from '../../lib/supabase/admin';
 import { getCompany } from '../../lib/company';
 import { UNCONFIGURED_COMPANY } from '../../lib/company-rules';
@@ -16,6 +16,8 @@ const TEXT: Record<SetupStepId, { title: MessageKey; hint: MessageKey }> = {
   clients: { title: 'setup.clients', hint: 'setup.clientsH' },
   trip: { title: 'setup.trip', hint: 'setup.tripH' },
 };
+
+const IMPORTABLE = new Set<SetupStepId>(['drivers', 'trucks', 'clients']);
 
 async function count(table: string): Promise<number> {
   const supabase = await createClient();
@@ -103,6 +105,13 @@ export default async function SetupChecklist() {
           );
         })}
       </ol>
+
+      {steps.some((s) => !s.done && IMPORTABLE.has(s.id)) && (
+        <Link href="/settings/import" className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-700 hover:text-brand-800">
+          <FileSpreadsheet className="w-4 h-4" strokeWidth={2.2} />
+          {t('setup.importHint')}
+        </Link>
+      )}
     </div>
   );
 }

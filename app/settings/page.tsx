@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { Building2, Landmark, ScrollText, Send, Stamp, CheckCircle2, AlertCircle } from 'lucide-react';
+import { FileSpreadsheet, Building2, Landmark, ScrollText, Send, Stamp, CheckCircle2, AlertCircle } from 'lucide-react';
 import { getSessionContext } from '../../lib/session';
 import { deniedRedirect } from '../../lib/roles';
 import { createClient } from '../../lib/supabase/admin';
@@ -9,6 +9,7 @@ import { signDocumentPaths } from '../../lib/storage-urls';
 import SubmitButton from '../components/SubmitButton';
 import { getT } from '../../lib/i18n/server';
 import { saveCompanySettings } from './actions';
+import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
 
@@ -57,6 +58,10 @@ export default async function CompanySettingsPage({
           <p className="text-slate-500 mt-1 text-sm md:text-base">
             {t('settings.subtitle')}
           </p>
+          <Link href="/settings/import" className="inline-flex items-center gap-1.5 mt-3 text-sm font-semibold text-brand-700 hover:text-brand-800">
+            <FileSpreadsheet className="w-4 h-4" strokeWidth={2.2} />
+            {t('imp.title')}
+          </Link>
         </div>
 
         {saved && (
