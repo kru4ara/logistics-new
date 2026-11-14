@@ -15,7 +15,7 @@
 
 - **Next.js 16.4.3** (App Router, Turbopack) + React 19.3.1 + Supabase + Vercel
 - **Tailwind CSS 4.3.3** — конфиг через `@theme` в `app/globals.css`, файла `tailwind.config.js` нет
-- **Vitest 5** — **223 теста в 21 файле** `lib/__tests__/`, **eslint-config-next 16.4.3**, **exceljs 4.4**
+- **Vitest 5** — **240 тестов в 22 файлах** `lib/__tests__/`, **eslint-config-next 16.4.3**, **exceljs 4.4**
 
 ### ENV (Vercel → Settings → Environment Variables)
 `NEXT_PUBLIC_SUPABASE_URL` · `NEXT_PUBLIC_SUPABASE_ANON_KEY` (клиент, RLS действует) ·
@@ -152,8 +152,7 @@ e-mail идёт напрямую. С миграции `016` вызывать е�
 - **Миграции применяет `scripts/migrate.mjs`** (журнал `public.schema_migrations`, миграция 023), а не SQL Editor:
   `DATABASE_URL='…' node scripts/migrate.mjs` — одна база; `--all scripts/tenants.json` — все клиенты;
   `--dry-run` — только показать. Подключение клиента — `docs/PROVISIONING.md`.
-- **Ждёт применения на проде: `scripts/adopt-prod.sql`** (один раз, SQL Editor): создаёт журнал и отмечает
-  000–023 как применённые. Дальше прод обновляется только скриптом.
+- Прод на журнале миграций с 14.11.2026 (`scripts/adopt-prod.sql` применён).
 - **`020_lock_dangerous_rpc` применена на проде вручную 14.11.2026** (через SQL Editor), файл — для git
   и новых баз. См. «Безопасность» ниже.
 - **Миграция, которая меняет права или удаляет то, чем пользуется код, — строго после деплоя кода.**
@@ -262,6 +261,10 @@ e-mail идёт напрямую. С миграции `016` вызывать е�
   БД → исключение. Печать для заявок — `documents/assets/stamp.png`, загрузка на той же странице.
 - Условия перевозки — текст с подстановками `{payment_days}`, `{documents}`, `{email}`; тест сверяет их
   слово в слово с прежним `getTerms`.
+- **Языки интерфейса** (`lib/i18n/`, правила — `AGENTS.md`): ru / pl / en / uk, выбор у пользователя.
+  Переведены: вход, меню, настройки компании. Дальше по разделам: рейсы, водители, справочники, отчёты,
+  приложение водителя. **Ждёт применения: миграция `024_profile_locale`** (`node scripts/migrate.mjs`),
+  порядок не важен — без неё язык хранится только в cookie.
 - `exceljs` — в `dependencies`, ленивый импорт в клиентах, статический — в API.
 - `npm audit` — 5 moderate (`postcss-selector-parser` через Tailwind) — принятый dev-риск.
 - PWA — установка через «Добавить на главный экран».
