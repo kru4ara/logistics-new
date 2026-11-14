@@ -6,44 +6,22 @@ import { can } from '../../../lib/roles';
 import { createClient } from '../../../lib/supabase/admin';
 import { buildRouteMap } from '../../../lib/trip-route';
 import { fetchAll, fetchAllByIds } from '../../../lib/fetch-all';
+import { tripStatusKey, expenseCategoryKey } from '../../../lib/i18n/labels';
+import type { T } from '../../../lib/i18n/translate';
+import { getT } from '../../../lib/i18n/server';
 
 export const dynamic = 'force-dynamic';
 
-const STATUS_LABELS: Record<string, string> = {
-  planned: 'Планируется',
-  active: 'В пути',
-  completed: 'Завершён',
-  invoiced: 'Выставлен счёт',
-  paid: 'Оплачен',
-};
-
-const CATEGORY_LABELS: Record<string, string> = {
-  fuel: 'Топливо',
-  epi: 'EPI',
-  etoll: 'e-TOLL',
-  border: 'Граница',
-  salary: 'ЗП водителя',
-  contractor: 'Подрядчик',
-  permit: 'Дозвол',
-  tlc: 'ТЛЦ',
-  waiting: 'Зона ожидания',
-  repair: 'Ремонт',
-  parking: 'Паркинг',
-  disinfection: 'Дезинфекция',
-  ex1: 'ЕХ-1',
-  otkat: 'Откат',
-  gps_seal: 'GPS пломба',
-  other: 'Другое',
-};
-
-function statusLabel(s: string | null | undefined): string {
+function statusLabel(s: string | null | undefined, t: T): string {
   if (!s) return '';
-  return STATUS_LABELS[s] || s;
+  const key = tripStatusKey(s);
+  return key ? t(key) : s;
 }
 
-function categoryLabel(c: string | null | undefined): string {
+function categoryLabel(c: string | null | undefined, t: T): string {
   if (!c) return '';
-  return CATEGORY_LABELS[c] || c;
+  const key = expenseCategoryKey(c);
+  return key ? t(key) : c;
 }
 
 function isoDate(d: string | null): string {
@@ -120,6 +98,7 @@ async function buildTripsSheet(
   from: string | null,
   to: string | null
 ): Promise<ExcelJS.Worksheet> {
+  const { t } = await getT();
   // Единый источник: заказы (рейсы + экспедирования).
   const { data: orders, error } = await fetchAll(supabase
     .from('trips')
@@ -162,7 +141,7 @@ async function buildTripsSheet(
     const isFwd = o.profit_mode === 'forwarding';
     return {
       tripNumber: o.trip_number || '',
-      mode: isFwd ? 'Экспедирование' : 'Заказ',
+      mode: isFwd ? t('xl.modeFwd') : t('xl.modeOrder'),
       start: isoDate(o.start_date),
       end: isoDate(o.end_date),
       client: pickName(o.clients),
@@ -173,7 +152,7 @@ async function buildTripsSheet(
       expenses: r2(exp),
       profit: r2(revenue - exp),
       km: toNumber(o.actual_km),
-      status: statusLabel(o.status),
+      status: statusLabel(o.status, t),
     };
   });
 
@@ -183,7 +162,7 @@ async function buildTripsSheet(
 
   if (rows.length > 0) {
     rows.push({
-      tripNumber: 'ИТОГО',
+      tripNumber: t('xl.total'),
       mode: '',
       start: '',
       end: '',
@@ -199,21 +178,21 @@ async function buildTripsSheet(
     });
   }
 
-  const ws = new ExcelJS.Workbook().addWorksheet('Заказы');
+  const ws = new ExcelJS.Workbook().addWorksheet(t('xl.sheetOrders'));
   ws.columns = [
-    { header: '№ заказа', key: 'tripNumber', width: 12 },
-    { header: 'Режим', key: 'mode', width: 16 },
-    { header: 'Начало', key: 'start', width: 12 },
-    { header: 'Окончание', key: 'end', width: 12 },
-    { header: 'Клиент', key: 'client', width: 25 },
-    { header: 'Тягач', key: 'truck', width: 12 },
-    { header: 'Водитель', key: 'driver', width: 20 },
-    { header: 'Маршрут', key: 'route', width: 40 },
-    { header: 'Фрахт (EUR)', key: 'revenue', width: 14, style: { numFmt: '0.00' } },
-    { header: 'Расходы (EUR)', key: 'expenses', width: 14, style: { numFmt: '0.00' } },
-    { header: 'Прибыль (EUR)', key: 'profit', width: 14, style: { numFmt: '0.00' } },
-    { header: 'Пробег (км)', key: 'km', width: 12 },
-    { header: 'Статус', key: 'status', width: 16 },
+    { header: t('xl.orderNo'), key: 'tripNumber', width: 12 },
+    { header: t('xl.mode'), key: 'mode', width: 16 },
+    { header: t('xl.start'), key: 'start', width: 12 },
+    { header: t('xl.end'), key: 'end', width: 12 },
+    { header: t('xl.client'), key: 'client', width: 25 },
+    { header: t('xl.tractor'), key: 'truck', width: 12 },
+    { header: t('xl.driver'), key: 'driver', width: 20 },
+    { header: t('xl.route'), key: 'route', width: 40 },
+    { header: t('xl.freight'), key: 'revenue', width: 14, style: { numFmt: '0.00' } },
+    { header: t('xl.expenses'), key: 'expenses', width: 14, style: { numFmt: '0.00' } },
+    { header: t('xl.profit'), key: 'profit', width: 14, style: { numFmt: '0.00' } },
+    { header: t('xl.km'), key: 'km', width: 12 },
+    { header: t('xl.status'), key: 'status', width: 16 },
   ];
   ws.addRows(rows);
   return ws;
@@ -224,6 +203,7 @@ async function buildExpensesSheet(
   from: string | null,
   to: string | null
 ): Promise<ExcelJS.Worksheet> {
+  const { t } = await getT();
   let query = supabase
     .from('trip_expenses')
     .select(`
@@ -241,7 +221,7 @@ async function buildExpensesSheet(
   const rows: Record<string, unknown>[] = (data || []).map((e: any) => ({
     date: isoDate(e.expense_date),
     tripNumber: e.trips?.trip_number || '',
-    category: categoryLabel(e.category),
+    category: categoryLabel(e.category, t),
     description: e.description || '',
     amount: toNumber(e.original_amount),
     currency: e.currency || '',
@@ -254,7 +234,7 @@ async function buildExpensesSheet(
 
   if (rows.length > 0) {
     rows.push({
-      date: 'ИТОГО',
+      date: t('xl.total'),
       tripNumber: '',
       category: '',
       description: '',
@@ -265,16 +245,16 @@ async function buildExpensesSheet(
     });
   }
 
-  const ws = new ExcelJS.Workbook().addWorksheet('Расходы заказов');
+  const ws = new ExcelJS.Workbook().addWorksheet(t('xl.sheetExpenses'));
   ws.columns = [
-    { header: 'Дата', key: 'date', width: 12 },
-    { header: 'Заказ №', key: 'tripNumber', width: 12 },
-    { header: 'Категория', key: 'category', width: 18 },
-    { header: 'Описание', key: 'description', width: 40 },
-    { header: 'Сумма', key: 'amount', width: 12 },
-    { header: 'Валюта', key: 'currency', width: 8 },
-    { header: 'В EUR', key: 'eur', width: 12, style: { numFmt: '0.00' } },
-    { header: 'Литры', key: 'liters', width: 10 },
+    { header: t('xl.date'), key: 'date', width: 12 },
+    { header: t('xl.orderNo2'), key: 'tripNumber', width: 12 },
+    { header: t('xl.category'), key: 'category', width: 18 },
+    { header: t('xl.description'), key: 'description', width: 40 },
+    { header: t('xl.amount'), key: 'amount', width: 12 },
+    { header: t('xl.currency'), key: 'currency', width: 8 },
+    { header: t('xl.eur'), key: 'eur', width: 12, style: { numFmt: '0.00' } },
+    { header: t('xl.liters'), key: 'liters', width: 10 },
   ];
   ws.addRows(rows);
   return ws;
@@ -285,6 +265,7 @@ async function buildForwardingSheet(
   from: string | null,
   to: string | null
 ): Promise<ExcelJS.Worksheet> {
+  const { t } = await getT();
   // Экспедирования — это заказы с profit_mode='forwarding'.
   const { data: orders, error } = await fetchAll(supabase
     .from('trips')
@@ -320,7 +301,7 @@ async function buildForwardingSheet(
       contractorSum: r2(cSum),
       extraExpenses: r2(eSum),
       margin: r2(clientPrice - cSum - eSum),
-      status: statusLabel(o.status),
+      status: statusLabel(o.status, t),
     };
   });
 
@@ -330,7 +311,7 @@ async function buildForwardingSheet(
 
   if (rows.length > 0) {
     rows.push({
-      orderNumber: 'ИТОГО',
+      orderNumber: t('xl.total'),
       loadDate: '',
       unloadDate: '',
       client: '',
@@ -342,17 +323,17 @@ async function buildForwardingSheet(
     });
   }
 
-  const ws = new ExcelJS.Workbook().addWorksheet('Экспедирование');
+  const ws = new ExcelJS.Workbook().addWorksheet(t('xl.modeFwd'));
   ws.columns = [
-    { header: '№ заказа', key: 'orderNumber', width: 12 },
-    { header: 'Дата загрузки', key: 'loadDate', width: 14 },
-    { header: 'Дата выгрузки', key: 'unloadDate', width: 14 },
-    { header: 'Клиент', key: 'client', width: 25 },
-    { header: 'Клиент платит (EUR)', key: 'clientPrice', width: 18, style: { numFmt: '0.00' } },
-    { header: 'Подрядчикам (EUR)', key: 'contractorSum', width: 18, style: { numFmt: '0.00' } },
-    { header: 'Доп. расходы (EUR)', key: 'extraExpenses', width: 18, style: { numFmt: '0.00' } },
-    { header: 'Маржа (EUR)', key: 'margin', width: 14, style: { numFmt: '0.00' } },
-    { header: 'Статус', key: 'status', width: 16 },
+    { header: t('xl.orderNo'), key: 'orderNumber', width: 12 },
+    { header: t('xl.loadDate'), key: 'loadDate', width: 14 },
+    { header: t('xl.unloadDate'), key: 'unloadDate', width: 14 },
+    { header: t('xl.client'), key: 'client', width: 25 },
+    { header: t('xl.clientPays'), key: 'clientPrice', width: 18, style: { numFmt: '0.00' } },
+    { header: t('xl.toCarriers'), key: 'contractorSum', width: 18, style: { numFmt: '0.00' } },
+    { header: t('xl.extra'), key: 'extraExpenses', width: 18, style: { numFmt: '0.00' } },
+    { header: t('xl.margin'), key: 'margin', width: 14, style: { numFmt: '0.00' } },
+    { header: t('xl.status'), key: 'status', width: 16 },
   ];
   ws.addRows(rows);
   return ws;
@@ -361,6 +342,7 @@ async function buildForwardingSheet(
 async function buildClientsSheet(
   supabase: Awaited<ReturnType<typeof createClient>>
 ): Promise<ExcelJS.Worksheet> {
+  const { t } = await getT();
   // Единый источник: заказы (рейсы + экспедиции).
   const { data: orders } = await fetchAll(supabase
     .from('trips')
@@ -378,7 +360,7 @@ async function buildClientsSheet(
         name,
         revenue: 0,
         count: 0,
-        type: isFwd ? 'Экспедирование' : 'Заказы',
+        type: isFwd ? t('xl.modeFwd') : t('xl.sheetOrders'),
       };
     }
     stats[key].revenue += toNumber(o.revenue_eur);
@@ -399,25 +381,26 @@ async function buildClientsSheet(
 
   if (rows.length > 0) {
     rows.push({
-      client: 'ИТОГО',
+      client: t('xl.total'),
       type: '',
       deals: totalDeals,
       revenue: r2(totalRevenue),
     });
   }
 
-  const ws = new ExcelJS.Workbook().addWorksheet('Прибыльность клиентов');
+  const ws = new ExcelJS.Workbook().addWorksheet(t('xl.sheetClients'));
   ws.columns = [
-    { header: 'Клиент', key: 'client', width: 35 },
-    { header: 'Тип', key: 'type', width: 16 },
-    { header: 'Сделок', key: 'deals', width: 10 },
-    { header: 'Доход (EUR)', key: 'revenue', width: 16, style: { numFmt: '0.00' } },
+    { header: t('xl.client'), key: 'client', width: 35 },
+    { header: t('xl.type'), key: 'type', width: 16 },
+    { header: t('xl.deals'), key: 'deals', width: 10 },
+    { header: t('xl.income'), key: 'revenue', width: 16, style: { numFmt: '0.00' } },
   ];
   ws.addRows(rows);
   return ws;
 }
 
 export async function GET(request: Request) {
+  const { t } = await getT();
   const { role } = await getSessionContext();
   if (!can(role, 'export.view')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -438,19 +421,19 @@ export async function GET(request: Request) {
   try {
     if (type === 'trips') {
       sheet = await buildTripsSheet(supabase, from, to);
-      sheetName = 'Заказы';
+      sheetName = t('xl.sheetOrders');
       baseName = `Trips_${from || 'all'}_${to || 'all'}`;
     } else if (type === 'expenses') {
       sheet = await buildExpensesSheet(supabase, from, to);
-      sheetName = 'Расходы заказов';
+      sheetName = t('xl.sheetExpenses');
       baseName = `Expenses_${from || 'all'}_${to || 'all'}`;
     } else if (type === 'forwarding') {
       sheet = await buildForwardingSheet(supabase, from, to);
-      sheetName = 'Экспедирование';
+      sheetName = t('xl.modeFwd');
       baseName = `Forwarding_${from || 'all'}_${to || 'all'}`;
     } else if (type === 'clients') {
       sheet = await buildClientsSheet(supabase);
-      sheetName = 'Прибыльность клиентов';
+      sheetName = t('xl.sheetClients');
       baseName = `Clients_${new Date().toISOString().split('T')[0]}`;
     } else {
       return NextResponse.json({ error: 'Unknown export type' }, { status: 400 });
@@ -484,7 +467,7 @@ export async function GET(request: Request) {
   } catch (e) {
     console.error('[export] error:', e);
     return NextResponse.json(
-      { error: (e as Error).message || 'Ошибка генерации' },
+      { error: (e as Error).message || t('xl.genError') },
       { status: 500 }
     );
   }

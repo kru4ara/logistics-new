@@ -22,6 +22,7 @@ import {
 import { withSignedUrls } from '../../../lib/storage-urls';
 import { getT } from '../../../lib/i18n/server';
 import { tripStatusKey, TRIP_STATUSES } from '../../../lib/i18n/labels';
+import { getDriverT } from '../../../lib/driver-locale';
 
 export const dynamic = 'force-dynamic';
  
@@ -287,6 +288,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
   const hasSalaryExpense = (expenses || []).some((e: any) => e.category === 'salary');
   const needsSalary = trip.status === 'completed' && Boolean(driver) && !hasSalaryExpense;
 
+  const { t: driverT } = await getDriverT(trip.driver_id);
   const taskText = buildDriverTaskText({
     trip: {
       ...trip,
@@ -298,6 +300,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
     trailerNumber,
     segments: segments as any,
     markdown: false,
+    t: driverT,
   });
 
   const driverHasTelegram = Boolean(driver?.telegram_chat_id);

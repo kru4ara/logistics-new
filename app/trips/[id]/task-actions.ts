@@ -5,6 +5,8 @@ import { createClient } from '../../../lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
 import { buildDriverTaskText } from '../../../lib/trip-task-text';
 import { getT } from '../../../lib/i18n/server';
+import { getDriverT } from '../../../lib/driver-locale';
+import { APP_URL } from '../../../lib/company';
 
 export type SendTaskResult =
   | { success: true }
@@ -133,6 +135,7 @@ export async function sendTaskToDriver(tripId: string): Promise<SendTaskResult> 
   // ============================================================
   // Собираем текст
   // ============================================================
+  const { t: driverT } = await getDriverT((driver as { id?: string } | null)?.id ?? trip.driver_id);
   const text = buildDriverTaskText({
     trip: {
       ...trip,
@@ -143,6 +146,8 @@ export async function sendTaskToDriver(tripId: string): Promise<SendTaskResult> 
     trailerNumber,
     segments,
     markdown: true,
+    t: driverT,
+    appUrl: APP_URL,
   });
 
   // ============================================================
@@ -319,6 +324,7 @@ export async function sendSegmentTaskToDriver(
     cargoLinks,
   };
 
+  const { t: driverT } = await getDriverT(segment.driver_id);
   const text = buildDriverTaskText({
     trip: {
       ...trip,
@@ -329,6 +335,8 @@ export async function sendSegmentTaskToDriver(
     trailerNumber,
     segments: [segmentForBuild],
     markdown: true,
+    t: driverT,
+    appUrl: APP_URL,
   });
 
   // ============================================================
