@@ -48,10 +48,54 @@ const TABLES = [
   'users',
 ];
 
-// Колонка стабильной сортировки при постраничном чтении (по умолчанию id).
-const TIE_BREAKER: Record<string, string> = {
-  rates: 'rate_date',
+// Колонки стабильной сортировки при постраничном чтении (по умолчанию id).
+// Должны однозначно задавать строку — обычно первичный ключ.
+// ⚠️ Сверять с продом, а не с supabase/stubs/schema.sql: заглушка схемы
+// местами расходится (у trip_segment_cargo на проде нет id).
+const ORDER_COLUMNS: Record<string, string[]> = {
+  rates: ['rate_date'],
+  trip_segment_cargo: ['segment_id', 'cargo_id'],
 };
+
+/** Ошибка PostgREST «column X.Y does not exist». */
+function isMissingColumn(message: string): boolean {
+  return /column .* does not exist/i.test(message);
+}
+
+/**
+ * Все строки таблицы. Сначала — со стабильной сортировкой. Если колонки
+ * сортировки на проде нет, не теряем таблицу целиком: читаем без сортировки
+ * и возвращаем предупреждение (на >1000 строк порядок страниц нестабилен).
+ */
+async function readTable(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  table: string
+): Promise<{ rows: unknown[]; warning: string | null }> {
+  const cols = ORDER_COLUMNS[table] ?? ['id'];
+  const ordered = supabase.from(table).select('*');
+  // Все колонки, кроме последней, — сразу в запрос; последняя — tieBreaker.
+  for (const c of cols.slice(0, -1)) ordered.order(c, { ascending: true });
+
+  const res = await fetchAll(ordered, {
+    tieBreaker: cols[cols.length - 1],
+    maxRows: MAX_ROWS_PER_TABLE,
+  });
+  if (!res.error) return { rows: res.data, warning: null };
+  if (!isMissingColumn(res.error.message)) throw new Error(res.error.message);
+
+  const fallback = await fetchAll(supabase.from(table).select('*'), {
+    tieBreaker: null,
+    maxRows: MAX_ROWS_PER_TABLE,
+  });
+  if (fallback.error) throw new Error(fallback.error.message);
+  return {
+    rows: fallback.data,
+    warning:
+      fallback.data.length >= 1000
+        ? `${table}: нет колонки сортировки (${cols.join(', ')}), ${fallback.data.length} строк прочитаны без стабильного порядка — поправить ORDER_COLUMNS`
+        : null,
+  };
+}
 
 async function sendTelegramDocument(
   filename: string,
@@ -140,16 +184,12 @@ export async function GET(request: Request) {
     // Выгружаем все таблицы с пагинацией
     for (const table of TABLES) {
       try {
-        // fetchAll читает страницами со стабильной сортировкой: без неё
-        // PostgreSQL вправе отдавать строки в разном порядке, и на границах
-        // страниц строки дублировались или терялись.
-        const { data, error } = await fetchAll(supabase.from(table).select('*'), {
-          tieBreaker: TIE_BREAKER[table] ?? 'id',
-          maxRows: MAX_ROWS_PER_TABLE,
-        });
-        if (error) throw new Error(error.message);
-
-        backup.tables[table] = { count: data.length, rows: data };
+        // Страницами со стабильной сортировкой: без неё PostgreSQL вправе
+        // отдавать строки в разном порядке, и на границах страниц строки
+        // дублировались или терялись.
+        const { rows, warning } = await readTable(supabase, table);
+        backup.tables[table] = { count: rows.length, rows };
+        if (warning) errors.push(warning);
       } catch (e) {
         errors.push(`${table}: ${(e as Error).message}`);
         backup.tables[table] = { count: 0, rows: [] };

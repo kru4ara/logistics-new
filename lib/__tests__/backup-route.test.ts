@@ -21,11 +21,20 @@ const DB: Record<string, Record<string, unknown>[]> = {
   driver_transactions: [{ id: 'tx1', amount: 100 }],
   trip_expenses: Array.from({ length: 1500 }, (_, i) => ({ id: `e${String(i).padStart(4, '0')}` })),
   rates: [{ rate_date: '2026-11-13', eur_pln: 4.25 }],
+  // Как на проде: колонки id нет, ключ — (segment_id, cargo_id).
+  trip_segment_cargo: [
+    { segment_id: 's1', cargo_id: 'c1' },
+    { segment_id: 's1', cargo_id: 'c2' },
+  ],
+  // Таблица, про ключ которой код «не знает», и id у неё нет.
+  trip_counter: [{ year: 2026, last_number: 112 }],
 };
 const orderedBy: Record<string, string[]> = {};
 
 function tableBuilder(table: string) {
+  orderedBy[table] = [];
   const rows = DB[table] ?? [];
+  const hasColumn = (col: string) => rows.length === 0 || col in rows[0];
   const b = {
     select: () => b,
     order: (col: string) => {
@@ -34,8 +43,14 @@ function tableBuilder(table: string) {
     },
     limit: () => Promise.resolve({ data: [], error: null }), // audit_log
     insert: () => Promise.resolve({ error: null }),
-    range: (from: number, to: number) =>
-      Promise.resolve({ data: rows.slice(from, Math.min(to + 1, from + 1000)), error: null }),
+    // Как PostgREST: сортировка по несуществующей колонке — ошибка запроса.
+    range: (from: number, to: number) => {
+      const bad = (orderedBy[table] ?? []).find((c) => !hasColumn(c));
+      if (bad) {
+        return Promise.resolve({ data: null, error: { message: `column ${table}.${bad} does not exist` } });
+      }
+      return Promise.resolve({ data: rows.slice(from, Math.min(to + 1, from + 1000)), error: null });
+    },
   };
   return b;
 }
@@ -111,6 +126,24 @@ describe('cron backup', () => {
     expect(orderedBy.trip_expenses).toEqual(['id']);
     expect(orderedBy.rates).toEqual(['rate_date']);
     expect(sent!.caption).toMatch(/зашифрован/);
+  });
+
+  it('trip_segment_cargo без id: сортировка по (segment_id, cargo_id), строки на месте', async () => {
+    vi.stubEnv('BACKUP_ENCRYPTION_KEY', KEY);
+    const body = await (await callBackup()).json();
+    expect(body.errors).toEqual([]);
+    expect(orderedBy.trip_segment_cargo).toEqual(['segment_id', 'cargo_id']);
+    const backup = JSON.parse(decryptBackup(sent!.bytes, parseBackupKey(KEY)));
+    expect(backup.tables.trip_segment_cargo.count).toBe(2);
+  });
+
+  it('нет колонки сортировки — таблица читается без сортировки, а не теряется', async () => {
+    vi.stubEnv('BACKUP_ENCRYPTION_KEY', KEY);
+    const body = await (await callBackup()).json();
+    const backup = JSON.parse(decryptBackup(sent!.bytes, parseBackupKey(KEY)));
+    expect(backup.tables.trip_counter.count).toBe(1);
+    // < 1000 строк — порядок не важен, предупреждения нет
+    expect(body.errors).toEqual([]);
   });
 
   it('без CRON_SECRET в заголовке — 401', async () => {
