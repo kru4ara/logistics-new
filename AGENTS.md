@@ -49,6 +49,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 5. Страницы под `/trips` и `/routes` защищены централизованно через `proxy.ts` — дублировать проверки в самих страницах не нужно.
 6. `admin` и `manager` из старых профилей в БД работают как `office` (`ROLE_ALIASES`) — миграция базы не требуется.
 7. Не импортировать `admin.ts` в client components — Next заблокирует сборку, это намеренная защита.
+8. **Каждый server action проверяет доступ сам** (`requireCapability`, `requireOffice`, `requireTripAccess`…): `proxy.ts` проверяет путь страницы, а экшен — отдельный эндпоинт. Сторож — `lib/__tests__/server-actions-guard.test.ts`: падает на экшене без проверки. Публичные по смыслу — в его `PUBLIC_ACTIONS` с причиной.
 
 ## Проверки доступа к рейсу и расходу
 
