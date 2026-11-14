@@ -1,7 +1,8 @@
 import Link from 'next/link';
-import { AlertTriangle, Clock, ArrowRight } from 'lucide-react';
+import { AlertTriangle, Clock, ArrowRight, HandCoins } from 'lucide-react';
 import { pickName } from '../lib/relations';
 import { getT } from '../../../lib/i18n/server';
+import { INTL_LOCALE } from '../../../lib/i18n/config';
 
 export type OverdueReminder = { id: string; title: string; days: number };
 
@@ -20,6 +21,7 @@ type Props = {
   tripsWithoutTruck: TripRef[];
   tripsWithoutSalary: TripRef[];
   tripsMissingUnloadDate: TripRef[];
+  overdueInvoices?: { count: number; amount: number };
 };
 
 /** Блок «Требует внимания» на странице «Сегодня». */
@@ -29,14 +31,16 @@ export default async function TodayAttention({
   tripsWithoutTruck,
   tripsWithoutSalary,
   tripsMissingUnloadDate,
+  overdueInvoices = { count: 0, amount: 0 },
 }: Props) {
-  const { t: tr } = await getT();
+  const { t: tr, locale } = await getT();
   const count =
     overdueReminders.length +
     tripsWithoutDriver.length +
     tripsWithoutTruck.length +
     tripsWithoutSalary.length +
-    tripsMissingUnloadDate.length;
+    tripsMissingUnloadDate.length +
+    overdueInvoices.count;
   if (count === 0) return null;
 
   return (
@@ -47,6 +51,21 @@ export default async function TodayAttention({
             </h2>
 
             <div className="space-y-4">
+              {overdueInvoices.count > 0 && (
+                <Link
+                  href="/receivables"
+                  className="flex items-center gap-2 text-sm text-slate-700 hover:text-brand-600 transition-colors"
+                >
+                  <HandCoins className="w-4 h-4 text-red-600 shrink-0" strokeWidth={2.2} />
+                  <span className="font-semibold text-red-600">
+                    {tr('recv.attention')}{' '}{overdueInvoices.count}
+                  </span>
+                  <span className="ml-auto text-xs text-red-600 whitespace-nowrap tabular-nums">
+                    {new Intl.NumberFormat(INTL_LOCALE[locale], { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(overdueInvoices.amount)}
+                  </span>
+                  <ArrowRight className="w-3 h-3 text-slate-400" strokeWidth={2.5} />
+                </Link>
+              )}
               {overdueReminders.length > 0 && (
                 <div>
                   <div className="text-xs uppercase tracking-wide text-red-600 font-semibold mb-2 flex items-center gap-1.5">

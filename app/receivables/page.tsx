@@ -1,0 +1,194 @@
+import Link from 'next/link';
+import { redirect } from 'next/navigation';
+import { HandCoins, AlertTriangle, Clock, Inbox } from 'lucide-react';
+import { createClient } from '../../lib/supabase/admin';
+import { fetchAll } from '../../lib/fetch-all';
+import { getSessionContext } from '../../lib/session';
+import { can, deniedRedirect } from '../../lib/roles';
+import { getT } from '../../lib/i18n/server';
+import { INTL_LOCALE } from '../../lib/i18n/config';
+import { formatDate } from '../../lib/i18n/format';
+import type { MessageKey } from '../../lib/i18n/translate';
+import { summarize, toReceivable, type Bucket, type Receivable, type ReceivableTrip } from '../../lib/receivables';
+import MarkPaidButton from './MarkPaidButton';
+
+export const dynamic = 'force-dynamic';
+
+const BUCKETS: { id: Bucket; label: MessageKey; bar: string }[] = [
+  { id: 'current', label: 'recv.bCurrent', bar: 'bg-slate-300' },
+  { id: 'soon', label: 'recv.bSoon', bar: 'bg-amber-300' },
+  { id: 'overdue', label: 'recv.bOverdue', bar: 'bg-orange-400' },
+  { id: 'overdue30', label: 'recv.bOverdue30', bar: 'bg-red-500' },
+  { id: 'overdue60', label: 'recv.bOverdue60', bar: 'bg-red-700' },
+];
+
+export default async function ReceivablesPage() {
+  const { role } = await getSessionContext();
+  const denied = deniedRedirect(role, 'receivables.view');
+  if (denied) redirect(denied);
+  const canEdit = can(role, 'receivables.edit');
+  const { t, locale } = await getT();
+  const eur = (n: number) =>
+    new Intl.NumberFormat(INTL_LOCALE[locale], { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n);
+
+  const supabase = await createClient();
+  const [{ data: trips, error }, { data: clients }] = await Promise.all([
+    fetchAll(
+      supabase
+        .from('trips')
+        .select('id, trip_number, invoice_number, client_id, revenue_eur, invoiced_at, payment_due, end_date')
+        .eq('status', 'invoiced'),
+    ),
+    fetchAll(supabase.from('clients').select('id, name, payment_days')),
+  ]);
+  if (error) return <div className="p-8 text-red-600">{t('trip.loadError', { msg: error.message })}</div>;
+
+  const clientById = new Map((clients || []).map((c) => [c.id as string, c as { id: string; name: string; payment_days: number | null }]));
+  const today = new Date().toISOString().slice(0, 10);
+  const items = ((trips || []) as ReceivableTrip[]).map((tr) =>
+    toReceivable(tr, tr.client_id ? clientById.get(tr.client_id)?.payment_days : null, today),
+  );
+  const s = summarize(items);
+
+  const dueLabel = (r: Receivable) => {
+    if (r.daysOverdue === null) return t('recv.noDue');
+    if (r.daysOverdue > 0) return t('recv.daysOverdue', { n: r.daysOverdue });
+    if (r.daysOverdue === 0) return t('recv.dueToday');
+    return t('recv.daysLeft', { n: -r.daysOverdue });
+  };
+  const dueClass = (r: Receivable) =>
+    r.daysOverdue === null
+      ? 'text-slate-400'
+      : r.daysOverdue > 30
+        ? 'text-red-700 font-semibold'
+        : r.daysOverdue > 0
+          ? 'text-orange-600 font-semibold'
+          : r.daysOverdue >= -7
+            ? 'text-amber-600'
+            : 'text-slate-500';
+
+  return (
+    <main className="min-h-screen bg-slate-50">
+      <div className="max-w-[1200px] mx-auto px-4 md:px-6 py-6 md:py-8 space-y-5">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2.5 tracking-tight">
+            <HandCoins className="w-6 h-6 md:w-7 md:h-7 text-brand-600" strokeWidth={2.2} />
+            {t('recv.title')}
+          </h1>
+          <p className="text-slate-500 mt-1 text-sm md:text-base">{t('recv.hint')}</p>
+        </div>
+
+        {s.count === 0 ? (
+          <div className="card p-10 text-center">
+            <Inbox className="w-10 h-10 text-slate-300 mx-auto mb-3" strokeWidth={1.8} />
+            <div className="font-semibold text-slate-700">{t('recv.empty')}</div>
+            <p className="text-sm text-slate-500 mt-1 max-w-md mx-auto">{t('recv.emptyHint')}</p>
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="card p-4">
+                <div className="text-xs text-slate-500">{t('recv.total')}</div>
+                <div className="text-2xl font-bold text-slate-900 tabular-nums">{eur(s.total)}</div>
+                <div className="text-xs text-slate-400">{t('recv.invoices', { n: s.count })}</div>
+              </div>
+              <div className={`card p-4 ${s.overdue > 0 ? 'border-red-200 bg-red-50/40' : ''}`}>
+                <div className="text-xs text-slate-500 flex items-center gap-1">
+                  <AlertTriangle className="w-3.5 h-3.5 text-red-500" /> {t('recv.overdue')}
+                </div>
+                <div className="text-2xl font-bold text-red-700 tabular-nums">{eur(s.overdue)}</div>
+                <div className="text-xs text-slate-400">{t('recv.invoices', { n: s.overdueCount })}</div>
+              </div>
+              <div className="card p-4">
+                <div className="text-xs text-slate-500 flex items-center gap-1">
+                  <Clock className="w-3.5 h-3.5 text-amber-500" /> {t('recv.soon')}
+                </div>
+                <div className="text-2xl font-bold text-amber-700 tabular-nums">{eur(s.soon)}</div>
+              </div>
+            </div>
+
+            {/* Давность долга: одна полоса, доли по сумме */}
+            <div className="card p-4 space-y-2">
+              <div className="text-sm font-semibold text-slate-700">{t('recv.aging')}</div>
+              <div className="flex h-3 rounded-full overflow-hidden bg-slate-100">
+                {BUCKETS.map((b) =>
+                  s.byBucket[b.id] > 0 ? (
+                    <div key={b.id} className={b.bar} style={{ width: `${(s.byBucket[b.id] / s.total) * 100}%` }} title={t(b.label)} />
+                  ) : null,
+                )}
+              </div>
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600">
+                {BUCKETS.map((b) => (
+                  <span key={b.id} className="inline-flex items-center gap-1.5">
+                    <span className={`w-2.5 h-2.5 rounded-sm ${b.bar}`} />
+                    {t(b.label)}: <b className="tabular-nums">{eur(s.byBucket[b.id])}</b>
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {s.clients.map((g) => {
+              const client = g.clientId ? clientById.get(g.clientId) : null;
+              return (
+                <div key={g.clientId ?? 'none'} className="card overflow-hidden">
+                  <div className="px-4 py-3 border-b border-slate-100 flex flex-wrap items-baseline justify-between gap-2">
+                    {client ? (
+                      <Link href={`/clients/${client.id}`} className="font-bold text-slate-900 hover:text-brand-700">
+                        {client.name}
+                      </Link>
+                    ) : (
+                      <span className="font-bold text-slate-500">{t('recv.noClient')}</span>
+                    )}
+                    <div className="text-sm tabular-nums">
+                      <b className="text-slate-900">{eur(g.total)}</b>
+                      {g.overdue > 0 && (
+                        <span className="text-red-700 ml-2">· {t('recv.clientOverdue', { amount: eur(g.overdue) })}</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="text-xs text-slate-500 bg-slate-50/70">
+                        <tr>
+                          <th className="text-left font-medium px-4 py-2">{t('recv.trip')}</th>
+                          <th className="text-left font-medium px-4 py-2">{t('recv.invoice')}</th>
+                          <th className="text-right font-medium px-4 py-2">{t('recv.amount')}</th>
+                          <th className="text-left font-medium px-4 py-2">{t('recv.due')}</th>
+                          <th className="text-left font-medium px-4 py-2">{t('recv.status')}</th>
+                          {canEdit && <th className="px-4 py-2" />}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {g.items.map((r) => (
+                          <tr key={r.id}>
+                            <td className="px-4 py-2.5">
+                              <Link href={`/trips/${r.id}`} className="font-semibold text-brand-700 hover:underline">
+                                №{r.trip_number || '—'}
+                              </Link>
+                            </td>
+                            <td className="px-4 py-2.5 text-slate-600">{r.invoice_number || '—'}</td>
+                            <td className="px-4 py-2.5 text-right font-semibold tabular-nums">{eur(r.amount)}</td>
+                            <td className="px-4 py-2.5 text-slate-600 tabular-nums" title={r.estimated ? t('recv.estimated') : undefined}>
+                              {r.due ? `${r.estimated ? '≈ ' : ''}${formatDate(r.due, locale)}` : '—'}
+                            </td>
+                            <td className={`px-4 py-2.5 ${dueClass(r)}`}>{dueLabel(r)}</td>
+                            {canEdit && (
+                              <td className="px-4 py-2.5 text-right">
+                                <MarkPaidButton tripId={r.id} tripNumber={r.trip_number || '—'} />
+                              </td>
+                            )}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            })}
+            {items.some((r) => r.estimated) && <p className="text-xs text-slate-400">≈ — {t('recv.estimated')}</p>}
+          </>
+        )}
+      </div>
+    </main>
+  );
+}

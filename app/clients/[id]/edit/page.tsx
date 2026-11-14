@@ -92,6 +92,11 @@ export default async function EditClientPage({ params }: { params: Promise<{ id:
                   className="input"
                 />
               </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{t('recv.paymentDays')}</label>
+                <input type="number" name="payment_days" min={0} max={365} placeholder="30" defaultValue={client.payment_days ?? ''} className="input" />
+                <p className="text-xs text-slate-400 mt-1">{t('recv.paymentDaysHint')}</p>
+              </div>
             </div>
           </div>
 

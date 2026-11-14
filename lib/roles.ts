@@ -61,6 +61,9 @@ export const CAPABILITIES = [
   'reminders.edit',
   // Настройки компании: реквизиты, условия перевозки, печать, Telegram-бот.
   'settings.edit',
+  // Дебиторка: неоплаченные счета ВСЕХ клиентов (без скоупа менеджера), отметка оплаты.
+  'receivables.view',
+  'receivables.edit',
 ] as const;
 
 export type Capability = (typeof CAPABILITIES)[number];
@@ -97,7 +100,10 @@ const MANAGER: Capability[] = OFFICE.filter(
     // отчёты без скоупа показали бы менеджеру чужие заказы
     c !== 'reports.viewAll' &&
     // реквизиты и банковские счета компании меняет только офис
-    c !== 'settings.edit'
+    c !== 'settings.edit' &&
+    // дебиторка — по всем клиентам, без скоупа (см. правило 4 в AGENTS.md)
+    c !== 'receivables.view' &&
+    c !== 'receivables.edit'
 );
 
 export const ROLE_CAPABILITIES: Record<string, Capability[]> = {
@@ -232,6 +238,7 @@ export const PATH_CAPABILITIES: PathRule[] = [
   { prefix: '/today', capability: 'today.view' },
   { prefix: '/settings', capability: 'settings.edit', writeCapability: 'settings.edit' },
   { prefix: '/map', capability: 'map.view' },
+  { prefix: '/receivables', capability: 'receivables.view', writeCapability: 'receivables.edit' },
   { prefix: '/api/export', capability: 'export.view' },
   { prefix: '/api/logisat/query', capability: 'logisat.view' },
   { prefix: '/api/logisat', capability: 'logisat.sync' },

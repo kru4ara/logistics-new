@@ -256,6 +256,11 @@ const TRANSLATED_FILES = [
   'app/settings/import/ImportCard.tsx',
   'app/settings/import/page.tsx',
   'lib/import-excel.ts',
+  // receivables
+  'app/receivables/MarkPaidButton.tsx',
+  'app/receivables/page.tsx',
+  'app/trips/[id]/PaymentBlock.tsx',
+  'lib/receivables.ts',
 ];
 
 function cyrillicLiterals(file: string): string[] {

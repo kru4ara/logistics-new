@@ -1,5 +1,6 @@
 import { getSessionContext } from '../../lib/session';
 import { can } from '../../lib/roles';
+import { toReceivable, type ReceivableTrip } from '../../lib/receivables';
 import { redirect } from 'next/navigation';
 import {
   Calendar,
@@ -348,12 +349,35 @@ export default async function TodayPage() {
     (t) => (t.status === 'active' || t.status === 'planned') && !t.truck_id
   );
 
+  // Просроченные счета — только у тех, кто видит дебиторку (офис без скоупа менеджера).
+  const overdueInvoices = { count: 0, amount: 0 };
+  if (can(role, 'receivables.view')) {
+    const [{ data: inv }, { data: cl }] = await Promise.all([
+      fetchAll(
+        supabase
+          .from('trips')
+          .select('id, trip_number, invoice_number, client_id, revenue_eur, invoiced_at, payment_due, end_date')
+          .eq('status', 'invoiced'),
+      ),
+      fetchAll(supabase.from('clients').select('id, payment_days')),
+    ]);
+    const days = new Map((cl || []).map((c: any) => [c.id as string, c.payment_days as number | null]));
+    for (const r of (inv || []) as ReceivableTrip[]) {
+      const rec = toReceivable(r, r.client_id ? days.get(r.client_id) : null, today);
+      if ((rec.daysOverdue ?? 0) > 0) {
+        overdueInvoices.count += 1;
+        overdueInvoices.amount += rec.amount;
+      }
+    }
+  }
+
   const attentionCount =
     overdueReminders.length +
     tripsWithoutDriver.length +
     tripsWithoutTruck.length +
     tripsWithoutSalary.length +
-    tripsMissingUnloadDate.length;
+    tripsMissingUnloadDate.length +
+    overdueInvoices.count;
 
   // Остаток топлива в баках тягачей
   const fuelLevels = await fetchFuelLevels(supabase);
@@ -503,6 +527,7 @@ export default async function TodayPage() {
           tripsWithoutTruck={tripsWithoutTruck}
           tripsWithoutSalary={tripsWithoutSalary}
           tripsMissingUnloadDate={tripsMissingUnloadDate}
+          overdueInvoices={overdueInvoices}
         />
 
       </div>
