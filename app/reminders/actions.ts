@@ -4,9 +4,13 @@ import { createClient } from '../../lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { logAudit, diffFields } from '../../lib/audit';
+import { requireCapability } from '../../lib/require-office';
 
 
 export async function deleteReminder(id: string) {
+  // proxy.ts проверяет путь страницы, но экшен — отдельный эндпоинт:
+  // проверяем право здесь же (см. lib/require-office.ts).
+  await requireCapability('reminders.edit');
   const supabase = await createClient();
 
   const { data: before } = await supabase
@@ -32,6 +36,9 @@ export async function deleteReminder(id: string) {
 }
 
 export async function markReminderDone(id: string) {
+  // proxy.ts проверяет путь страницы, но экшен — отдельный эндпоинт:
+  // проверяем право здесь же (см. lib/require-office.ts).
+  await requireCapability('reminders.edit');
   const supabase = await createClient();
 
   const { data: before } = await supabase
@@ -61,6 +68,9 @@ export async function markReminderDone(id: string) {
 }
 
 export async function reopenReminder(id: string) {
+  // proxy.ts проверяет путь страницы, но экшен — отдельный эндпоинт:
+  // проверяем право здесь же (см. lib/require-office.ts).
+  await requireCapability('reminders.edit');
   const supabase = await createClient();
 
   const { data: before } = await supabase
@@ -90,6 +100,9 @@ export async function reopenReminder(id: string) {
 }
 
 export async function updateReminder(id: string, formData: FormData) {
+  // proxy.ts проверяет путь страницы, но экшен — отдельный эндпоинт:
+  // проверяем право здесь же (см. lib/require-office.ts).
+  await requireCapability('reminders.edit');
   const supabase = await createClient();
 
   const title = formData.get('title') as string;
@@ -141,6 +154,9 @@ export async function updateReminder(id: string, formData: FormData) {
 }
 
 export async function createReminder(formData: FormData) {
+  // proxy.ts проверяет путь страницы, но экшен — отдельный эндпоинт:
+  // проверяем право здесь же (см. lib/require-office.ts).
+  await requireCapability('reminders.edit');
   const supabase = await createClient();
 
   const title = formData.get('title') as string;

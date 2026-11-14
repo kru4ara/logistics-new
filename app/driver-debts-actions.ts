@@ -39,33 +39,6 @@ async function toEur(
 }
 
 // ============================================================
-// Баланс водителя
-// ============================================================
-export async function getDriverBalance(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  driverId: string
-): Promise<{ accrued: number; paidOut: number; balance: number }> {
-  const { data } = await supabase
-    .from('driver_transactions')
-    .select('type, amount_eur')
-    .eq('driver_id', driverId);
-
-  let accrued = 0;
-  let paidOut = 0;
-
-  for (const t of data || []) {
-    if (t.type === 'accrual') accrued += Number(t.amount_eur) || 0;
-    else if (t.type === 'payout') paidOut += Number(t.amount_eur) || 0;
-  }
-
-  return {
-    accrued,
-    paidOut,
-    balance: accrued - paidOut,
-  };
-}
-
-// ============================================================
 // Начислить долг водителю (компания должна ему)
 // ============================================================
 export async function accrueDriverDebt(formData: FormData) {
