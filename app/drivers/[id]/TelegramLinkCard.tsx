@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { MessageCircle, CheckCircle2, Copy, Check } from 'lucide-react';
 import { createDriverTelegramLink } from './telegram-link-actions';
+import { useT } from '../../components/I18nProvider';
 
 export default function TelegramLinkCard({
   driverId,
@@ -11,6 +12,7 @@ export default function TelegramLinkCard({
   driverId: string;
   isConnected: boolean;
 }) {
+  const { t } = useT();
   const [copied, setCopied] = useState(false);
   const [link, setLink] = useState('');
   const [loading, setLoading] = useState(false);
@@ -24,9 +26,9 @@ export default function TelegramLinkCard({
     try {
       const res = await createDriverTelegramLink(driverId);
       if (res.link) setLink(res.link);
-      else setError(res.error || 'Не удалось создать ссылку');
+      else setError(res.error || t('drvCard.linkFailed'));
     } catch {
-      setError('Не удалось создать ссылку');
+      setError(t('drvCard.linkFailed'));
     } finally {
       setLoading(false);
     }
@@ -38,7 +40,7 @@ export default function TelegramLinkCard({
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      alert('Не удалось скопировать. Скопируйте вручную:\n\n' + link);
+      alert(t('drvCard.copyFailed', { link: link ?? '' }));
     }
   }
 
@@ -47,12 +49,12 @@ export default function TelegramLinkCard({
       <div className="card p-6">
         <h2 className="text-lg font-bold text-slate-900 mb-3 flex items-center gap-2">
           <MessageCircle className="w-5 h-5 text-brand-600" />
-          Telegram-уведомления
+          {t('drvCard.tgTitle')}
         </h2>
         <div className="flex items-center gap-2 text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3">
           <CheckCircle2 className="w-5 h-5 shrink-0" />
           <span className="font-medium">
-            Водитель подключён и получает уведомления о новых рейсах
+            {t('drvCard.tgConnected')}
           </span>
         </div>
       </div>
@@ -63,13 +65,11 @@ export default function TelegramLinkCard({
     <div className="card p-6">
       <h2 className="text-lg font-bold text-slate-900 mb-3 flex items-center gap-2">
         <MessageCircle className="w-5 h-5 text-brand-600" />
-        Telegram-уведомления
+        {t('drvCard.tgTitle')}
       </h2>
 
       <p className="text-sm text-slate-500 mb-4">
-        Водитель пока не подключён. Отправьте ему эту ссылку в WhatsApp или SMS —
-        он нажмёт её, а затем «Start» в Telegram. После этого он будет получать
-        уведомления о новых рейсах автоматически.
+        {t('drvCard.tgNotConnected')}
       </p>
 
       {!link ? (
@@ -79,7 +79,7 @@ export default function TelegramLinkCard({
           disabled={loading}
           className="px-4 py-2.5 rounded-lg font-semibold text-sm bg-brand-600 hover:bg-brand-700 text-white shadow-brand transition-all active:scale-[0.98] disabled:opacity-60"
         >
-          {loading ? 'Создаю…' : 'Создать ссылку'}
+          {loading ? t('drvCard.creating') : t('drvCard.createLink')}
         </button>
       ) : (
         <div className="flex flex-col sm:flex-row gap-2">
@@ -102,12 +102,12 @@ export default function TelegramLinkCard({
             {copied ? (
               <>
                 <Check className="w-4 h-4" />
-                Скопировано
+                {t('shared.copied')}
               </>
             ) : (
               <>
                 <Copy className="w-4 h-4" />
-                Копировать
+                {t('drvCard.copy')}
               </>
             )}
           </button>
@@ -117,7 +117,7 @@ export default function TelegramLinkCard({
       {error && <div className="mt-2 text-sm text-red-600">{error}</div>}
 
       <div className="mt-3 text-xs text-slate-400">
-        Ссылка одноразовая и действует 24 часа. Отправляйте её только самому водителю: кто откроет первым, тот и подключится.
+        {t('drvCard.linkHint')}
       </div>
     </div>
   );

@@ -14,10 +14,13 @@ import {
 } from 'lucide-react';
 import { fetchAll } from '../../../lib/fetch-all';
 import { deniedRedirect } from '../../../lib/roles';
+import { getT } from '../../../lib/i18n/server';
+import { INTL_LOCALE } from '../../../lib/i18n/config';
 
 export const dynamic = 'force-dynamic';
 
 export default async function DriverKpiPage() {
+  const { t: tr, locale } = await getT();
   const { role } = await getSessionContext();
   const denied = deniedRedirect(role, 'drivers.view');
   if (denied) redirect(denied);
@@ -30,7 +33,7 @@ export default async function DriverKpiPage() {
     .order('last_name', { ascending: true });
 
   if (driversError) {
-    return <div className="p-8 text-red-500">Ошибка загрузки водителей: {driversError.message}</div>;
+    return <div className="p-8 text-red-500">{tr('kpi.loadError', { msg: driversError.message })}</div>;
   }
 
   // KPI считается по периметру заказов менеджера (фаза 39).
@@ -56,7 +59,7 @@ export default async function DriverKpiPage() {
   const now = new Date();
   const currentMonth = now.getMonth();
   const currentYear = now.getFullYear();
-  const monthName = now.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
+  const monthName = now.toLocaleDateString(INTL_LOCALE[locale], { month: 'long', year: 'numeric' });
 
   // ЗП по месяцам (для колонок «ЗП мес» / «ЗП всего»)
   const monthSalaryByDriver: Record<string, number> = {};
@@ -148,16 +151,16 @@ export default async function DriverKpiPage() {
 
         <Link href="/drivers" className="inline-flex items-center gap-2 text-slate-600 hover:text-brand-600 transition-colors text-sm font-medium">
           <ArrowLeft className="w-4 h-4" strokeWidth={2} />
-          Все водители
+          {tr('drv.all')}
         </Link>
 
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2.5 tracking-tight">
             <BarChart3 className="w-6 h-6 md:w-7 md:h-7 text-brand-600" strokeWidth={2.2} />
-            KPI водителей
+            {tr('drv.kpi')}
           </h1>
           <p className="text-slate-500 mt-1 text-sm md:text-base">
-            За <b className="text-slate-700 capitalize">{monthName}</b> и за всё время
+            {tr('kpi.period', { month: monthName })}
           </p>
         </div>
 
@@ -166,8 +169,8 @@ export default async function DriverKpiPage() {
             <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-slate-50 flex items-center justify-center">
               <BarChart3 className="w-8 h-8 text-slate-300" strokeWidth={1.5} />
             </div>
-            <h2 className="text-xl font-bold text-slate-900 mb-2">Водителей пока нет</h2>
-            <p className="text-slate-500">Добавьте водителей, чтобы увидеть статистику</p>
+            <h2 className="text-xl font-bold text-slate-900 mb-2">{tr('drv.empty')}</h2>
+            <p className="text-slate-500">{tr('kpi.emptyHint')}</p>
           </div>
         ) : (
           <>
@@ -209,7 +212,7 @@ export default async function DriverKpiPage() {
                         item.profit >= 0 ? 'text-emerald-700' : 'text-red-700'
                       }`}>
                         <Wallet className="w-3.5 h-3.5" strokeWidth={2} />
-                        Прибыль
+                        {tr('kpi.profit')}
                       </div>
                       <div className={`text-2xl font-bold tabular-nums ${
                         item.profit >= 0 ? 'text-emerald-700' : 'text-red-700'
@@ -222,27 +225,27 @@ export default async function DriverKpiPage() {
                     <div className="bg-brand-50 rounded-xl px-4 py-2.5 flex items-center justify-between">
                       <div className="flex items-center gap-2 text-xs text-brand-700 font-medium">
                         <Package className="w-3.5 h-3.5" strokeWidth={2} />
-                        Рейсов
+                        {tr('kpi.trips')}
                       </div>
                       <div className="flex items-baseline gap-1">
                         <span className="text-lg font-bold text-brand-700 tabular-nums">{item.monthTripsCount}</span>
-                        <span className="text-xs text-brand-500">за месяц</span>
-                        <span className="text-sm text-slate-400 ml-2 tabular-nums">/ {item.totalTrips} всего</span>
+                        <span className="text-xs text-brand-500">{tr('kpi.perMonth')}</span>
+                        <span className="text-sm text-slate-400 ml-2 tabular-nums">{tr('kpi.total', { n: item.totalTrips })}</span>
                       </div>
                     </div>
 
                     {/* Экономика */}
                     <div className="grid grid-cols-3 gap-2 text-xs">
                       <div className="bg-slate-50 rounded-lg p-2.5">
-                        <div className="text-[10px] uppercase text-slate-400 font-medium mb-0.5">Фрахт</div>
+                        <div className="text-[10px] uppercase text-slate-400 font-medium mb-0.5">{tr('kpi.freight')}</div>
                         <div className="font-bold text-slate-700 break-words tabular-nums">{item.totalRevenue.toFixed(0)} €</div>
                       </div>
                       <div className="bg-slate-50 rounded-lg p-2.5">
-                        <div className="text-[10px] uppercase text-slate-400 font-medium mb-0.5">Расходы</div>
+                        <div className="text-[10px] uppercase text-slate-400 font-medium mb-0.5">{tr('kpi.expenses')}</div>
                         <div className="font-bold text-red-500 break-words tabular-nums">{item.totalExpenses.toFixed(0)} €</div>
                       </div>
                       <div className="bg-slate-50 rounded-lg p-2.5">
-                        <div className="text-[10px] uppercase text-slate-400 font-medium mb-0.5">ЗП</div>
+                        <div className="text-[10px] uppercase text-slate-400 font-medium mb-0.5">{tr('kpi.pay')}</div>
                         <div className="font-bold text-slate-600 break-words tabular-nums">{item.salaryTotal.toFixed(0)} €</div>
                       </div>
                     </div>
@@ -250,19 +253,19 @@ export default async function DriverKpiPage() {
                     {/* Пробег и топливо */}
                     <div className="grid grid-cols-3 gap-2 text-xs">
                       <div>
-                        <div className="text-[10px] uppercase text-slate-400 font-medium">Пробег</div>
+                        <div className="text-[10px] uppercase text-slate-400 font-medium">{tr('kpi.mileage')}</div>
                         <div className="font-semibold text-slate-700 break-words tabular-nums">
-                          {item.totalKm > 0 ? `${item.totalKm.toFixed(0)} км` : '—'}
+                          {item.totalKm > 0 ? `${item.totalKm.toFixed(0)} ${tr('units.km')}` : '—'}
                         </div>
                       </div>
                       <div>
-                        <div className="text-[10px] uppercase text-slate-400 font-medium">Топливо</div>
+                        <div className="text-[10px] uppercase text-slate-400 font-medium">{tr('kpi.fuel')}</div>
                         <div className="font-semibold text-slate-700 break-words tabular-nums">
-                          {item.totalLiters > 0 ? `${item.totalLiters.toFixed(0)} л` : '—'}
+                          {item.totalLiters > 0 ? `${item.totalLiters.toFixed(0)} ${tr('units.l')}` : '—'}
                         </div>
                       </div>
                       <div>
-                        <div className="text-[10px] uppercase text-slate-400 font-medium">Расход</div>
+                        <div className="text-[10px] uppercase text-slate-400 font-medium">{tr('kpi.consumption')}</div>
                         <div className={`font-semibold break-words tabular-nums ${consumptionClr}`}>
                           {item.avgConsumption !== null ? `${item.avgConsumption.toFixed(1)}` : '—'}
                         </div>
@@ -279,18 +282,18 @@ export default async function DriverKpiPage() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-slate-100 bg-slate-50/50">
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Водитель</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{tr('kpi.driver')}</th>
                       <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                        Рейсов<br/>
-                        <span className="text-[10px] font-normal text-slate-400 normal-case">мес / всего</span>
+                        {tr('kpi.trips')}<br/>
+                        <span className="text-[10px] font-normal text-slate-400 normal-case">{tr('kpi.monthTotal')}</span>
                       </th>
-                      <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Фрахт</th>
-                      <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Расходы</th>
-                      <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Прибыль</th>
-                      <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">ЗП мес</th>
-                      <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">ЗП всего</th>
-                      <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Пробег</th>
-                      <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Расход</th>
+                      <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{tr('kpi.freight')}</th>
+                      <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{tr('kpi.expenses')}</th>
+                      <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{tr('kpi.profit')}</th>
+                      <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{tr('kpi.payMonth')}</th>
+                      <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{tr('kpi.payTotal')}</th>
+                      <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{tr('kpi.mileage')}</th>
+                      <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{tr('kpi.consumption')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -346,7 +349,7 @@ export default async function DriverKpiPage() {
                             {item.salaryTotal.toFixed(0)} €
                           </td>
                           <td className="px-4 py-4 text-right text-slate-700 whitespace-nowrap tabular-nums">
-                            {item.totalKm > 0 ? `${item.totalKm.toFixed(0)} км` : '—'}
+                            {item.totalKm > 0 ? `${item.totalKm.toFixed(0)} ${tr('units.km')}` : '—'}
                           </td>
                           <td className={`px-4 py-4 text-right font-semibold whitespace-nowrap tabular-nums ${consumptionClr}`}>
                             {item.avgConsumption !== null ? `${item.avgConsumption.toFixed(1)}` : '—'}
@@ -361,9 +364,9 @@ export default async function DriverKpiPage() {
               <div className="p-4 border-t border-slate-100 bg-slate-50/50 text-xs text-slate-500 flex items-start gap-2">
                 <Fuel className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" strokeWidth={2} />
                 <div>
-                  <b>Прибыль</b> = фрахт − все расходы (топливо, подрядчик, граница, ЗП и т.д.).
+                  <b>{tr('kpi.profit')}</b> {tr('kpi.noteProfit')}
                   {' · '}
-                  <b>Рейсы за месяц</b> — по дате финиша. <b>ЗП за месяц</b> — по дате выплаты.
+                  <b>{tr('kpi.noteTrips')}</b> {tr('kpi.noteTripsBy')} <b>{tr('kpi.notePay')}</b> {tr('kpi.notePayBy')}
                 </div>
               </div>
             </div>

@@ -4,6 +4,7 @@ import { requireOffice } from '../lib/require-office';
 import { createClient } from '../lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
 import { logAudit } from '../lib/audit';
+import { getT } from '../lib/i18n/server';
 
 // ============================================================
 // Конвертация в EUR по курсу на дату (та же логика, что в trip-actions)
@@ -42,6 +43,7 @@ async function toEur(
 // Начислить долг водителю (компания должна ему)
 // ============================================================
 export async function accrueDriverDebt(formData: FormData) {
+  const { t } = await getT();
   await requireOffice();
   const supabase = await createClient();
 
@@ -52,8 +54,8 @@ export async function accrueDriverDebt(formData: FormData) {
   const date = (formData.get('date') as string) || new Date().toISOString().split('T')[0];
   const notes = (formData.get('notes') as string) || null;
 
-  if (!driverId) throw new Error('Не указан водитель');
-  if (originalAmount <= 0) throw new Error('Сумма должна быть больше нуля');
+  if (!driverId) throw new Error(t('drvFin.noDriver'));
+  if (originalAmount <= 0) throw new Error(t('drvFin.amountPositive'));
 
   const amountEur = await toEur(supabase, originalAmount, currency, date);
 
@@ -75,7 +77,7 @@ export async function accrueDriverDebt(formData: FormData) {
     .select('id')
     .single();
 
-  if (error) throw new Error(`Ошибка начисления: ${error.message}`);
+  if (error) throw new Error(t('drvFin.accrueError', { msg: error.message }));
 
   if (created?.id) {
     await logAudit({
@@ -94,6 +96,7 @@ export async function accrueDriverDebt(formData: FormData) {
 // Погасить долг (выплатить водителю)
 // ============================================================
 export async function payOutDriverDebt(formData: FormData) {
+  const { t } = await getT();
   await requireOffice();
   const supabase = await createClient();
 
@@ -103,8 +106,8 @@ export async function payOutDriverDebt(formData: FormData) {
   const date = (formData.get('date') as string) || new Date().toISOString().split('T')[0];
   const notes = (formData.get('notes') as string) || null;
 
-  if (!driverId) throw new Error('Не указан водитель');
-  if (originalAmount <= 0) throw new Error('Сумма должна быть больше нуля');
+  if (!driverId) throw new Error(t('drvFin.noDriver'));
+  if (originalAmount <= 0) throw new Error(t('drvFin.amountPositive'));
 
   const amountEur = await toEur(supabase, originalAmount, currency, date);
 
@@ -126,7 +129,7 @@ export async function payOutDriverDebt(formData: FormData) {
     .select('id')
     .single();
 
-  if (error) throw new Error(`Ошибка выплаты: ${error.message}`);
+  if (error) throw new Error(t('drvFin.payError', { msg: error.message }));
 
   if (created?.id) {
     await logAudit({
@@ -145,6 +148,7 @@ export async function payOutDriverDebt(formData: FormData) {
 // Удалить операцию (если ошиблись)
 // ============================================================
 export async function deleteDriverTransaction(id: string, driverId: string) {
+  const { t } = await getT();
   await requireOffice();
   const supabase = await createClient();
 
@@ -159,7 +163,7 @@ export async function deleteDriverTransaction(id: string, driverId: string) {
     .delete()
     .eq('id', id);
 
-  if (error) throw new Error(`Ошибка удаления: ${error.message}`);
+  if (error) throw new Error(t('tripErr.delete', { msg: error.message }));
 
   await logAudit({
     entity_type: 'driver_transaction',

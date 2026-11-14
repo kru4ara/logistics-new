@@ -14,9 +14,11 @@ import {
   CreditCard,
   Save,
 } from 'lucide-react';
+import { getT } from '../../../lib/i18n/server';
 
 async function createDriver(formData: FormData) {
   'use server';
+  const { t } = await getT();
 
   const supabase = await createClient();
 
@@ -58,7 +60,7 @@ async function createDriver(formData: FormData) {
     .select('id')
     .single();
 
-  if (error) throw new Error(`Ошибка добавления: ${error.message}`);
+  if (error) throw new Error(t('tripErr.add', { msg: error.message }));
 
   if (data?.id) {
     await syncReminders('driver', data.id);
@@ -75,7 +77,8 @@ async function createDriver(formData: FormData) {
   redirect('/drivers?toast=driver_created');
 }
 
-export default function NewDriverPage() {
+export default async function NewDriverPage() {
+  const { t } = await getT();
   return (
     <main className="min-h-screen bg-slate-50">
       <div className="max-w-[900px] mx-auto px-4 md:px-6 py-6 md:py-8 space-y-5 md:space-y-6">
@@ -85,16 +88,16 @@ export default function NewDriverPage() {
           className="inline-flex items-center gap-2 text-slate-600 hover:text-brand-600 transition-colors text-sm font-medium"
         >
           <ArrowLeft className="w-4 h-4" strokeWidth={2} />
-          Все водители
+          {t('drv.all')}
         </Link>
 
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2.5 tracking-tight">
             <UserPlus className="w-6 h-6 md:w-7 md:h-7 text-brand-600" strokeWidth={2.2} />
-            Добавить водителя
+            {t('drv.add')}
           </h1>
           <p className="text-slate-500 mt-1 text-sm md:text-base">
-            Пароль выдаётся офисом отдельно. Для подключения Telegram — см. карточку водителя.
+            {t('drv.newHint')}
           </p>
         </div>
 
@@ -103,30 +106,30 @@ export default function NewDriverPage() {
           <div className="card p-5 md:p-6 space-y-4">
             <h2 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2">
               <UserIcon className="w-5 h-5 text-brand-600" strokeWidth={2} />
-              Личные данные
+              {t('drv.personal')}
             </h2>
             <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Имя *</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{t('drv.firstName')}</label>
                 <input type="text" name="first_name" required className="input" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Фамилия (латиницей) *
+                  {t('drv.lastNameLatin')}
                 </label>
                 <input type="text" name="last_name" required placeholder="VASILIUK" className="input" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Телефон</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{t('drv.phone')}</label>
                 <input type="text" name="phone" placeholder="+375 29 123-45-67" className="input" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Дата рождения</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{t('drv.birthDate')}</label>
                 <input type="date" name="date_of_birth" className="input" />
               </div>
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-slate-700 mb-1">Адрес</label>
-                <input type="text" name="address" placeholder="РБ, г. Кобрин, ул. ..." className="input" />
+                <label className="block text-sm font-medium text-slate-700 mb-1">{t('drv.address')}</label>
+                <input type="text" name="address" placeholder={t('drv.phAddress')} className="input" />
               </div>
             </div>
           </div>
@@ -134,19 +137,19 @@ export default function NewDriverPage() {
           <div className="card p-5 md:p-6 space-y-4">
             <h2 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2">
               <FileText className="w-5 h-5 text-brand-600" strokeWidth={2} />
-              Паспорт и виза
+              {t('drv.passportVisa')}
             </h2>
             <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Номер паспорта</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{t('drv.passportNo')}</label>
                 <input type="text" name="passport_number" className="input" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Срок действия паспорта</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{t('drv.passportExpiry')}</label>
                 <input type="date" name="passport_expiry" className="input" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Срок действия визы</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{t('drv.visaExpiry')}</label>
                 <input type="date" name="visa_expiry" className="input" />
               </div>
             </div>
@@ -155,15 +158,15 @@ export default function NewDriverPage() {
           <div className="card p-5 md:p-6 space-y-4">
             <h2 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2">
               <Car className="w-5 h-5 text-brand-600" strokeWidth={2} />
-              Водительское удостоверение
+              {t('drv.licenseTitle')}
             </h2>
             <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Номер прав</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{t('drv.licenseNo')}</label>
                 <input type="text" name="license_number" className="input" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Срок действия прав</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{t('drv.licenseExpiry')}</label>
                 <input type="date" name="license_expiry" className="input" />
               </div>
             </div>
@@ -172,23 +175,23 @@ export default function NewDriverPage() {
           <div className="card p-5 md:p-6 space-y-4">
             <h2 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2">
               <CreditCard className="w-5 h-5 text-brand-600" strokeWidth={2} />
-              Дополнительные документы
+              {t('drv.extraDocs')}
             </h2>
             <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Номер карты тахографа</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{t('drv.tachoNo')}</label>
                 <input type="text" name="tachograph_card_number" className="input" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Срок действия карты тахографа</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{t('drv.tachoExpiry')}</label>
                 <input type="date" name="tachograph_card_expiry" className="input" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Срок действия Код 95</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{t('drv.code95Expiry')}</label>
                 <input type="date" name="code_95_expiry" className="input" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Срок действия АДР</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{t('drv.adrExpiry')}</label>
                 <input type="date" name="adr_expiry" className="input" />
               </div>
             </div>
@@ -203,14 +206,14 @@ export default function NewDriverPage() {
               className="w-full sm:w-auto text-center px-6 py-3 rounded-xl border border-slate-300 text-slate-700 font-semibold
                          hover:bg-slate-100 transition-all duration-150"
             >
-              Отмена
+              {t('seg.cancel')}
             </Link>
             <SubmitButton
               className="btn btn-primary w-full sm:flex-1 py-3"
-              pendingText="Сохраняю водителя…"
+              pendingText={t('drv.saving')}
             >
               <Save className="w-4 h-4" strokeWidth={2.5} />
-              Сохранить водителя
+              {t('drv.save')}
             </SubmitButton>
           </div>
 

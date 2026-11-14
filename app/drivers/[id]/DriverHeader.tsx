@@ -2,8 +2,10 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Pencil, User as UserIcon, Phone, Truck, Container } from 'lucide-react';
 import DriverPassportUpload from '../../components/DriverPassportUpload';
+import { getT } from '../../../lib/i18n/server';
+import { formatDate } from '../../../lib/i18n/format';
 
-export default function DriverHeader({
+export default async function DriverHeader({
   driver,
   driverId,
   passportPhotoUrl,
@@ -20,6 +22,7 @@ export default function DriverHeader({
   currentTruck: any;
   currentTrailer: any;
 }) {
+  const { t, locale } = await getT();
   return (
     <div className="card p-5 md:p-6">
       <div className="flex flex-col md:flex-row gap-5 md:gap-6">
@@ -31,11 +34,11 @@ export default function DriverHeader({
               target="_blank"
               rel="noopener noreferrer"
               className="block w-56 h-40 md:w-64 md:h-44 rounded-2xl overflow-hidden border-2 border-slate-200 shadow-soft hover:shadow-soft-lg transition-shadow"
-              title="Открыть фото паспорта"
+              title={t('drvCard.openPassport')}
             >
               <Image
                 src={passportPhotoUrl}
-                alt={`Фото паспорта — ${driver.first_name} ${driver.last_name}`}
+                alt={t('drvCard.passportAlt', { name: `${driver.first_name} ${driver.last_name}` })}
                 width={256}
                 height={176}
                 sizes="(min-width: 768px) 256px, 224px"
@@ -60,7 +63,7 @@ export default function DriverHeader({
               </h1>
               {driver.date_of_birth && (
                 <div className="text-sm text-slate-500 mt-1 tabular-nums">
-                  Дата рождения: {new Date(driver.date_of_birth).toLocaleDateString('ru-RU')}
+                  {t('drvCard.birth', { date: formatDate(driver.date_of_birth, locale) })}
                 </div>
               )}
             </div>
@@ -70,7 +73,7 @@ export default function DriverHeader({
               className="btn btn-primary w-full sm:w-auto text-sm md:text-base shrink-0"
             >
               <Pencil className="w-4 h-4" strokeWidth={2} />
-              Редактировать
+              {t('trip.edit')}
             </Link>
           </div>
 
@@ -102,7 +105,7 @@ export default function DriverHeader({
           {currentTrip && (currentTruck?.registration_number || currentTrailer?.registration_number) && (
             <div className="mb-4 p-3 rounded-xl bg-brand-50/50 border border-brand-100">
               <div className="text-xs uppercase tracking-wide text-brand-600 font-semibold mb-1.5">
-                Сейчас на рейсе №{currentTrip.trip_number || '—'}
+                {t('drvCard.onTrip', { n: currentTrip.trip_number || '—' })}
               </div>
               <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-700">
                 {currentTruck?.registration_number && (
@@ -125,12 +128,12 @@ export default function DriverHeader({
           {(driver.passport_series || driver.passport_number || driver.passport_issued_by || driver.passport_issued_date) && (
             <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
               <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-1.5">
-                Паспорт
+                {t('drvCard.passport')}
               </div>
               <div className="grid gap-x-4 gap-y-1 text-sm text-slate-700 sm:grid-cols-2">
                 {(driver.passport_series || driver.passport_number) && (
                   <div>
-                    <span className="text-slate-400">Серия и номер: </span>
+                    <span className="text-slate-400">{t('drvCard.seriesNo')} </span>
                     <span className="font-semibold tabular-nums">
                       {[driver.passport_series, driver.passport_number].filter(Boolean).join(' ')}
                     </span>
@@ -138,15 +141,15 @@ export default function DriverHeader({
                 )}
                 {driver.passport_issued_date && (
                   <div>
-                    <span className="text-slate-400">Дата выдачи: </span>
+                    <span className="text-slate-400">{t('drvCard.issued')} </span>
                     <span className="font-semibold tabular-nums">
-                      {new Date(driver.passport_issued_date).toLocaleDateString('ru-RU')}
+                      {formatDate(driver.passport_issued_date, locale)}
                     </span>
                   </div>
                 )}
                 {driver.passport_issued_by && (
                   <div className="sm:col-span-2">
-                    <span className="text-slate-400">Кем выдан: </span>
+                    <span className="text-slate-400">{t('drvCard.issuedBy')} </span>
                     <span className="font-semibold">{driver.passport_issued_by}</span>
                   </div>
                 )}

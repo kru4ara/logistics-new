@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import Image from 'next/image';  // ← добавь эту строку, если её нет
+import Image from 'next/image';
 import { getSessionContext } from '../../lib/session';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase/admin';
@@ -15,10 +15,13 @@ import {
 } from 'lucide-react';
 import { fetchAll } from '../../lib/fetch-all';
 import { deniedRedirect } from '../../lib/roles';
+import { getT } from '../../lib/i18n/server';
+import { formatDate } from '../../lib/i18n/format';
 
 export const dynamic = 'force-dynamic';
 
 export default async function DriversPage() {
+  const { t, locale } = await getT();
   const { role } = await getSessionContext();
   const denied = deniedRedirect(role, 'drivers.view');
   if (denied) redirect(denied);
@@ -31,7 +34,7 @@ export default async function DriversPage() {
     .order('last_name', { ascending: true });
 
   if (error) {
-    return <div className="p-8 text-red-500">Ошибка загрузки: {error.message}</div>;
+    return <div className="p-8 text-red-500">{t('trip.loadError', { msg: error.message })}</div>;
   }
 
   // Считаем количество рейсов у каждого водителя
@@ -117,20 +120,20 @@ export default async function DriversPage() {
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2.5 tracking-tight">
               <UserCircle className="w-6 h-6 md:w-7 md:h-7 text-brand-600" strokeWidth={2.2} />
-              Водители
+              {t('drv.title')}
             </h1>
             <p className="text-slate-500 mt-1 text-sm md:text-base">
-              Всего водителей: <b className="text-slate-700">{drivers?.length || 0}</b>
+              {t('drv.total')} <b className="text-slate-700">{drivers?.length || 0}</b>
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 md:gap-3">
             <Link href="/drivers/kpi" className="btn btn-secondary text-sm md:text-base justify-center">
               <BarChart3 className="w-4 h-4 md:w-[18px] md:h-[18px]" strokeWidth={2} />
-              KPI водителей
+              {t('drv.kpi')}
             </Link>
             <Link href="/drivers/new" className="btn btn-primary text-sm md:text-base justify-center">
               <UserPlus className="w-4 h-4 md:w-[18px] md:h-[18px]" strokeWidth={2.5} />
-              Добавить водителя
+              {t('drv.add')}
             </Link>
           </div>
         </div>
@@ -141,11 +144,11 @@ export default async function DriversPage() {
             <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-slate-50 flex items-center justify-center">
               <UserIcon className="w-8 h-8 text-slate-300" strokeWidth={1.5} />
             </div>
-            <h2 className="text-xl font-bold text-slate-900 mb-2">Водителей пока нет</h2>
-            <p className="text-slate-500 mb-6">Добавьте первого водителя, чтобы начать работу</p>
+            <h2 className="text-xl font-bold text-slate-900 mb-2">{t('drv.empty')}</h2>
+            <p className="text-slate-500 mb-6">{t('drv.emptyHint')}</p>
             <Link href="/drivers/new" className="btn btn-primary inline-flex">
               <UserPlus className="w-4 h-4" strokeWidth={2.5} />
-              Добавить водителя
+              {t('drv.add')}
             </Link>
           </div>
         ) : (
@@ -168,10 +171,10 @@ export default async function DriversPage() {
                 CheckCircle2;
 
               const statusLabel =
-                minDays === null ? 'Нет данных' :
-                isExpired ? `Просрочено (${Math.abs(minDays)} дн.)` :
-                isSoon ? `${minDays} дн. до срока` :
-                `OK (${minDays} дн.)`;
+                minDays === null ? t('drv.noData') :
+                isExpired ? t('drv.expired', { n: Math.abs(minDays) }) :
+                isSoon ? t('drv.soon', { n: minDays }) :
+                t('drv.ok', { n: minDays });
 
               const initials = `${driver.first_name?.[0] || ''}${driver.last_name?.[0] || ''}`.toUpperCase();
               const tripsCount = tripsCountByDriver[driver.id] || 0;
@@ -207,7 +210,7 @@ export default async function DriversPage() {
                         <div className="flex items-center gap-1.5 text-sm text-slate-500 truncate">
                           <Phone className="w-3.5 h-3.5 shrink-0 text-slate-400" strokeWidth={2} />
                           <span className="truncate">
-                            {driver.phone_pl || driver.phone_by || 'Телефон не указан'}
+                            {driver.phone_pl || driver.phone_by || t('drv.noPhone')}
                           </span>
                         </div>
                       </div>
@@ -220,19 +223,19 @@ export default async function DriversPage() {
 
                     <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-slate-100">
                       <div>
-                        <div className="text-[10px] uppercase tracking-wide text-slate-400 font-medium">Виза</div>
+                        <div className="text-[10px] uppercase tracking-wide text-slate-400 font-medium">{t('drv.visa')}</div>
                         <div className="text-xs sm:text-sm font-semibold text-slate-800 tabular-nums">
-                          {driver.visa_expiry ? new Date(driver.visa_expiry).toLocaleDateString('ru-RU') : '—'}
+                          {formatDate(driver.visa_expiry, locale)}
                         </div>
                       </div>
                       <div>
-                        <div className="text-[10px] uppercase tracking-wide text-slate-400 font-medium">Права</div>
+                        <div className="text-[10px] uppercase tracking-wide text-slate-400 font-medium">{t('drv.license')}</div>
                         <div className="text-xs sm:text-sm font-semibold text-slate-800 tabular-nums">
-                          {driver.license_expiry ? new Date(driver.license_expiry).toLocaleDateString('ru-RU') : '—'}
+                          {formatDate(driver.license_expiry, locale)}
                         </div>
                       </div>
                       <div>
-                        <div className="text-[10px] uppercase tracking-wide text-slate-400 font-medium">Рейсов</div>
+                        <div className="text-[10px] uppercase tracking-wide text-slate-400 font-medium">{t('drv.trips')}</div>
                         <div className={`text-xs sm:text-sm font-bold tabular-nums ${tripsCount > 0 ? 'text-brand-600' : 'text-slate-400'}`}>
                           {tripsCount > 0 ? tripsCount : '—'}
                         </div>

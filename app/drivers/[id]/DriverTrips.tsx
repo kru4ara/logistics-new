@@ -1,7 +1,9 @@
 import Link from 'next/link';
 import { Route as RouteIcon } from 'lucide-react';
+import { getT } from '../../../lib/i18n/server';
+import { formatDate } from '../../../lib/i18n/format';
 
-export default function DriverTrips({
+export default async function DriverTrips({
   lastTrips,
   totalTrips,
   routeByTrip,
@@ -14,6 +16,7 @@ export default function DriverTrips({
   statusLabels: Record<string, string>;
   statusColors: Record<string, string>;
 }) {
+  const { t: tr, locale } = await getT();
   if (lastTrips.length === 0) return null;
 
   return (
@@ -21,11 +24,11 @@ export default function DriverTrips({
       <div className="flex items-baseline justify-between gap-2 mb-4 flex-wrap">
         <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
           <RouteIcon className="w-5 h-5 text-brand-600" strokeWidth={2} />
-          Последние рейсы
+          {tr('drvCard.lastTrips')}
         </h2>
         {totalTrips > 5 && (
           <span className="text-xs text-slate-400">
-            показано 5 из {totalTrips}
+            {tr('drvCard.shownOf', { n: totalTrips })}
           </span>
         )}
       </div>
@@ -53,7 +56,7 @@ export default function DriverTrips({
                     </span>
                     {dateStr && (
                       <span className="text-xs text-slate-500 tabular-nums">
-                        · {new Date(dateStr).toLocaleDateString('ru-RU')}
+                        · {formatDate(dateStr, locale)}
                       </span>
                     )}
                   </div>
@@ -71,7 +74,7 @@ export default function DriverTrips({
                   </div>
                   {t.actual_km && (
                     <div className="text-xs text-slate-400 tabular-nums">
-                      {Math.round(t.actual_km)} км
+                      {Math.round(t.actual_km)} {tr('units.km')}
                     </div>
                   )}
                 </div>

@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { syncReminders } from './reminder-actions';
 import { logAudit, diffFields } from '../lib/audit';
+import { getT } from '../lib/i18n/server';
 
 const TRACKED_FIELDS = [
   'first_name', 'last_name',
@@ -20,6 +21,7 @@ const TRACKED_FIELDS = [
 ] as const;
  
 export async function updateDriver(driverId: string, formData: FormData) {
+  const { t } = await getT();
   await requireOffice();
   const supabase = await createClient();
 
@@ -78,7 +80,7 @@ export async function updateDriver(driverId: string, formData: FormData) {
     .update(nextValues)
     .eq('id', driverId);
 
-  if (error) throw new Error(`Ошибка обновления: ${error.message}`);
+  if (error) throw new Error(t('tripErr.update', { msg: error.message }));
 
   // Обновляем напоминания
   await syncReminders('driver', driverId);
@@ -115,14 +117,15 @@ export async function updateDriver(driverId: string, formData: FormData) {
 export async function replaceDriverPassport(
   formData: FormData
 ): Promise<{ success: true } | { success: false; error: string }> {
+  const { t } = await getT();
   await requireOffice();
   const supabase = await createClient();
 
   const driverId = String(formData.get('driver_id') || '').trim();
   const file = formData.get('file') as File | null;
 
-  if (!driverId) return { success: false, error: 'Не передан ID водителя' };
-  if (!file || file.size === 0) return { success: false, error: 'Файл не выбран' };
+  if (!driverId) return { success: false, error: t('drvFin.noDriverId') };
+  if (!file || file.size === 0) return { success: false, error: t('drvFin.noFile') };
 
   // 1. Найти старые passport-документы (картинки)
   const { data: oldDocs } = await supabase
@@ -164,7 +167,7 @@ export async function replaceDriverPassport(
     });
 
   if (uploadErr) {
-    return { success: false, error: `Ошибка загрузки: ${uploadErr.message}` };
+    return { success: false, error: t('drvFin.uploadError', { msg: uploadErr.message }) };
   }
 
   // 4. Создать запись
@@ -182,7 +185,7 @@ export async function replaceDriverPassport(
 
   if (dbErr) {
     await supabase.storage.from('documents').remove([filePath]);
-    return { success: false, error: `Ошибка сохранения: ${dbErr.message}` };
+    return { success: false, error: t('drvFin.saveError', { msg: dbErr.message }) };
   }
 
   // Audit
