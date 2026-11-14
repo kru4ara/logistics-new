@@ -42,14 +42,15 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ### Правила
 
-1. **Проверка доступа — только через `can(role, 'right.capability')`.** Не сравнивать `role` со строкой в новом коде.
+1. **Проверка доступа — только через `can(role, 'right.capability')`.** Не сравнивать `role` со строкой. На странице: `const denied = deniedRedirect(role, 'clients.view'); if (denied) redirect(denied);`. Подпись роли — `roleLabel(role)`, «это водитель?» — `isDriverRole(role)`. Сторож — `lib/__tests__/roles-capabilities.test.ts` (исключения: `lib/roles.ts`, `lib/access-rules.ts`, `lib/driver-access.ts`, где роль — уже нормализованный тип).
 2. **Путь → право — только через `capabilityForRequest(pathname, method)`.** Учитывает метод: для записи может требоваться более строгое право, чем для чтения.
 3. **Новое право** — добавить в `CAPABILITIES` и выдать нужным ролям в `ROLE_CAPABILITIES`. Проверки в файлах не трогаем.
-4. **Новая роль** — завести в `ROLE_CAPABILITIES`. Роли `logistics`, `accountant`, `client` заведены, но правила доступа для них ещё не определены, поэтому профили их не получают.
-5. Страницы под `/trips` и `/routes` защищены централизованно через `proxy.ts` — дублировать проверки в самих страницах не нужно.
-6. `admin` и `manager` из старых профилей в БД работают как `office` (`ROLE_ALIASES`) — миграция базы не требуется.
-7. Не импортировать `admin.ts` в client components — Next заблокирует сборку, это намеренная защита.
-8. **Каждый server action проверяет доступ сам** (`requireCapability`, `requireOffice`, `requireTripAccess`…): `proxy.ts` проверяет путь страницы, а экшен — отдельный эндпоинт. Сторож — `lib/__tests__/server-actions-guard.test.ts`: падает на экшене без проверки. Публичные по смыслу — в его `PUBLIC_ACTIONS` с причиной.
+4. **Право ≠ раздел.** У водителя `reminders.view` — для своего `/driver/reminders`; общая `/reminders` требует `reminders.viewAll`. Страница, которая **не** применяет скоуп менеджера (`lib/scope.ts`), требует право `*.viewAll`, которого у менеджера нет (`reports.viewAll`).
+5. **Новая роль** — завести в `ROLE_CAPABILITIES`. Роли `logistics`, `accountant`, `client` заведены, но правила доступа для них ещё не определены, поэтому профили их не получают.
+6. Страницы под `/trips` и `/routes` защищены централизованно через `proxy.ts` — дублировать проверки в самих страницах не нужно.
+7. `admin` и `manager` из старых профилей в БД работают как `office` (`ROLE_ALIASES`) — миграция базы не требуется.
+8. Не импортировать `admin.ts` в client components — Next заблокирует сборку, это намеренная защита.
+9. **Каждый server action проверяет доступ сам** (`requireCapability`, `requireOffice`, `requireTripAccess`…): `proxy.ts` проверяет путь страницы, а экшен — отдельный эндпоинт. Сторож — `lib/__tests__/server-actions-guard.test.ts`: падает на экшене без проверки. Публичные по смыслу — в его `PUBLIC_ACTIONS` с причиной.
 
 ## Проверки доступа к рейсу и расходу
 
