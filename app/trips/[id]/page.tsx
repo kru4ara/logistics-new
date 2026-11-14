@@ -19,6 +19,7 @@ import {
   FolderOpen,
   PlusCircle,
 } from 'lucide-react';
+import { withSignedUrls } from '../../../lib/storage-urls';
 
 export const dynamic = 'force-dynamic';
  
@@ -87,11 +88,14 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
     .select('*')
     .eq('trip_id', tripId);
 
-  const { data: documents } = await supabase
+  const { data: documentRows } = await supabase
     .from('trip_documents')
     .select('*')
     .eq('trip_id', tripId)
     .order('uploaded_at', { ascending: false });
+  // Бакет закрытый: ссылки на файлы — временные, только для документов,
+  // которые этот пользователь уже смог прочитать (lib/storage-urls.ts).
+  const documents = await withSignedUrls(documentRows || []);
 
   const { data: contractors } = await supabase
     .from('contractors')

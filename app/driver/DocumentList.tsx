@@ -18,9 +18,9 @@ type Doc = {
   original_name: string | null;
   uploaded_at: string | null;
   expiry_date?: string | null;
+  /** Временная ссылка (lib/storage-urls.ts). Бакет закрытый — прямой адрес не откроется. */
+  url?: string | null;
 };
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 
 export default function DocumentList({
   documents,
@@ -76,9 +76,7 @@ export default function DocumentList({
       )}
 
       {documents.map((doc) => {
-        const fileUrl = doc.file_path
-          ? `${supabaseUrl}/storage/v1/object/public/documents/${doc.file_path}`
-          : null;
+        const fileUrl = doc.url ?? null;
 
         const isConfirming = confirmId === doc.id;
 

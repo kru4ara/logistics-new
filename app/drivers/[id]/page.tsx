@@ -18,6 +18,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { fetchAllByIds } from '../../../lib/fetch-all';
+import { signDocumentPaths } from '../../../lib/storage-urls';
 
 export const dynamic = 'force-dynamic';
 
@@ -77,8 +78,9 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
   const passportPhotoDoc = (documents || []).find(
     (d: any) => d.document_type === 'passport' && isImagePath(d.file_path || '')
   );
-  const passportPhotoUrl = passportPhotoDoc
-    ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/documents/${passportPhotoDoc.file_path}`
+  // Бакет закрытый — только временная ссылка (lib/storage-urls.ts).
+  const passportPhotoUrl = passportPhotoDoc?.file_path
+    ? (await signDocumentPaths([passportPhotoDoc.file_path]))[passportPhotoDoc.file_path] ?? null
     : null;
 
   const { data: currentTripRaw } = await supabase
