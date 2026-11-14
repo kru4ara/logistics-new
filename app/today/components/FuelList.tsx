@@ -1,5 +1,6 @@
 import { Fuel } from 'lucide-react';
 import { formatLiters } from '../../../lib/fuel';
+import { getT } from '../../../lib/i18n/server';
 
 export type FuelRow = {
   id: string;
@@ -11,7 +12,8 @@ export type FuelRow = {
 };
 
 /** Список тягачей с остатком топлива в баке. */
-export default function FuelList({ rows }: { rows: FuelRow[] }) {
+export default async function FuelList({ rows }: { rows: FuelRow[] }) {
+  const { t } = await getT();
   return (
     <div className="card divide-y divide-slate-100 overflow-hidden">
       {rows.map((r) => (
@@ -25,12 +27,12 @@ export default function FuelList({ rows }: { rows: FuelRow[] }) {
           <div className="text-right shrink-0">
             <div className="font-bold text-slate-900 tabular-nums">
               {r.liters != null
-                ? (r.isEstimate ? '~' : '') + formatLiters(r.liters) + ' л'
+                ? (r.isEstimate ? '~' : '') + formatLiters(r.liters) + t('today.liters')
                 : '—'}
             </div>
             {r.tripNumber && (
               <div className="text-[11px] text-slate-400 tabular-nums">
-                рейс №{r.tripNumber}
+                {t('trk.tripNo')}{r.tripNumber}
               </div>
             )}
           </div>

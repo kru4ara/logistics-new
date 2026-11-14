@@ -1,7 +1,9 @@
 import { Trophy, Truck, Package, TrendingUp, TrendingDown, Wallet, Briefcase } from 'lucide-react';
 import type { YearTotals } from '../../lib/statistics';
+import { getT } from '../../lib/i18n/server';
+import { tPlural } from '../../lib/i18n/translate';
 
-export default function StatisticsSummary({
+export default async function StatisticsSummary({
   year,
   yearTotals,
   avgMargin,
@@ -14,16 +16,17 @@ export default function StatisticsSummary({
   capexTotalForYear: number;
   capexCount: number;
 }) {
+  const { t, locale } = await getT();
   return (
     <div>
       <h2 className="text-xs md:text-sm font-bold text-slate-500 uppercase tracking-wide mb-3 flex items-center gap-2">
         <Trophy className="w-4 h-4 text-brand-600" strokeWidth={2.2} />
-        Итоги {year} года
+        {t('stat.summaryFor', { year })}
       </h2>
       <div className="grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-5">
         <div className="card p-4 md:p-5">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs md:text-sm font-medium text-slate-500">Сделок</span>
+            <span className="text-xs md:text-sm font-medium text-slate-500">{t('stat.deals')}</span>
             <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-brand-50 flex items-center justify-center">
               <Truck className="w-4 h-4 md:w-5 md:h-5 text-brand-600" strokeWidth={2.2} />
             </div>
@@ -46,7 +49,7 @@ export default function StatisticsSummary({
 
         <div className="card p-4 md:p-5">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs md:text-sm font-medium text-slate-500">Доход</span>
+            <span className="text-xs md:text-sm font-medium text-slate-500">{t('stat.income')}</span>
             <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-green-50 flex items-center justify-center">
               <TrendingUp className="w-4 h-4 md:w-5 md:h-5 text-green-600" strokeWidth={2.2} />
             </div>
@@ -55,13 +58,13 @@ export default function StatisticsSummary({
             {yearTotals.totalIncome.toFixed(0)} €
           </div>
           <div className="text-[10px] md:text-xs text-slate-400 mt-1 break-words">
-            Выручка: {yearTotals.tripRevenue.toFixed(0)}
+            {t('stat.revenue', { n: yearTotals.tripRevenue.toFixed(0) })}
           </div>
         </div>
 
         <div className="card p-4 md:p-5">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs md:text-sm font-medium text-slate-500">Опер. расходы</span>
+            <span className="text-xs md:text-sm font-medium text-slate-500">{t('stat.opex')}</span>
             <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-red-50 flex items-center justify-center">
               <TrendingDown className="w-4 h-4 md:w-5 md:h-5 text-red-500" strokeWidth={2.2} />
             </div>
@@ -70,13 +73,13 @@ export default function StatisticsSummary({
             {yearTotals.totalExpenses.toFixed(0)} €
           </div>
           <div className="text-[10px] md:text-xs text-slate-400 mt-1 break-words">
-            Расходы: {(yearTotals.directExpenses + yearTotals.fixedExpenses + yearTotals.forwardingContractorSum + yearTotals.forwardingExtraExpenses).toFixed(0)}
+            {t('stat.expensesN', { n: (yearTotals.directExpenses + yearTotals.fixedExpenses + yearTotals.forwardingContractorSum + yearTotals.forwardingExtraExpenses).toFixed(0) })}
           </div>
         </div>
 
         <div className="card p-4 md:p-5">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs md:text-sm font-medium text-slate-500">Прибыль P&L</span>
+            <span className="text-xs md:text-sm font-medium text-slate-500">{t('stat.plProfit')}</span>
             <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-emerald-50 flex items-center justify-center">
               <Wallet className="w-4 h-4 md:w-5 md:h-5 text-emerald-600" strokeWidth={2.2} />
             </div>
@@ -85,13 +88,13 @@ export default function StatisticsSummary({
             {yearTotals.profit.toFixed(0)} €
           </div>
           <div className="text-[10px] md:text-xs text-slate-400 mt-1">
-            Маржа: <b className={avgMargin >= 0 ? 'text-emerald-600' : 'text-red-500'}>{avgMargin.toFixed(1)}%</b>
+            {t('stat.marginLbl')}{' '}<b className={avgMargin >= 0 ? 'text-emerald-600' : 'text-red-500'}>{avgMargin.toFixed(1)}%</b>
           </div>
         </div>
 
         <div className="card border-amber-200 p-4 md:p-5 col-span-2 lg:col-span-1">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs md:text-sm font-medium text-amber-700">Инвестиции</span>
+            <span className="text-xs md:text-sm font-medium text-amber-700">{t('stat.capex')}</span>
             <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-amber-50 flex items-center justify-center">
               <Briefcase className="w-4 h-4 md:w-5 md:h-5 text-amber-600" strokeWidth={2.2} />
             </div>
@@ -100,7 +103,7 @@ export default function StatisticsSummary({
             {capexTotalForYear > 0 ? `${capexTotalForYear.toFixed(0)} €` : '—'}
           </div>
           <div className="text-[10px] md:text-xs text-amber-600/70 mt-1">
-            вне P&L · {capexCount} {capexCount === 1 ? 'операция' : 'операций'}
+            {t('fc.outsidePl', { ops: tPlural(t, locale, 'count2.op', capexCount) })}
           </div>
         </div>
       </div>

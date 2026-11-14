@@ -1,7 +1,8 @@
 import { Calendar, Truck, Package, Briefcase } from 'lucide-react';
 import type { MonthData, YearTotals } from '../../lib/statistics';
+import { getT } from '../../lib/i18n/server';
 
-export default function StatisticsTable({
+export default async function StatisticsTable({
   year,
   months,
   yearTotals,
@@ -16,11 +17,12 @@ export default function StatisticsTable({
   avgMargin: number;
   capexTotalForYear: number;
 }) {
+  const { t } = await getT();
   return (
     <div>
       <h2 className="text-xs md:text-sm font-bold text-slate-500 uppercase tracking-wide mb-3 flex items-center gap-2">
         <Calendar className="w-4 h-4 text-brand-600" strokeWidth={2.2} />
-        По месяцам (операционная деятельность)
+        {t('stat.byMonth')}
       </h2>
 
       {/* Mobile: карточки */}
@@ -43,7 +45,7 @@ export default function StatisticsTable({
                 </span>
                 {isCurrentMonth && (
                   <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-brand-600 text-white">
-                    ТЕКУЩИЙ
+                    {t('stat.current')}
                   </span>
                 )}
               </div>
@@ -52,12 +54,12 @@ export default function StatisticsTable({
                 <div className="flex justify-between items-center gap-2">
                   <span className="text-slate-500 inline-flex items-center gap-1">
                     <Truck className="w-3 h-3" strokeWidth={2} />
-                    Рейсов
+                    {t('drv.trips')}
                   </span>
                   <span className="font-semibold text-slate-700 tabular-nums">{m.tripsCount || '—'}</span>
                 </div>
                 <div className="flex justify-between items-center gap-2">
-                  <span className="text-slate-500">Фрахт</span>
+                  <span className="text-slate-500">{t('trips.freight')}</span>
                   <span className="font-semibold text-green-600 break-words text-right tabular-nums">
                     {m.tripRevenue > 0 ? `${m.tripRevenue.toFixed(0)} €` : '—'}
                   </span>
@@ -65,18 +67,18 @@ export default function StatisticsTable({
                 <div className="flex justify-between items-center gap-2">
                   <span className="text-slate-500 inline-flex items-center gap-1">
                     <Package className="w-3 h-3" strokeWidth={2} />
-                    Эксп.
+                    {t('trips.kindForwardingShort')}
                   </span>
                   <span className="font-semibold text-slate-700 tabular-nums">{m.forwardingCount || '—'}</span>
                 </div>
                 <div className="flex justify-between items-center gap-2">
-                  <span className="text-slate-500">Доход эксп.</span>
+                  <span className="text-slate-500">{t('stat.fwdIncome')}</span>
                   <span className="font-semibold text-green-600 break-words text-right tabular-nums">
                     {m.forwardingClientSum > 0 ? `${m.forwardingClientSum.toFixed(0)} €` : '—'}
                   </span>
                 </div>
                 <div className="flex justify-between items-center gap-2">
-                  <span className="text-slate-500">Маржа эксп.</span>
+                  <span className="text-slate-500">{t('stat.fwdMargin')}</span>
                   <span className="font-semibold text-emerald-600 break-words text-right tabular-nums">
                     {m.forwardingMargin !== 0 ? `${m.forwardingMargin.toFixed(0)} €` : '—'}
                   </span>
@@ -85,19 +87,19 @@ export default function StatisticsTable({
 
               <div className="pt-3 border-t border-slate-100 space-y-1.5 text-xs">
                 <div className="flex justify-between items-center gap-2">
-                  <span className="text-slate-500">Прямые / Общие</span>
+                  <span className="text-slate-500">{t('stat.directFixed')}</span>
                   <span className="font-medium text-slate-600 break-words text-right tabular-nums">
                     {m.directExpenses.toFixed(0)} / {m.fixedExpenses.toFixed(0)} €
                   </span>
                 </div>
                 <div className="flex justify-between items-center gap-2">
-                  <span className="text-slate-500">Всего расходов</span>
+                  <span className="text-slate-500">{t('stat.totalExp')}</span>
                   <span className="font-semibold text-red-500 break-words text-right tabular-nums">
                     {m.totalExpenses > 0 ? `${m.totalExpenses.toFixed(0)} €` : '—'}
                   </span>
                 </div>
                 <div className="flex justify-between items-center gap-2 pt-2 border-t border-slate-100">
-                  <span className="font-semibold text-slate-800">Прибыль</span>
+                  <span className="font-semibold text-slate-800">{t('trips.profit')}</span>
                   <span className={`font-bold text-base break-words text-right tabular-nums ${
                     isFuture ? 'text-slate-400' :
                     m.profit > 0 ? 'text-emerald-600' :
@@ -107,7 +109,7 @@ export default function StatisticsTable({
                   </span>
                 </div>
                 <div className="flex justify-between items-center gap-2">
-                  <span className="text-slate-500">Маржа</span>
+                  <span className="text-slate-500">{t('stat.marginC')}</span>
                   <span className={`font-semibold text-right tabular-nums ${
                     isFuture ? 'text-slate-400' :
                     m.margin > 0 ? 'text-emerald-600' :
@@ -122,46 +124,46 @@ export default function StatisticsTable({
         })}
 
         <div className="bg-slate-100 rounded-2xl border-2 border-slate-200 p-4">
-          <div className="font-bold text-slate-900 mb-3">ИТОГО за {year}</div>
+          <div className="font-bold text-slate-900 mb-3">{t('stat.totalFor', { year })}</div>
           <div className="space-y-1.5 text-xs">
             <div className="flex justify-between items-center gap-2">
               <span className="text-slate-600 inline-flex items-center gap-1">
                 <Truck className="w-3 h-3" strokeWidth={2} />
-                Рейсов
+                {t('drv.trips')}
               </span>
               <span className="font-bold text-slate-900 tabular-nums">{yearTotals.tripsCount}</span>
             </div>
             <div className="flex justify-between items-center gap-2">
-              <span className="text-slate-600">Фрахт</span>
+              <span className="text-slate-600">{t('trips.freight')}</span>
               <span className="font-bold text-green-600 break-words text-right tabular-nums">{yearTotals.tripRevenue.toFixed(0)} €</span>
             </div>
             <div className="flex justify-between items-center gap-2">
               <span className="text-slate-600 inline-flex items-center gap-1">
                 <Package className="w-3 h-3" strokeWidth={2} />
-                Эксп.
+                {t('trips.kindForwardingShort')}
               </span>
               <span className="font-bold text-slate-900 tabular-nums">{yearTotals.forwardingCount}</span>
             </div>
             <div className="flex justify-between items-center gap-2">
-              <span className="text-slate-600">Доход эксп.</span>
+              <span className="text-slate-600">{t('stat.fwdIncome')}</span>
               <span className="font-bold text-green-600 break-words text-right tabular-nums">{yearTotals.forwardingClientSum.toFixed(0)} €</span>
             </div>
             <div className="flex justify-between items-center gap-2">
-              <span className="text-slate-600">Маржа эксп.</span>
+              <span className="text-slate-600">{t('stat.fwdMargin')}</span>
               <span className="font-bold text-emerald-600 break-words text-right tabular-nums">{yearTotals.forwardingMargin.toFixed(0)} €</span>
             </div>
             <div className="flex justify-between items-center gap-2">
-              <span className="text-slate-600">Всего расходов</span>
+              <span className="text-slate-600">{t('stat.totalExp')}</span>
               <span className="font-bold text-red-500 break-words text-right tabular-nums">{yearTotals.totalExpenses.toFixed(0)} €</span>
             </div>
             <div className="flex justify-between items-center gap-2 pt-2 border-t border-slate-300">
-              <span className="font-bold text-slate-800">Прибыль</span>
+              <span className="font-bold text-slate-800">{t('trips.profit')}</span>
               <span className={`font-bold text-lg break-words text-right tabular-nums ${yearTotals.profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                 {yearTotals.profit.toFixed(0)} €
               </span>
             </div>
             <div className="flex justify-between items-center gap-2">
-              <span className="text-slate-600">Маржа</span>
+              <span className="text-slate-600">{t('stat.marginC')}</span>
               <span className={`font-bold text-right tabular-nums ${avgMargin >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                 {avgMargin.toFixed(1)}%
               </span>
@@ -170,7 +172,7 @@ export default function StatisticsTable({
               <div className="flex justify-between items-center gap-2 pt-2 border-t border-slate-300">
                 <span className="text-slate-500 text-[10px] uppercase inline-flex items-center gap-1">
                   <Briefcase className="w-3 h-3" strokeWidth={2} />
-                  Инвестиции (вне P&L)
+                  {t('stat.capexPl')}
                 </span>
                 <span className="font-bold text-amber-600 break-words text-right tabular-nums">
                   {capexTotalForYear.toFixed(0)} €
@@ -187,17 +189,17 @@ export default function StatisticsTable({
           <table className="w-full min-w-[1300px]">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50/50">
-                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Месяц</th>
-                <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Рейсов</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Фрахт</th>
-                <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Эксп.</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Доход эксп.</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Маржа эксп.</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Прямые</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Общие</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Всего расходов</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Прибыль</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Маржа</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('stat.month')}</th>
+                <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('drv.trips')}</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('trips.freight')}</th>
+                <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('trips.kindForwardingShort')}</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('stat.fwdIncome')}</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('stat.fwdMargin')}</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('stat.direct')}</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('stat.fixed')}</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('stat.totalExp')}</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('trips.profit')}</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('stat.marginC')}</th>
               </tr>
             </thead>
             <tbody>
@@ -221,7 +223,7 @@ export default function StatisticsTable({
                         </span>
                         {isCurrentMonth && (
                           <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-brand-600 text-white">
-                            ТЕКУЩИЙ
+                            {t('stat.current')}
                           </span>
                         )}
                       </div>
@@ -270,7 +272,7 @@ export default function StatisticsTable({
             </tbody>
             <tfoot>
               <tr className="bg-slate-100 border-t-2 border-slate-200">
-                <td className="px-4 py-4 font-bold text-slate-900">ИТОГО за {year}</td>
+                <td className="px-4 py-4 font-bold text-slate-900">{t('stat.totalFor', { year })}</td>
                 <td className="px-4 py-4 text-center font-bold text-slate-900 tabular-nums">{yearTotals.tripsCount}</td>
                 <td className="px-4 py-4 text-right font-bold text-green-600 tabular-nums">{yearTotals.tripRevenue.toFixed(0)} €</td>
                 <td className="px-4 py-4 text-center font-bold text-slate-900 tabular-nums">{yearTotals.forwardingCount}</td>
@@ -290,7 +292,7 @@ export default function StatisticsTable({
                 <tr className="bg-amber-50/50 border-t border-amber-200">
                   <td colSpan={9} className="px-4 py-3 text-right font-semibold text-amber-700 text-sm inline-flex items-center justify-end gap-1.5 w-full">
                     <Briefcase className="w-3.5 h-3.5" strokeWidth={2} />
-                    Инвестиции за год (вне P&L):
+                    {t('stat.capexYear')}
                   </td>
                   <td colSpan={2} className="px-4 py-3 text-right font-bold text-amber-600 text-base tabular-nums">
                     {capexTotalForYear.toFixed(0)} €

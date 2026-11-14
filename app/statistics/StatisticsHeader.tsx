@@ -1,21 +1,23 @@
 import { BarChart3 } from 'lucide-react';
+import { getT } from '../../lib/i18n/server';
 
-export default function StatisticsHeader({
+export default async function StatisticsHeader({
   year,
   years,
 }: {
   year: number;
   years: number[];
 }) {
+  const { t } = await getT();
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-between sm:items-center">
       <div>
         <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2.5 tracking-tight">
           <BarChart3 className="w-6 h-6 md:w-7 md:h-7 text-brand-600" strokeWidth={2.2} />
-          Статистика
+          {t('nav.statistics')}
         </h1>
         <p className="text-slate-500 mt-1 text-sm md:text-base">
-          Заказы за {year} год
+          {t('stat.ordersFor', { year })}
         </p>
       </div>
       <div className="flex flex-wrap gap-2">

@@ -22,6 +22,8 @@ import {
 } from 'lucide-react';
 import { fetchAll, fetchAllByIds } from '../../lib/fetch-all';
 import { deniedRedirect } from '../../lib/roles';
+import { getT } from '../../lib/i18n/server';
+import type { MessageKey } from '../../lib/i18n/translate';
 
 export const dynamic = 'force-dynamic';
 
@@ -45,47 +47,47 @@ type QuickLink = {
 const QUICK_LINKS: QuickLink[] = [
   {
     href: '/reports/profitability',
-    title: 'Прибыльность',
-    hint: 'Кто из клиентов и какая техника приносят деньги',
+    title: 'rep.qProfit',
+    hint: 'rep.qProfitHint',
     Icon: BarChart3,
     gradient: 'from-brand-600 to-brand-800',
   },
   {
   href: '/reports/cargo',
-  title: 'Фрахт по грузам',
-  hint: 'Прибыльность каждого груза с распределением расходов',
+  title: 'rep.qCargo',
+  hint: 'rep.qCargoHint',
   Icon: Package,
   gradient: 'from-blue-600 to-blue-800',
   },
   {
     href: '/reports/logisat',
-    title: 'Ошибки Logisat',
-    hint: 'Проблемы синхронизации: нет данных, сломан одометр или датчик топлива',
+    title: 'rep.qLogisat',
+    hint: 'rep.qLogisatHint',
     Icon: RadioTower,
     gradient: 'from-orange-500 to-orange-700',
   },
   {
     href: '/reports/excel',
-    title: 'Экспорт в Excel',
-    hint: 'Заказы · Расходы · Экспедирование · Прибыльность клиентов',
+    title: 'rep.qExcel',
+    hint: 'rep.qExcelHint',
     Icon: Download,
     gradient: 'from-emerald-600 to-emerald-800',
   },
   {
     href: '/reports/contractors',
-    title: 'Подрядчики',
-    hint: 'Сколько кому заплатили: заказы + экспедирование',
+    title: 'rep.qContractors',
+    hint: 'rep.qContractorsHint',
     Icon: Truck,
     gradient: 'from-violet-600 to-violet-800',
   },
 ];
 
 const STATUS_OPTIONS = [
-  { value: 'money', label: 'Оплаченные + выставленные' },
-  { value: 'completed', label: 'Завершённые + деньги' },
-  { value: 'active', label: 'В пути' },
-  { value: 'planned', label: 'Планируются' },
-  { value: 'all', label: 'Все' },
+  { value: 'money', label: 'rep.stMoney' },
+  { value: 'completed', label: 'rep.stCompleted' },
+  { value: 'active', label: 'rep.stActive' },
+  { value: 'planned', label: 'rep.stPlanned' },
+  { value: 'all', label: 'rep.stAll' },
 ];
 
 const STATUS_MAP: Record<string, string[]> = {
@@ -101,6 +103,7 @@ export default async function ReportsPage({
 }: {
   searchParams: Promise<{ from?: string; to?: string; status?: string; client?: string }>;
 }) {
+  const { t: tr } = await getT();
   const { role } = await getSessionContext();
   const denied = deniedRedirect(role, 'reports.view');
   if (denied) redirect(denied);
@@ -135,7 +138,7 @@ export default async function ReportsPage({
   const { data: trips, error: tripsError } = await fetchAll(tripsQuery);
 
   if (tripsError) {
-    return <div className="p-8 text-red-500">Ошибка загрузки: {tripsError.message}</div>;
+    return <div className="p-8 text-red-500">{tr('dir.loadError')}{' '}{tripsError.message}</div>;
   }
 
   // 2. Сегменты для маршрута
@@ -162,7 +165,7 @@ export default async function ReportsPage({
       .select('trip_id, amount_eur')
       .in('trip_id', chunk));
     if (error) {
-      return <div className="p-8 text-red-500">Ошибка загрузки: {error.message}</div>;
+      return <div className="p-8 text-red-500">{tr('dir.loadError')}{' '}{error.message}</div>;
     }
     expenses = data || [];
   }
@@ -183,7 +186,7 @@ export default async function ReportsPage({
   const reportRows: ReportRow[] = (trips || []).map((trip) => ({
     id: trip.id,
     trip_number: trip.trip_number ?? null,
-    clientName: pickName(trip.clients) || 'Не указан',
+    clientName: pickName(trip.clients) || tr('trips.clientUnknown'),
     route: routeByTrip.get(trip.id)?.route || '—',
     status: trip.status,
     revenue_eur: trip.revenue_eur || 0,
@@ -197,11 +200,11 @@ export default async function ReportsPage({
     .order('name');
 
   const statusLabels: Record<string, string> = {
-    planned: 'Планируется',
-    active: 'В пути',
-    completed: 'Завершён',
-    invoiced: 'Выставлен счёт',
-    paid: 'Оплачен',
+    planned: tr('status.planned'),
+    active: tr('rep.stActive'),
+    completed: tr('status.completed'),
+    invoiced: tr('status.invoiced'),
+    paid: tr('status.paid'),
   };
 
   const statusColors: Record<string, string> = {
@@ -223,10 +226,10 @@ export default async function ReportsPage({
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2.5 tracking-tight">
               <Coins className="w-6 h-6 md:w-7 md:h-7 text-brand-600" strokeWidth={2.2} />
-              Отчёт о прибыли
+              {tr('rep.profitTitle')}
             </h1>
             <p className="text-slate-500 mt-1 text-sm md:text-base">
-              Полная финансовая сводка по всем заказам
+              {tr('rep.profitHint')}
             </p>
           </div>
           <DownloadButton data={reportRows} />
@@ -234,7 +237,7 @@ export default async function ReportsPage({
 
         {/* Быстрые ссылки */}
         <div className="grid gap-3 md:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-          {QUICK_LINKS.map(({ href, title, hint, Icon, gradient }) => (
+          {QUICK_LINKS.map(({ href, title: titleKey, hint: hintKey, Icon, gradient }) => { const title = tr(titleKey as MessageKey); const hint = tr(hintKey as MessageKey); return (
             <Link
               key={href}
               href={href}
@@ -253,23 +256,23 @@ export default async function ReportsPage({
                 </div>
               </div>
             </Link>
-          ))}
+          ); })}
         </div>
 
         {/* Фильтры */}
         <form className="card p-4 md:p-5" method="GET">
           <div className="flex items-center gap-2 mb-3">
             <Filter className="w-4 h-4 text-slate-500" strokeWidth={2.2} />
-            <span className="text-sm font-semibold text-slate-700">Фильтры</span>
+            <span className="text-sm font-semibold text-slate-700">{tr('rep.filters')}</span>
             {hasFilters && (
               <span className="text-xs text-brand-600 bg-brand-50 px-2 py-0.5 rounded-full font-medium">
-                Активны
+                {tr('rep.active')}
               </span>
             )}
           </div>
           <div className="grid gap-3 grid-cols-2 md:grid-cols-4 items-end">
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">С даты</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1">{tr('rep.dateFrom')}</label>
               <input
                 type="date"
                 name="from"
@@ -278,7 +281,7 @@ export default async function ReportsPage({
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">По дату</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1">{tr('rep.dateTo')}</label>
               <input
                 type="date"
                 name="to"
@@ -287,17 +290,17 @@ export default async function ReportsPage({
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Статус</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1">{tr('trips.status')}</label>
               <select name="status" defaultValue={statusKey} className="input">
                 {STATUS_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  <option key={opt.value} value={opt.value}>{tr(opt.label as MessageKey)}</option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Клиент</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1">{tr('trips.filterClient')}</label>
               <select name="client" defaultValue={clientId} className="input">
-                <option value="">— Все клиенты —</option>
+                <option value="">{tr('rep.allClients')}</option>
                 {(clientsList || []).map((c) => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
@@ -309,14 +312,14 @@ export default async function ReportsPage({
               type="submit"
               className="flex-1 md:flex-none md:px-6 bg-brand-600 hover:bg-brand-700 text-white font-semibold py-2.5 rounded-lg transition-all active:scale-[0.98]"
             >
-              Показать
+              {tr('rep.show')}
             </button>
             {hasFilters && (
               <Link
                 href="/reports"
                 className="px-4 py-2.5 rounded-lg border border-slate-300 text-slate-700 font-medium hover:bg-slate-100 transition-all whitespace-nowrap"
               >
-                Сброс
+                {tr('rep.reset')}
               </Link>
             )}
           </div>
@@ -326,7 +329,7 @@ export default async function ReportsPage({
         <div className="grid gap-3 md:gap-5 grid-cols-2 md:grid-cols-3">
           <div className="card p-4 md:p-6">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-xs md:text-sm font-medium text-slate-500">Общий фрахт</span>
+              <span className="text-xs md:text-sm font-medium text-slate-500">{tr('drvCard.totalFreight')}</span>
               <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-green-50 flex items-center justify-center">
                 <TrendingUp className="w-4 h-4 md:w-5 md:h-5 text-green-600" strokeWidth={2.2} />
               </div>
@@ -338,7 +341,7 @@ export default async function ReportsPage({
 
           <div className="card p-4 md:p-6">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-xs md:text-sm font-medium text-slate-500">Расходы</span>
+              <span className="text-xs md:text-sm font-medium text-slate-500">{tr('trips.expenses')}</span>
               <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-red-50 flex items-center justify-center">
                 <TrendingDown className="w-4 h-4 md:w-5 md:h-5 text-red-500" strokeWidth={2.2} />
               </div>
@@ -350,7 +353,7 @@ export default async function ReportsPage({
 
           <div className="card p-4 md:p-6 col-span-2 md:col-span-1">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-xs md:text-sm font-medium text-slate-500">Чистая прибыль</span>
+              <span className="text-xs md:text-sm font-medium text-slate-500">{tr('rep.netProfit')}</span>
               <div className={`w-8 h-8 md:w-10 md:h-10 rounded-xl flex items-center justify-center
                 ${profit >= 0 ? 'bg-emerald-50' : 'bg-red-50'}`}>
                 <Wallet className={`w-4 h-4 md:w-5 md:h-5 ${profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`} strokeWidth={2.2} />
@@ -366,10 +369,10 @@ export default async function ReportsPage({
         <div className="card overflow-hidden">
           <div className="p-4 md:p-6 border-b border-slate-100 flex items-center justify-between gap-3">
             <h2 className="text-base md:text-lg font-bold text-slate-900">
-              Детализация по заказам
+              {tr('rep.details')}
             </h2>
             <span className="text-xs md:text-sm text-slate-500">
-              Найдено: <b className="text-slate-700">{reportRows.length}</b>
+              {tr('trips.found')}{' '}<b className="text-slate-700">{reportRows.length}</b>
             </span>
           </div>
 
@@ -378,10 +381,10 @@ export default async function ReportsPage({
               <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-brand-50 flex items-center justify-center">
                 <Inbox className="w-8 h-8 text-brand-500" strokeWidth={1.5} />
               </div>
-              <p className="text-slate-500 text-sm">Нет заказов по выбранным фильтрам</p>
+              <p className="text-slate-500 text-sm">{tr('rep.noOrders')}</p>
               {hasFilters && (
                 <Link href="/reports" className="text-brand-600 text-sm font-medium mt-3 inline-block hover:underline">
-                  Сбросить фильтры
+                  {tr('trips.resetFilters')}
                 </Link>
               )}
             </div>
@@ -400,7 +403,7 @@ export default async function ReportsPage({
                       <div className="flex items-start justify-between gap-2 mb-2">
                         <div className="min-w-0">
                           <div className="text-xs text-slate-400 font-medium tabular-nums">
-                            Заказ № {trip.trip_number || '—'}
+                            {tr('rep.orderNo')}{' '}{trip.trip_number || '—'}
                           </div>
                           <div className="font-semibold text-slate-800 break-words">
                             {trip.clientName}
@@ -420,19 +423,19 @@ export default async function ReportsPage({
 
                       <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100">
                         <div>
-                          <div className="text-[10px] uppercase text-slate-400 font-medium">Фрахт</div>
+                          <div className="text-[10px] uppercase text-slate-400 font-medium">{tr('trips.freight')}</div>
                           <div className="text-sm font-bold text-green-600 break-words tabular-nums">
                             {trip.revenue_eur.toFixed(0)} €
                           </div>
                         </div>
                         <div>
-                          <div className="text-[10px] uppercase text-slate-400 font-medium">Расходы</div>
+                          <div className="text-[10px] uppercase text-slate-400 font-medium">{tr('trips.expenses')}</div>
                           <div className="text-sm font-bold text-red-500 break-words tabular-nums">
                             {trip.expenses.toFixed(0)} €
                           </div>
                         </div>
                         <div>
-                          <div className="text-[10px] uppercase text-slate-400 font-medium">Прибыль</div>
+                          <div className="text-[10px] uppercase text-slate-400 font-medium">{tr('trips.profit')}</div>
                           <div className={`text-sm font-bold break-words tabular-nums ${tripProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                             {tripProfit.toFixed(0)} €
                           </div>
@@ -444,18 +447,18 @@ export default async function ReportsPage({
 
                 {/* Итог мобильный */}
                 <div className="p-4 bg-slate-100 border-t-2 border-slate-200">
-                  <div className="font-bold text-slate-900 mb-3">ИТОГО</div>
+                  <div className="font-bold text-slate-900 mb-3">{tr('trips.excelTotal')}</div>
                   <div className="grid grid-cols-3 gap-2 text-xs">
                     <div>
-                      <div className="text-[10px] uppercase text-slate-500 font-medium">Фрахт</div>
+                      <div className="text-[10px] uppercase text-slate-500 font-medium">{tr('trips.freight')}</div>
                       <div className="text-base font-bold text-green-600 break-words tabular-nums">{totalRevenue.toFixed(0)} €</div>
                     </div>
                     <div>
-                      <div className="text-[10px] uppercase text-slate-500 font-medium">Расходы</div>
+                      <div className="text-[10px] uppercase text-slate-500 font-medium">{tr('trips.expenses')}</div>
                       <div className="text-base font-bold text-red-500 break-words tabular-nums">{totalExpenses.toFixed(0)} €</div>
                     </div>
                     <div>
-                      <div className="text-[10px] uppercase text-slate-500 font-medium">Прибыль</div>
+                      <div className="text-[10px] uppercase text-slate-500 font-medium">{tr('trips.profit')}</div>
                       <div className={`text-base font-bold break-words tabular-nums ${profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                         {profit.toFixed(0)} €
                       </div>
@@ -470,12 +473,12 @@ export default async function ReportsPage({
                   <thead>
                     <tr className="border-b border-slate-100 bg-slate-50/50">
                       <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">№</th>
-                      <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Клиент</th>
-                      <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Маршрут</th>
-                      <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Статус</th>
-                      <th className="text-right px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Фрахт</th>
-                      <th className="text-right px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Расходы</th>
-                      <th className="text-right px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Прибыль</th>
+                      <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{tr('trips.filterClient')}</th>
+                      <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{tr('trips.colRoute')}</th>
+                      <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{tr('trips.status')}</th>
+                      <th className="text-right px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{tr('trips.freight')}</th>
+                      <th className="text-right px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{tr('trips.expenses')}</th>
+                      <th className="text-right px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{tr('trips.profit')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -515,7 +518,7 @@ export default async function ReportsPage({
                   <tfoot>
                     <tr className="bg-slate-50 border-t-2 border-slate-200">
                       <td colSpan={4} className="px-6 py-4 font-bold text-slate-900">
-                        ИТОГО
+                        {tr('trips.excelTotal')}
                       </td>
                       <td className="px-6 py-4 text-right font-bold text-green-600 tabular-nums">
                         {totalRevenue.toFixed(2)} €

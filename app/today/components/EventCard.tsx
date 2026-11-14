@@ -1,9 +1,12 @@
 import Link from 'next/link';
 import { MapPin, Flag, Truck, UserCircle } from 'lucide-react';
-import { statusColors, statusLabels, type EventItem } from '../lib/events';
+import { statusColors, type EventItem } from '../lib/events';
+import { getT } from '../../../lib/i18n/server';
+import { tripStatusKey } from '../../../lib/i18n/labels';
 
 /** Карточка события загрузки/выгрузки. */
-export default function EventCard({ e, accent }: { e: EventItem; accent: 'load' | 'unload' }) {
+export default async function EventCard({ e, accent }: { e: EventItem; accent: 'load' | 'unload' }) {
+  const { t } = await getT();
   const accentBorder = accent === 'load' ? 'border-l-green-500' : 'border-l-red-500';
   const accentBg = accent === 'load' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700';
   const Icon = accent === 'load' ? MapPin : Flag;
@@ -21,13 +24,13 @@ export default function EventCard({ e, accent }: { e: EventItem; accent: 'load' 
               {e.pointLabel}
             </span>
             <span className="text-xs text-slate-400 font-medium tabular-nums">
-              Рейс {e.tripNumber}
+              {t('trips.kindTrip')}{' '}{e.tripNumber}
             </span>
           </div>
           {e.tripStatus && (
             <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold border whitespace-nowrap
                               ${statusColors[e.tripStatus] || 'bg-slate-100 text-slate-700 border-slate-200'}`}>
-              {statusLabels[e.tripStatus] || e.tripStatus}
+              {(tripStatusKey(e.tripStatus) ? t(tripStatusKey(e.tripStatus)!) : e.tripStatus)}
             </span>
           )}
         </div>

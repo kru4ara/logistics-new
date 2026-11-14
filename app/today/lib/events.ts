@@ -16,13 +16,6 @@ export type EventItem = {
   tripStatus?: string | null;
 };
 
-export const statusLabels: Record<string, string> = {
-  planned: 'Планируется',
-  active: 'В пути',
-  completed: 'Завершён',
-  invoiced: 'Выставлен счёт',
-  paid: 'Оплачен',
-};
 
 export const statusColors: Record<string, string> = {
   planned: 'bg-slate-100 text-slate-700 border-slate-200',

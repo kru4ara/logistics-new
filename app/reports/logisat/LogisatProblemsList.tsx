@@ -17,6 +17,11 @@ import {
   RadioTower,
   type LucideIcon,
 } from 'lucide-react';
+import { useT } from '../../components/I18nProvider';
+import { tripStatusKey } from '../../../lib/i18n/labels';
+import type { MessageKey } from '../../../lib/i18n/translate';
+import { tPlural } from '../../../lib/i18n/translate';
+import { INTL_LOCALE, type Locale } from '../../../lib/i18n/config';
 
 export type TripRow = {
   id: string;
@@ -43,56 +48,49 @@ const VARIANT_META: Record<Variant, {
   cardHint: string;
 }> = {
   'active-never': {
-    title: 'Активные — синк не выполнялся',
+    title: 'rep.lsActiveNever',
     Icon: AlertTriangle,
     iconColor: 'text-red-500',
     badgeColor: 'bg-red-100 text-red-700',
-    emptyText: 'Все активные рейсы синхронизированы',
-    cardHint: 'Активный рейс без единого синка — жми «Синкать все» или открой и нажми «Logisat»',
+    emptyText: 'rep.lsActiveNeverE',
+    cardHint: 'rep.lsActiveNeverH',
   },
   'archive-never': {
-    title: 'Архив — синк не выполнялся',
+    title: 'rep.lsArchNever',
     Icon: XCircle,
     iconColor: 'text-slate-400',
     badgeColor: 'bg-slate-100 text-slate-600',
-    emptyText: 'В архиве нет рейсов без синка',
-    cardHint: 'Рейс завершён без единого синка — данные телеметрии утеряны',
+    emptyText: 'rep.lsArchNeverE',
+    cardHint: 'rep.lsArchNeverH',
   },
   'stale': {
-    title: 'Синк устарел',
+    title: 'rep.lsStale',
     Icon: Clock,
     iconColor: 'text-amber-500',
     badgeColor: 'bg-amber-100 text-amber-700',
-    emptyText: 'Активные рейсы синкаются свежими данными',
-    cardHint: 'Давно не обновлялся — обнови вручную в карточке рейса',
+    emptyText: 'rep.lsStaleE',
+    cardHint: 'rep.lsStaleH',
   },
   'no-odometer': {
-    title: 'Одометр не передаёт данные',
+    title: 'rep.lsOdo',
     Icon: Gauge,
     iconColor: 'text-orange-500',
     badgeColor: 'bg-orange-100 text-orange-700',
-    emptyText: 'Одометр везде передаёт данные',
-    cardHint: 'Пробег пустой — проверь CAN-модуль на машине',
+    emptyText: 'rep.lsOdoE',
+    cardHint: 'rep.lsOdoH',
   },
   'no-fuel': {
-    title: 'Топливо не передаёт данные',
+    title: 'rep.lsFuel',
     Icon: Fuel,
     iconColor: 'text-red-400',
     badgeColor: 'bg-red-100 text-red-700',
-    emptyText: 'Датчик топлива везде работает',
-    cardHint: 'Датчик топлива молчит — проверь CAN-модуль',
+    emptyText: 'rep.lsFuelE',
+    cardHint: 'rep.lsFuelH',
   },
 };
 
 const INITIAL_VISIBLE = 9;
 
-const statusLabels: Record<string, string> = {
-  planned: 'Планируется',
-  active: 'В пути',
-  completed: 'Завершён',
-  invoiced: 'Выставлен счёт',
-  paid: 'Оплачен',
-};
 
 const statusColors: Record<string, string> = {
   planned: 'bg-slate-100 text-slate-700 border-slate-200',
@@ -102,10 +100,10 @@ const statusColors: Record<string, string> = {
   paid: 'bg-emerald-50 text-emerald-700 border-emerald-200',
 };
 
-function fmtDate(d: string | null): string {
+function fmtDate(d: string | null, locale: Locale): string {
   if (!d) return '—';
   try {
-    return new Date(d).toLocaleDateString('ru-RU');
+    return new Date(d).toLocaleDateString(INTL_LOCALE[locale]);
   } catch {
     return d;
   }
@@ -134,6 +132,7 @@ export default function LogisatProblemsList({
   items: TripRow[];
   bulkSyncable?: boolean;
 }) {
+  const { t: tr, locale } = useT();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [isExpanded, setIsExpanded] = useState(variant !== 'archive-never');
@@ -149,10 +148,9 @@ export default function LogisatProblemsList({
   function handleBulkSync() {
     const activeIds = items.map((t) => t.id);
     if (activeIds.length === 0) return;
-    const word = activeIds.length === 1 ? 'рейс' : activeIds.length < 5 ? 'рейса' : 'рейсов';
-    if (!confirm(`Синхронизировать ${activeIds.length} ${word} с Logisat?`)) return;
+    if (!confirm(tr('rep.lsConfirm', { what: tPlural(tr, locale, 'plural.trip', activeIds.length) }))) return;
 
-    setBulkStatus('Синхронизация…');
+    setBulkStatus(tr('rep.lsSyncing'));
     startTransition(async () => {
       try {
         const res = await fetch('/api/logisat/sync-bulk', {
@@ -163,22 +161,22 @@ export default function LogisatProblemsList({
         const data: SyncBulkResponse = await res.json();
 
         if (!data.success) {
-          setBulkStatus(`Ошибка: ${data.error || 'неизвестная'}`);
+          setBulkStatus(tr('rep.errMsg', { msg: data.error || tr('rep.unknown') }));
           return;
         }
 
         const ok = data.okCount || 0;
         const fail = data.failCount || 0;
         if (fail === 0) {
-          setBulkStatus(`Готово: синхронизировано ${ok} из ${data.total}`);
+          setBulkStatus(tr('rep.lsDoneAll', { ok, total: data.total ?? 0 }));
         } else {
-          setBulkStatus(`Готово: ${ok} успешно, ${fail} с ошибкой`);
+          setBulkStatus(tr('rep.lsDonePart', { ok, fail }));
         }
 
         setTimeout(() => setBulkStatus(null), 6000);
         router.refresh();
       } catch (e) {
-        setBulkStatus(`Ошибка: ${(e as Error).message}`);
+        setBulkStatus(tr('rep.errMsg', { msg: (e as Error).message }));
       }
     });
   }
@@ -197,12 +195,12 @@ export default function LogisatProblemsList({
                 № {trip.trip_number || '—'}
               </div>
               <div className="text-sm font-bold text-slate-900 mt-0.5 break-words group-hover:text-brand-600 transition-colors">
-                {trip.client_name || 'Клиент не указан'}
+                {trip.client_name || tr('trips.overlapNoClient')}
               </div>
             </div>
             <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold border whitespace-nowrap
               ${statusColors[trip.status] || 'bg-slate-100 text-slate-700 border-slate-200'}`}>
-              {statusLabels[trip.status] || trip.status}
+              {(tripStatusKey(trip.status) ? tr(tripStatusKey(trip.status)!) : trip.status)}
             </span>
           </div>
 
@@ -214,7 +212,7 @@ export default function LogisatProblemsList({
               </span>
             )}
             <span className="tabular-nums">
-              {fmtDate(trip.start_date)} → {fmtDate(trip.end_date)}
+              {fmtDate(trip.start_date, locale)} → {fmtDate(trip.end_date, locale)}
             </span>
           </div>
 
@@ -222,8 +220,8 @@ export default function LogisatProblemsList({
             <span className="inline-flex items-center gap-1">
               <Clock className="w-3 h-3" strokeWidth={2} />
               {trip.logisat_synced_at
-                ? `синк ${syncedAgo !== null ? `${syncedAgo} дн. назад` : '—'}`
-                : 'синка не было'}
+                ? (syncedAgo !== null ? tr('rep.lsAgo', { n: syncedAgo }) : '—')
+                : tr('rep.lsNever')}
             </span>
           </div>
         </div>
@@ -238,7 +236,7 @@ export default function LogisatProblemsList({
         <div className="w-12 h-12 mx-auto mb-2 rounded-xl bg-emerald-50 flex items-center justify-center">
           <CheckCircle2 className="w-6 h-6 text-emerald-500" strokeWidth={1.8} />
         </div>
-        <div className="text-sm text-slate-500">{meta.emptyText}</div>
+        <div className="text-sm text-slate-500">{tr(meta.emptyText as MessageKey)}</div>
       </div>
     );
   }
@@ -254,7 +252,7 @@ export default function LogisatProblemsList({
         >
           <Icon className={`w-5 h-5 ${meta.iconColor} shrink-0`} strokeWidth={2.2} />
           <span className="text-base md:text-lg font-bold text-slate-900 group-hover:text-brand-600 transition-colors">
-            {meta.title}
+            {tr(meta.title as MessageKey)}
           </span>
           <span className={`text-xs px-2 py-0.5 rounded-full font-medium tabular-nums ${meta.badgeColor}`}>
             {items.length}
@@ -279,7 +277,7 @@ export default function LogisatProblemsList({
             ) : (
               <RadioTower className="w-4 h-4" strokeWidth={2.2} />
             )}
-            Синкать все ({items.length})
+            {tr('rep.lsSyncAll', { n: items.length })}
           </button>
         )}
       </div>
@@ -312,12 +310,12 @@ export default function LogisatProblemsList({
               {showAll ? (
                 <>
                   <ChevronUp className="w-4 h-4" strokeWidth={2.5} />
-                  Свернуть
+                  {tr('rep.collapse')}
                 </>
               ) : (
                 <>
                   <ChevronDown className="w-4 h-4" strokeWidth={2.5} />
-                  Показать все ({items.length})
+                  {tr('rep.showAll', { n: items.length })}
                 </>
               )}
             </button>
