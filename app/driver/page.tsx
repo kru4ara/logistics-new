@@ -12,6 +12,8 @@ import {
 } from 'lucide-react';
 import { fetchAllByIds } from '../../lib/fetch-all';
 import { isDriverRole } from '../../lib/roles';
+import { getT } from '../../lib/i18n/server';
+import { INTL_LOCALE } from '../../lib/i18n/config';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,10 +30,11 @@ export default async function DriverPage({
 }: {
   searchParams: Promise<{ q?: string; status?: string }>;
 }) {
+  const { t: tr, locale } = await getT();
   const cookieStore = await cookies();
   const userName = cookieStore.get('user_name')?.value
     ? decodeURIComponent(cookieStore.get('user_name')!.value)
-    : 'Водитель';
+    : tr('nav.roleDriver');
 
   // 1. ПРОВЕРКА АВТОРИЗАЦИИ ЧЕРЕЗ СЕССИЮ (безопасно)
   const authClient = await createServerClient();
@@ -83,7 +86,7 @@ export default async function DriverPage({
     .eq('driver_id', driverId);
 
   if (error) {
-    return <div className="p-6 text-red-500">Ошибка загрузки рейсов: {error.message}</div>;
+    return <div className="p-6 text-red-500">{tr('today.tripsLoadError')}{' '}{error.message}</div>;
   }
 
   const tripIds = trips?.map((t) => t.id) || [];
@@ -222,16 +225,16 @@ export default async function DriverPage({
     monthSalary = monthSalaryExp?.reduce((sum, e) => sum + (e.amount_eur || 0), 0) || 0;
   }
 
-  const monthName = now.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
+  const monthName = now.toLocaleDateString(INTL_LOCALE[locale], { month: 'long', year: 'numeric' });
 
   const hasFilter = Boolean(q || statusFilter);
   const statusChips = [
-    { value: null, label: 'Все' },
-    { value: 'planned', label: 'Планируется' },
-    { value: 'active', label: 'В пути' },
-    { value: 'completed', label: 'Завершён' },
-    { value: 'invoiced', label: 'Счёт' },
-    { value: 'paid', label: 'Оплачен' },
+    { value: null, label: tr('status.filterAll') },
+    { value: 'planned', label: tr('status.planned') },
+    { value: 'active', label: tr('status.active') },
+    { value: 'completed', label: tr('status.completed') },
+    { value: 'invoiced', label: tr('drvApp.invoice') },
+    { value: 'paid', label: tr('status.paid') },
   ];
 
   function buildUrl(overrides: { q?: string | null; status?: string | null }): string {
@@ -250,10 +253,10 @@ export default async function DriverPage({
 
         {/* Приветствие */}
         <div className="bg-gradient-to-br from-brand-600 to-brand-800 rounded-2xl p-5 shadow-brand-lg text-white">
-          <div className="text-sm text-brand-100">Привет,</div>
+          <div className="text-sm text-brand-100">{tr('drvApp.hello')}</div>
           <div className="text-2xl font-bold mt-1 break-words">{userName}</div>
           <div className="text-sm text-brand-100 mt-3">
-            Всего рейсов: <span className="font-bold text-white tabular-nums">{trips?.length || 0}</span>
+            {tr('drvApp.totalTrips')}{' '}<span className="font-bold text-white tabular-nums">{trips?.length || 0}</span>
           </div>
         </div>
 
@@ -268,7 +271,7 @@ export default async function DriverPage({
               type="text"
               name="q"
               defaultValue={q}
-              placeholder="Рейс, клиент, город, заявка..."
+              placeholder={tr('drvApp.phSearch')}
               className="input pl-10 pr-10"
             />
             {statusFilter && <input type="hidden" name="status" value={statusFilter} />}
@@ -276,7 +279,7 @@ export default async function DriverPage({
               <a
                 href={buildUrl({ q: null })}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
-                aria-label="Очистить"
+                aria-label={tr('trips.clearSearch')}
               >
                 <X className="w-4 h-4" strokeWidth={2.2} />
               </a>
@@ -303,10 +306,10 @@ export default async function DriverPage({
 
           {hasFilter && (
             <div className="text-xs text-slate-500 pt-1 border-t border-slate-100">
-              Найдено рейсов: <b className="text-slate-700 tabular-nums">{filteredTrips.length}</b>
-              {q && <> · по запросу «{q}»</>}
+              {tr('drvApp.found')}{' '}<b className="text-slate-700 tabular-nums">{filteredTrips.length}</b>
+              {q && <>{' '}{tr('drvApp.byQuery')}{q}»</>}
               {' · '}
-              <a href="/driver" className="text-brand-600 hover:underline">Сбросить</a>
+              <a href="/driver" className="text-brand-600 hover:underline">{tr('drvApp.reset')}</a>
             </div>
           )}
         </div>
@@ -317,9 +320,9 @@ export default async function DriverPage({
             <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-slate-50 flex items-center justify-center">
               <Inbox className="w-7 h-7 text-slate-300" strokeWidth={1.5} />
             </div>
-            <div className="text-slate-500 text-sm">Ничего не найдено</div>
+            <div className="text-slate-500 text-sm">{tr('trips.nothingFound')}</div>
             <a href="/driver" className="text-xs text-brand-600 hover:underline mt-2 inline-block">
-              Сбросить фильтры
+              {tr('trips.resetFilters')}
             </a>
           </div>
         )}
@@ -332,9 +335,9 @@ export default async function DriverPage({
                 <Rocket className="w-5 h-5 text-brand-600" strokeWidth={2.2} />
               </div>
               <div className="min-w-0">
-                <h2 className="text-lg font-bold text-slate-900">В пути</h2>
+                <h2 className="text-lg font-bold text-slate-900">{tr('status.active')}</h2>
                 <div className="text-xs text-slate-400 tabular-nums">
-                  Активных рейсов: {activeTrips.length}
+                  {tr('drvApp.activeTrips')}{' '}{activeTrips.length}
                 </div>
               </div>
             </div>
@@ -354,31 +357,31 @@ export default async function DriverPage({
           </h2>
           <div className="grid grid-cols-2 gap-3 sm:gap-4">
             <div className="card p-4 sm:p-5">
-              <div className="text-xs text-slate-400 font-medium mb-1">Рейсов за месяц</div>
+              <div className="text-xs text-slate-400 font-medium mb-1">{tr('drvApp.monthTrips')}</div>
               <div className="text-2xl font-bold text-brand-600 tabular-nums">{monthTrips.length}</div>
             </div>
             <div className="card p-4 sm:p-5">
-              <div className="text-xs text-slate-400 font-medium mb-1">Зарплата за месяц</div>
+              <div className="text-xs text-slate-400 font-medium mb-1">{tr('drvApp.monthPay')}</div>
               <div className="text-2xl font-bold text-emerald-600 tabular-nums">{monthSalary.toFixed(0)} €</div>
             </div>
             <div className="card p-4 sm:p-5">
-              <div className="text-xs text-slate-400 font-medium mb-1">Пройдено км</div>
+              <div className="text-xs text-slate-400 font-medium mb-1">{tr('drvApp.km')}</div>
               <div className="text-2xl font-bold text-slate-800 tabular-nums">{monthKm.toFixed(0)}</div>
             </div>
             <div className="card p-4 sm:p-5">
-              <div className="text-xs text-slate-400 font-medium mb-1">Израсходовано топлива</div>
-              <div className="text-2xl font-bold text-slate-800 tabular-nums">{monthLiters.toFixed(0)} л</div>
+              <div className="text-xs text-slate-400 font-medium mb-1">{tr('drvApp.fuelUsed')}</div>
+              <div className="text-2xl font-bold text-slate-800 tabular-nums">{monthLiters.toFixed(0)}{' '}{tr('units.l')}</div>
             </div>
           </div>
           <div className="text-xs text-slate-400 mt-2 px-1">
-            Зарплата за всё время: <b className="text-slate-600 tabular-nums">{salaryTotal.toFixed(0)} €</b>
+            {tr('drvApp.payAll')}{' '}<b className="text-slate-600 tabular-nums">{salaryTotal.toFixed(0)} €</b>
           </div>
         </div>
 
         {/* История рейсов */}
         <div>
           <h2 className="text-xs md:text-sm font-bold text-slate-500 uppercase tracking-wide mb-3 px-1">
-            История рейсов
+            {tr('drvApp.history')}
           </h2>
           {otherTrips.length === 0 && !hasFilter ? (
             <div className="card p-10 text-center">
@@ -386,9 +389,9 @@ export default async function DriverPage({
                 <Inbox className="w-8 h-8 text-brand-500" strokeWidth={1.5} />
               </div>
               <h2 className="text-lg font-bold text-slate-900 mb-1">
-                {activeTrips.length > 0 ? 'Завершённых рейсов пока нет' : 'Рейсов пока нет'}
+                {activeTrips.length > 0 ? tr('drvApp.noCompleted') : tr('drvApp.noTrips')}
               </h2>
-              <p className="text-slate-500 text-sm">Ожидайте заданий от офиса</p>
+              <p className="text-slate-500 text-sm">{tr('drvApp.wait')}</p>
             </div>
           ) : otherTrips.length === 0 && hasFilter ? null : (
             <TripsList

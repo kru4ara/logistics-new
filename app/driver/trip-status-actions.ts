@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { logAudit } from '../../lib/audit';
 import { buildRouteMap, type SegmentRouteRow } from '../../lib/trip-route'; // ⬅️ ИЗМЕНЕНО
 import { requireTripAccess } from '../../lib/driver-access';
+import { getT } from '../../lib/i18n/server';
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
@@ -69,6 +70,7 @@ export async function changeTripStatus(
   status: string,
   endDate?: string
 ) {
+  const { t } = await getT();
   const access = await requireTripAccess(tripId);
   if (!access.ok) {
     throw new Error(access.reason);
@@ -113,7 +115,7 @@ export async function changeTripStatus(
       const endTs = new Date(finalEndDate).getTime();
       if (endTs < startTs) {
         throw new Error(
-          `Дата завершения (${finalEndDate}) не может быть раньше даты старта (${trip.start_date})`
+          t('drvApp.endBeforeStart', { end: finalEndDate, start: trip.start_date })
         );
       }
     }
@@ -131,7 +133,7 @@ export async function changeTripStatus(
     .update(updateData)
     .eq('id', tripId);
 
-  if (error) throw new Error(`Ошибка обновления: ${error.message}`);
+  if (error) throw new Error(t('dir.updateError', { msg: error.message }));
 
   // Логируем смену статуса
   if (trip && oldStatus !== status) {

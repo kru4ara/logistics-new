@@ -11,6 +11,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { useT } from '../components/I18nProvider';
+import { INTL_LOCALE } from '../../lib/i18n/config';
 
 type Doc = {
   id: string;
@@ -32,6 +33,7 @@ export default function DocumentList({
   tripId: string;
   canDelete?: boolean;
 }) {
+  const { locale } = useT();
   const { t } = useT();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -101,7 +103,7 @@ export default function DocumentList({
                 </div>
                 <div className="text-xs text-slate-400 tabular-nums">
                   {doc.uploaded_at
-                    ? new Date(doc.uploaded_at).toLocaleDateString('ru-RU')
+                    ? new Date(doc.uploaded_at).toLocaleDateString(INTL_LOCALE[locale])
                     : '—'}
                 </div>
               </div>
