@@ -251,6 +251,11 @@ const TRANSLATED_FILES = [
   'app/components/SetupChecklist.tsx',
   'app/setup-actions.ts',
   'lib/setup-steps.ts',
+  // Импорт из Excel
+  'app/api/import/template/route.ts',
+  'app/settings/import/ImportCard.tsx',
+  'app/settings/import/page.tsx',
+  'lib/import-excel.ts',
 ];
 
 function cyrillicLiterals(file: string): string[] {
