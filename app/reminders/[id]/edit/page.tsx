@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { getSessionContext } from '../../../../lib/session';
 import SubmitButton from '../../../components/SubmitButton';
 import { ArrowLeft, Bell, Pencil, Lock, Save } from 'lucide-react';
+import { deniedRedirect } from '../../../../lib/roles';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,7 +12,8 @@ export default async function EditReminderPage({ params }: { params: Promise<{ i
   const { id } = await params;
 
   const { role } = await getSessionContext();
-  if (role === 'driver') redirect('/driver');
+  const denied = deniedRedirect(role, 'reminders.edit');
+  if (denied) redirect(denied);
 
   const supabase = await createClient();
 

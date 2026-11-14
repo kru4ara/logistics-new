@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase/admin';
-import { can } from '../../lib/roles';
+import { can, deniedRedirect } from '../../lib/roles';
 import { getSessionContext } from '../../lib/session';
 import {
   Briefcase,
@@ -19,7 +19,8 @@ export const dynamic = 'force-dynamic';
 
 export default async function ManagersPage() {
   const { role } = await getSessionContext();
-  if (role === 'driver') redirect('/driver');
+  const denied = deniedRedirect(role, 'managers.view');
+  if (denied) redirect(denied);
   if (!can(role, 'managers.view')) redirect('/');
 
   const supabase = await createClient();

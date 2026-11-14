@@ -18,6 +18,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { createClient as createAuthClient } from '../../../lib/supabase/server';
+import { isDriverRole } from '../../../lib/roles';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,7 +32,7 @@ const TACHO_WARN = 90;               // предупреждение за 6 дн
 export default async function DriverRemindersPage() {
   const { role, driverId } = await getSessionContext();
 
-  if (role !== 'driver' || !driverId) redirect('/login');
+  if (!isDriverRole(role) || !driverId) redirect('/login');
 
   // RLS-клиент вместо service_role: выборка ограничивается политиками
   // RLS, поэтому водитель видит только свои данные.

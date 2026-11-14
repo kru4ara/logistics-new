@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '../../../lib/supabase/admin';
 import { Package, ArrowLeft, Inbox } from 'lucide-react';
 import { fetchAll, fetchAllByIds } from '../../../lib/fetch-all';
+import { deniedRedirect } from '../../../lib/roles';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,7 +14,8 @@ export default async function CargoReportPage({
   searchParams: Promise<{ from?: string; to?: string; client?: string }>;
 }) {
   const { role } = await getSessionContext();
-  if (role === 'driver') redirect('/driver');
+  const denied = deniedRedirect(role, 'reports.viewAll');
+  if (denied) redirect(denied);
 
   const resolvedParams = await searchParams;
   const from = resolvedParams.from || '';

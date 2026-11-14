@@ -19,6 +19,7 @@ import {
   Zap,
   type LucideIcon,
 } from 'lucide-react';
+import { deniedRedirect } from '../../lib/roles';
 
 export const dynamic = 'force-dynamic';
 
@@ -45,7 +46,8 @@ const currencySymbol: Record<string, string> = {
 
 export default async function FixedCostsPage() {
   const { role } = await getSessionContext();
-  if (role === 'driver') redirect('/driver');
+  const denied = deniedRedirect(role, 'fixedCosts.view');
+  if (denied) redirect(denied);
 
   const supabase = await createClient();
 

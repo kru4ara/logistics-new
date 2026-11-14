@@ -12,12 +12,14 @@ import {
   Inbox,
 } from 'lucide-react';
 import { fetchAll, fetchAllByIds } from '../../lib/fetch-all';
+import { deniedRedirect } from '../../lib/roles';
 
 export const dynamic = 'force-dynamic';
 
 export default async function MapPage() {
   const { role } = await getSessionContext();
-  if (role === 'driver') redirect('/driver');
+  const denied = deniedRedirect(role, 'map.view');
+  if (denied) redirect(denied);
 
   const supabase = await createClient();
 

@@ -42,6 +42,9 @@ export const CAPABILITIES = [
   'managers.edit',
   // Аналитика и отчёты
   'reports.view',
+  // Отчёты по ВСЕМ заказам без скоупа менеджера (рентабельность,
+  // грузы, Logisat): страницы не применяют lib/scope.ts.
+  'reports.viewAll',
   'statistics.view',
   'audit.view',
   'search.view',
@@ -52,6 +55,9 @@ export const CAPABILITIES = [
   'map.view',
   'today.view',
   'reminders.view',
+  // Общая страница /reminders: все напоминания компании. У водителя
+  // только reminders.view — для своего раздела /driver/reminders.
+  'reminders.viewAll',
   'reminders.edit',
 ] as const;
 
@@ -81,7 +87,13 @@ const DRIVER: Capability[] = [
  * зайти, скоуп — что он там увидит.
  */
 const MANAGER: Capability[] = OFFICE.filter(
-  (c) => c !== 'audit.view' && c !== 'export.view' && c !== 'managers.view' && c !== 'managers.edit'
+  (c) =>
+    c !== 'audit.view' &&
+    c !== 'export.view' &&
+    c !== 'managers.view' &&
+    c !== 'managers.edit' &&
+    // отчёты без скоупа показали бы менеджеру чужие заказы
+    c !== 'reports.viewAll'
 );
 
 export const ROLE_CAPABILITIES: Record<string, Capability[]> = {
@@ -131,6 +143,30 @@ export function isDriverRole(role: string | null | undefined): boolean {
 
 export function isOfficeRole(role: string | null | undefined): boolean {
   return normalizeRole(role) === 'office';
+}
+
+/**
+ * Куда отправить пользователя без права на страницу:
+ * водителя — в его раздел, остальных — на вход. null — доступ есть.
+ *
+ *   const denied = deniedRedirect(role, 'clients.view');
+ *   if (denied) redirect(denied);
+ */
+export function deniedRedirect(
+  role: string | null | undefined,
+  capability: Capability
+): '/driver' | '/login' | null {
+  if (can(role, capability)) return null;
+  return isDriverRole(role) ? '/driver' : '/login';
+}
+
+/** Подпись роли для интерфейса и журнала. Неизвестную роль показываем как есть. */
+export function roleLabel(role: string | null | undefined): string {
+  const r = normalizeRole(role);
+  if (r === 'office') return 'Офис';
+  if (r === 'manager') return 'Менеджер';
+  if (r === 'driver') return 'Водитель';
+  return r || 'Неизвестно';
 }
 
 /** Менеджер по логистике — не офис, но и не водитель. */
@@ -188,7 +224,7 @@ export const PATH_CAPABILITIES: PathRule[] = [
   { prefix: '/managers', capability: 'managers.view', writeCapability: 'managers.edit' },
   { prefix: '/trucks', capability: 'trucks.view', writeCapability: 'trucks.edit' },
   { prefix: '/locations', capability: 'locations.view', writeCapability: 'locations.edit' },
-  { prefix: '/reminders', capability: 'reminders.view', writeCapability: 'reminders.edit' },
+  { prefix: '/reminders', capability: 'reminders.viewAll', writeCapability: 'reminders.edit' },
   { prefix: '/today', capability: 'today.view' },
   { prefix: '/map', capability: 'map.view' },
   { prefix: '/api/export', capability: 'export.view' },

@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { can } from '../../../lib/roles';
+import { can, deniedRedirect } from '../../../lib/roles';
 import { getSessionContext } from '../../../lib/session';
 import { createManager } from '../actions';
 import SubmitButton from '../../components/SubmitButton';
@@ -10,7 +10,8 @@ export const dynamic = 'force-dynamic';
 
 export default async function NewManagerPage() {
   const { role } = await getSessionContext();
-  if (role === 'driver') redirect('/driver');
+  const denied = deniedRedirect(role, 'managers.edit');
+  if (denied) redirect(denied);
   if (!can(role, 'managers.edit')) redirect('/');
 
   return (

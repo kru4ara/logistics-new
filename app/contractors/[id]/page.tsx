@@ -21,6 +21,7 @@ import {
   Calendar,
   Inbox,
 } from 'lucide-react';
+import { deniedRedirect } from '../../../lib/roles';
 
 export const dynamic = 'force-dynamic';
 
@@ -87,7 +88,8 @@ export default async function ContractorCardPage({
   const { id } = await params;
 
   const { role } = await getSessionContext();
-  if (role === 'driver') redirect('/driver');
+  const denied = deniedRedirect(role, 'contractors.view');
+  if (denied) redirect(denied);
 
   const supabase = await createClient();
 

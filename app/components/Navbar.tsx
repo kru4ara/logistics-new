@@ -2,6 +2,7 @@
 
 import { Menu, Truck } from 'lucide-react';
 import Link from 'next/link';
+import { isDriverRole, roleLabel } from '../../lib/roles';
 
 export default function Navbar({
   role,
@@ -14,7 +15,7 @@ export default function Navbar({
 }) {
   if (!role) return null;
 
-  const displayName = userName || (role === 'admin' ? 'Офис' : 'Водитель');
+  const displayName = userName || roleLabel(role);
   const initials = displayName
     .split(' ')
     .map((w) => w[0])
@@ -35,7 +36,7 @@ export default function Navbar({
         </button>
 
         <Link
-          href={role === 'driver' ? '/driver' : '/'}
+          href={isDriverRole(role) ? '/driver' : '/'}
           className="flex items-center gap-2 shrink-0"
         >
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-500 to-accent-500 flex items-center justify-center shadow-brand">

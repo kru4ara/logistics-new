@@ -19,6 +19,7 @@ import {
   ShieldCheck,
   type LucideIcon,
 } from 'lucide-react';
+import { deniedRedirect } from '../../lib/roles';
 
 export const dynamic = 'force-dynamic';
 
@@ -58,7 +59,8 @@ const typeMeta: Record<LocationType, {
 
 export default async function LocationsPage() {
   const { role } = await getSessionContext();
-  if (role === 'driver') redirect('/driver');
+  const denied = deniedRedirect(role, 'locations.view');
+  if (denied) redirect(denied);
 
   const supabase = await createClient();
 

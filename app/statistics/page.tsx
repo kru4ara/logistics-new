@@ -10,12 +10,14 @@ import StatisticsTable from './StatisticsTable';
 import StatisticsLegend from './StatisticsLegend';
 import { getScope, applyTripScope } from '../../lib/scope';
 import { fetchAll } from '../../lib/fetch-all';
+import { deniedRedirect } from '../../lib/roles';
 
 export const dynamic = 'force-dynamic';
 
 export default async function StatisticsPage({ searchParams }: { searchParams: Promise<{ year?: string }> }) {
   const { role } = await getSessionContext();
-  if (role === 'driver') redirect('/driver');
+  const denied = deniedRedirect(role, 'statistics.view');
+  if (denied) redirect(denied);
 
   const resolvedParams = await searchParams;
   const supabase = await createClient();

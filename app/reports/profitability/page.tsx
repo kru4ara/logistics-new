@@ -11,6 +11,7 @@ import { createClient } from '../../../lib/supabase/admin';
 import { calculateProfitability, toNum, getOrderPeriodDate } from '../../../lib/profitability';
 import { isStatsCompleted } from '../../../lib/statistics';
 import { fetchAll, fetchAllByIds } from '../../../lib/fetch-all';
+import { deniedRedirect } from '../../../lib/roles';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,8 +41,8 @@ export default async function ProfitabilityPage({
   searchParams: Promise<{ from?: string; to?: string }>;
 }) {
   const { role } = await getSessionContext();
-  if (role === 'driver') redirect('/driver');
-  if (role !== 'admin') redirect('/login');
+  const denied = deniedRedirect(role, 'reports.viewAll');
+  if (denied) redirect(denied);
 
   const resolvedParams = await searchParams;
   const from = resolvedParams.from || firstDayOfYearIso();

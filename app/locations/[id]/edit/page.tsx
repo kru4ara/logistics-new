@@ -5,6 +5,7 @@ import { updateLocation } from '../../actions';
 import { EUROPEAN_COUNTRIES } from '../../../../lib/countries';
 import SubmitButton from '../../../components/SubmitButton';
 import { ArrowLeft, MapPin, Globe, Save } from 'lucide-react';
+import { deniedRedirect } from '../../../../lib/roles';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,7 +13,8 @@ export default async function EditLocationPage({ params }: { params: Promise<{ i
   const { id } = await params;
 
   const { role } = await getSessionContext();
-  if (role === 'driver') redirect('/driver');
+  const denied = deniedRedirect(role, 'locations.edit');
+  if (denied) redirect(denied);
 
   const supabase = await createClient();
 

@@ -11,6 +11,7 @@ import {
   X,
 } from 'lucide-react';
 import { fetchAllByIds } from '../../lib/fetch-all';
+import { isDriverRole } from '../../lib/roles';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,7 +53,7 @@ export default async function DriverPage({
   const role = profile?.role;
   const driverId = profile?.driver_id;
 
-  if (role !== 'driver' || !driverId) {
+  if (!isDriverRole(role) || !driverId) {
     // Не водитель. Отправляем на главную, а НЕ на /login:
     // proxy.ts перебрасывает залогиненного пользователя с /login
     // обратно на '/', и если оттуда снова ведёт в /driver — получается

@@ -4,12 +4,14 @@ import { createLocation } from '../actions';
 import { EUROPEAN_COUNTRIES } from '../../../lib/countries';
 import SubmitButton from '../../components/SubmitButton';
 import { ArrowLeft, MapPin, Globe, Plus } from 'lucide-react';
+import { deniedRedirect } from '../../../lib/roles';
 
 export const dynamic = 'force-dynamic';
 
 export default async function NewLocationPage() {
   const { role } = await getSessionContext();
-  if (role === 'driver') redirect('/driver');
+  const denied = deniedRedirect(role, 'locations.edit');
+  if (denied) redirect(denied);
 
   return (
     <main className="min-h-screen bg-slate-50">

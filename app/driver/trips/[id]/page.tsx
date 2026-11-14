@@ -25,6 +25,7 @@ import AddExpenseForm from '../../../trips/AddExpenseForm';
 import FileUpload from '../../FileUpload';
 import DocumentList from '../../DocumentList';
 import TripStatusButtons from '../../TripStatusButtons';
+import { isDriverRole } from '../../../../lib/roles';
 
 export const dynamic = 'force-dynamic';
 
@@ -84,7 +85,7 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
     .eq('id', user.id)
     .maybeSingle();
 
-  if (profile?.role !== 'driver' || !profile.driver_id) {
+  if (!profile || !isDriverRole(profile.role) || !profile.driver_id) {
     redirect('/login');
   }
 

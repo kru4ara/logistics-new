@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../../lib/supabase/admin';
-import { can } from '../../../lib/roles';
+import { can, deniedRedirect } from '../../../lib/roles';
 import { getSessionContext } from '../../../lib/session';
 import { updateManager, linkManagerUser, setManagerPassword } from '../actions';
 import SubmitButton from '../../components/SubmitButton';
@@ -30,7 +30,8 @@ const statusLabels: Record<string, string> = {
 export default async function ManagerDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: managerId } = await params;
   const { role } = await getSessionContext();
-  if (role === 'driver') redirect('/driver');
+  const denied = deniedRedirect(role, 'managers.view');
+  if (denied) redirect(denied);
   if (!can(role, 'managers.view')) redirect('/');
 
   if (!managerId) return <div className="p-8">Ошибка: ID менеджера не передан</div>;

@@ -11,6 +11,7 @@ import {
   Inbox,
   type LucideIcon,
 } from 'lucide-react';
+import { deniedRedirect, roleLabel } from '../../lib/roles';
 
 export const dynamic = 'force-dynamic';
 
@@ -151,8 +152,8 @@ export default async function AuditPage({
   searchParams: Promise<{ entity?: string }>;
 }) {
   const { role } = await getSessionContext();
-  if (role === 'driver') redirect('/driver');
-  if (role !== 'admin') redirect('/login');
+  const denied = deniedRedirect(role, 'audit.view');
+  if (denied) redirect(denied);
 
   const resolvedParams = await searchParams;
   const entityFilter = resolvedParams.entity || null;
@@ -296,11 +297,7 @@ export default async function AuditPage({
                           <>
                             <span className="text-slate-300">·</span>
                             <span>
-                              {log.user_role === 'admin'
-                                ? 'Офис'
-                                : log.user_role === 'driver'
-                                  ? 'Водитель'
-                                  : log.user_role}
+                              {roleLabel(log.user_role)}
                             </span>
                           </>
                         )}

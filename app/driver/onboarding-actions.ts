@@ -3,11 +3,12 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '../../lib/supabase/admin';
 import { getSessionContext } from '../../lib/session';
+import { isDriverRole } from '../../lib/roles';
 
 export async function markDriverOnboarded() {
   const { role, driverId } = await getSessionContext();
 
-  if (role !== 'driver' || !driverId) {
+  if (!isDriverRole(role) || !driverId) {
     return { success: false, error: 'Не водитель' };
   }
 

@@ -1,13 +1,14 @@
 import { getSessionContext } from '../../../lib/session';
 import { redirect } from 'next/navigation';
 import ExportForm from './ExportForm';
+import { deniedRedirect } from '../../../lib/roles';
 
 export const dynamic = 'force-dynamic';
 
 export default async function ExcelExportPage() {
   const { role } = await getSessionContext();
-  if (role === 'driver') redirect('/driver');
-  if (role !== 'admin') redirect('/login');
+  const denied = deniedRedirect(role, 'export.view');
+  if (denied) redirect(denied);
 
   return (
     <main className="min-h-screen bg-slate-50">

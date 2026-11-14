@@ -13,12 +13,14 @@ import {
   Package,
 } from 'lucide-react';
 import { fetchAll } from '../../../lib/fetch-all';
+import { deniedRedirect } from '../../../lib/roles';
 
 export const dynamic = 'force-dynamic';
 
 export default async function DriverKpiPage() {
   const { role } = await getSessionContext();
-  if (role === 'driver') redirect('/driver');
+  const denied = deniedRedirect(role, 'drivers.view');
+  if (denied) redirect(denied);
 
   const supabase = await createClient();
 
