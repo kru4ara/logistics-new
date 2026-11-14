@@ -3,9 +3,11 @@
 import { useFormState, useFormStatus } from 'react-dom';
 import { Loader2, ArrowRight, AlertCircle } from 'lucide-react';
 import { login, type LoginState } from './actions';
+import { useT } from '../components/I18nProvider';
 
 function SubmitButton() {
   const { pending } = useFormStatus();
+  const { t } = useT();
   return (
     <button
       type="submit"
@@ -18,11 +20,11 @@ function SubmitButton() {
       {pending ? (
         <>
           <Loader2 className="w-4 h-4 animate-spin" />
-          <span>Вход…</span>
+          <span>{t('login.submitting')}</span>
         </>
       ) : (
         <>
-          <span>Войти</span>
+          <span>{t('login.submit')}</span>
           <ArrowRight className="w-4 h-4" />
         </>
       )}
@@ -31,6 +33,7 @@ function SubmitButton() {
 }
 
 export default function LoginForm() {
+  const { t } = useT();
   const [state, formAction] = useFormState<LoginState, FormData>(login, null);
 
   const inputClass =
@@ -43,13 +46,13 @@ export default function LoginForm() {
     <form action={formAction} className="space-y-4">
       <div>
         <label className="block text-sm font-medium text-slate-700 mb-1.5">
-          Логин
+          {t('login.login')}
         </label>
         <input
           name="login"
           autoComplete="username"
           autoFocus
-          placeholder="office или фамилия"
+          placeholder={t('login.loginPlaceholder')}
           className={inputClass}
           required
         />
@@ -57,7 +60,7 @@ export default function LoginForm() {
 
       <div>
         <label className="block text-sm font-medium text-slate-700 mb-1.5">
-          Пароль
+          {t('login.password')}
         </label>
         <input
           type="password"
@@ -81,7 +84,7 @@ export default function LoginForm() {
       </div>
 
       <p className="text-xs text-slate-400 text-center pt-2">
-        Если забыли пароль — обратитесь в офис
+        {t('login.forgot')}
       </p>
     </form>
   );

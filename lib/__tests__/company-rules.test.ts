@@ -80,12 +80,12 @@ describe('parseCompanyForm', () => {
   const form = (o: Record<string, string>) => (k: string) => o[k] ?? null;
 
   it('без названия — ошибка', () => {
-    expect(parseCompanyForm(form({ name: '  ' }))).toEqual({ ok: false, error: 'Укажите название компании' });
+    expect(parseCompanyForm(form({ name: '  ' }))).toEqual({ ok: false, error: 'name' });
   });
 
   it('неверный e-mail и имя бота — ошибки', () => {
-    expect(parseCompanyForm(form({ name: 'A', email: 'нет' })).ok).toBe(false);
-    expect(parseCompanyForm(form({ name: 'A', telegram_bot: 'bad bot!' })).ok).toBe(false);
+    expect(parseCompanyForm(form({ name: 'A', email: 'нет' }))).toEqual({ ok: false, error: 'email' });
+    expect(parseCompanyForm(form({ name: 'A', telegram_bot: 'bad bot!' }))).toEqual({ ok: false, error: 'bot' });
   });
 
   it('условия — по строкам, пустые строки отбрасываются', () => {
@@ -135,5 +135,14 @@ describe('getCompany', () => {
   it('другая ошибка БД → исключение: лучше ошибка, чем заявка с чужими реквизитами', async () => {
     dbResult = { data: null, error: { code: '57014', message: 'canceling statement due to statement timeout' } };
     await expect(load()).rejects.toThrow(/Настройки компании недоступны/);
+  });
+});
+
+describe('getCompanyBranding (страница входа)', () => {
+  it('база недоступна → нейтральное название, а не ошибка и не чужие реквизиты', async () => {
+    dbResult = { data: null, error: { code: '57014', message: 'timeout' } };
+    vi.resetModules();
+    const { getCompanyBranding } = await import('../company');
+    expect(await getCompanyBranding()).toEqual({ name: 'Logistics CRM', shortName: 'Logistics CRM' });
   });
 });

@@ -8,6 +8,7 @@ import { getSessionContext } from '../../lib/session';
 import { logAudit } from '../../lib/audit';
 import { parseCompanyForm } from '../../lib/company-rules';
 import { STAMP_PATH } from '../../lib/company';
+import { getT } from '../../lib/i18n/server';
 
 const COMPANY_AUDIT_ID = '00000000-0000-0000-0000-000000000001';
 const MAX_STAMP_BYTES = 2 * 1024 * 1024;
@@ -19,12 +20,16 @@ function back(params: Record<string, string>): never {
 /** Сохранить реквизиты и (если выбран файл) печать для заявок. */
 export async function saveCompanySettings(formData: FormData) {
   await requireCapability('settings.edit');
+  const { t } = await getT();
 
   const parsed = parseCompanyForm((k) => {
     const v = formData.get(k);
     return typeof v === 'string' ? v : null;
   });
-  if (!parsed.ok) back({ error: parsed.error });
+  if (!parsed.ok) {
+    const key = ({ name: 'settings.errorName', email: 'settings.errorEmail', bot: 'settings.errorBot' } as const)[parsed.error];
+    back({ error: t(key) });
+  }
 
   const admin = await createClient();
   const { userId } = await getSessionContext();
@@ -32,18 +37,18 @@ export async function saveCompanySettings(formData: FormData) {
   const { error } = await admin
     .from('company_settings')
     .upsert({ id: 1, ...parsed.row, updated_at: new Date().toISOString(), updated_by: userId });
-  if (error) back({ error: `Не удалось сохранить: ${error.message}` });
+  if (error) back({ error: t('settings.errorSave', { message: error.message }) });
 
   // Печать: только PNG — так её вставляет генератор заявки.
   const stamp = formData.get('stamp');
   let stampUpdated = false;
   if (stamp instanceof File && stamp.size > 0) {
-    if (stamp.type !== 'image/png') back({ error: 'Печать — только PNG (лучше с прозрачным фоном)' });
-    if (stamp.size > MAX_STAMP_BYTES) back({ error: 'Печать — не больше 2 МБ' });
+    if (stamp.type !== 'image/png') back({ error: t('settings.errorStampType') });
+    if (stamp.size > MAX_STAMP_BYTES) back({ error: t('settings.errorStampSize') });
     const { error: upErr } = await admin.storage
       .from('documents')
       .upload(STAMP_PATH, Buffer.from(await stamp.arrayBuffer()), { contentType: 'image/png', upsert: true });
-    if (upErr) back({ error: `Реквизиты сохранены, печать — нет: ${upErr.message}` });
+    if (upErr) back({ error: t('settings.errorStampUpload', { message: upErr.message }) });
     stampUpdated = true;
   }
 

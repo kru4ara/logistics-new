@@ -6,7 +6,9 @@ import { getCompany } from '../../lib/company';
 import { redirect } from 'next/navigation';
 import { cookies, headers } from 'next/headers';
 import { checkLoginThrottle, recordLoginFailure, clearLoginFailures } from '../../lib/login-throttle';
-import { clientIpFrom, normalizeLoginKey, throttleMessage } from '../../lib/login-throttle-rules';
+import { clientIpFrom, normalizeLoginKey } from '../../lib/login-throttle-rules';
+import { getT } from '../../lib/i18n/server';
+import { isLocale, LOCALE_COOKIE } from '../../lib/i18n/config';
 import { isDriverRole, roleLabel } from '../../lib/roles';
 
 export type LoginState = { error?: string } | null;
@@ -50,7 +52,7 @@ export async function login(
   const passwordValue = typeof rawPassword === 'string' ? rawPassword : '';
 
   if (!loginValue || !passwordValue) {
-    return { error: 'Введите логин и пароль' };
+    return { error: (await getT()).t('login.errorEmpty') };
   }
 
   let realEmail = loginValue;
@@ -87,7 +89,9 @@ export async function login(
   const ip = clientIpFrom(await headers());
   const throttle = await checkLoginThrottle(loginKey, ip);
   if (throttle.blocked) {
-    return { error: throttleMessage(throttle.retryAfterSec) };
+    return {
+      error: (await getT()).t('login.errorThrottled', { min: Math.max(1, Math.ceil(throttle.retryAfterSec / 60)) }),
+    };
   }
 
   const { data, error } = await supabase.auth.signInWithPassword({
@@ -98,7 +102,7 @@ export async function login(
   if (error) {
     console.error('[login] error:', error.message);
     await recordLoginFailure(loginKey, ip);
-    return { error: 'Неверный логин или пароль' };
+    return { error: (await getT()).t('login.errorInvalid') };
   }
 
   await clearLoginFailures(loginKey);
@@ -182,6 +186,23 @@ export async function login(
       sameSite: 'lax',
       httpOnly: true,
       maxAge: COOKIE_MAX_AGE,
+    });
+  }
+
+  // Язык пользователя (миграция 024) — в cookie, чтобы он следовал за ним
+  // на любое устройство. Колонки нет / язык не выбран — остаётся текущий.
+  const { data: localeRow } = await supabase
+    .from('profiles')
+    .select('locale')
+    .eq('id', data.user.id)
+    .maybeSingle();
+  const profileLocale = (localeRow as { locale?: string | null } | null)?.locale;
+  if (isLocale(profileLocale)) {
+    cookieStore.set(LOCALE_COOKIE, profileLocale, {
+      path: '/',
+      secure: isProd,
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 365,
     });
   }
 

@@ -2,7 +2,8 @@
 
 import { Menu, Truck } from 'lucide-react';
 import Link from 'next/link';
-import { isDriverRole, roleLabel } from '../../lib/roles';
+import { isDriverRole, isManagerRole } from '../../lib/roles';
+import { useT } from './I18nProvider';
 
 export default function Navbar({
   role,
@@ -13,9 +14,15 @@ export default function Navbar({
   userName: string;
   onMenuClick: () => void;
 }) {
+  const { t } = useT();
   if (!role) return null;
 
-  const displayName = userName || roleLabel(role);
+  const roleText = isDriverRole(role)
+    ? t('nav.roleDriver')
+    : isManagerRole(role)
+      ? t('nav.roleManager')
+      : t('nav.roleOffice');
+  const displayName = userName || roleText;
   const initials = displayName
     .split(' ')
     .map((w) => w[0])
@@ -30,7 +37,7 @@ export default function Navbar({
           type="button"
           onClick={onMenuClick}
           className="w-10 h-10 rounded-lg flex items-center justify-center text-slate-200 hover:bg-white/5 transition-colors"
-          aria-label="Открыть меню"
+          aria-label={t('nav.openMenu')}
         >
           <Menu className="w-5 h-5" strokeWidth={2} />
         </button>

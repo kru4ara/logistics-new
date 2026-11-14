@@ -46,6 +46,21 @@ export const getCompany = cache(async (): Promise<Company> => {
   return data ? companyFromRow(data as CompanyRow) : UNCONFIGURED_COMPANY;
 });
 
+/**
+ * Только название — для страницы входа. В отличие от getCompany() не
+ * бросает: если база недоступна, страница входа показывает нейтральное
+ * «Logistics CRM», а не ошибку (реквизиты здесь не нужны, чужих не покажем).
+ */
+export async function getCompanyBranding(): Promise<Pick<Company, 'name' | 'shortName'>> {
+  try {
+    const { name, shortName } = await getCompany();
+    return { name, shortName };
+  } catch (e) {
+    console.warn('[company] брендинг по умолчанию:', (e as Error).message);
+    return { name: UNCONFIGURED_COMPANY.shortName, shortName: UNCONFIGURED_COMPANY.shortName };
+  }
+}
+
 // ============================================================
 // URL приложения (для QR-кода в заявках)
 // ============================================================
