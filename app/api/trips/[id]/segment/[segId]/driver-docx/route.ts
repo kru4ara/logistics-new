@@ -15,6 +15,8 @@ import { fmtDate, txt, divider, cellLabel, cellValue, FONT, LINE, BLUE, RED, GRE
 import { createClient } from '../../../../../../../lib/supabase/admin';
 import { getCompany } from '../../../../../../../lib/company';
 import { can } from '../../../../../../../lib/roles';
+import { getDriverT } from '../../../../../../../lib/driver-locale';
+import { getT } from '../../../../../../../lib/i18n/server';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -30,8 +32,9 @@ function buildPointParagraphs(params: {
   address: string | null;
   loading_number?: string | null;
   label?: string;
+  loadingNoLabel: string;
 }): Paragraph[] {
-  const { idx, kind, date, company, country, city, postal_code, address, loading_number, label } = params;
+  const { idx, kind, date, company, country, city, postal_code, address, loading_number, label, loadingNoLabel } = params;
 
   const cityLine = [postal_code, city, country].filter(Boolean).join(', ') || '—';
   const numberColor = kind === 'unloading' ? RED : kind === 'reload' ? AMBER : GREEN;
@@ -77,7 +80,7 @@ function buildPointParagraphs(params: {
       new Paragraph({
         spacing: { line: LINE, after: 20, before: 0 },
         children: [
-          new TextRun({ text: '      № погрузки: ', size: 18, font: FONT, color: GRAY }),
+          new TextRun({ text: loadingNoLabel, size: 18, font: FONT, color: GRAY }),
           new TextRun({ text: loading_number, bold: true, size: 18, font: FONT, color: BLUE }),
         ],
       })
@@ -119,7 +122,7 @@ export async function GET(
     .single();
 
   if (tripErr || !trip) {
-    return NextResponse.json({ error: 'Рейс не найден' }, { status: 404 });
+    return NextResponse.json({ error: (await getT()).t('task.tripNotFound') }, { status: 404 });
   }
 
   // 3. Получаем сегмент
@@ -130,7 +133,7 @@ export async function GET(
     .single();
 
   if (segErr || !segment) {
-    return NextResponse.json({ error: 'Участок не найден' }, { status: 404 });
+    return NextResponse.json({ error: (await getT()).t('task.segNotFound') }, { status: 404 });
   }
 
   // 4. ПРОВЕРКА ВЛАДЕЛЬЦА (защита от IDOR)
@@ -142,7 +145,7 @@ export async function GET(
 
   if (segment.executor_type !== 'us') {
     return NextResponse.json(
-      { error: 'Задание водителю формируется только для нашего участка' },
+      { error: (await getT()).t('drvDocx.onlyOurs') },
       { status: 400 }
     );
   }
@@ -153,6 +156,7 @@ export async function GET(
     phone_by: string | null;
     phone_pl: string | null;
   } | null = null;
+  const { t } = await getDriverT(segment.driver_id);
   if (segment.driver_id) {
     const { data } = await supabase
       .from('drivers')
@@ -220,14 +224,14 @@ export async function GET(
   );
   children.push(divider());
 
-  children.push(txt(`Дата формирования: ${fmtDate(new Date().toISOString(), '.')}`, { size: 18, after: 0, color: GRAY }));
+  children.push(txt(t('drvDocx.generated', { date: fmtDate(new Date().toISOString(), '.') }), { size: 18, after: 0, color: GRAY }));
 
   children.push(
     new Paragraph({
       alignment: AlignmentType.LEFT,
       spacing: { line: LINE, before: 120, after: 40 },
       children: [
-        new TextRun({ text: 'ЗАДАНИЕ ВОДИТЕЛЮ № ', bold: true, size: 28, font: FONT, color: '334155' }),
+        new TextRun({ text: t('drvDocx.title'), bold: true, size: 28, font: FONT, color: '334155' }),
         new TextRun({ text: taskNumber, bold: true, size: 40, font: FONT, color: RED }),
       ],
     })
@@ -237,7 +241,7 @@ export async function GET(
 
   const infoRows: TableRow[] = [
     new TableRow({
-      children: [cellLabel('Водитель'), cellValue(driverName, { bold: true, size: 24 })],
+      children: [cellLabel(t('drvDocx.driver')), cellValue(driverName, { bold: true, size: 24 })],
     }),
   ];
   // Телефоны: BY и PL (оба, если есть)
@@ -246,18 +250,18 @@ export async function GET(
   if (driver?.phone_pl) phoneParts.push(`PL: ${driver.phone_pl}`);
   if (phoneParts.length > 0) {
     infoRows.push(
-      new TableRow({ children: [cellLabel('Телефон'), cellValue(phoneParts.join(' · '))] })
+      new TableRow({ children: [cellLabel(t('drvDocx.phone')), cellValue(phoneParts.join(' · '))] })
     );
   }
   infoRows.push(
     new TableRow({
-      children: [cellLabel('Тягач'), cellValue(truck?.registration_number || '—', { bold: true })],
+      children: [cellLabel(t('drvDocx.tractor')), cellValue(truck?.registration_number || '—', { bold: true })],
     })
   );
   if (trailer?.registration_number) {
     infoRows.push(
       new TableRow({
-        children: [cellLabel('Прицеп'), cellValue(trailer.registration_number, { bold: true })],
+        children: [cellLabel(t('drvDocx.trailer')), cellValue(trailer.registration_number, { bold: true })],
       })
     );
   }
@@ -279,7 +283,7 @@ export async function GET(
 
   children.push(txt('', { after: 200 }));
 
-  children.push(txt('МАРШРУТ', { bold: true, size: 24, after: 100, color: BLUE }));
+  children.push(txt(t('drvDocx.route'), { bold: true, size: 24, after: 100, color: BLUE }));
 
   const routeRows: TableRow[] = [];
   let idxCounter = 0;
@@ -291,6 +295,7 @@ export async function GET(
         new TableCell({
           margins: { top: 60, bottom: 60, left: 0, right: 0 },
           children: buildPointParagraphs({
+            loadingNoLabel: t('drvDocx.loadingNo'),
             idx: idxCounter,
             kind: 'loading',
             date: segment.date_from,
@@ -327,9 +332,9 @@ export async function GET(
 
     const kind = stop.type === 'unload' ? 'unloading' : stop.type === 'reload' ? 'reload' : 'loading';
     const labelMap: Record<string, string | undefined> = {
-      load: 'загрузка',
-      reload: 'догруз / перегруз',
-      unload: 'выгрузка',
+      load: t('drvDocx.load'),
+      reload: t('drvDocx.reload'),
+      unload: t('drvDocx.unload'),
     };
 
     routeRows.push(
@@ -338,6 +343,7 @@ export async function GET(
           new TableCell({
             margins: { top: 60, bottom: 60, left: 0, right: 0 },
             children: buildPointParagraphs({
+            loadingNoLabel: t('drvDocx.loadingNo'),
               idx: idxCounter,
               kind,
               date: stop.date || null,
@@ -377,6 +383,7 @@ export async function GET(
         new TableCell({
           margins: { top: 60, bottom: 60, left: 0, right: 0 },
           children: buildPointParagraphs({
+            loadingNoLabel: t('drvDocx.loadingNo'),
             idx: idxCounter,
             kind: 'unloading',
             date: segment.date_to,
@@ -409,7 +416,7 @@ export async function GET(
   children.push(txt('', { after: 200 }));
 
   if (cargoItems.length > 0) {
-    children.push(txt('ГРУЗЫ', { bold: true, size: 24, after: 100, color: BLUE }));
+    children.push(txt(t('drvDocx.cargo'), { bold: true, size: 24, after: 100, color: BLUE }));
 
     const cargoRows: TableRow[] = [
       new TableRow({
@@ -431,7 +438,7 @@ export async function GET(
             margins: { top: 80, bottom: 80, left: 100, right: 100 },
             children: [
               new Paragraph({
-                children: [new TextRun({ text: 'Описание', bold: true, size: 20, font: FONT, color: '334155' })],
+                children: [new TextRun({ text: t('drvDocx.description'), bold: true, size: 20, font: FONT, color: '334155' })],
               }),
             ],
           }),
@@ -441,7 +448,7 @@ export async function GET(
             margins: { top: 80, bottom: 80, left: 100, right: 100 },
             children: [
               new Paragraph({
-                children: [new TextRun({ text: 'Тип', bold: true, size: 20, font: FONT, color: '334155' })],
+                children: [new TextRun({ text: t('drvDocx.type'), bold: true, size: 20, font: FONT, color: '334155' })],
               }),
             ],
           }),
@@ -451,7 +458,7 @@ export async function GET(
             margins: { top: 80, bottom: 80, left: 100, right: 100 },
             children: [
               new Paragraph({
-                children: [new TextRun({ text: 'Вес', bold: true, size: 20, font: FONT, color: '334155' })],
+                children: [new TextRun({ text: t('drvDocx.weight'), bold: true, size: 20, font: FONT, color: '334155' })],
               }),
             ],
           }),
@@ -528,14 +535,14 @@ export async function GET(
   }
 
   if (segment.notes) {
-    children.push(txt('ЗАМЕТКИ', { bold: true, size: 22, after: 100, color: BLUE }));
+    children.push(txt(t('drvDocx.notes'), { bold: true, size: 22, after: 100, color: BLUE }));
     children.push(txt(segment.notes, { size: 20, after: 200, color: '334155' }));
   }
 
   children.push(divider());
   children.push(txt('', { after: 200 }));
   children.push(
-    txt('Подпись водителя об ознакомлении:', {
+    txt(t('drvDocx.sign'), {
       bold: true,
       size: 22,
       after: 60,
@@ -543,7 +550,7 @@ export async function GET(
     })
   );
   children.push(txt('_______________________________________', { size: 22, after: 40, color: '94A3B8' }));
-  children.push(txt('(дата / подпись)', { size: 16, after: 0, color: GRAY, italics: true }));
+  children.push(txt(t('drvDocx.dateSign'), { size: 16, after: 0, color: GRAY, italics: true }));
 
   const doc = new Document({
     sections: [
