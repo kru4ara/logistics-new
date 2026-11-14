@@ -893,3 +893,14 @@ begin
   raise notice 'ok: storage.objects без политик для public/anon';
 end;
 $$;
+
+-- Бакет documents закрытый (миграция 021): сканы паспортов не должны
+-- открываться по прямому адресу /object/public/.
+do $$
+begin
+  if exists (select 1 from storage.buckets where id = 'documents' and public) then
+    raise exception 'FAIL: бакет documents публичный';
+  end if;
+  raise notice 'ok: бакет documents закрытый';
+end;
+$$;
