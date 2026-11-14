@@ -10,6 +10,10 @@
  * Legacy-поля trips (sender_*, receiver_*, route) НЕ используются.
  */
 
+import { createT, type T } from './i18n/translate';
+import { MESSAGES } from './i18n/messages';
+import type { MessageKey } from './i18n/translate';
+
 type DriverInfo = {
   first_name: string | null;
   last_name: string | null;
@@ -66,6 +70,10 @@ type BuildTaskParams = {
   trailerNumber: string | null;
   segments: SegmentInfo[];
   markdown?: boolean;
+  /** Переводчик на языке водителя; по умолчанию — русский. */
+  t?: T;
+  /** Адрес приложения для ссылки в Telegram. */
+  appUrl?: string;
 };
 
 function fmtDate(d: string | null): string {
@@ -103,32 +111,36 @@ function buildRouteFromSegments(segments: SegmentInfo[]): string {
   return `${from} → ${to}`;
 }
 
-const STOP_LABEL: Record<StopItem['type'], string> = {
-  load: 'Загрузка',
-  reload: 'Догруз / перегруз',
-  unload: 'Выгрузка',
-  customs: 'Таможня',
+const STOP_LABEL: Record<StopItem['type'], MessageKey> = {
+  load: 'taskMsg.stopLoad',
+  reload: 'taskMsg.stopReload',
+  unload: 'taskMsg.stopUnload',
+  customs: 'taskMsg.stopCustoms',
 };
+
+const RU = createT(MESSAGES.ru);
 
 export function buildDriverTaskText({
   trip,
   segments,
   markdown = false,
+  t = RU,
+  appUrl = 'https://logistics-new-ebon.vercel.app',
 }: BuildTaskParams): string {
-  const b = (t: string) => (markdown ? `*${t}*` : t);
+  const b = (s: string) => (markdown ? `*${s}*` : s);
   const lines: string[] = [];
 
   // ============================================================
   // Шапка
   // ============================================================
-  lines.push(`🚛 ${b(`Задание на рейс №${trip.trip_number || '—'}`)}`);
+  lines.push(`🚛 ${b(t('taskMsg.title', { n: trip.trip_number || '—' }))}`);
   lines.push('');
 
   if (trip.clients?.name) {
-    lines.push(`${b('Клиент:')} ${trip.clients.name}`);
+    lines.push(`${b(t('taskMsg.client'))} ${trip.clients.name}`);
   }
   if (trip.start_date) {
-    lines.push(`${b('Старт:')} ${fmtDate(trip.start_date)}`);
+    lines.push(`${b(t('taskMsg.start'))} ${fmtDate(trip.start_date)}`);
   }
 
   lines.push('');
@@ -142,21 +154,21 @@ export function buildDriverTaskText({
 
   if (usSegments.length > 0) {
     // Общий маршрут крупно (дублирует инфу, но удобно для водителя)
-    lines.push(`${b('МАРШРУТ:')} ${buildRouteFromSegments(usSegments)}`);
+    lines.push(`${b(t('taskMsg.route'))} ${buildRouteFromSegments(usSegments)}`);
     lines.push('');
 
     usSegments.forEach((seg, segIdx) => {
       const isMulti = usSegments.length > 1;
       if (isMulti) {
-        lines.push(b(`Участок ${segIdx + 1}:`));
+        lines.push(b(t('taskMsg.leg', { n: segIdx + 1 })));
       }
 
       // Машина и прицеп (если заданы в сегменте)
       if (seg.truck_reg) {
-        const t = seg.trailer_reg ? `${seg.truck_reg} / ${seg.trailer_reg}` : seg.truck_reg;
-        lines.push(`🚚 ${b('Машина:')} ${t}`);
+        const reg = seg.trailer_reg ? `${seg.truck_reg} / ${seg.trailer_reg}` : seg.truck_reg;
+        lines.push(`🚚 ${b(t('taskMsg.truck'))} ${reg}`);
       } else if (seg.trailer_reg) {
-        lines.push(`🚚 ${b('Прицеп:')} ${seg.trailer_reg}`);
+        lines.push(`🚚 ${b(t('taskMsg.trailer'))} ${seg.trailer_reg}`);
       }
 
       // Даты сегмента
@@ -175,7 +187,7 @@ export function buildDriverTaskText({
       const stops = Array.isArray(seg.stops) ? seg.stops : [];
       for (const stop of stops) {
         const stopStr = fmtPlace(stop.company, stop.city, stop.country, stop.address);
-        const label = STOP_LABEL[stop.type] || 'Остановка';
+        const label = STOP_LABEL[stop.type] ? t(STOP_LABEL[stop.type]) : t('taskMsg.stop');
         const datePart = stop.date ? ` (${fmtDate(stop.date)})` : '';
         lines.push(`   ↓ ${label}${datePart}: ${stopStr}`);
       }
@@ -187,7 +199,7 @@ export function buildDriverTaskText({
       // Грузы
       if (seg.cargoLinks.length > 0) {
         lines.push('');
-        lines.push(b('Грузы:'));
+        lines.push(b(t('taskMsg.cargo')));
         for (const cl of seg.cargoLinks) {
           const label = cl.label || '—';
           lines.push(`   #${cl.position} ${label}`);
@@ -205,7 +217,7 @@ export function buildDriverTaskText({
   // ============================================================
   if (markdown) {
     lines.push('');
-    lines.push(`Открыть в приложении: https://logistics-new-ebon.vercel.app/driver/trips/${trip.id}`);
+    lines.push(t('taskMsg.open', { url: `${appUrl}/driver/trips/${trip.id}` }));
   }
 
   return lines.join('\n');

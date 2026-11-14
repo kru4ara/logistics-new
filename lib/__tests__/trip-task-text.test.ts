@@ -157,3 +157,24 @@ describe('buildDriverTaskText', () => {
     expect(text).toContain('https://logistics-new-ebon.vercel.app/driver/trips/trip-1');
   });
 });
+
+describe('buildDriverTaskText: язык водителя', () => {
+  it('собирает задание на польском и с адресом приложения компании', async () => {
+    const { createT } = await import('../i18n/translate');
+    const { MESSAGES } = await import('../i18n/messages');
+    const text = buildDriverTaskText({
+      trip: baseTrip,
+      driver: null,
+      truck: null,
+      trailerNumber: null,
+      segments: [baseSegment as any],
+      markdown: true,
+      t: createT(MESSAGES.pl),
+      appUrl: 'https://crm.example.pl',
+    });
+    expect(text).toContain('Zadanie na kurs nr 42');
+    expect(text).toContain('Klient:');
+    expect(text).toContain('Otwórz w aplikacji: https://crm.example.pl/driver/trips/trip-1');
+    expect(text).not.toContain('Задание');
+  });
+});

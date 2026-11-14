@@ -240,6 +240,10 @@ const TRANSLATED_FILES = [
   'app/driver/reminders/page.tsx',
   'app/driver/stats/page.tsx',
   'app/driver/trips/[id]/page.tsx',
+  // Задание водителю, Excel-выгрузка
+  'app/api/export/route.ts',
+  'lib/driver-locale.ts',
+  'lib/trip-task-text.ts',
 ];
 
 function cyrillicLiterals(file: string): string[] {
