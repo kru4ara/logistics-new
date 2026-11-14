@@ -5,6 +5,7 @@ import { createClient } from '../lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { classifyCapex } from '../lib/capex';
+import { getT } from '../lib/i18n/server';
 
 async function convertToEur(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -40,6 +41,7 @@ async function convertToEur(
 }
 
 export async function createFixedCost(formData: FormData) {
+  const { t } = await getT();
   await requireOffice();
   const supabase = await createClient();
 
@@ -74,12 +76,13 @@ export async function createFixedCost(formData: FormData) {
       }
     ]);
 
-  if (error) throw new Error(`Ошибка добавления: ${error.message}`);
+  if (error) throw new Error(t('dir.addError', { msg: error.message }));
   revalidatePath('/fixed-costs');
   redirect('/fixed-costs');
 }
 
 export async function updateFixedCost(costId: string, formData: FormData) {
+  const { t } = await getT();
   await requireOffice();
   const supabase = await createClient();
 
@@ -112,12 +115,13 @@ export async function updateFixedCost(costId: string, formData: FormData) {
     })
     .eq('id', costId);
 
-  if (error) throw new Error(`Ошибка обновления: ${error.message}`);
+  if (error) throw new Error(t('dir.updateError', { msg: error.message }));
   revalidatePath('/fixed-costs');
   redirect('/fixed-costs');
 }
 
 export async function deleteFixedCost(costId: string) {
+  const { t } = await getT();
   await requireOffice();
   const supabase = await createClient();
 
@@ -125,6 +129,6 @@ export async function deleteFixedCost(costId: string) {
     .from('fixed_costs')
     .delete()
     .eq('id', costId);
-  if (error) throw new Error(`Ошибка удаления: ${error.message}`);
+  if (error) throw new Error(t('dir.deleteError', { msg: error.message }));
   revalidatePath('/fixed-costs');
 }

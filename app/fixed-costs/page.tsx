@@ -20,6 +20,10 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { deniedRedirect } from '../../lib/roles';
+import { getT } from '../../lib/i18n/server';
+import { INTL_LOCALE } from '../../lib/i18n/config';
+import type { MessageKey } from '../../lib/i18n/translate';
+import { tPlural } from '../../lib/i18n/translate';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,11 +35,11 @@ type MonthGroup = {
   operationalTotal: number;
 };
 
-const costTypeMeta: Record<string, { label: string; Icon: LucideIcon; badge: string }> = {
-  yearly: { label: 'Годовой', Icon: CalendarClock, badge: 'bg-violet-50 text-violet-700 border-violet-200' },
-  monthly: { label: 'Месячный', Icon: Repeat, badge: 'bg-brand-50 text-brand-700 border-brand-200' },
-  installment: { label: 'Рата', Icon: Coins, badge: 'bg-orange-50 text-orange-700 border-orange-200' },
-  one_time: { label: 'Одноразовый', Icon: Zap, badge: 'bg-slate-100 text-slate-700 border-slate-200' },
+const costTypeMeta: Record<string, { label: MessageKey; Icon: LucideIcon; badge: string }> = {
+  yearly: { label: 'fc.typeYearly', Icon: CalendarClock, badge: 'bg-violet-50 text-violet-700 border-violet-200' },
+  monthly: { label: 'fc.typeMonthly', Icon: Repeat, badge: 'bg-brand-50 text-brand-700 border-brand-200' },
+  installment: { label: 'fc.typeInstallment', Icon: Coins, badge: 'bg-orange-50 text-orange-700 border-orange-200' },
+  one_time: { label: 'fc.typeOneTime', Icon: Zap, badge: 'bg-slate-100 text-slate-700 border-slate-200' },
 };
 
 const currencySymbol: Record<string, string> = {
@@ -45,6 +49,7 @@ const currencySymbol: Record<string, string> = {
 };
 
 export default async function FixedCostsPage() {
+  const { t, locale } = await getT();
   const { role } = await getSessionContext();
   const denied = deniedRedirect(role, 'fixedCosts.view');
   if (denied) redirect(denied);
@@ -58,7 +63,7 @@ export default async function FixedCostsPage() {
     .order('expense_date', { ascending: false });
 
   if (error) {
-    return <div className="p-8 text-red-500">Ошибка загрузки: {error.message}</div>;
+    return <div className="p-8 text-red-500">{t('dir.loadError')}{' '}{error.message}</div>;
   }
 
   const now = new Date();
@@ -125,15 +130,15 @@ export default async function FixedCostsPage() {
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2.5 tracking-tight">
               <Banknote className="w-6 h-6 md:w-7 md:h-7 text-brand-600" strokeWidth={2.2} />
-              Общие расходы
+              {t('nav.fixedCosts')}
             </h1>
             <p className="text-slate-500 mt-1 text-sm md:text-base">
-              Расходы, не привязанные к конкретному рейсу
+              {t('fc.hint')}
             </p>
           </div>
           <Link href="/fixed-costs/new" className="btn btn-primary text-sm md:text-base w-full sm:w-auto justify-center">
             <Plus className="w-4 h-4 md:w-[18px] md:h-[18px]" strokeWidth={2.5} />
-            Добавить расход
+            {t('trip.addExpense')}
           </Link>
         </div>
 
@@ -141,7 +146,7 @@ export default async function FixedCostsPage() {
         <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-3">
           <div className="card p-4 md:p-5">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs md:text-sm font-medium text-slate-500">В этом месяце (факт)</span>
+              <span className="text-xs md:text-sm font-medium text-slate-500">{t('fc.thisMonth')}</span>
               <div className="w-9 h-9 rounded-xl bg-red-50 flex items-center justify-center">
                 <TrendingDown className="w-4 h-4 text-red-500" strokeWidth={2.2} />
               </div>
@@ -150,13 +155,13 @@ export default async function FixedCostsPage() {
               {currentMonthActual.toFixed(0)} €
             </div>
             <div className="text-xs text-slate-400 mt-1">
-              Операционные (без инвестиций)
+              {t('fc.operational')}
             </div>
           </div>
 
           <div className="card p-4 md:p-5">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs md:text-sm font-medium text-slate-500">Эффективно в месяц</span>
+              <span className="text-xs md:text-sm font-medium text-slate-500">{t('fc.effective')}</span>
               <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center">
                 <BarChart3 className="w-4 h-4 text-emerald-600" strokeWidth={2.2} />
               </div>
@@ -165,13 +170,13 @@ export default async function FixedCostsPage() {
               {effectiveMonthly.toFixed(0)} €
             </div>
             <div className="text-xs text-slate-400 mt-1 break-words">
-              Годовые ÷ 12 ({yearlyTotal.toFixed(0)} € / год)
+              {t('fc.yearlyDiv', { n: yearlyTotal.toFixed(0) })}
             </div>
           </div>
 
           <div className="card p-4 md:p-5 border-amber-200">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs md:text-sm font-medium text-amber-700">Инвестиции (всего)</span>
+              <span className="text-xs md:text-sm font-medium text-amber-700">{t('fc.capexTotal')}</span>
               <div className="w-9 h-9 rounded-xl bg-amber-50 flex items-center justify-center">
                 <Briefcase className="w-4 h-4 text-amber-600" strokeWidth={2.2} />
               </div>
@@ -180,7 +185,7 @@ export default async function FixedCostsPage() {
               {totalCapexAllTime > 0 ? `${totalCapexAllTime.toFixed(0)} €` : '—'}
             </div>
             <div className="text-xs text-amber-600/70 mt-1">
-              вне P&L · {capexCosts.length} {capexCosts.length === 1 ? 'операция' : 'операций'}
+              {t('fc.outsidePl', { ops: tPlural(t, locale, 'count2.op', capexCosts.length) })}
             </div>
           </div>
         </div>
@@ -190,8 +195,8 @@ export default async function FixedCostsPage() {
             <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-slate-50 flex items-center justify-center">
               <Inbox className="w-8 h-8 text-slate-300" strokeWidth={1.5} />
             </div>
-            <h2 className="text-xl font-bold text-slate-900 mb-2">Расходов пока нет</h2>
-            <p className="text-slate-500 mb-6">Добавьте первый общий расход</p>
+            <h2 className="text-xl font-bold text-slate-900 mb-2">{t('fc.empty')}</h2>
+            <p className="text-slate-500 mb-6">{t('fc.emptyHint')}</p>
           </div>
         ) : (
           <div className="space-y-4 md:space-y-5">
@@ -203,18 +208,18 @@ export default async function FixedCostsPage() {
                       <Calendar className="w-4 h-4 md:w-5 md:h-5 text-brand-600" strokeWidth={2} />
                     </div>
                     <h2 className="text-base md:text-lg font-bold text-slate-900 capitalize">
-                      {new Date(m.month_key + '-01').toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' })}
+                      {new Date(m.month_key + '-01').toLocaleDateString(INTL_LOCALE[locale], { month: 'long', year: 'numeric' })}
                     </h2>
                   </div>
                   <div className="flex items-baseline gap-4">
                     {m.capexTotal > 0 && (
                       <div className="text-right">
-                        <div className="text-[10px] md:text-xs uppercase tracking-wide text-amber-600 font-medium">Инвестиции</div>
+                        <div className="text-[10px] md:text-xs uppercase tracking-wide text-amber-600 font-medium">{t('fc.capex')}</div>
                         <div className="text-sm md:text-base font-bold text-amber-600 tabular-nums">{m.capexTotal.toFixed(0)} €</div>
                       </div>
                     )}
                     <div className="text-right">
-                      <div className="text-[10px] md:text-xs uppercase tracking-wide text-slate-400 font-medium">Операционные</div>
+                      <div className="text-[10px] md:text-xs uppercase tracking-wide text-slate-400 font-medium">{t('fc.opex')}</div>
                       <div className="text-lg md:text-xl font-bold text-red-500 tabular-nums">{m.operationalTotal.toFixed(0)} €</div>
                     </div>
                   </div>
@@ -233,19 +238,19 @@ export default async function FixedCostsPage() {
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2 flex-wrap mb-0.5">
                               <div className="font-semibold text-slate-800 break-words">
-                                {c.category || 'Без категории'}
+                                {c.category || t('fc.noCategory')}
                               </div>
                               {isCapex && (
                                 <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 border border-amber-200">
                                   <Briefcase className="w-2.5 h-2.5" strokeWidth={2.5} />
-                                  Инвестиция
+                                  {t('fc.capexOne')}
                                 </span>
                               )}
                             </div>
                             <div className="flex items-center gap-1 text-xs text-slate-400 mt-0.5">
                               <Calendar className="w-3 h-3" strokeWidth={2} />
                               <span className="tabular-nums">
-                                {c.expense_date ? new Date(c.expense_date).toLocaleDateString('ru-RU') : '—'}
+                                {c.expense_date ? new Date(c.expense_date).toLocaleDateString(INTL_LOCALE[locale]) : '—'}
                               </span>
                             </div>
                           </div>
@@ -263,7 +268,7 @@ export default async function FixedCostsPage() {
                           <div>
                             <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border ${meta.badge}`}>
                               <meta.Icon className="w-3 h-3" strokeWidth={2.2} />
-                              {meta.label}
+                              {t(meta.label)}
                             </span>
                           </div>
                         )}
@@ -274,7 +279,7 @@ export default async function FixedCostsPage() {
                             className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-slate-300 text-slate-700 text-xs font-medium hover:bg-slate-100 transition-all"
                           >
                             <Pencil className="w-3.5 h-3.5" strokeWidth={2} />
-                            Изменить
+                            {t('trip.change')}
                           </Link>
                           <form action={async () => {
                             'use server';
@@ -285,7 +290,7 @@ export default async function FixedCostsPage() {
                               className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-red-500/10 text-red-600 border border-red-500/30 text-xs font-medium hover:bg-red-500 hover:text-white transition-all"
                             >
                               <Trash2 className="w-3.5 h-3.5" strokeWidth={2} />
-                              Удалить
+                              {t('trips.delete')}
                             </button>
                           </form>
                         </div>
@@ -299,12 +304,12 @@ export default async function FixedCostsPage() {
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-slate-100">
-                        <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Дата</th>
-                        <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Категория</th>
-                        <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Тип</th>
-                        <th className="text-right px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Сумма</th>
-                        <th className="text-right px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">В EUR</th>
-                        <th className="text-right px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Действия</th>
+                        <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('addr.date')}</th>
+                        <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('expense.category')}</th>
+                        <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('fc.type')}</th>
+                        <th className="text-right px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('seg.amount')}</th>
+                        <th className="text-right px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('expense.inEur')}</th>
+                        <th className="text-right px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('fc.actions')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -316,15 +321,15 @@ export default async function FixedCostsPage() {
                         return (
                           <tr key={c.id} className={`border-b border-slate-50 transition-colors ${isCapex ? 'bg-amber-50/40 hover:bg-amber-50/60' : 'hover:bg-brand-50/30'}`}>
                             <td className="px-6 py-4 text-sm text-slate-600 whitespace-nowrap tabular-nums">
-                              {c.expense_date ? new Date(c.expense_date).toLocaleDateString('ru-RU') : '—'}
+                              {c.expense_date ? new Date(c.expense_date).toLocaleDateString(INTL_LOCALE[locale]) : '—'}
                             </td>
                             <td className="px-6 py-4 font-medium text-slate-800">
                               <div className="flex items-center gap-2 flex-wrap">
-                                {c.category || 'Без категории'}
+                                {c.category || t('fc.noCategory')}
                                 {isCapex && (
                                   <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 border border-amber-200">
                                     <Briefcase className="w-2.5 h-2.5" strokeWidth={2.5} />
-                                    Инвестиция
+                                    {t('fc.capexOne')}
                                   </span>
                                 )}
                               </div>
@@ -333,7 +338,7 @@ export default async function FixedCostsPage() {
                               {meta ? (
                                 <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border whitespace-nowrap ${meta.badge}`}>
                                   <meta.Icon className="w-3 h-3" strokeWidth={2.2} />
-                                  {meta.label}
+                                  {t(meta.label)}
                                 </span>
                               ) : (
                                 <span className="text-slate-300 text-xs">—</span>
@@ -349,7 +354,7 @@ export default async function FixedCostsPage() {
                               <Link
                                 href={`/fixed-costs/${c.id}/edit`}
                                 className="text-brand-600 hover:text-brand-800 text-xs font-medium px-2 py-1 inline-flex"
-                                title="Изменить"
+                                title={t('trip.change')}
                               >
                                 <Pencil className="w-3.5 h-3.5" strokeWidth={2} />
                               </Link>
@@ -360,7 +365,7 @@ export default async function FixedCostsPage() {
                                 <button
                                   type="submit"
                                   className="text-red-500 hover:text-red-700 text-xs font-medium px-2 py-1"
-                                  title="Удалить"
+                                  title={t('trips.delete')}
                                 >
                                   <Trash2 className="w-3.5 h-3.5" strokeWidth={2} />
                                 </button>

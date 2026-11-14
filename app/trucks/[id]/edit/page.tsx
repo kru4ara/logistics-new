@@ -1,10 +1,12 @@
 import { createClient } from '../../../../lib/supabase/admin';
 import EditTruckForm from './EditTruckForm';
 import { ArrowLeft, Pencil } from 'lucide-react';
+import { getT } from '../../../../lib/i18n/server';
 
 export const dynamic = 'force-dynamic';
 
 export default async function EditTruckPage({ params }: { params: Promise<{ id: string }> }) {
+  const { t } = await getT();
   const { id: truckId } = await params;
 
   const supabase = await createClient();
@@ -16,7 +18,7 @@ export default async function EditTruckPage({ params }: { params: Promise<{ id: 
     .single();
 
   if (error || !truck) {
-    return <div className="p-8 text-red-500">Машина не найдена</div>;
+    return <div className="p-8 text-red-500">{t('trk.notFound')}</div>;
   }
 
   return (
@@ -28,13 +30,13 @@ export default async function EditTruckPage({ params }: { params: Promise<{ id: 
           className="inline-flex items-center gap-2 text-slate-600 hover:text-brand-600 transition-colors text-sm font-medium"
         >
           <ArrowLeft className="w-4 h-4" strokeWidth={2} />
-          Назад к карточке
+          {t('drv.backToCard')}
         </a>
 
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2.5 tracking-tight">
             <Pencil className="w-6 h-6 md:w-7 md:h-7 text-brand-600" strokeWidth={2.2} />
-            Редактировать машину
+            {t('trk.editTitle')}
           </h1>
         </div>
 

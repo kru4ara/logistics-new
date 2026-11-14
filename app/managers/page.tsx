@@ -14,10 +14,12 @@ import {
   XCircle,
 } from 'lucide-react';
 import { fetchAll } from '../../lib/fetch-all';
+import { getT } from '../../lib/i18n/server';
 
 export const dynamic = 'force-dynamic';
 
 export default async function ManagersPage() {
+  const { t: tr } = await getT();
   const { role } = await getSessionContext();
   const denied = deniedRedirect(role, 'managers.view');
   if (denied) redirect(denied);
@@ -31,7 +33,7 @@ export default async function ManagersPage() {
     .order('full_name', { ascending: true });
 
   if (error) {
-    return <div className="p-8 text-red-500">Ошибка загрузки: {error.message}</div>;
+    return <div className="p-8 text-red-500">{tr('dir.loadError')}{' '}{error.message}</div>;
   }
 
   // Сколько заказов у каждого менеджера (всего и неназначенных).
@@ -57,18 +59,18 @@ export default async function ManagersPage() {
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2.5 tracking-tight">
               <Briefcase className="w-6 h-6 md:w-7 md:h-7 text-brand-600" strokeWidth={2.2} />
-              Менеджеры
+              {tr('nav.managers')}
             </h1>
             <p className="text-slate-500 mt-1 text-sm md:text-base">
-              Всего менеджеров: <b className="text-slate-700">{managers?.length || 0}</b>
+              {tr('mgr.total')}{' '}<b className="text-slate-700">{managers?.length || 0}</b>
               {unassignedCount > 0 && (
-                <> · без назначенного менеджера: <b className="text-slate-700">{unassignedCount}</b></>
+                <>{' '}{tr('mgr.unassigned')}{' '}<b className="text-slate-700">{unassignedCount}</b></>
               )}
             </p>
           </div>
           <Link href="/managers/new" className="btn btn-primary text-sm md:text-base justify-center">
             <UserPlus className="w-4 h-4 md:w-[18px] md:h-[18px]" strokeWidth={2.5} />
-            Добавить менеджера
+            {tr('mgr.add')}
           </Link>
         </div>
 
@@ -77,13 +79,13 @@ export default async function ManagersPage() {
             <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-slate-50 flex items-center justify-center">
               <Briefcase className="w-8 h-8 text-slate-300" strokeWidth={1.5} />
             </div>
-            <h2 className="text-xl font-bold text-slate-900 mb-2">Менеджеров пока нет</h2>
+            <h2 className="text-xl font-bold text-slate-900 mb-2">{tr('mgr.empty')}</h2>
             <p className="text-slate-500 mb-6">
-              Добавьте первого менеджера, чтобы назначать на него заказы
+              {tr('mgr.emptyHint')}
             </p>
             <Link href="/managers/new" className="btn btn-primary inline-flex">
               <UserPlus className="w-4 h-4" strokeWidth={2.5} />
-              Добавить менеджера
+              {tr('mgr.add')}
             </Link>
           </div>
         ) : (
@@ -106,7 +108,7 @@ export default async function ManagersPage() {
                       <div className="min-w-0">
                         <div className="font-bold text-slate-900 truncate">{manager.full_name}</div>
                         <div className="text-xs text-slate-500">
-                          {isActive ? 'Активен' : 'Отключён'}
+                          {isActive ? tr('mgr.active') : tr('mgr.disabled')}
                         </div>
                       </div>
                     </div>
@@ -140,7 +142,7 @@ export default async function ManagersPage() {
 
                   <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-2 text-sm text-slate-600">
                     <Package className="w-4 h-4 text-slate-400 shrink-0" strokeWidth={2} />
-                    Заказов: <b className="text-slate-800">{tripsCount}</b>
+                    {tr('mgr.orders')}{' '}<b className="text-slate-800">{tripsCount}</b>
                   </div>
                 </Link>
               );

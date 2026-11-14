@@ -16,25 +16,22 @@ import {
   Link2,
   KeyRound,
 } from 'lucide-react';
+import { getT } from '../../../lib/i18n/server';
+import { INTL_LOCALE } from '../../../lib/i18n/config';
+import { tripStatusKey } from '../../../lib/i18n/labels';
 
 export const dynamic = 'force-dynamic';
 
-const statusLabels: Record<string, string> = {
-  planned: 'Планируется',
-  active: 'В пути',
-  completed: 'Завершён',
-  invoiced: 'Выставлен счёт',
-  paid: 'Оплачен',
-};
 
 export default async function ManagerDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { t: tr, locale } = await getT();
   const { id: managerId } = await params;
   const { role } = await getSessionContext();
   const denied = deniedRedirect(role, 'managers.view');
   if (denied) redirect(denied);
   if (!can(role, 'managers.view')) redirect('/');
 
-  if (!managerId) return <div className="p-8">Ошибка: ID менеджера не передан</div>;
+  if (!managerId) return <div className="p-8">{tr('mgr.noId')}</div>;
 
   const supabase = await createClient();
 
@@ -44,7 +41,7 @@ export default async function ManagerDetailPage({ params }: { params: Promise<{ 
     .eq('id', managerId)
     .single();
 
-  if (error) return <div className="p-8 text-red-500">Ошибка загрузки: {error.message}</div>;
+  if (error) return <div className="p-8 text-red-500">{tr('dir.loadError')}{' '}{error.message}</div>;
 
   // Профиль, привязанный к этой карточке менеджера.
   const { data: profile } = await supabase
@@ -69,7 +66,7 @@ export default async function ManagerDetailPage({ params }: { params: Promise<{ 
           className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" strokeWidth={2} />
-          К списку менеджеров
+          {tr('mgr.backToList')}
         </Link>
 
         <div className="flex items-center gap-3">
@@ -81,8 +78,8 @@ export default async function ManagerDetailPage({ params }: { params: Promise<{ 
               {manager.full_name}
             </h1>
             <p className="text-slate-500 text-sm">
-              {manager.active !== false ? 'Активен' : 'Отключён'}
-              {profile ? ' · учётная запись привязана' : ' · учётная запись не привязана'}
+              {manager.active !== false ? tr('mgr.active') : tr('mgr.disabled')}
+              {profile ? ' ' + tr('mgr.linked') : ' ' + tr('mgr.notLinked')}
             </p>
           </div>
         </div>
@@ -90,14 +87,14 @@ export default async function ManagerDetailPage({ params }: { params: Promise<{ 
         <div className="grid gap-5 lg:grid-cols-2">
           {/* Карточка менеджера */}
           <form action={updateManager} className="card p-5 md:p-6 space-y-5">
-            <h2 className="text-lg font-bold text-slate-900">Данные менеджера</h2>
+            <h2 className="text-lg font-bold text-slate-900">{tr('mgr.details')}</h2>
 
             <input type="hidden" name="manager_id" value={manager.id} />
             <input type="hidden" name="active" value={manager.active !== false ? 'true' : 'false'} />
 
             <div>
               <label htmlFor="full_name" className="block text-sm font-medium text-slate-700 mb-1">
-                Имя и фамилия
+                {tr('mgr.fullName')}
               </label>
               <input id="full_name" name="full_name" required className="input" defaultValue={manager.full_name || ''} />
             </div>
@@ -105,7 +102,7 @@ export default async function ManagerDetailPage({ params }: { params: Promise<{ 
             <div className="grid gap-5 md:grid-cols-2">
               <div>
                 <label htmlFor="phone" className="block text-sm font-medium text-slate-700 mb-1">
-                  Телефон
+                  {tr('drv.phone')}
                 </label>
                 <input id="phone" name="phone" className="input" defaultValue={manager.phone || ''} />
               </div>
@@ -126,7 +123,7 @@ export default async function ManagerDetailPage({ params }: { params: Promise<{ 
 
             <div>
               <label htmlFor="notes" className="block text-sm font-medium text-slate-700 mb-1">
-                Заметки
+                {tr('seg.notes')}
               </label>
               <textarea id="notes" name="notes" rows={3} className="input" defaultValue={manager.notes || ''} />
             </div>
@@ -134,10 +131,10 @@ export default async function ManagerDetailPage({ params }: { params: Promise<{ 
             <div className="flex justify-end pt-2">
               <SubmitButton
                 className="btn btn-primary text-center"
-                pendingText="Сохраняю менеджера…"
+                pendingText={tr('mgr.saving')}
               >
                 <Save className="w-4 h-4" strokeWidth={2} />
-                Сохранить
+                {tr('common.save')}
               </SubmitButton>
             </div>
           </form>
@@ -146,21 +143,19 @@ export default async function ManagerDetailPage({ params }: { params: Promise<{ 
           <form action={setManagerPassword} className="card p-5 md:p-6 space-y-5">
             <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
               <KeyRound className="w-5 h-5 text-slate-400" strokeWidth={2} />
-              Логин и пароль
+              {tr('mgr.loginPass')}
             </h2>
 
             <p className="text-sm text-slate-600">
-              Логин менеджера — его e-mail. Пароль задаёт офис: учётная запись
-              создаётся автоматически, а профиль получает роль
-              <b> manager</b> и ссылку на эту карточку. Менеджер сможет войти
-              и по e-mail, и по имени (например «ANATOLI KURLIUK»).
+              {tr('mgr.loginHintA')}
+              <b> manager</b>{' '}{tr('mgr.loginHintB')}
             </p>
 
             <input type="hidden" name="manager_id" value={manager.id} />
 
             <div>
               <label htmlFor="login_email" className="block text-sm font-medium text-slate-700 mb-1">
-                Логин (e-mail)
+                {tr('mgr.login')}
               </label>
               <input
                 id="login_email"
@@ -175,7 +170,7 @@ export default async function ManagerDetailPage({ params }: { params: Promise<{ 
 
             <div>
               <label htmlFor="manager_password" className="block text-sm font-medium text-slate-700 mb-1">
-                Пароль
+                {tr('login.password')}
               </label>
               <input
                 id="manager_password"
@@ -185,27 +180,26 @@ export default async function ManagerDetailPage({ params }: { params: Promise<{ 
                 minLength={6}
                 autoComplete="new-password"
                 className="input"
-                placeholder="Не короче 6 символов"
+                placeholder={tr('mgr.min6')}
               />
               <p className="text-xs text-slate-500 mt-1">
-                Пароль нигде не хранится и не показывается. Чтобы задать или
-                сменить его, введите новый и нажмите «Сохранить пароль».
+                {tr('mgr.passHint')}
               </p>
             </div>
 
             {manager.password_updated_at && (
               <p className="text-xs text-slate-500">
-                Последний раз пароль задан: {new Date(manager.password_updated_at).toLocaleString('ru-RU')}
+                {tr('mgr.passSetAt')}{' '}{new Date(manager.password_updated_at).toLocaleString(INTL_LOCALE[locale])}
               </p>
             )}
 
             <div className="flex justify-end pt-2">
               <SubmitButton
                 className="btn btn-primary text-center"
-                pendingText="Сохраняю пароль…"
+                pendingText={tr('mgr.passSaving')}
               >
                 <Save className="w-4 h-4" strokeWidth={2} />
-                Сохранить пароль
+                {tr('mgr.passSave')}
               </SubmitButton>
             </div>
           </form>
@@ -214,42 +208,40 @@ export default async function ManagerDetailPage({ params }: { params: Promise<{ 
           <form action={linkManagerUser} className="card p-5 md:p-6 space-y-5">
             <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
               <Link2 className="w-5 h-5 text-slate-400" strokeWidth={2} />
-              Учётная запись
+              {tr('mgr.account')}
             </h2>
 
             <p className="text-sm text-slate-600">
-              Чтобы менеджер вошёл в систему, у его профиля должна быть роль
-              <b> manager</b> и ссылка на эту карточку. Учётную запись Supabase
-              создаёт администратор; здесь указываем её e-mail — этого достаточно,
-              чтобы войти по логину.
+              {tr('mgr.accountHintA')}
+              <b> manager</b>{' '}{tr('mgr.accountHintB')}
             </p>
 
             <input type="hidden" name="manager_id" value={manager.id} />
 
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-1">
-                E-mail учётной записи
+                {tr('mgr.accountEmail')}
               </label>
               <input id="email" name="email" type="email" className="input" defaultValue={manager.email || ''} />
             </div>
 
             <div>
               <label htmlFor="user_id" className="block text-sm font-medium text-slate-700 mb-1">
-                ID учётной записи (auth.users)
+                {tr('mgr.accountId')}
               </label>
               <input id="user_id" name="user_id" className="input" defaultValue={manager.user_id || ''} placeholder="UUID" />
               <p className="text-xs text-slate-500 mt-1">
-                Необязательно, если e-mail уже совпадает с e-mail учётной записи.
+                {tr('mgr.optionalId')}
               </p>
             </div>
 
             <div className="flex justify-end pt-2">
               <SubmitButton
                 className="btn btn-primary text-center"
-                pendingText="Привязываю…"
+                pendingText={tr('mgr.linking')}
               >
                 <Link2 className="w-4 h-4" strokeWidth={2} />
-                Привязать
+                {tr('mgr.link')}
               </SubmitButton>
             </div>
           </form>
@@ -259,22 +251,22 @@ export default async function ManagerDetailPage({ params }: { params: Promise<{ 
         <div className="card p-5 md:p-6">
           <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2 mb-4">
             <Package className="w-5 h-5 text-slate-400" strokeWidth={2} />
-            Заказы менеджера
+            {tr('mgr.ordersTitle')}
             <span className="text-sm font-normal text-slate-500">({trips?.length || 0})</span>
           </h2>
 
           {!trips || trips.length === 0 ? (
-            <p className="text-slate-500 text-sm">Заказов пока нет.</p>
+            <p className="text-slate-500 text-sm">{tr('mgr.noOrders')}</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left text-slate-500 border-b border-slate-200">
                     <th className="py-2 pr-4 font-medium">№</th>
-                    <th className="py-2 pr-4 font-medium">Статус</th>
-                    <th className="py-2 pr-4 font-medium">Начало</th>
-                    <th className="py-2 pr-4 font-medium">Финиш</th>
-                    <th className="py-2 font-medium text-right">Выручка</th>
+                    <th className="py-2 pr-4 font-medium">{tr('trips.status')}</th>
+                    <th className="py-2 pr-4 font-medium">{tr('mgr.start')}</th>
+                    <th className="py-2 pr-4 font-medium">{tr('trip.finish')}</th>
+                    <th className="py-2 font-medium text-right">{tr('mgr.revenue')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -286,7 +278,7 @@ export default async function ManagerDetailPage({ params }: { params: Promise<{ 
                         </Link>
                       </td>
                       <td className="py-2 pr-4 text-slate-600">
-                        {statusLabels[t.status || ''] || t.status}
+                        {tripStatusKey(t.status) ? tr(tripStatusKey(t.status)!) : t.status}
                       </td>
                       <td className="py-2 pr-4 text-slate-600">{t.start_date || '—'}</td>
                       <td className="py-2 pr-4 text-slate-600">{t.end_date || '—'}</td>

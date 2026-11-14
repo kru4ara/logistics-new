@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { fetchAll } from '../../lib/fetch-all';
 import { deniedRedirect } from '../../lib/roles';
+import { getT } from '../../lib/i18n/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -77,6 +78,7 @@ function countTotalDocs(truck: any) {
 }
 
 export default async function TrucksPage() {
+  const { t: tr } = await getT();
   const { role } = await getSessionContext();
   const denied = deniedRedirect(role, 'trucks.view');
   if (denied) redirect(denied);
@@ -89,7 +91,7 @@ export default async function TrucksPage() {
     .order('registration_number', { ascending: true });
 
   if (error) {
-    return <div className="p-8 text-red-500">Ошибка загрузки: {error.message}</div>;
+    return <div className="p-8 text-red-500">{tr('dir.loadError')}{' '}{error.message}</div>;
   }
 
   // Последний показатель остатка топлива в баке по каждому тягачу.
@@ -132,14 +134,14 @@ export default async function TrucksPage() {
       CheckCircle2;
 
     const statusLabel =
-      minDays === null ? 'Нет данных о документах' :
-      isExpired ? `Просрочено (${Math.abs(minDays)} дн.)` :
-      isSoon ? `${minDays} дн. до срока` :
-      `OK (${minDays} дн.)`;
+      minDays === null ? tr('trk.noDocs') :
+      isExpired ? tr('drv.expired', { n: Math.abs(minDays) }) :
+      isSoon ? tr('trk.daysLeft', { n: minDays }) :
+      tr('drv.ok', { n: minDays });
 
     const isTractor = truck.type === 'tractor';
     const TypeIcon = isTractor ? TruckIcon : Container;
-    const typeLabel = isTractor ? 'Тягач' : 'Прицеп';
+    const typeLabel = isTractor ? tr('trips.filterTractor') : tr('seg.trailer');
 
     const subtitleParts = [typeLabel];
     if (truck.brand) subtitleParts.push(truck.brand);
@@ -184,7 +186,7 @@ export default async function TrucksPage() {
             <div>
               <div className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-slate-400 font-medium mb-0.5">
                 <FileText className="w-3 h-3" strokeWidth={2} />
-                Документов
+                {tr('trk.docs')}
               </div>
               <div className={`text-xs sm:text-sm font-bold tabular-nums ${filledDocs === totalDocs ? 'text-emerald-600' : filledDocs > 0 ? 'text-orange-600' : 'text-slate-400'}`}>
                 {filledDocs} / {totalDocs}
@@ -193,7 +195,7 @@ export default async function TrucksPage() {
             <div>
               <div className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-slate-400 font-medium mb-0.5">
                 <BarChart3 className="w-3 h-3" strokeWidth={2} />
-                Рейсов
+                {tr('drv.trips')}
               </div>
               <div className={`text-xs sm:text-sm font-bold tabular-nums ${tripsCount > 0 ? 'text-brand-600' : 'text-slate-400'}`}>
                 {tripsCount > 0 ? tripsCount : '—'}
@@ -202,7 +204,7 @@ export default async function TrucksPage() {
             <div>
               <div className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-slate-400 font-medium mb-0.5">
                 <Calendar className="w-3 h-3" strokeWidth={2} />
-                Год
+                {tr('trk.year')}
               </div>
               <div className="text-xs sm:text-sm font-bold text-slate-700 tabular-nums">
                 {truck.year || '—'}
@@ -211,11 +213,11 @@ export default async function TrucksPage() {
             <div>
               <div className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-slate-400 font-medium mb-0.5">
                 <Fuel className="w-3 h-3" strokeWidth={2} />
-                Топливо
+                {tr('trip.fuel')}
               </div>
               <div className="text-xs sm:text-sm font-bold text-slate-700 tabular-nums">
                 {fuel && fuel.liters != null
-                  ? (fuel.isEstimate ? '~' : '') + formatLiters(fuel.liters) + ' л'
+                  ? (fuel.isEstimate ? '~' : '') + formatLiters(fuel.liters) + tr('trk.liters')
                   : '—'}
               </div>
             </div>
@@ -234,15 +236,15 @@ export default async function TrucksPage() {
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2.5 tracking-tight">
               <TruckIcon className="w-6 h-6 md:w-7 md:h-7 text-brand-600" strokeWidth={2.2} />
-              Транспорт
+              {tr('nav.trucks')}
             </h1>
             <p className="text-slate-500 mt-1 text-sm md:text-base">
-              Тягачей: <b className="text-slate-700">{tractors.length}</b> · Прицепов: <b className="text-slate-700">{trailers.length}</b>
+              {tr('trk.tractors')}{' '}<b className="text-slate-700">{tractors.length}</b>{' '}{tr('trk.trailersC')}{' '}<b className="text-slate-700">{trailers.length}</b>
             </p>
           </div>
           <Link href="/trucks/new" className="btn btn-primary text-sm md:text-base w-full sm:w-auto justify-center">
             <Plus className="w-4 h-4 md:w-[18px] md:h-[18px]" strokeWidth={2.5} />
-            Добавить транспорт
+            {tr('trk.add')}
           </Link>
         </div>
 
@@ -253,15 +255,14 @@ export default async function TrucksPage() {
               <TruckIcon className="w-8 h-8 text-brand-600" strokeWidth={1.5} />
             </div>
             <h2 className="text-xl font-bold text-slate-900 mb-2">
-              Транспорт не добавлен
+              {tr('trk.empty')}
             </h2>
             <p className="text-slate-500 mb-6 max-w-md mx-auto">
-              Добавьте тягачи и прицепы, чтобы назначать их на рейсы
-              и следить за сроками документов.
+              {tr('trk.emptyHint')}
             </p>
             <Link href="/trucks/new" className="btn btn-primary inline-flex">
               <Plus className="w-4 h-4" strokeWidth={2.5} />
-              Добавить транспорт
+              {tr('trk.add')}
             </Link>
           </div>
         ) : (
@@ -270,7 +271,7 @@ export default async function TrucksPage() {
             <div>
               <h2 className="text-lg font-bold text-slate-900 mb-3 md:mb-4 flex items-center gap-2">
                 <TruckIcon className="w-5 h-5 text-brand-600" strokeWidth={2.2} />
-                Тягачи
+                {tr('trk.tractorsT')}
                 <span className="text-sm font-normal text-slate-400 tabular-nums">({tractors.length})</span>
               </h2>
               {tractors.length === 0 ? (
@@ -278,7 +279,7 @@ export default async function TrucksPage() {
                   <div className="w-12 h-12 mx-auto mb-2 rounded-xl bg-slate-50 flex items-center justify-center">
                     <Inbox className="w-6 h-6 text-slate-300" strokeWidth={1.5} />
                   </div>
-                  <div className="text-slate-400 text-sm">Тягачей пока нет</div>
+                  <div className="text-slate-400 text-sm">{tr('trk.noTractors')}</div>
                 </div>
               ) : (
                 <div className="grid gap-4 md:gap-5 md:grid-cols-2 lg:grid-cols-3">
@@ -291,7 +292,7 @@ export default async function TrucksPage() {
             <div>
               <h2 className="text-lg font-bold text-slate-900 mb-3 md:mb-4 flex items-center gap-2">
                 <Container className="w-5 h-5 text-brand-600" strokeWidth={2.2} />
-                Прицепы
+                {tr('trk.trailers')}
                 <span className="text-sm font-normal text-slate-400 tabular-nums">({trailers.length})</span>
               </h2>
               {trailers.length === 0 ? (
@@ -299,7 +300,7 @@ export default async function TrucksPage() {
                   <div className="w-12 h-12 mx-auto mb-2 rounded-xl bg-slate-50 flex items-center justify-center">
                     <Inbox className="w-6 h-6 text-slate-300" strokeWidth={1.5} />
                   </div>
-                  <div className="text-slate-400 text-sm">Прицепов пока нет</div>
+                  <div className="text-slate-400 text-sm">{tr('trk.noTrailers')}</div>
                 </div>
               ) : (
                 <div className="grid gap-4 md:gap-5 md:grid-cols-2 lg:grid-cols-3">
