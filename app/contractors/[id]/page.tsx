@@ -22,6 +22,9 @@ import {
   Inbox,
 } from 'lucide-react';
 import { deniedRedirect } from '../../../lib/roles';
+import { getT } from '../../../lib/i18n/server';
+import { formatDate } from '../../../lib/i18n/format';
+import { INTL_LOCALE, type Locale } from '../../../lib/i18n/config';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,17 +55,10 @@ type WorkItem = {
   href: string;
 };
 
-function fmtDate(d: string | null): string {
-  if (!d) return '—';
-  try {
-    return new Date(d).toLocaleDateString('ru-RU');
-  } catch {
-    return d;
-  }
-}
 
-function fmtEur(n: number): string {
-  return n.toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' €';
+
+function fmtEur(n: number, locale: Locale): string {
+  return n.toLocaleString(INTL_LOCALE[locale], { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' €';
 }
 
 // Маршрут экспедиции: точки лежат в trip_segments.stops (jsonb)
@@ -85,6 +81,7 @@ export default async function ContractorCardPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const { t, locale } = await getT();
   const { id } = await params;
 
   const { role } = await getSessionContext();
@@ -109,15 +106,15 @@ export default async function ContractorCardPage({
             className="inline-flex items-center gap-2 text-slate-600 hover:text-brand-600 transition-colors text-sm font-medium mb-6"
           >
             <ArrowLeft className="w-4 h-4" strokeWidth={2} />
-            Все подрядчики
+            {t('ctr.all')}
           </Link>
           <div className="card p-10 text-center">
             <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-slate-50 flex items-center justify-center">
               <Inbox className="w-8 h-8 text-slate-300" strokeWidth={1.5} />
             </div>
-            <div className="text-lg font-bold text-slate-900 mb-1">Подрядчик не найден</div>
+            <div className="text-lg font-bold text-slate-900 mb-1">{t('ctr.notFound')}</div>
             <div className="text-sm text-slate-500">
-              Возможно, он был удалён или ссылка устарела.
+              {t('ctr.maybeDeleted')}
             </div>
           </div>
         </div>
@@ -261,7 +258,7 @@ export default async function ContractorCardPage({
           className="inline-flex items-center gap-2 text-slate-600 hover:text-brand-600 transition-colors text-sm font-medium"
         >
           <ArrowLeft className="w-4 h-4" strokeWidth={2} />
-          Все подрядчики
+          {t('ctr.all')}
         </Link>
 
         {/* ЗАГОЛОВОК */}
@@ -273,7 +270,7 @@ export default async function ContractorCardPage({
                 <Building2 className="w-7 h-7 md:w-8 md:h-8 text-white" strokeWidth={2.2} />
               </div>
               <div className="min-w-0">
-                <div className="text-xs text-slate-400 font-medium">Подрядчик</div>
+                <div className="text-xs text-slate-400 font-medium">{t('expenseCat.contractor')}</div>
                 <h1 className="text-2xl md:text-3xl font-bold text-slate-900 mt-1 break-words tracking-tight">
                   {c.name || '—'}
                 </h1>
@@ -295,7 +292,7 @@ export default async function ContractorCardPage({
               className="btn btn-primary self-start text-sm whitespace-nowrap"
             >
               <Pencil className="w-4 h-4" strokeWidth={2} />
-              Редактировать
+              {t('trip.edit')}
             </Link>
           </div>
         </div>
@@ -304,7 +301,7 @@ export default async function ContractorCardPage({
         <div className="card p-5 md:p-6">
           <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
             <FileText className="w-5 h-5 text-brand-600" strokeWidth={2} />
-            Реквизиты
+            {t('ctr.details')}
           </h2>
 
           <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
@@ -316,7 +313,7 @@ export default async function ContractorCardPage({
             )}
             {c.address && (
               <div className="sm:col-span-2">
-                <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Адрес</div>
+                <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">{t('settings.address')}</div>
                 <div className="flex items-start gap-1.5 text-slate-800 font-medium text-sm">
                   <MapPin className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" strokeWidth={2} />
                   <span className="break-words">{c.address}</span>
@@ -325,7 +322,7 @@ export default async function ContractorCardPage({
             )}
             {c.contact_person && (
               <div>
-                <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Контактное лицо</div>
+                <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">{t('dir.contact')}</div>
                 <div className="flex items-center gap-1.5 text-slate-800 font-medium text-sm">
                   <UserIcon className="w-4 h-4 text-slate-400 shrink-0" strokeWidth={2} />
                   <span className="break-words">{c.contact_person}</span>
@@ -334,7 +331,7 @@ export default async function ContractorCardPage({
             )}
             {c.phone && (
               <div>
-                <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Телефон</div>
+                <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">{t('drv.phone')}</div>
                 <div className="flex items-center gap-1.5 text-slate-800 font-medium text-sm">
                   <Phone className="w-4 h-4 text-slate-400 shrink-0" strokeWidth={2} />
                   <a href={`tel:${c.phone}`} className="hover:text-brand-600 tabular-nums">{c.phone}</a>
@@ -354,13 +351,13 @@ export default async function ContractorCardPage({
 
           {!c.tax_id && !c.address && !c.contact_person && !c.phone && !c.email && (
             <div className="text-slate-400 text-sm py-4 text-center">
-              Реквизиты не заполнены. Нажмите «Редактировать», чтобы добавить.
+              {t('ctr.noDetails')}
             </div>
           )}
 
           {c.notes && (
             <div className="mt-4 pt-4 border-t border-slate-100">
-              <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Заметки</div>
+              <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">{t('seg.notes')}</div>
               <div className="text-sm text-slate-700 whitespace-pre-wrap break-words">{c.notes}</div>
             </div>
           )}
@@ -370,7 +367,7 @@ export default async function ContractorCardPage({
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
           <div className="card p-4 md:p-5">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-slate-400 font-medium">Всего работ</span>
+              <span className="text-xs text-slate-400 font-medium">{t('ctr.totalWorks')}</span>
               <BarChart3 className="w-4 h-4 text-brand-600" strokeWidth={2} />
             </div>
             <div className="text-2xl md:text-3xl font-bold text-brand-600 tabular-nums">
@@ -397,34 +394,34 @@ export default async function ContractorCardPage({
 
           <div className="card p-4 md:p-5">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-slate-400 font-medium">Общая сумма</span>
+              <span className="text-xs text-slate-400 font-medium">{t('ctr.totalSum')}</span>
               <TrendingUp className="w-4 h-4 text-red-500" strokeWidth={2} />
             </div>
             <div className="text-xl md:text-2xl font-bold text-red-500 break-words tabular-nums">
-              {fmtEur(totalSum)}
+              {fmtEur(totalSum, locale)}
             </div>
           </div>
 
           <div className="card p-4 md:p-5">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-slate-400 font-medium">Последняя работа</span>
+              <span className="text-xs text-slate-400 font-medium">{t('ctr.lastWork')}</span>
               <Calendar className="w-4 h-4 text-slate-600" strokeWidth={2} />
             </div>
             <div className="text-base md:text-lg font-bold text-slate-900 tabular-nums">
-              {lastWork?.date ? fmtDate(lastWork.date) : '—'}
+              {lastWork?.date ? formatDate(lastWork.date, locale) : '—'}
             </div>
           </div>
 
           <div className="card p-4 md:p-5">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-slate-400 font-medium">Оплата</span>
+              <span className="text-xs text-slate-400 font-medium">{t('ctr.payment')}</span>
               <CreditCard className="w-4 h-4 text-brand-600" strokeWidth={2} />
             </div>
             <div className="text-2xl md:text-3xl font-bold text-brand-600 tabular-nums">
-              {avgPaymentDays ? `${avgPaymentDays} дн` : '—'}
+              {avgPaymentDays ? t('ctr.days', { n: avgPaymentDays }) : '—'}
             </div>
             {avgPaymentDays && (
-              <div className="text-xs text-slate-400 mt-1">средний срок</div>
+              <div className="text-xs text-slate-400 mt-1">{t('ctr.avgTerm')}</div>
             )}
           </div>
         </div>
@@ -434,11 +431,11 @@ export default async function ContractorCardPage({
           <div className="flex flex-wrap items-baseline justify-between gap-2 mb-4">
             <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
               <RouteIcon className="w-5 h-5 text-brand-600" strokeWidth={2} />
-              Работы
+              {t('ctr.works')}
             </h2>
             {works.length > 20 && (
               <span className="text-xs text-slate-400 tabular-nums">
-                показано 20 из {works.length}
+                {t('ctr.shown20')}{' '} {works.length}
               </span>
             )}
           </div>
@@ -448,7 +445,7 @@ export default async function ContractorCardPage({
               <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-slate-50 flex items-center justify-center">
                 <Inbox className="w-7 h-7 text-slate-300" strokeWidth={1.5} />
               </div>
-              <div className="text-slate-400 text-sm">С этим подрядчиком ещё не было работ.</div>
+              <div className="text-slate-400 text-sm">{t('ctr.noWorks')}</div>
             </div>
           ) : (
             <div className="space-y-2">
@@ -470,14 +467,14 @@ export default async function ContractorCardPage({
                               : 'bg-violet-100 text-violet-700'
                           }`}>
                             <KindIcon className="w-3 h-3" strokeWidth={2.2} />
-                            {w.kind === 'trip' ? 'Рейс' : 'Эксп.'}
+                            {w.kind === 'trip' ? t('trips.kindTrip') : t('trips.kindForwardingShort')}
                           </span>
                           <span className="text-sm font-semibold text-slate-800 tabular-nums">
                             {w.number}
                           </span>
                           {w.date && (
                             <span className="text-xs text-slate-500 tabular-nums">
-                              · {fmtDate(w.date)}
+                              · {formatDate(w.date, locale)}
                             </span>
                           )}
                         </div>
@@ -503,10 +500,10 @@ export default async function ContractorCardPage({
           {works.length > 0 && (
             <div className="mt-4 pt-4 border-t border-slate-100 flex justify-between items-baseline gap-2 flex-wrap">
               <span className="text-sm text-slate-500">
-                Всего работ: <b className="text-slate-700 tabular-nums">{totalCount}</b>
+                {t('ctr.totalWorksC')}{' '}<b className="text-slate-700 tabular-nums">{totalCount}</b>
               </span>
               <span className="text-sm text-slate-500">
-                Итого: <b className="text-red-500 text-base tabular-nums">{fmtEur(totalSum)}</b>
+                {t('expense.total')}{' '}<b className="text-red-500 text-base tabular-nums">{fmtEur(totalSum, locale)}</b>
               </span>
             </div>
           )}

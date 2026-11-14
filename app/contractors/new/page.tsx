@@ -13,10 +13,12 @@ import {
   Plus,
 } from 'lucide-react';
 import { deniedRedirect } from '../../../lib/roles';
+import { getT } from '../../../lib/i18n/server';
 
 export const dynamic = 'force-dynamic';
 
 export default async function NewContractorPage() {
+  const { t } = await getT();
   const { role } = await getSessionContext();
   const denied = deniedRedirect(role, 'contractors.edit');
   if (denied) redirect(denied);
@@ -30,16 +32,16 @@ export default async function NewContractorPage() {
           className="inline-flex items-center gap-2 text-slate-600 hover:text-brand-600 transition-colors text-sm font-medium"
         >
           <ArrowLeft className="w-4 h-4" strokeWidth={2} />
-          Все подрядчики
+          {t('ctr.all')}
         </Link>
 
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2.5 tracking-tight">
             <Building2 className="w-6 h-6 md:w-7 md:h-7 text-brand-600" strokeWidth={2.2} />
-            Новый подрядчик
+            {t('ctr.newTitle')}
           </h1>
           <p className="text-slate-500 mt-1 text-sm md:text-base">
-            Фирма, которой мы передаём груз для перевозки
+            {t('ctr.newHint')}
           </p>
         </div>
 
@@ -48,7 +50,7 @@ export default async function NewContractorPage() {
           <div className="card p-5 md:p-6 space-y-4">
             <h2 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2">
               <Building2 className="w-5 h-5 text-brand-600" strokeWidth={2} />
-              Данные фирмы
+              {t('ctr.firm')}
             </h2>
             <div className="space-y-3">
               <div>
@@ -56,16 +58,16 @@ export default async function NewContractorPage() {
                   type="contractor"
                   inputName="name"
                   taxIdInputName="tax_id"
-                  label="Короткое название *"
+                  label={t('loc.shortName')}
                   placeholder="KAM-TRANS"
                   required
                 />
-                <p className="text-xs text-slate-400 mt-1">Для списков и выбора в заявках</p>
+                <p className="text-xs text-slate-400 mt-1">{t('ctr.shortHint')}</p>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Полное юр. название
+                  {t('ctr.legalName')}
                 </label>
                 <input
                   type="text"
@@ -73,13 +75,13 @@ export default async function NewContractorPage() {
                   placeholder="Usługi Transportowe KAM-TRANS Kamil Jastrzębski"
                   className="input"
                 />
-                <p className="text-xs text-slate-400 mt-1">Для печати в заявке подрядчику</p>
+                <p className="text-xs text-slate-400 mt-1">{t('ctr.legalHint')}</p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Страна</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{t('addr.country')}</label>
                 <select name="country" className="input" defaultValue="">
-                  <option value="">— Выберите страну —</option>
+                  <option value="">{t('dir.chooseCountry')}</option>
                   {EUROPEAN_COUNTRIES.map((c) => (
                     <option key={c} value={c}>{c}</option>
                   ))}
@@ -87,7 +89,7 @@ export default async function NewContractorPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Адрес</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{t('settings.address')}</label>
                 <input
                   type="text"
                   name="address"
@@ -111,12 +113,12 @@ export default async function NewContractorPage() {
           <div className="card p-5 md:p-6 space-y-4">
             <h2 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2">
               <Phone className="w-5 h-5 text-brand-600" strokeWidth={2} />
-              Контакты
+              {t('dir.contacts')}
             </h2>
             <div className="space-y-3">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Контактное лицо
+                  {t('dir.contact')}
                 </label>
                 <input
                   type="text"
@@ -127,7 +129,7 @@ export default async function NewContractorPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Телефон</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{t('drv.phone')}</label>
                 <input
                   type="text"
                   name="phone"
@@ -151,12 +153,12 @@ export default async function NewContractorPage() {
           <div className="card p-5 md:p-6 space-y-4">
             <h2 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2">
               <FileText className="w-5 h-5 text-brand-600" strokeWidth={2} />
-              Заметки
+              {t('seg.notes')}
             </h2>
             <textarea
               name="notes"
               rows={3}
-              placeholder="Дополнительная информация"
+              placeholder={t('cargo.phNotes')}
               className="input"
             />
           </div>
@@ -170,14 +172,14 @@ export default async function NewContractorPage() {
               className="w-full sm:w-auto text-center px-6 py-3 rounded-xl border border-slate-300 text-slate-700 font-semibold
                          hover:bg-slate-100 transition-all"
             >
-              Отмена
+              {t('seg.cancel')}
             </Link>
             <SubmitButton
               className="btn btn-primary w-full sm:flex-1 py-3"
-              pendingText="Создаю…"
+              pendingText={t('drvCard.creating')}
             >
               <Plus className="w-4 h-4" strokeWidth={2.5} />
-              Создать
+              {t('dir.create')}
             </SubmitButton>
           </div>
 

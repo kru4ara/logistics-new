@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Pencil, GitMerge } from 'lucide-react';
 import MergeContractorDialog from './MergeContractorDialog';
+import { useT } from '../components/I18nProvider';
 
 type Option = { id: string; label: string };
 
@@ -15,6 +16,7 @@ export default function ContractorCardActions({
   contractorName: string;
   otherContractors: Option[];
 }) {
+  const { t } = useT();
   const [isMergeOpen, setIsMergeOpen] = useState(false);
 
   return (
@@ -25,7 +27,7 @@ export default function ContractorCardActions({
                    hover:bg-white transition-all"
       >
         <Pencil className="w-3.5 h-3.5" strokeWidth={2} />
-        Изменить
+        {t('trip.change')}
       </a>
       <button
         type="button"
@@ -34,7 +36,7 @@ export default function ContractorCardActions({
                    text-xs font-medium hover:bg-brand-50 transition-all"
       >
         <GitMerge className="w-3.5 h-3.5" strokeWidth={2} />
-        Объединить
+        {t('dir.merge')}
       </button>
 
       {isMergeOpen && (

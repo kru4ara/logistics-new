@@ -17,10 +17,12 @@ import {
 } from 'lucide-react';
 import { fetchAll } from '../../lib/fetch-all';
 import { deniedRedirect } from '../../lib/roles';
+import { getT } from '../../lib/i18n/server';
 
 export const dynamic = 'force-dynamic';
 
 export default async function ClientsPage() {
+  const { t: tr } = await getT();
   const { role } = await getSessionContext();
   const denied = deniedRedirect(role, 'clients.view');
   if (denied) redirect(denied);
@@ -33,7 +35,7 @@ export default async function ClientsPage() {
     .order('name', { ascending: true });
 
   if (error) {
-    return <div className="p-8 text-red-500">Ошибка загрузки: {error.message}</div>;
+    return <div className="p-8 text-red-500">{tr('dir.loadError')}{' '} {error.message}</div>;
   }
 
   // Счётчик заказов у клиента — по периметру менеджера (фаза 39).
@@ -62,10 +64,10 @@ export default async function ClientsPage() {
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2.5 tracking-tight">
               <Users className="w-6 h-6 md:w-7 md:h-7 text-brand-600" strokeWidth={2.2} />
-              Клиенты
+              {tr('nav.clients')}
             </h1>
             <p className="text-slate-500 mt-1 text-sm md:text-base">
-              Всего клиентов: <b className="text-slate-700">{clients?.length || 0}</b>
+              {tr('cli.total')}{' '}<b className="text-slate-700">{clients?.length || 0}</b>
             </p>
           </div>
           <Link
@@ -73,7 +75,7 @@ export default async function ClientsPage() {
             className="btn btn-primary text-sm md:text-base w-full sm:w-auto justify-center"
           >
             <Plus className="w-4 h-4 md:w-[18px] md:h-[18px]" strokeWidth={2.5} />
-            Добавить клиента
+            {tr('cli.add')}
           </Link>
         </div>
 
@@ -82,11 +84,11 @@ export default async function ClientsPage() {
             <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-slate-50 flex items-center justify-center">
               <Inbox className="w-8 h-8 text-slate-300" strokeWidth={1.5} />
             </div>
-            <h2 className="text-xl font-bold text-slate-900 mb-2">Клиентов пока нет</h2>
-            <p className="text-slate-500 mb-6">Добавьте первого клиента</p>
+            <h2 className="text-xl font-bold text-slate-900 mb-2">{tr('cli.empty')}</h2>
+            <p className="text-slate-500 mb-6">{tr('cli.emptyHint')}</p>
             <Link href="/clients/new" className="btn btn-primary inline-flex">
               <Plus className="w-4 h-4" strokeWidth={2.5} />
-              Добавить клиента
+              {tr('cli.add')}
             </Link>
           </div>
         ) : (
@@ -109,7 +111,7 @@ export default async function ClientsPage() {
                   <Link
                     href={`/clients/${client.id}`}
                     className="block flex-1 cursor-pointer"
-                    aria-label={`Открыть карточку ${client.name}`}
+                    aria-label={tr('dir.openCard', { name: client.name })}
                   >
                     <div className="p-5">
                       <div className="flex items-center gap-4 mb-4">
@@ -144,7 +146,7 @@ export default async function ClientsPage() {
                       <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
                         <div className="flex items-center gap-1.5 text-xs uppercase tracking-wide text-slate-400 font-medium">
                           <Truck className="w-3.5 h-3.5" strokeWidth={2} />
-                          Рейсов: <b className={`tabular-nums ${tripCount > 0 ? 'text-brand-600' : 'text-slate-400'}`}>{tripCount}</b>
+                          {tr('cli.trips')}{' '}<b className={`tabular-nums ${tripCount > 0 ? 'text-brand-600' : 'text-slate-400'}`}>{tripCount}</b>
                         </div>
                         <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-brand-500
                                                 group-hover:translate-x-0.5 transition-all" strokeWidth={2.5} />

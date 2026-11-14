@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Pencil, Trash2, GitMerge } from 'lucide-react';
 import MergeClientDialog from './MergeClientDialog';
+import { useT } from '../components/I18nProvider';
 
 type Option = { id: string; label: string };
 
@@ -17,6 +18,7 @@ export default function ClientCardActions({
   otherClients: Option[];
   onDelete: () => void;
 }) {
+  const { t } = useT();
   const [isMergeOpen, setIsMergeOpen] = useState(false);
 
   return (
@@ -28,7 +30,7 @@ export default function ClientCardActions({
                      hover:bg-white transition-all"
         >
           <Pencil className="w-3.5 h-3.5" strokeWidth={2} />
-          Изменить
+          {t('trip.change')}
         </a>
         <button
           type="button"
@@ -37,7 +39,7 @@ export default function ClientCardActions({
                      text-xs font-medium hover:bg-brand-50 transition-all"
         >
           <GitMerge className="w-3.5 h-3.5" strokeWidth={2} />
-          Объединить
+          {t('dir.merge')}
         </button>
         <button
           type="button"
@@ -46,7 +48,7 @@ export default function ClientCardActions({
                      text-xs font-medium hover:bg-red-500 hover:text-white transition-all"
         >
           <Trash2 className="w-3.5 h-3.5" strokeWidth={2} />
-          Удалить
+          {t('trips.delete')}
         </button>
       </div>
 

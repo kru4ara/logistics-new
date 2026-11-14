@@ -6,9 +6,11 @@ import SubmitButton from '../../components/SubmitButton';
 import { logAudit } from '../../../lib/audit';
 import { ArrowLeft, Users, Building2, Save } from 'lucide-react';
 import DuplicateChecker from '../../components/DuplicateChecker';
+import { getT } from '../../../lib/i18n/server';
 
 async function createClient(formData: FormData) {
   'use server';
+  const { t } = await getT();
 
   const supabase = await createSupabaseClient();
 
@@ -30,7 +32,7 @@ async function createClient(formData: FormData) {
     .select('id')
     .single();
 
-  if (error) throw new Error(`Ошибка добавления: ${error.message}`);
+  if (error) throw new Error(t('dir.addError', { msg: error.message }));
 
   if (created?.id) {
     await logAudit({
@@ -45,7 +47,8 @@ async function createClient(formData: FormData) {
   redirect('/clients');
 }
 
-export default function NewClientPage() {
+export default async function NewClientPage() {
+  const { t } = await getT();
   return (
     <main className="min-h-screen bg-slate-50">
       <div className="max-w-[900px] mx-auto px-4 md:px-6 py-6 md:py-8 space-y-5 md:space-y-6">
@@ -55,16 +58,16 @@ export default function NewClientPage() {
           className="inline-flex items-center gap-2 text-slate-600 hover:text-brand-600 transition-colors text-sm font-medium"
         >
           <ArrowLeft className="w-4 h-4" strokeWidth={2} />
-          Все клиенты
+          {t('trips.allClients')}
         </Link>
 
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2.5 tracking-tight">
             <Users className="w-6 h-6 md:w-7 md:h-7 text-brand-600" strokeWidth={2.2} />
-            Добавить клиента
+            {t('cli.add')}
           </h1>
           <p className="text-slate-500 mt-1 text-sm md:text-base">
-            Заполните данные о компании
+            {t('cli.newHint')}
           </p>
         </div>
 
@@ -73,32 +76,32 @@ export default function NewClientPage() {
           <div className="card p-5 md:p-6 space-y-4">
             <h2 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2">
               <Building2 className="w-5 h-5 text-brand-600" strokeWidth={2} />
-              Данные компании
+              {t('cli.company')}
             </h2>
             <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
               <div className="md:col-span-2">
                 <DuplicateChecker
                   type="client"
                   inputName="name"
-                  label="Название компании *"
-                  placeholder="ООО «ТрансЛогистик»"
+                  label={t('cli.companyName')}
+                  placeholder={t('cli.phCompany')}
                   required
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Контактное лицо
+                  {t('dir.contact')}
                 </label>
                 <input
                   type="text"
                   name="contact_person"
-                  placeholder="Иван Иванов"
+                  placeholder={t('cli.phContact')}
                   className="input"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Телефон
+                  {t('drv.phone')}
                 </label>
                 <input
                   type="text"
@@ -130,14 +133,14 @@ export default function NewClientPage() {
               className="w-full sm:w-auto text-center px-6 py-3 rounded-xl border border-slate-300 text-slate-700 font-semibold
                          hover:bg-slate-100 transition-all duration-150"
             >
-              Отмена
+              {t('seg.cancel')}
             </Link>
             <SubmitButton
               className="btn btn-primary w-full sm:flex-1 py-3"
-              pendingText="Сохраняю клиента…"
+              pendingText={t('cli.saving')}
             >
               <Save className="w-4 h-4" strokeWidth={2.5} />
-              Сохранить клиента
+              {t('cli.save')}
             </SubmitButton>
           </div>
 

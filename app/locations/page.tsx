@@ -20,37 +20,40 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { deniedRedirect } from '../../lib/roles';
+import { getT } from '../../lib/i18n/server';
+import type { MessageKey } from '../../lib/i18n/translate';
+import { tPlural } from '../../lib/i18n/translate';
 
 export const dynamic = 'force-dynamic';
 
 type LocationType = 'loading' | 'unloading' | 'both' | 'customs';
 
 const typeMeta: Record<LocationType, {
-  label: string;
+  label: MessageKey;
   Icon: LucideIcon;
   badge: string;
   iconBg: string;
 }> = {
   loading: {
-    label: 'Погрузка',
+    label: 'loc.typeLoading',
     Icon: ArrowDownToLine,
     badge: 'bg-green-50 text-green-700 border-green-200',
     iconBg: 'bg-green-50 text-green-600',
   },
   unloading: {
-    label: 'Выгрузка',
+    label: 'loc.typeUnloading',
     Icon: ArrowUpFromLine,
     badge: 'bg-brand-50 text-brand-700 border-brand-200',
     iconBg: 'bg-brand-50 text-brand-600',
   },
   customs: {
-    label: 'Таможня',
+    label: 'loc.typeCustoms',
     Icon: ShieldCheck,
     badge: 'bg-amber-50 text-amber-700 border-amber-200',
     iconBg: 'bg-amber-50 text-amber-600',
   },
   both: {
-    label: 'Универсально',
+    label: 'loc.typeBoth',
     Icon: ArrowLeftRight,
     badge: 'bg-slate-100 text-slate-700 border-slate-200',
     iconBg: 'bg-slate-100 text-slate-600',
@@ -58,6 +61,7 @@ const typeMeta: Record<LocationType, {
 };
 
 export default async function LocationsPage() {
+  const { t, locale } = await getT();
   const { role } = await getSessionContext();
   const denied = deniedRedirect(role, 'locations.view');
   if (denied) redirect(denied);
@@ -69,7 +73,7 @@ export default async function LocationsPage() {
     .select('*')
     .order('name', { ascending: true });
 
-  if (error) return <div className="p-8 text-red-500">Ошибка: {error.message}</div>;
+  if (error) return <div className="p-8 text-red-500">{t('dir.error')}{' '} {error.message}</div>;
 
   return (
     <main className="min-h-screen bg-slate-50">
@@ -79,10 +83,10 @@ export default async function LocationsPage() {
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2.5 tracking-tight">
               <MapPin className="w-6 h-6 md:w-7 md:h-7 text-brand-600" strokeWidth={2.2} />
-              Локации
+              {t('nav.locations')}
             </h1>
             <p className="text-slate-500 mt-1 text-sm md:text-base">
-              Всего: <b className="text-slate-700">{locations?.length || 0}</b> типовых адресов
+              {tPlural(t, locale, 'count.address', locations?.length || 0)}
             </p>
           </div>
           <Link
@@ -90,7 +94,7 @@ export default async function LocationsPage() {
             className="btn btn-primary text-sm md:text-base w-full sm:w-auto justify-center"
           >
             <Plus className="w-4 h-4 md:w-[18px] md:h-[18px]" strokeWidth={2.5} />
-            Добавить локацию
+            {t('loc.add')}
           </Link>
         </div>
 
@@ -99,11 +103,11 @@ export default async function LocationsPage() {
             <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-slate-50 flex items-center justify-center">
               <Inbox className="w-8 h-8 text-slate-300" strokeWidth={1.5} />
             </div>
-            <h2 className="text-xl font-bold text-slate-900 mb-2">Локаций пока нет</h2>
-            <p className="text-slate-500 mb-6">Добавьте типовые адреса, чтобы не вводить их каждый раз</p>
+            <h2 className="text-xl font-bold text-slate-900 mb-2">{t('loc.empty')}</h2>
+            <p className="text-slate-500 mb-6">{t('loc.emptyHint')}</p>
             <Link href="/locations/new" className="btn btn-primary inline-flex">
               <Plus className="w-4 h-4" strokeWidth={2.5} />
-              Добавить первую локацию
+              {t('loc.addFirst')}
             </Link>
           </div>
         ) : (
@@ -129,7 +133,7 @@ export default async function LocationsPage() {
                         </div>
                         <span className={`inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${meta.badge}`}>
                           <TypeIcon className="w-3 h-3" strokeWidth={2.2} />
-                          {meta.label}
+                          {t(meta.label)}
                         </span>
                       </div>
                     </div>
@@ -158,7 +162,7 @@ export default async function LocationsPage() {
                         <div className="flex items-start gap-2">
                           <DoorOpen className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" strokeWidth={2} />
                           <span className="break-words text-xs">
-                            Погрузка: <b className="tabular-nums">{loc.default_loading_number}</b>
+                            {t('loc.loading')}{' '}<b className="tabular-nums">{loc.default_loading_number}</b>
                           </span>
                         </div>
                       )}
@@ -173,7 +177,7 @@ export default async function LocationsPage() {
                                  hover:bg-white transition-all"
                     >
                       <Pencil className="w-3.5 h-3.5" strokeWidth={2} />
-                      Изменить
+                      {t('trip.change')}
                     </Link>
                     <form action={deleteLocation.bind(null, loc.id)} className="flex-1">
                       <button
@@ -182,7 +186,7 @@ export default async function LocationsPage() {
                                    text-xs font-medium hover:bg-red-500 hover:text-white transition-all"
                       >
                         <Trash2 className="w-3.5 h-3.5" strokeWidth={2} />
-                        Удалить
+                        {t('trips.delete')}
                       </button>
                     </form>
                   </div>

@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { logAudit, diffFields } from '../../lib/audit';
 import { requireCapability } from '../../lib/require-office';
+import { getT } from '../../lib/i18n/server';
 
 // ============================================================
 // Парсинг формы
@@ -31,13 +32,14 @@ const TRACKED_FIELDS = [
 // СОЗДАНИЕ
 // ============================================================
 export async function createLocation(formData: FormData) {
+  const { t } = await getT();
   // proxy.ts проверяет путь страницы, но экшен — отдельный эндпоинт:
   // проверяем право здесь же (см. lib/require-office.ts).
   await requireCapability('locations.edit');
   const supabase = await createClient();
 
   const data = parseLocationForm(formData);
-  if (!data.name) throw new Error('Название обязательно');
+  if (!data.name) throw new Error(t('dir.nameRequired'));
 
   const { data: created, error } = await supabase
     .from('locations')
@@ -45,7 +47,7 @@ export async function createLocation(formData: FormData) {
     .select('id')
     .single();
 
-  if (error) throw new Error(`Ошибка добавления: ${error.message}`);
+  if (error) throw new Error(t('dir.addError', { msg: error.message }));
 
   if (created?.id) {
     await logAudit({
@@ -64,13 +66,14 @@ export async function createLocation(formData: FormData) {
 // ОБНОВЛЕНИЕ
 // ============================================================
 export async function updateLocation(locationId: string, formData: FormData) {
+  const { t } = await getT();
   // proxy.ts проверяет путь страницы, но экшен — отдельный эндпоинт:
   // проверяем право здесь же (см. lib/require-office.ts).
   await requireCapability('locations.edit');
   const supabase = await createClient();
 
   const data = parseLocationForm(formData);
-  if (!data.name) throw new Error('Название обязательно');
+  if (!data.name) throw new Error(t('dir.nameRequired'));
 
   const { data: before } = await supabase
     .from('locations')
@@ -83,7 +86,7 @@ export async function updateLocation(locationId: string, formData: FormData) {
     .update(data)
     .eq('id', locationId);
 
-  if (error) throw new Error(`Ошибка обновления: ${error.message}`);
+  if (error) throw new Error(t('dir.updateError', { msg: error.message }));
 
   if (before) {
     const changes = diffFields(
@@ -112,6 +115,7 @@ export async function updateLocation(locationId: string, formData: FormData) {
 // УДАЛЕНИЕ
 // ============================================================
 export async function deleteLocation(locationId: string) {
+  const { t } = await getT();
   // proxy.ts проверяет путь страницы, но экшен — отдельный эндпоинт:
   // проверяем право здесь же (см. lib/require-office.ts).
   await requireCapability('locations.edit');
@@ -128,7 +132,7 @@ export async function deleteLocation(locationId: string) {
     .delete()
     .eq('id', locationId);
 
-  if (error) throw new Error(`Ошибка удаления: ${error.message}`);
+  if (error) throw new Error(t('dir.deleteError', { msg: error.message }));
 
   await logAudit({
     entity_type: 'location',
