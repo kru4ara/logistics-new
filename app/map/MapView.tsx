@@ -5,6 +5,9 @@ import MarkerClusterGroup from 'react-leaflet-cluster';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { MapPin } from 'lucide-react';
+import { useT } from '../components/I18nProvider';
+import { INTL_LOCALE } from '../../lib/i18n/config';
+import { tripStatusKey } from '../../lib/i18n/labels';
 
 // ============================================================
 // Кастомные иконки — цветной кружок с номером рейса
@@ -67,13 +70,6 @@ function createClusterCustomIcon(cluster: any): L.DivIcon {
   });
 }
 
-const statusLabels: Record<string, string> = {
-  planned: 'Планируется',
-  active: 'В пути',
-  completed: 'Завершён',
-  invoiced: 'Выставлен счёт',
-  paid: 'Оплачен',
-};
 
 const statusColors: Record<string, string> = {
   planned: '#94a3b8',
@@ -100,6 +96,7 @@ type Trip = {
 };
 
 export default function MapView({ trips }: { trips: Trip[] }) {
+  const { t: tr, locale } = useT();
   const withBoth = trips.filter(
     (t) => t.start_lat && t.start_lng && t.end_lat && t.end_lng
   );
@@ -119,12 +116,10 @@ export default function MapView({ trips }: { trips: Trip[] }) {
             <MapPin className="w-8 h-8 text-brand-600" strokeWidth={1.5} />
           </div>
           <h2 className="text-lg font-bold text-slate-900 mb-1">
-            Нет рейсов с координатами
+            {tr('mapx.noTrips')}
           </h2>
           <p className="text-sm text-slate-500">
-            Чтобы точки появились на карте, у рейсов должны быть заполнены
-            координаты загрузки или выгрузки. Заполните их в карточке рейса — и они
-            появятся здесь.
+            {tr('mapx.noTripsHint')}
           </p>
         </div>
       </div>
@@ -181,26 +176,26 @@ export default function MapView({ trips }: { trips: Trip[] }) {
                 <div style={{ fontFamily: 'system-ui', minWidth: '200px' }}>
                   <div style={{ fontWeight: 700, fontSize: '14px', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#16a34a' }} />
-                    Загрузка · №{trip.trip_number || '—'}
+                    {tr('mapx.loadNo')}{trip.trip_number || '—'}
                   </div>
                   <div style={{ fontSize: '12px', color: '#475569', marginBottom: '4px' }}>
                     {trip.from_city}, {trip.from_country}
                   </div>
                   <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '8px' }}>
-                    <b>Маршрут:</b> {trip.route || '—'}
+                    <b>{tr('mapx.route')}</b> {trip.route || '—'}
                   </div>
                   <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '8px' }}>
-                    {trip.start_date ? new Date(trip.start_date).toLocaleDateString('ru-RU') : '—'}
+                    {trip.start_date ? new Date(trip.start_date).toLocaleDateString(INTL_LOCALE[locale]) : '—'}
                     {' · '}
                     <span style={{ color: statusColors[trip.status] || '#64748b', fontWeight: 600 }}>
-                      {statusLabels[trip.status] || trip.status}
+                      {(tripStatusKey(trip.status) ? tr(tripStatusKey(trip.status)!) : trip.status)}
                     </span>
                   </div>
                   <a
                     href={`/trips/${trip.id}`}
                     style={{ color: '#4f46e5', fontWeight: 600, fontSize: '12px' }}
                   >
-                    Открыть рейс →
+                    {tr('mapx.openTrip')}
                   </a>
                 </div>
               </Popup>
@@ -230,26 +225,26 @@ export default function MapView({ trips }: { trips: Trip[] }) {
                 <div style={{ fontFamily: 'system-ui', minWidth: '200px' }}>
                   <div style={{ fontWeight: 700, fontSize: '14px', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#dc2626' }} />
-                    Выгрузка · №{trip.trip_number || '—'}
+                    {tr('mapx.unloadNo')}{trip.trip_number || '—'}
                   </div>
                   <div style={{ fontSize: '12px', color: '#475569', marginBottom: '4px' }}>
                     {trip.to_city}, {trip.to_country}
                   </div>
                   <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '8px' }}>
-                    <b>Маршрут:</b> {trip.route || '—'}
+                    <b>{tr('mapx.route')}</b> {trip.route || '—'}
                   </div>
                   <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '8px' }}>
-                    {trip.start_date ? new Date(trip.start_date).toLocaleDateString('ru-RU') : '—'}
+                    {trip.start_date ? new Date(trip.start_date).toLocaleDateString(INTL_LOCALE[locale]) : '—'}
                     {' · '}
                     <span style={{ color: statusColors[trip.status] || '#64748b', fontWeight: 600 }}>
-                      {statusLabels[trip.status] || trip.status}
+                      {(tripStatusKey(trip.status) ? tr(tripStatusKey(trip.status)!) : trip.status)}
                     </span>
                   </div>
                   <a
                     href={`/trips/${trip.id}`}
                     style={{ color: '#4f46e5', fontWeight: 600, fontSize: '12px' }}
                   >
-                    Открыть рейс →
+                    {tr('mapx.openTrip')}
                   </a>
                 </div>
               </Popup>

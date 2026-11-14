@@ -9,10 +9,12 @@ import {
   CheckCircle2,
   AlertCircle,
 } from 'lucide-react';
+import { getT } from '../../lib/i18n/server';
 
 export const dynamic = 'force-dynamic';
 
 export default async function LogisatPage() {
+  const { t: tr } = await getT();
   const { role } = await getSessionContext();
   if (!can(role, 'logisat.sync')) redirect('/driver');
 
@@ -25,7 +27,7 @@ export default async function LogisatPage() {
     .order('registration_number');
 
   if (error) {
-    return <div className="p-8 text-red-500">Ошибка загрузки: {error.message}</div>;
+    return <div className="p-8 text-red-500">{tr('dir.loadError')}{' '}{error.message}</div>;
   }
 
   const connectedTrucks = (trucks || []).filter(
@@ -46,7 +48,7 @@ export default async function LogisatPage() {
             Logisat
           </h1>
           <p className="text-slate-500 mt-1 text-sm md:text-base">
-            Проверка данных из системы мониторинга. Раздел временный, для тестирования.
+            {tr('lgs.hint')}
           </p>
         </div>
 
@@ -55,9 +57,7 @@ export default async function LogisatPage() {
           <div className="flex items-start gap-3">
             <Info className="w-5 h-5 text-brand-600 shrink-0 mt-0.5" strokeWidth={2} />
             <div className="text-sm text-brand-900">
-              <b>Что это:</b> тестовый раздел для проверки интеграции с Logisat —
-              онлайн-мониторинг транспорта. Позволяет выгрузить пробег и расход топлива
-              по конкретной машине за период.
+              <b>{tr('lgs.what')}</b>{' '}{tr('lgs.whatD')}
             </div>
           </div>
         </div>
@@ -66,7 +66,7 @@ export default async function LogisatPage() {
         <div className="grid gap-3 md:gap-4 grid-cols-1 sm:grid-cols-2">
           <div className="card p-4 md:p-5">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs md:text-sm font-medium text-slate-500">Подключено</span>
+              <span className="text-xs md:text-sm font-medium text-slate-500">{tr('lgs.connected')}</span>
               <div className="w-9 h-9 rounded-xl bg-green-50 flex items-center justify-center">
                 <CheckCircle2 className="w-4 h-4 text-green-600" strokeWidth={2.2} />
               </div>
@@ -75,13 +75,13 @@ export default async function LogisatPage() {
               {connectedTrucks.length}
             </div>
             <div className="text-xs text-slate-400 mt-1">
-              Тягачей с устройством Logisat
+              {tr('lgs.withDevice')}
             </div>
           </div>
 
           <div className="card p-4 md:p-5">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs md:text-sm font-medium text-slate-500">Не подключено</span>
+              <span className="text-xs md:text-sm font-medium text-slate-500">{tr('lgs.notConnected')}</span>
               <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center">
                 <AlertCircle className="w-4 h-4 text-slate-600" strokeWidth={2.2} />
               </div>
@@ -90,7 +90,7 @@ export default async function LogisatPage() {
               {notConnectedTrucks.length}
             </div>
             <div className="text-xs text-slate-400 mt-1">
-              Тягачей без интеграции
+              {tr('lgs.withoutInt')}
             </div>
           </div>
         </div>

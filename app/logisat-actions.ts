@@ -2,8 +2,10 @@
 
 import { requireOffice } from '../lib/require-office';
 import { revalidatePath } from 'next/cache';
+import { getT } from '../lib/i18n/server';
 
 export async function fetchLogisatData(tripId: string) {
+  const { t } = await getT();
   await requireOffice();
   console.log('Режим отладки. Данные не подтягиваются.');
   
@@ -16,6 +18,6 @@ export async function fetchLogisatData(tripId: string) {
   
   return { 
     success: true, 
-    message: `Режим отладки: ${fakeKm} км, ${fakeLiters} л (${fakeCost.toFixed(2)} €)` 
+    message: t('lgs.debug', { km: fakeKm, l: fakeLiters, cost: fakeCost.toFixed(2) }) 
   };
 }

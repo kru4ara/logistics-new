@@ -24,6 +24,9 @@ import {
 } from 'lucide-react';
 import { deleteReminder, markReminderDone, reopenReminder } from './actions';
 import { sendReminderNotification } from './telegram-actions';
+import { useT } from '../components/I18nProvider';
+import { INTL_LOCALE } from '../../lib/i18n/config';
+import type { MessageKey } from '../../lib/i18n/translate';
 
 export type ReminderCardData = {
   id: string;
@@ -38,14 +41,15 @@ export type ReminderCardData = {
 };
 
 const categoryLabels: Record<string, { label: string; Icon: LucideIcon }> = {
-  insurance: { label: 'Страховка', Icon: Shield },
-  inspection: { label: 'Техосмотр', Icon: Wrench },
-  driver_doc: { label: 'Документы водителя', Icon: FileText },
-  payment_to_contractor: { label: 'Подрядчик', Icon: Truck },
-  accounting: { label: 'Бухгалтерия', Icon: Wallet },
+  insurance: { label: 'cmp.docInsurance', Icon: Shield },
+  inspection: { label: 'rem.catInspection', Icon: Wrench },
+  driver_doc: { label: 'rem.catDriverDocs', Icon: FileText },
+  payment_to_contractor: { label: 'rem.catContractor', Icon: Truck },
+  accounting: { label: 'rem.catAccounting', Icon: Wallet },
 };
 
 export default function ReminderCard({ r }: { r: ReminderCardData }) {
+  const { t, locale } = useT();
   const [isPending, startTransition] = useTransition();
   const [tgMessage, setTgMessage] = useState<string | null>(null);
 
@@ -78,13 +82,13 @@ export default function ReminderCard({ r }: { r: ReminderCardData }) {
   );
 
   const statusText =
-    isDone ? 'Выполнено' :
-    daysLeft !== null && daysLeft < 0 ? `Просрочено (${Math.abs(daysLeft)} дн.)` :
-    daysLeft !== null && daysLeft < 30 ? `${daysLeft} дн.` :
-    daysLeft !== null ? `${daysLeft} дн.` : '—';
+    isDone ? t('rem.done') :
+    daysLeft !== null && daysLeft < 0 ? t('drv.expired', { n: Math.abs(daysLeft) }) :
+    daysLeft !== null && daysLeft < 30 ? t('drvCard.days', { n: daysLeft }) :
+    daysLeft !== null ? t('drvCard.days', { n: daysLeft }) : '—';
 
   function handleDelete() {
-    if (!confirm(`Удалить напоминание "${r.title}"?`)) return;
+    if (!confirm(t('rem.deleteConfirm', { title: r.title }))) return;
     startTransition(async () => {
       await deleteReminder(r.id);
     });
@@ -116,16 +120,16 @@ export default function ReminderCard({ r }: { r: ReminderCardData }) {
         <div className="flex items-center gap-2 min-w-0">
           <Icon className="w-4 h-4 text-brand-600 shrink-0" />
           <span className="text-xs uppercase tracking-wide text-slate-400 font-semibold truncate">
-            {cat.label}
+            {categoryLabels[r.category] ? t(cat.label as MessageKey) : cat.label}
           </span>
         </div>
         {isAuto && (
           <span
             className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200 font-semibold whitespace-nowrap"
-            title="Привязано к документу — обновляется автоматически"
+            title={t('rem.linked')}
           >
             <Lock className="w-3 h-3" />
-            Авто
+            {t('rem.auto')}
           </span>
         )}
       </div>
@@ -139,7 +143,7 @@ export default function ReminderCard({ r }: { r: ReminderCardData }) {
       <div className="flex items-center flex-wrap gap-2 text-sm text-slate-500 mb-4">
         <span className="inline-flex items-center gap-1.5">
           <Calendar className="w-3.5 h-3.5" />
-          {r.due_date ? new Date(r.due_date).toLocaleDateString('ru-RU') : '—'}
+          {r.due_date ? new Date(r.due_date).toLocaleDateString(INTL_LOCALE[locale]) : '—'}
         </span>
         {r.amount ? (
           <span className="inline-flex items-center gap-1.5 text-slate-600">
@@ -173,12 +177,12 @@ export default function ReminderCard({ r }: { r: ReminderCardData }) {
             {isDone ? (
               <>
                 <Undo2 className="w-3 h-3" />
-                Вернуть
+                {t('rem.reopen')}
               </>
             ) : (
               <>
                 <Check className="w-3 h-3" />
-                Выполнено
+                {t('rem.done')}
               </>
             )}
           </button>
@@ -191,7 +195,7 @@ export default function ReminderCard({ r }: { r: ReminderCardData }) {
                        bg-brand-50 text-brand-700 hover:bg-brand-100 border border-brand-200 transition-all active:scale-[0.97]"
           >
             <Pencil className="w-3 h-3" />
-            Изменить
+            {t('trip.change')}
           </Link>
         )}
 
@@ -204,7 +208,7 @@ export default function ReminderCard({ r }: { r: ReminderCardData }) {
                      ${isPending ? 'opacity-50 cursor-wait' : 'active:scale-[0.97]'}`}
         >
           <Send className="w-3 h-3" />
-          В Telegram
+          {t('rem.toTelegram')}
         </button>
 
         <button
@@ -216,7 +220,7 @@ export default function ReminderCard({ r }: { r: ReminderCardData }) {
                      ${isPending ? 'opacity-50 cursor-wait' : 'active:scale-[0.97]'}`}
         >
           <Trash2 className="w-3 h-3" />
-          Удалить
+          {t('trips.delete')}
         </button>
       </div>
 

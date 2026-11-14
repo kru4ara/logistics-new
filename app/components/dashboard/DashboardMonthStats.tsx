@@ -6,6 +6,7 @@ import {
   Wallet,
   BarChart3,
 } from 'lucide-react';
+import { getT } from '../../../lib/i18n/server';
 
 type Props = {
   monthName: string;
@@ -23,7 +24,7 @@ type Props = {
 };
 
 /** Показатели за текущий месяц: сделки, доход, расходы, прибыль. */
-export default function DashboardMonthStats({
+export default async function DashboardMonthStats({
   monthName,
   tripsCount,
   forwardingCount,
@@ -37,15 +38,16 @@ export default function DashboardMonthStats({
   forwardingExpenses,
   fixedCosts,
 }: Props) {
+  const { t } = await getT();
   return (
 <div>
   <h2 className="text-xs md:text-sm font-bold text-slate-500 uppercase tracking-wide mb-3">
-    Показатели за {monthName}
+    {t('cmp.statsFor')}{' '}{monthName}
   </h2>
   <div className="grid gap-3 md:gap-4 grid-cols-2 md:grid-cols-4">
     <div className="card card-hover p-4 md:p-5">
       <div className="flex items-center justify-between mb-2 md:mb-3">
-        <span className="text-xs md:text-sm font-medium text-slate-500">Сделок</span>
+        <span className="text-xs md:text-sm font-medium text-slate-500">{t('stat.deals')}</span>
         <div className="w-8 h-8 md:w-9 md:h-9 rounded-xl bg-brand-50 flex items-center justify-center">
           <BarChart3 className="w-4 h-4 md:w-[18px] md:h-[18px] text-brand-600" strokeWidth={2} />
         </div>
@@ -68,7 +70,7 @@ export default function DashboardMonthStats({
 
     <div className="card card-hover p-4 md:p-5">
       <div className="flex items-center justify-between mb-2 md:mb-3">
-        <span className="text-xs md:text-sm font-medium text-slate-500">Доход</span>
+        <span className="text-xs md:text-sm font-medium text-slate-500">{t('stat.income')}</span>
         <div className="w-8 h-8 md:w-9 md:h-9 rounded-xl bg-green-50 flex items-center justify-center">
           <TrendingUp className="w-4 h-4 md:w-[18px] md:h-[18px] text-green-600" strokeWidth={2} />
         </div>
@@ -77,13 +79,13 @@ export default function DashboardMonthStats({
         {totalIncome.toFixed(0)} €
       </div>
       <div className="text-[10px] md:text-xs text-slate-400 mt-1 break-words">
-        Выручка: {(tripRevenue + forwardingClient).toFixed(0)}
+        {t('cmp.revenue')}{' '}{(tripRevenue + forwardingClient).toFixed(0)}
       </div>
     </div>
 
     <div className="card card-hover p-4 md:p-5">
       <div className="flex items-center justify-between mb-2 md:mb-3">
-        <span className="text-xs md:text-sm font-medium text-slate-500">Расходы</span>
+        <span className="text-xs md:text-sm font-medium text-slate-500">{t('trips.expenses')}</span>
         <div className="w-8 h-8 md:w-9 md:h-9 rounded-xl bg-red-50 flex items-center justify-center">
           <TrendingDown className="w-4 h-4 md:w-[18px] md:h-[18px] text-red-500" strokeWidth={2} />
         </div>
@@ -92,13 +94,13 @@ export default function DashboardMonthStats({
         {totalExpenses.toFixed(0)} €
       </div>
       <div className="text-[10px] md:text-xs text-slate-400 mt-1 break-words">
-        Расходы: {(tripExpenses + forwardingContractor + forwardingExpenses + fixedCosts).toFixed(0)}
+        {t('cmp.expenses')}{' '}{(tripExpenses + forwardingContractor + forwardingExpenses + fixedCosts).toFixed(0)}
       </div>
     </div>
 
     <div className="card card-hover p-4 md:p-5">
       <div className="flex items-center justify-between mb-2 md:mb-3">
-        <span className="text-xs md:text-sm font-medium text-slate-500">Прибыль</span>
+        <span className="text-xs md:text-sm font-medium text-slate-500">{t('trips.profit')}</span>
         <div className={`w-8 h-8 md:w-9 md:h-9 rounded-xl flex items-center justify-center ${totalProfit >= 0 ? 'bg-emerald-50' : 'bg-red-50'}`}>
           <Wallet className={`w-4 h-4 md:w-[18px] md:h-[18px] ${totalProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`} strokeWidth={2} />
         </div>

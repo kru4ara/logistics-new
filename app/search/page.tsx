@@ -14,6 +14,7 @@ import {
   Inbox,
   type LucideIcon,
 } from 'lucide-react';
+import { getT } from '../../lib/i18n/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -75,6 +76,7 @@ export default async function SearchPage({
 }: {
   searchParams: Promise<{ q?: string }>;
 }) {
+  const { t } = await getT();
   const { role } = await getSessionContext();
   if (!can(role, 'search.view')) redirect('/');
 
@@ -89,11 +91,11 @@ export default async function SearchPage({
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2.5 tracking-tight">
             <SearchIcon className="w-6 h-6 md:w-7 md:h-7 text-brand-600" strokeWidth={2.2} />
-            Поиск
+            {t('srch.title')}
           </h1>
           {q && (
             <p className="text-slate-500 mt-1 text-sm">
-              По запросу «<b className="text-slate-700">{q}</b>» найдено: <b className="text-slate-700 tabular-nums">{result.total}</b>
+              {t('srch.forQ')}<b className="text-slate-700">{q}</b>{t('srch.found')}{' '}<b className="text-slate-700 tabular-nums">{result.total}</b>
             </p>
           )}
         </div>
@@ -103,16 +105,16 @@ export default async function SearchPage({
             <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-brand-50 flex items-center justify-center">
               <SearchIcon className="w-8 h-8 text-brand-500" strokeWidth={1.8} />
             </div>
-            <h2 className="text-lg font-bold text-slate-900 mb-1">Введите запрос</h2>
+            <h2 className="text-lg font-bold text-slate-900 mb-1">{t('srch.enter')}</h2>
             <p className="text-slate-500 text-sm max-w-md mx-auto">
-              Ищите по номеру рейса, заявки, названию клиента, фамилии водителя или подрядчика
+              {t('srch.hint')}
             </p>
           </div>
         )}
 
         {q && q.length < 2 && (
           <div className="card p-6 text-center text-slate-500 text-sm">
-            Минимум 2 символа для поиска
+            {t('srch.min2')}
           </div>
         )}
 
@@ -121,16 +123,16 @@ export default async function SearchPage({
             <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-slate-50 flex items-center justify-center">
               <Inbox className="w-8 h-8 text-slate-300" strokeWidth={1.5} />
             </div>
-            <h2 className="text-lg font-bold text-slate-900 mb-1">Ничего не найдено</h2>
-            <p className="text-slate-500 text-sm">Попробуйте другой запрос</p>
+            <h2 className="text-lg font-bold text-slate-900 mb-1">{t('trips.nothingFound')}</h2>
+            <p className="text-slate-500 text-sm">{t('srch.tryOther')}</p>
           </div>
         )}
 
-        <Section title="Заказы" Icon={Package} hits={result.trips} href="/trips" />
-        <Section title="Экспедирование" Icon={Boxes} hits={result.forwarding} href="/trips?mode=forwarding" />
-        <Section title="Клиенты" Icon={Users} hits={result.clients} href="/clients" />
-        <Section title="Подрядчики" Icon={Building2} hits={result.contractors} href="/contractors" />
-        <Section title="Водители" Icon={UserCircle} hits={result.drivers} href="/drivers" />
+        <Section title={t('cmp.obOrders')} Icon={Package} hits={result.trips} href="/trips" />
+        <Section title={t('aud.eForwarding')} Icon={Boxes} hits={result.forwarding} href="/trips?mode=forwarding" />
+        <Section title={t('nav.clients')} Icon={Users} hits={result.clients} href="/clients" />
+        <Section title={t('nav.contractors')} Icon={Building2} hits={result.contractors} href="/contractors" />
+        <Section title={t('nav.drivers')} Icon={UserCircle} hits={result.drivers} href="/drivers" />
 
       </div>
     </main>

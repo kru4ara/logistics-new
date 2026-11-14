@@ -5,9 +5,11 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { logAudit, diffFields } from '../../lib/audit';
 import { requireCapability } from '../../lib/require-office';
+import { getT } from '../../lib/i18n/server';
 
 
 export async function deleteReminder(id: string) {
+  const { t } = await getT();
   // proxy.ts проверяет путь страницы, но экшен — отдельный эндпоинт:
   // проверяем право здесь же (см. lib/require-office.ts).
   await requireCapability('reminders.edit');
@@ -20,7 +22,7 @@ export async function deleteReminder(id: string) {
     .maybeSingle();
 
   const { error } = await supabase.from('reminders').delete().eq('id', id);
-  if (error) throw new Error(`Ошибка удаления: ${error.message}`);
+  if (error) throw new Error(t('dir.deleteError', { msg: error.message }));
 
   await logAudit({
     entity_type: 'reminder',
@@ -36,6 +38,7 @@ export async function deleteReminder(id: string) {
 }
 
 export async function markReminderDone(id: string) {
+  const { t } = await getT();
   // proxy.ts проверяет путь страницы, но экшен — отдельный эндпоинт:
   // проверяем право здесь же (см. lib/require-office.ts).
   await requireCapability('reminders.edit');
@@ -51,7 +54,7 @@ export async function markReminderDone(id: string) {
     .from('reminders')
     .update({ status: 'done' })
     .eq('id', id);
-  if (error) throw new Error(`Ошибка: ${error.message}`);
+  if (error) throw new Error(t('rep.errMsg', { msg: error.message }));
 
   if (before && before.status !== 'done') {
     await logAudit({
@@ -68,6 +71,7 @@ export async function markReminderDone(id: string) {
 }
 
 export async function reopenReminder(id: string) {
+  const { t } = await getT();
   // proxy.ts проверяет путь страницы, но экшен — отдельный эндпоинт:
   // проверяем право здесь же (см. lib/require-office.ts).
   await requireCapability('reminders.edit');
@@ -83,7 +87,7 @@ export async function reopenReminder(id: string) {
     .from('reminders')
     .update({ status: 'active' })
     .eq('id', id);
-  if (error) throw new Error(`Ошибка: ${error.message}`);
+  if (error) throw new Error(t('rep.errMsg', { msg: error.message }));
 
   if (before && before.status !== 'active') {
     await logAudit({
@@ -100,6 +104,7 @@ export async function reopenReminder(id: string) {
 }
 
 export async function updateReminder(id: string, formData: FormData) {
+  const { t } = await getT();
   // proxy.ts проверяет путь страницы, но экшен — отдельный эндпоинт:
   // проверяем право здесь же (см. lib/require-office.ts).
   await requireCapability('reminders.edit');
@@ -128,7 +133,7 @@ export async function updateReminder(id: string, formData: FormData) {
     .update(nextValues)
     .eq('id', id);
 
-  if (error) throw new Error(`Ошибка обновления: ${error.message}`);
+  if (error) throw new Error(t('dir.updateError', { msg: error.message }));
 
   if (before) {
     const changes = diffFields(
@@ -154,6 +159,7 @@ export async function updateReminder(id: string, formData: FormData) {
 }
 
 export async function createReminder(formData: FormData) {
+  const { t } = await getT();
   // proxy.ts проверяет путь страницы, но экшен — отдельный эндпоинт:
   // проверяем право здесь же (см. lib/require-office.ts).
   await requireCapability('reminders.edit');
@@ -180,7 +186,7 @@ export async function createReminder(formData: FormData) {
     .select('id')
     .single();
 
-  if (error) throw new Error(`Ошибка добавления: ${error.message}`);
+  if (error) throw new Error(t('dir.addError', { msg: error.message }));
 
   if (created?.id) {
     await logAudit({

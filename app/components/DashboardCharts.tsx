@@ -1,4 +1,5 @@
 import { TrendingUp, PieChart } from 'lucide-react';
+import { getT } from '../../lib/i18n/server';
 
 type MonthPoint = {
   key: string;
@@ -33,7 +34,8 @@ function formatTick(v: number): string {
   return sign + String(abs);
 }
 
-export function MonthlyBars({ data }: { data: MonthPoint[] }) {
+export async function MonthlyBars({ data }: { data: MonthPoint[] }) {
+  const { t } = await getT();
   if (data.length === 0) return null;
 
   const maxAbsMobile = Math.max(...data.map((d) => Math.abs(d.profit)), 1);
@@ -76,20 +78,20 @@ export function MonthlyBars({ data }: { data: MonthPoint[] }) {
         <div>
           <h2 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-brand-600" strokeWidth={2} />
-            Прибыль по месяцам
+            {t('cmp.profitByMonth')}
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
-            Последние 12 месяцев · без инвестиций
+            {t('cmp.last12')}
           </p>
         </div>
         <div className="flex items-center gap-3 text-xs text-slate-500">
           <span className="flex items-center gap-1.5">
             <span className="inline-block w-3 h-3 rounded-sm bg-emerald-500" />
-            Прибыль
+            {t('trips.profit')}
           </span>
           <span className="flex items-center gap-1.5">
             <span className="inline-block w-3 h-3 rounded-sm bg-red-500" />
-            Убыток
+            {t('cmp.loss')}
           </span>
         </div>
       </div>
@@ -215,13 +217,14 @@ export function MonthlyBars({ data }: { data: MonthPoint[] }) {
   );
 }
 
-export function ExpenseDonut({
+export async function ExpenseDonut({
   data,
   total,
 }: {
   data: CategorySlice[];
   total: number;
 }) {
+  const { t } = await getT();
   if (data.length === 0 || total <= 0) return null;
 
   const R = 40;
@@ -283,10 +286,10 @@ export function ExpenseDonut({
         <div>
           <h2 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2">
             <PieChart className="w-5 h-5 text-brand-600" strokeWidth={2} />
-            Структура расходов
+            {t('cmp.expStructure')}
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
-            Все категории по рейсам за всё время
+            {t('cmp.allCats')}
           </p>
         </div>
       </div>
@@ -318,7 +321,7 @@ export function ExpenseDonut({
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
             <div className="text-[10px] text-slate-400 uppercase tracking-wide">
-              Всего
+              {t('rep.total')}
             </div>
             <div className="text-lg md:text-xl font-bold text-slate-800 tabular-nums">
               {total.toFixed(0)} €

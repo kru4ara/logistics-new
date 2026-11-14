@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 import { fetchAll } from '../../lib/fetch-all';
 import { deniedRedirect } from '../../lib/roles';
+import { getT } from '../../lib/i18n/server';
+import { formatDate } from '../../lib/i18n/format';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,6 +30,7 @@ export default async function RemindersPage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
+  const { t, t: tr, locale } = await getT();
   const { role } = await getSessionContext();
   const denied = deniedRedirect(role, 'reminders.viewAll');
   if (denied) redirect(denied);
@@ -43,7 +46,7 @@ export default async function RemindersPage({
     .order('due_date', { ascending: true }));
 
   if (error) {
-    return <div className="p-8 text-red-500">Ошибка загрузки: {error.message}</div>;
+    return <div className="p-8 text-red-500">{tr('dir.loadError')}{' '}{error.message}</div>;
   }
 
   // ⬅️ НОВОЕ: тахограф + карта водителя
@@ -83,14 +86,14 @@ export default async function RemindersPage({
 
   for (const d of driversDownloadData || []) {
     const daysAgo = daysAgoFrom(d.driver_card_last_download);
-    const name = `${d.first_name || ''} ${d.last_name || ''}`.trim() || 'Без имени';
+    const name = `${d.first_name || ''} ${d.last_name || ''}`.trim() || tr('rem.noName');
     if (daysAgo === null || daysAgo > DRIVER_CARD_WARN) {
       downloadRows.push({
         id: d.id,
         label: name,
         subtitle: d.driver_card_last_download
-          ? `Последнее считывание: ${new Date(d.driver_card_last_download).toLocaleDateString('ru-RU')}`
-          : 'Никогда не считана',
+          ? t('rem.lastRead', { date: formatDate(d.driver_card_last_download, locale) })
+          : tr('rem.neverReadF'),
         href: `/drivers/${d.id}`,
         daysAgo,
         maxDays: DRIVER_CARD_PERIOD,
@@ -107,8 +110,8 @@ export default async function RemindersPage({
         id: t.id,
         label: t.registration_number || '—',
         subtitle: t.tachograph_last_download
-          ? `Последнее считывание: ${new Date(t.tachograph_last_download).toLocaleDateString('ru-RU')}`
-          : 'Никогда не считан',
+          ? tr('rem.lastRead', { date: formatDate(t.tachograph_last_download, locale) })
+          : tr('rem.neverReadM'),
         href: `/trucks/${t.id}`,
         daysAgo,
         maxDays: TACHO_PERIOD,
@@ -169,15 +172,15 @@ export default async function RemindersPage({
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2.5 tracking-tight">
               <Bell className="w-6 h-6 md:w-7 md:h-7 text-brand-600" strokeWidth={2.2} />
-              Напоминания
+              {tr('nav.reminders')}
             </h1>
             <p className="text-slate-500 mt-1 text-sm md:text-base">
-              Активных: <b className="text-slate-700">{activeReminders.length}</b> · Выполненных: <b className="text-slate-700">{doneReminders.length}</b>
+              {tr('rem.activeC')}{' '}<b className="text-slate-700">{activeReminders.length}</b>{' '}{tr('rem.doneC')}{' '}<b className="text-slate-700">{doneReminders.length}</b>
             </p>
           </div>
           <Link href="/reminders/new" className="btn btn-primary text-sm md:text-base w-full sm:w-auto justify-center">
             <Plus className="w-4 h-4 md:w-[18px] md:h-[18px]" strokeWidth={2.5} />
-            Добавить напоминание
+            {tr('rem.add')}
           </Link>
         </div>
 
@@ -185,7 +188,7 @@ export default async function RemindersPage({
         <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-3">
           <div className="card p-4 md:p-5">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs md:text-sm font-medium text-slate-500">Сроки истекли</span>
+              <span className="text-xs md:text-sm font-medium text-slate-500">{tr('rem.expired')}</span>
               <div className="w-9 h-9 rounded-xl bg-red-50 flex items-center justify-center">
                 <AlertTriangle className="w-4 h-4 text-red-600" strokeWidth={2.2} />
               </div>
@@ -195,7 +198,7 @@ export default async function RemindersPage({
 
           <div className="card p-4 md:p-5">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs md:text-sm font-medium text-slate-500">Скоро (до 30 дней)</span>
+              <span className="text-xs md:text-sm font-medium text-slate-500">{tr('rem.soon30')}</span>
               <div className="w-9 h-9 rounded-xl bg-orange-50 flex items-center justify-center">
                 <Clock className="w-4 h-4 text-orange-600" strokeWidth={2.2} />
               </div>
@@ -205,7 +208,7 @@ export default async function RemindersPage({
 
           <div className="card p-4 md:p-5">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs md:text-sm font-medium text-slate-500">В порядке</span>
+              <span className="text-xs md:text-sm font-medium text-slate-500">{tr('rem.ok')}</span>
               <div className="w-9 h-9 rounded-xl bg-green-50 flex items-center justify-center">
                 <CheckCircle2 className="w-4 h-4 text-green-600" strokeWidth={2.2} />
               </div>
@@ -220,7 +223,7 @@ export default async function RemindersPage({
             <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
               <h2 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2">
                 <Download className="w-5 h-5 text-amber-600" strokeWidth={2.2} />
-                Считывание тахографа и карт
+                {tr('rem.tachoCards')}
               </h2>
               <span className="text-xs bg-amber-100 text-amber-800 px-2.5 py-0.5 rounded-full font-semibold tabular-nums">
                 {downloadRows.length}
@@ -237,13 +240,13 @@ export default async function RemindersPage({
                   : 'bg-orange-50 text-orange-700 border-orange-200';
 
                 const label = isNever
-                  ? 'никогда'
+                  ? tr('rem.never')
                   : isOverdue
-                    ? `просрочено · ${row.daysAgo} дн.`
-                    : `${row.daysAgo} дн.`;
+                    ? t('drvCard.overdueDays', { n: row.daysAgo ?? 0 })
+                    : t('drvCard.days', { n: row.daysAgo ?? 0 });
 
                 const Icon = row.kind === 'driver' ? UserCircle : TruckIcon;
-                const kindLabel = row.kind === 'driver' ? 'Карта водителя' : 'Тахограф';
+                const kindLabel = row.kind === 'driver' ? tr('cmp.docDriverCard') : tr('rem.tacho');
 
                 return (
                   <Link
@@ -281,7 +284,7 @@ export default async function RemindersPage({
                 : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
           >
             <Clock className="w-4 h-4" strokeWidth={2.2} />
-            Активные ({activeReminders.length})
+            {tr('rem.tabActive')}{activeReminders.length})
           </Link>
           <Link
             href="/reminders?show=done"
@@ -291,7 +294,7 @@ export default async function RemindersPage({
                 : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
           >
             <Check className="w-4 h-4" strokeWidth={2.2} />
-            Выполненные ({doneReminders.length})
+            {tr('rem.tabDone')}{doneReminders.length})
           </Link>
           <Link
             href="/reminders?show=all"
@@ -301,7 +304,7 @@ export default async function RemindersPage({
                 : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
           >
             <ListIcon className="w-4 h-4" strokeWidth={2.2} />
-            Все ({enriched.length})
+            {tr('rem.tabAll')}{enriched.length})
           </Link>
         </div>
 
@@ -312,19 +315,19 @@ export default async function RemindersPage({
               <Inbox className="w-8 h-8 text-slate-300" strokeWidth={1.5} />
             </div>
             <h2 className="text-xl font-bold text-slate-900 mb-2">
-              {show === 'done' ? 'Нет выполненных' :
-               show === 'all' ? 'Напоминаний пока нет' :
-               'Все активные напоминания отработаны'}
+              {show === 'done' ? tr('rem.noDone') :
+               show === 'all' ? tr('rem.empty') :
+               tr('rem.allDone')}
             </h2>
             <p className="text-slate-500 mb-6">
               {show === 'active'
-                ? 'Добавьте новое напоминание, чтобы не пропустить важный срок'
-                : 'Переключитесь на другую вкладку'}
+                ? tr('rem.emptyHint')
+                : tr('rem.switchTab')}
             </p>
             {show === 'active' && (
               <Link href="/reminders/new" className="btn btn-primary inline-flex">
                 <Plus className="w-4 h-4" strokeWidth={2.5} />
-                Добавить напоминание
+                {tr('rem.add')}
               </Link>
             )}
           </div>

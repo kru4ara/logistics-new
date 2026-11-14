@@ -13,10 +13,12 @@ import {
 } from 'lucide-react';
 import { fetchAll, fetchAllByIds } from '../../lib/fetch-all';
 import { deniedRedirect } from '../../lib/roles';
+import { getT } from '../../lib/i18n/server';
 
 export const dynamic = 'force-dynamic';
 
 export default async function MapPage() {
+  const { t: tr } = await getT();
   const { role } = await getSessionContext();
   const denied = deniedRedirect(role, 'map.view');
   if (denied) redirect(denied);
@@ -35,7 +37,7 @@ export default async function MapPage() {
     .not('start_lng', 'is', null));
 
   if (error) {
-    return <div className="p-8 text-red-500">Ошибка загрузки рейсов: {error.message}</div>;
+    return <div className="p-8 text-red-500">{tr('today.tripsLoadError')}{' '}{error.message}</div>;
   }
 
   // Маршрут и точки — из сегментов
@@ -74,11 +76,11 @@ export default async function MapPage() {
   };
 
   const statusLabels: Record<string, string> = {
-    planned: 'Планируется',
-    active: 'В пути',
-    completed: 'Завершён',
-    invoiced: 'Выставлен счёт',
-    paid: 'Оплачен',
+    planned: tr('status.planned'),
+    active: tr('status.active'),
+    completed: tr('status.completed'),
+    invoiced: tr('status.invoiced'),
+    paid: tr('status.paid'),
   };
 
   return (
@@ -88,19 +90,19 @@ export default async function MapPage() {
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2.5 tracking-tight">
             <MapIcon className="w-6 h-6 md:w-7 md:h-7 text-brand-600" strokeWidth={2.2} />
-            Карта заказов
+            {tr('mapx.title')}
           </h1>
           <p className="text-slate-500 mt-1 text-sm md:text-base flex items-center gap-3 flex-wrap">
             <span className="inline-flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-green-500" />
-              Загрузка
+              {tr('seg.optLoad')}
             </span>
             <span className="inline-flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
-              Выгрузка
+              {tr('seg.optUnload')}
             </span>
             <span className="text-slate-400">·</span>
-            <span>Линия — маршрут</span>
+            <span>{tr('mapx.line')}</span>
           </p>
         </div>
 
@@ -108,16 +110,16 @@ export default async function MapPage() {
           <div className="p-4 md:p-5 border-b border-slate-100 flex justify-between items-center flex-wrap gap-3">
             <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
               <MapPin className="w-5 h-5 text-brand-600" strokeWidth={2} />
-              Точки маршрутов
+              {tr('mapx.points')}
             </h2>
             <div className="flex items-center gap-4 text-sm text-slate-600">
               <span className="inline-flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-full bg-green-500" />
-                Точек: <b className="text-green-700 tabular-nums">{trips?.length || 0}</b>
+                {tr('mapx.pointsC')}{' '}<b className="text-green-700 tabular-nums">{trips?.length || 0}</b>
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
-                Маршрутов: <b className="text-red-600 tabular-nums">{withBoth.length}</b>
+                {tr('mapx.routesC')}{' '}<b className="text-red-600 tabular-nums">{withBoth.length}</b>
               </span>
             </div>
           </div>
@@ -130,7 +132,7 @@ export default async function MapPage() {
           <div className="card overflow-hidden">
             <div className="p-4 md:p-5 border-b border-slate-100 flex items-center gap-2">
               <Package className="w-5 h-5 text-brand-600" strokeWidth={2} />
-              <h2 className="text-lg font-bold text-slate-900">Рейсы на карте</h2>
+              <h2 className="text-lg font-bold text-slate-900">{tr('mapx.tripsOnMap')}</h2>
               <span className="ml-auto text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-semibold tabular-nums">
                 {trips.length}
               </span>
@@ -179,8 +181,8 @@ export default async function MapPage() {
             <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-slate-50 flex items-center justify-center">
               <Inbox className="w-8 h-8 text-slate-300" strokeWidth={1.5} />
             </div>
-            <h2 className="text-xl font-bold text-slate-900 mb-2">Точек на карте нет</h2>
-            <p className="text-slate-500">У заказов не заполнены координаты (start_lat, start_lng)</p>
+            <h2 className="text-xl font-bold text-slate-900 mb-2">{tr('mapx.noPoints')}</h2>
+            <p className="text-slate-500">{tr('mapx.noCoords')}</p>
           </div>
         )}
 
