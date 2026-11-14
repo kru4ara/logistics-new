@@ -36,3 +36,11 @@ describe('оповещения о сбоях', () => {
     expect(allow('k', 1500)).toBe(true);
   });
 });
+
+describe('ошибки из браузера', () => {
+  it('отчёт доступен любой роли, включая водителя', async () => {
+    const { isOpenToAllRoles } = await import('../roles');
+    expect(isOpenToAllRoles('/api/client-error')).toBe(true);
+    expect(isOpenToAllRoles('/api/client-error/x')).toBe(false);
+  });
+});

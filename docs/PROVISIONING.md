@@ -136,7 +136,8 @@ curl "https://api.telegram.org/bot<TOKEN>/setWebhook" \
 Сбои на сервере у любого клиента приходят **вам**, а не клиенту: `instrumentation.ts` →
 `lib/error-alerts.ts`. В сообщении — компания, страница (без query-строки), текст ошибки и `digest`
 для поиска в логах Vercel; данных пользователя (cookie, заголовков) нет. Одинаковая ошибка —
-не чаще раза в 30 минут.
+не чаще раза в 30 минут. Ошибки в браузере пользователя (кнопки, формы, сбой отрисовки) приходят туда же с пометкой
+`BROWSER · client` и ролью пользователя — через `app/api/client-error`.
 
 1. @BotFather → `/newbot` → бот поддержки (`<ваше-имя>_ops_bot`) → токен 🔐 → `OPS_TELEGRAM_BOT_TOKEN`.
 2. Написать боту `/start`, открыть `https://api.telegram.org/bot<TOKEN>/getUpdates` → `chat.id` → `OPS_TELEGRAM_CHAT_ID`.

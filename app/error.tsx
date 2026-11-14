@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import Link from 'next/link';
 import { useT } from './components/I18nProvider';
+import { reportClientError } from '../lib/report-client-error';
 
 export default function Error({
   error,
@@ -15,6 +16,8 @@ export default function Error({
   useEffect(() => {
     // Логируем в Vercel → Functions → Runtime Logs
     console.error('[app/error]', error.message, error.digest);
+    // С digest — ошибка сервера, её уже отправил instrumentation.ts; без digest — браузерная.
+    if (!error.digest) reportClientError(error);
   }, [error]);
 
   return (
