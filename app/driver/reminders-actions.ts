@@ -3,18 +3,20 @@
 import { createClient } from '../../lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
 import { getActorContext } from '../../lib/driver-access';
+import { getT } from '../../lib/i18n/server';
 
 export async function createReminderFromDriver(driverId: string, title: string, dueDate: string) {
+  const { t } = await getT();
   const actor = await getActorContext();
 
   if (!actor.isDriver || !actor.driverId) {
-    return { success: false, error: 'Нет доступа' };
+    return { success: false, error: t('common.noAccess') };
   }
 
   // driverId берём ИЗ СЕССИИ, а не из аргумента: иначе водитель мог
   // создать напоминание для чужого водителя.
   if (driverId !== actor.driverId) {
-    return { success: false, error: 'Нет доступа' };
+    return { success: false, error: t('common.noAccess') };
   }
 
   const supabase = await createClient();
@@ -33,7 +35,7 @@ export async function createReminderFromDriver(driverId: string, title: string, 
     ]);
 
   if (error) {
-    throw new Error(`Ошибка добавления: ${error.message}`);
+    throw new Error(t('dir.addError', { msg: error.message }));
   }
 
   revalidatePath('/reminders');

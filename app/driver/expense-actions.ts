@@ -3,8 +3,10 @@
 import { createClient } from '../../lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
 import { requireTripAccess } from '../../lib/driver-access';
+import { getT } from '../../lib/i18n/server';
 
 export async function addDriverExpense(formData: FormData) {
+  const { t } = await getT();
   const tripId = formData.get('trip_id') as string;
 
   // trip_id приходит от клиента — проверяем, что рейс принадлежит водителю.
@@ -61,7 +63,7 @@ export async function addDriverExpense(formData: FormData) {
     ]);
 
   if (error) {
-    throw new Error(`Ошибка добавления: ${error.message}`);
+    throw new Error(t('dir.addError', { msg: error.message }));
   }
 
   revalidatePath(`/driver/trips/${tripId}`);

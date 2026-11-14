@@ -4,17 +4,19 @@ import { createClient } from '../../../lib/supabase/admin';
 import { getSessionContext } from '../../../lib/session';
 import { can } from '../../../lib/roles';
 import { fetchLogisatSummary, type SummaryResult } from '../../../lib/logisat';
+import { getT } from '../../../lib/i18n/server';
 
 export async function checkLogisat(
   deviceId: string,
   fromIso: string,
   toIso: string
 ): Promise<SummaryResult> {
+  const { t } = await getT();
   const { role } = await getSessionContext();
   // Было role !== 'driver' && role !== 'admin': роль из БД не нормализована,
   // и офис с ролью 'office' и менеджер получали «Нет доступа».
   if (!can(role, 'logisat.view')) {
-    return { success: false, stage: 'auth', error: 'Нет доступа' };
+    return { success: false, stage: 'auth', error: t('common.noAccess') };
   }
 
   const supabase = await createClient();
@@ -28,7 +30,7 @@ export async function checkLogisat(
     .single();
 
   if (!truck) {
-    return { success: false, stage: 'truck_lookup', error: 'Машина с таким deviceId не найдена или не подключена к Logisat' };
+    return { success: false, stage: 'truck_lookup', error: t('drvApp.deviceNotFound') };
   }
 
   return fetchLogisatSummary(deviceId, fromIso, toIso);

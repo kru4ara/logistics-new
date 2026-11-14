@@ -27,6 +27,8 @@ import DocumentList from '../../DocumentList';
 import TripStatusButtons from '../../TripStatusButtons';
 import { isDriverRole } from '../../../../lib/roles';
 import { withSignedUrls } from '../../../../lib/storage-urls';
+import { getT } from '../../../../lib/i18n/server';
+import { INTL_LOCALE } from '../../../../lib/i18n/config';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,8 +66,9 @@ type StopDb = {
 };
 
 export default async function DriverTripDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { t, locale } = await getT();
   const { id: tripId } = await params;
-  if (!tripId) return <div className="p-6">Ошибка: ID рейса не передан</div>;
+  if (!tripId) return <div className="p-6">{t('trip.noId')}</div>;
 
   // RLS-клиент вместо service_role: политики RLS теперь реально
   // ограничивают выборку — водитель видит только свой рейс, его
@@ -100,11 +103,11 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
     .maybeSingle(); // <-- maybeSingle вместо single
 
   if (tripError) {
-    return <div className="p-6 text-red-500">Ошибка: {tripError.message}</div>;
+    return <div className="p-6 text-red-500">{t('dir.error')}{' '}{tripError.message}</div>;
   }
 
   if (!trip) {
-    return <div className="p-6 text-red-500">Рейс не найден</div>;
+    return <div className="p-6 text-red-500">{t('task.tripNotFound')}</div>;
   }
 
   // 3. УНИФИЦИРОВАННАЯ проверка владения:
@@ -124,7 +127,7 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
   }
 
   if (!isTripOwner && !isSegmentOwner) {
-    return <div className="p-6 text-red-500">У вас нет доступа к этому рейсу</div>;
+    return <div className="p-6 text-red-500">{t('drvApp.noAccess')}</div>;
   }
 
   // ============================================================
@@ -208,14 +211,14 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
   const fuelLeftIsNegative = fuelLeft < 0;
   const fuelLeftIsCritical = fuelLeft < NEGATIVE_FUEL_TOLERANCE;
 
-  const clientName = pickName(trip.clients) || 'Клиент не указан';
+  const clientName = pickName(trip.clients) || t('trips.overlapNoClient');
 
   const statusLabels: Record<string, string> = {
-    planned: 'Планируется',
-    active: 'В пути',
-    completed: 'Завершён',
-    invoiced: 'Выставлен счёт',
-    paid: 'Оплачен',
+    planned: t('status.planned'),
+    active: t('status.active'),
+    completed: t('status.completed'),
+    invoiced: t('status.invoiced'),
+    paid: t('status.paid'),
   };
 
   const statusColors: Record<string, string> = {
@@ -227,20 +230,20 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
   };
 
   const expenseCategories: { value: string; label: string; emoji: string }[] = [
-    { value: 'fuel', label: 'Топливо', emoji: '⛽' },
+    { value: 'fuel', label: t('trip.fuel'), emoji: '⛽' },
     { value: 'epi', label: 'EPI', emoji: '📄' },
-    { value: 'border', label: 'Граница', emoji: '🛂' },
-    { value: 'contractor', label: 'Подрядчик', emoji: '🚛' },
-    { value: 'permit', label: 'Дозвол', emoji: '📋' },
-    { value: 'tlc', label: 'ТЛЦ', emoji: '🏭' },
-    { value: 'waiting', label: 'Зона ожидания', emoji: '⏳' },
-    { value: 'repair', label: 'Ремонт', emoji: '🔧' },
-    { value: 'parking', label: 'Паркинг', emoji: '🅿️' },
-    { value: 'disinfection', label: 'Дезинфекция', emoji: '🧴' },
-    { value: 'ex1', label: 'ЕХ-1', emoji: '🧾' },
-    { value: 'otkat', label: 'Откат', emoji: '🔄' },
-    { value: 'gps_seal', label: 'GPS пломба', emoji: '📡' },
-    { value: 'other', label: 'Другое', emoji: '📌' },
+    { value: 'border', label: t('expenseCat.border'), emoji: '🛂' },
+    { value: 'contractor', label: t('expenseCat.contractor'), emoji: '🚛' },
+    { value: 'permit', label: t('expenseCat.permit'), emoji: '📋' },
+    { value: 'tlc', label: t('expenseCat.tlc'), emoji: '🏭' },
+    { value: 'waiting', label: t('expenseCat.waiting'), emoji: '⏳' },
+    { value: 'repair', label: t('expenseCat.repair'), emoji: '🔧' },
+    { value: 'parking', label: t('expenseCat.parking'), emoji: '🅿️' },
+    { value: 'disinfection', label: t('expenseCat.disinfection'), emoji: '🧴' },
+    { value: 'ex1', label: t('expenseCat.ex1'), emoji: '🧾' },
+    { value: 'otkat', label: t('expenseCat.otkat'), emoji: '🔄' },
+    { value: 'gps_seal', label: t('expenseCat.gps_seal'), emoji: '📡' },
+    { value: 'other', label: t('expenseCat.other'), emoji: '📌' },
   ];
 
   function categoryLabel(cat: string): string {
@@ -255,9 +258,9 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
       : 'bg-gradient-to-br from-brand-600 to-brand-800';
 
   const stopTypeLabel: Record<StopDb['type'], string> = {
-    load: 'Загрузка',
-    reload: 'Догруз / перегруз',
-    unload: 'Выгрузка',
+    load: t('drvApp.loading'),
+    reload: t('seg.optReload'),
+    unload: t('seg.optUnload'),
   };
 
   return (
@@ -269,7 +272,7 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
           className="inline-flex items-center gap-2 text-slate-600 hover:text-brand-600 transition-colors text-sm font-medium"
         >
           <ArrowLeft className="w-4 h-4" strokeWidth={2} />
-          Мои рейсы
+          {t('nav.myTrips')}
         </a>
 
         {/* Заголовок */}
@@ -277,7 +280,7 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
           <div className="flex items-start justify-between gap-3 mb-3">
             <div className="min-w-0 flex-1">
               <div className="text-xs text-slate-400 font-medium tabular-nums">
-                Рейс № {trip.trip_number || '—'}
+                {t('trips.colTripNo')}{' '}{trip.trip_number || '—'}
               </div>
               <h1 className="text-xl font-bold text-slate-900 mt-1 break-words">
                 {clientName}
@@ -297,19 +300,19 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
             <span className="text-slate-600 inline-flex items-center gap-1.5">
               <Rocket className="w-3.5 h-3.5 text-slate-400" strokeWidth={2} />
-              Старт: <b className="text-slate-800 tabular-nums">
-                {trip.start_date ? new Date(trip.start_date).toLocaleDateString('ru-RU') : '—'}
+              {t('trips.start')}{' '}<b className="text-slate-800 tabular-nums">
+                {trip.start_date ? new Date(trip.start_date).toLocaleDateString(INTL_LOCALE[locale]) : '—'}
               </b>
             </span>
             {trip.end_date ? (
               <span className="text-emerald-700 inline-flex items-center gap-1.5">
                 <Flag className="w-3.5 h-3.5" strokeWidth={2} />
-                Финиш: <b className="tabular-nums">{new Date(trip.end_date).toLocaleDateString('ru-RU')}</b>
+                {t('trips.finish')}{' '}<b className="tabular-nums">{new Date(trip.end_date).toLocaleDateString(INTL_LOCALE[locale])}</b>
               </span>
             ) : (
               <span className="text-slate-400 inline-flex items-center gap-1.5">
                 <Flag className="w-3.5 h-3.5" strokeWidth={2} />
-                Финиш: —
+                {t('trips.finishNone')}
               </span>
             )}
           </div>
@@ -319,7 +322,7 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
         <div className="card p-5">
           <h2 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
             <Settings2 className="w-4 h-4 text-slate-500" strokeWidth={2} />
-            Действия по рейсу
+            {t('drvApp.actions')}
           </h2>
           <TripStatusButtons tripId={tripId} currentStatus={trip.status} showAdminStatuses={false} />
         </div>
@@ -328,8 +331,8 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
         <div className={`${fuelCardClass} rounded-2xl p-5 shadow-lg text-white`}>
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <div className="text-sm text-white/80">Остаток топлива в баке</div>
-              <div className="text-3xl font-bold mt-1 tabular-nums">{fuelLeft.toFixed(1)} л</div>
+              <div className="text-sm text-white/80">{t('drvApp.fuelInTank')}</div>
+              <div className="text-3xl font-bold mt-1 tabular-nums">{fuelLeft.toFixed(1)}{' '}{t('units.l')}</div>
             </div>
             <div className="shrink-0 w-14 h-14 rounded-2xl bg-white/15 flex items-center justify-center">
               <Fuel className="w-7 h-7" strokeWidth={2} />
@@ -341,15 +344,15 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
               <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" strokeWidth={2.2} />
               <span>
                 {fuelLeftIsCritical
-                  ? 'Значительный недостаток топлива. Проверьте заправки и данные о расходе — цифры выглядят недостоверными.'
-                  : 'Остаток отрицательный (в пределах нормы). Расхождение факта и учёта по топливу.'}
+                  ? t('drvApp.fuelCritical')
+                  : t('drvApp.fuelNegative')}
               </span>
             </div>
           )}
 
           {trip.actual_liters && trip.actual_km ? (
             <div className="text-xs text-white/80 mt-3 tabular-nums">
-              Последние данные: {trip.actual_km} км / {trip.actual_liters} л · Расход: {((trip.actual_liters / trip.actual_km) * 100).toFixed(1)} л/100 км
+              {t('drvApp.lastData')}{' '}{trip.actual_km}{' '}{t('drvApp.kmSlash')}{' '}{trip.actual_liters}{' '}{t('drvApp.lCons')}{' '}{((trip.actual_liters / trip.actual_km) * 100).toFixed(1)}{' '}{t('drvApp.l100')}
             </div>
           ) : null}
         </div>
@@ -358,12 +361,12 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
         <div className="card p-5 space-y-4">
           <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
             <Package className="w-5 h-5 text-brand-600" strokeWidth={2} />
-            Задание
+            {t('seg.task')}
           </h2>
 
           {usSegments.length === 0 ? (
             <div className="text-slate-400 text-sm text-center py-6">
-              Маршрут ещё не назначен
+              {t('drvApp.noRoute')}
             </div>
           ) : (
             <div className="space-y-5">
@@ -371,26 +374,26 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
                 <div key={seg.id} className="space-y-3">
                   {usSegments.length > 1 && (
                     <div className="text-xs font-bold text-slate-500 uppercase tracking-wide">
-                      Участок {segIdx + 1}
+                      {t('drvApp.leg')}{' '}{segIdx + 1}
                     </div>
                   )}
 
                   {(seg.date_from || seg.date_to) && (
                     <div className="text-xs text-slate-500 inline-flex items-center gap-1.5 tabular-nums">
                       <Calendar className="w-3.5 h-3.5" strokeWidth={2} />
-                      {seg.date_from && new Date(seg.date_from).toLocaleDateString('ru-RU')}
+                      {seg.date_from && new Date(seg.date_from).toLocaleDateString(INTL_LOCALE[locale])}
                       {seg.date_from && seg.date_to && ' → '}
-                      {seg.date_to && new Date(seg.date_to).toLocaleDateString('ru-RU')}
+                      {seg.date_to && new Date(seg.date_to).toLocaleDateString(INTL_LOCALE[locale])}
                     </div>
                   )}
 
                   <div className="border-l-4 border-green-500 pl-3 py-1">
                     <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-1 inline-flex items-center gap-1.5">
                       <MapPin className="w-3.5 h-3.5" strokeWidth={2} />
-                      Загрузка
+                      {t('drvApp.loading')}
                     </div>
                     <div className="font-bold text-slate-900 text-sm break-words">
-                      {seg.from_company || 'Отправитель не указан'}
+                      {seg.from_company || t('drvApp.noSender')}
                     </div>
                     <div className="text-sm text-slate-600 mt-1 break-words">
                       {[seg.from_postal_code, seg.from_city].filter(Boolean).join(', ') || '—'}
@@ -413,8 +416,8 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
                       {seg.stops.map((stop: StopDb, idx: number) => (
                         <div key={idx} className="border-l-4 border-amber-500 pl-3 py-1 ml-2">
                           <div className="text-xs uppercase tracking-wide text-amber-700 font-semibold mb-1">
-                            {stopTypeLabel[stop.type] || 'Остановка'}
-                            {stop.date && ` · ${new Date(stop.date).toLocaleDateString('ru-RU')}`}
+                            {stopTypeLabel[stop.type] || t('drvApp.stop')}
+                            {stop.date && ` · ${new Date(stop.date).toLocaleDateString(INTL_LOCALE[locale])}`}
                           </div>
                           <div className="text-sm font-medium text-slate-800 break-words">
                             {stop.company || '—'}
@@ -436,10 +439,10 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
                     <div className="border-l-4 border-brand-500 pl-3 py-1">
                       <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-1 inline-flex items-center gap-1.5">
                         <Flag className="w-3.5 h-3.5" strokeWidth={2} />
-                        Выгрузка
+                        {t('seg.optUnload')}
                       </div>
                       <div className="font-bold text-slate-900 text-sm break-words">
-                        {seg.to_company || 'Получатель не указан'}
+                        {seg.to_company || t('drvApp.noReceiver')}
                       </div>
                       <div className="text-sm text-slate-600 mt-1 break-words">
                         {[seg.to_postal_code, seg.to_city].filter(Boolean).join(', ') || '—'}
@@ -488,10 +491,10 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
         <div className="card p-5">
           <h2 className="text-lg font-bold text-slate-900 mb-3 flex items-center gap-2">
             <Paperclip className="w-5 h-5 text-brand-600" strokeWidth={2} />
-            Загрузить документы
+            {t('trip.uploadDocs')}
           </h2>
           <p className="text-sm text-slate-500 mb-4">
-            Загрузите CMR с отметкой о выгрузке, фото груза и другие рабочие документы.
+            {t('drvApp.uploadHint')}
           </p>
           <FileUpload tripId={tripId} />
         </div>
@@ -500,7 +503,7 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
         <div className="card p-5">
           <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
             <FolderOpen className="w-5 h-5 text-brand-600" strokeWidth={2} />
-            Загруженные файлы
+            {t('trip.uploadedFiles')}
           </h2>
           <DocumentList
             documents={documents || []}
@@ -513,11 +516,11 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
         <div className="card p-5">
           <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
             <Receipt className="w-5 h-5 text-brand-600" strokeWidth={2} />
-            Расходы по рейсу
+            {t('expense.listTitle')}
           </h2>
 
           {expenses?.length === 0 ? (
-            <div className="text-slate-400 text-sm text-center py-6">Пока нет расходов</div>
+            <div className="text-slate-400 text-sm text-center py-6">{t('expense.empty')}</div>
           ) : (
             <div className="space-y-2">
               {expenses?.map((exp) => (
@@ -527,7 +530,7 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
                       {categoryLabel(exp.category)}
                       {exp.paid_by_driver && (
                         <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-200 whitespace-nowrap">
-                          🚛 за счёт водителя
+                          {t('expense.driverPaid')}
                         </span>
                       )}
                     </div>
@@ -550,7 +553,7 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
                   <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200/60">
                     <span className="text-xs text-slate-400 inline-flex items-center gap-1.5 tabular-nums">
                       <Calendar className="w-3 h-3" strokeWidth={2} />
-                      {exp.expense_date ? new Date(exp.expense_date).toLocaleDateString('ru-RU') : '—'}
+                      {exp.expense_date ? new Date(exp.expense_date).toLocaleDateString(INTL_LOCALE[locale]) : '—'}
                     </span>
                     <form action={async () => {
                       'use server';
@@ -561,7 +564,7 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
                         className="inline-flex items-center gap-1 text-red-500 hover:text-red-700 hover:bg-red-50 text-xs font-medium px-3 py-1 rounded-lg transition-colors"
                       >
                         <Trash2 className="w-3 h-3" strokeWidth={2} />
-                        Удалить
+                        {t('trips.delete')}
                       </button>
                     </form>
                   </div>
@@ -575,17 +578,17 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
         <div className="card p-5">
           <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
             <PlusCircle className="w-5 h-5 text-brand-600" strokeWidth={2} />
-            Добавить расход
+            {t('trip.addExpense')}
           </h2>
           <p className="text-xs text-slate-500 mb-4">
-            Если вы оплатили из своих — поставьте галочку ниже. Сумма уйдёт в долг компании перед вами.
+            {t('drvApp.paidSelfHint')}
           </p>
           <AddExpenseForm
             tripId={tripId}
             hasDriver={true}
             allowSalary={false}
             defaultPaidByDriver={true}
-            paidByDriverHint="Сумма уйдёт в долг компании перед вами. Офис увидит и сможет погасить."
+            paidByDriverHint={t('drvApp.paidSelfDebt')}
           />
         </div>
 

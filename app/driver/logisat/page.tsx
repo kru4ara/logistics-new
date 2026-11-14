@@ -3,10 +3,12 @@ import { getSessionContext } from '../../../lib/session';
 import { createClient as createAuthClient } from '../../../lib/supabase/server';
 import LogisatForm from './LogisatForm';
 import { isDriverRole } from '../../../lib/roles';
+import { getT } from '../../../lib/i18n/server';
 
 export const dynamic = 'force-dynamic';
 
 export default async function DriverLogisatPage() {
+  const { t: tr } = await getT();
   const { role, driverId } = await getSessionContext();
 
   if (!isDriverRole(role) || !driverId) {
@@ -41,22 +43,22 @@ export default async function DriverLogisatPage() {
           href="/driver"
           className="inline-flex items-center gap-2 text-slate-600 hover:text-blue-600 transition-colors text-sm font-medium"
         >
-          ← Мои рейсы
+          {tr('drvApp.myTrips')}
         </a>
 
         <div>
           <h1 className="text-2xl font-bold text-slate-900">📡 Logisat</h1>
           <p className="text-slate-500 text-sm mt-1">
-            Проверить расход топлива по машине за выбранный период.
+            {tr('drvApp.lsPageHint')}
           </p>
         </div>
 
         {trucks.length === 0 ? (
           <div className="bg-white rounded-2xl border border-slate-100 p-10 text-center">
             <div className="text-5xl mb-3">📭</div>
-            <h2 className="text-lg font-bold text-slate-900 mb-1">Нет машин с Logisat</h2>
+            <h2 className="text-lg font-bold text-slate-900 mb-1">{tr('drvApp.noLsTrucks')}</h2>
             <p className="text-slate-500 text-sm">
-              Ни одна машина не подключена к Logisat. Обратитесь в офис.
+              {tr('drvApp.noLsTrucksHint')}
             </p>
           </div>
         ) : (

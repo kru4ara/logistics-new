@@ -19,6 +19,9 @@ import {
 } from 'lucide-react';
 import { createClient as createAuthClient } from '../../../lib/supabase/server';
 import { isDriverRole } from '../../../lib/roles';
+import { getT } from '../../../lib/i18n/server';
+import { INTL_LOCALE } from '../../../lib/i18n/config';
+import { formatDate } from '../../../lib/i18n/format';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,6 +33,7 @@ const TACHO_PERIOD = 96;             // тахограф — не реже 96 д
 const TACHO_WARN = 90;               // предупреждение за 6 дней
 
 export default async function DriverRemindersPage() {
+  const { t, locale } = await getT();
   const { role, driverId } = await getSessionContext();
 
   if (!isDriverRole(role) || !driverId) redirect('/login');
@@ -76,9 +80,9 @@ export default async function DriverRemindersPage() {
   function statusBadge(dateString: string | null) {
     const days = getDaysUntil(dateString);
     if (days === null) return { color: 'bg-slate-100 text-slate-500 border-slate-200', label: '—' };
-    if (days < 0) return { color: 'bg-red-50 text-red-700 border-red-200', label: `${days} дн.` };
-    if (days < 30) return { color: 'bg-orange-50 text-orange-700 border-orange-200', label: `${days} дн.` };
-    return { color: 'bg-green-50 text-green-700 border-green-200', label: `${days} дн.` };
+    if (days < 0) return { color: 'bg-red-50 text-red-700 border-red-200', label: t('drvCard.days', { n: days }) };
+    if (days < 30) return { color: 'bg-orange-50 text-orange-700 border-orange-200', label: t('drvCard.days', { n: days }) };
+    return { color: 'bg-green-50 text-green-700 border-green-200', label: t('drvCard.days', { n: days }) };
   }
 
   // Специальный badge для "периодического считывания":
@@ -88,7 +92,7 @@ export default async function DriverRemindersPage() {
     if (lastDate === null) {
       return {
         color: 'bg-slate-100 text-slate-500 border-slate-200',
-        label: 'нет данных',
+        label: t('drvCard.noData'),
         hint: null as string | null,
       };
     }
@@ -96,49 +100,49 @@ export default async function DriverRemindersPage() {
     if (daysAgo > maxAfter) {
       return {
         color: 'bg-red-50 text-red-700 border-red-200',
-        label: `просрочено · ${daysAgo} дн.`,
-        hint: `Считать срочно (лимит ${maxAfter} дн.)`,
+        label: t('drvCard.overdueDays', { n: daysAgo }),
+        hint: t('drvApp.urgent', { n: maxAfter }),
       };
     }
     if (daysAgo > warnAfter) {
       return {
         color: 'bg-orange-50 text-orange-700 border-orange-200',
-        label: `${daysAgo} дн.`,
-        hint: `Осталось ${maxAfter - daysAgo} дн. до лимита`,
+        label: t('drvCard.days', { n: daysAgo }),
+        hint: t('drvApp.leftToLimit', { n: maxAfter - daysAgo }),
       };
     }
     return {
       color: 'bg-green-50 text-green-700 border-green-200',
-      label: `${daysAgo} дн.`,
-      hint: `Лимит через ${maxAfter - daysAgo} дн.`,
+      label: t('drvCard.days', { n: daysAgo }),
+      hint: t('drvApp.limitIn', { n: maxAfter - daysAgo }),
     };
   }
 
   const driverDocs: DocDef[] = driver ? [
-    { label: 'Паспорт', value: driver.passport_expiry, Icon: Book },
-    { label: 'Виза', value: driver.visa_expiry, Icon: ScanLine },
-    { label: 'Водительское удостоверение', value: driver.license_expiry, Icon: Car },
-    { label: 'Карта тахографа', value: driver.tachograph_card_expiry, Icon: CreditCard },
-    { label: 'Код 95', value: driver.code_95_expiry, Icon: FileBadge },
-    { label: 'АДР', value: driver.adr_expiry, Icon: AlertTriangle },
+    { label: t('drvCard.passport'), value: driver.passport_expiry, Icon: Book },
+    { label: t('drv.visa'), value: driver.visa_expiry, Icon: ScanLine },
+    { label: t('drv.licenseTitle'), value: driver.license_expiry, Icon: Car },
+    { label: t('drvCard.tachoCard'), value: driver.tachograph_card_expiry, Icon: CreditCard },
+    { label: t('drvCard.code95'), value: driver.code_95_expiry, Icon: FileBadge },
+    { label: t('drvCard.adr'), value: driver.adr_expiry, Icon: AlertTriangle },
   ] : [];
 
   const tractorDocs: DocDef[] = truck && truck.type === 'tractor'
     ? [
-        { label: 'Страховка ОС', value: truck.truck_insurance_expiry, Icon: Shield },
-        { label: 'ТО (техобслуживание)', value: truck.to_expiry, Icon: Wrench },
-        { label: 'Техосмотр', value: truck.tech_inspection_expiry, Icon: ClipboardCheck },
-        { label: 'Пограничная страховка РБ', value: truck.border_insurance_expiry, Icon: ScanLine },
-        { label: 'Калибровка тахографа', value: truck.tachograph_calibration_expiry, Icon: CreditCard },
+        { label: t('trk.insurance'), value: truck.truck_insurance_expiry, Icon: Shield },
+        { label: t('trk.service'), value: truck.to_expiry, Icon: Wrench },
+        { label: t('trk.inspection'), value: truck.tech_inspection_expiry, Icon: ClipboardCheck },
+        { label: t('trk.borderIns'), value: truck.border_insurance_expiry, Icon: ScanLine },
+        { label: t('trk.tachoCal'), value: truck.tachograph_calibration_expiry, Icon: CreditCard },
       ]
     : [];
 
   const trailerDocs: DocDef[] = trailer
     ? [
-        { label: 'Страховка ОС', value: trailer.truck_insurance_expiry, Icon: Shield },
-        { label: 'Техосмотр', value: trailer.tech_inspection_expiry, Icon: ClipboardCheck },
-        { label: 'Пограничная страховка РБ', value: trailer.border_insurance_expiry, Icon: ScanLine },
-        { label: 'Таможенный сертификат', value: trailer.customs_certificate_expiry, Icon: FileBadge },
+        { label: t('trk.insurance'), value: trailer.truck_insurance_expiry, Icon: Shield },
+        { label: t('trk.inspection'), value: trailer.tech_inspection_expiry, Icon: ClipboardCheck },
+        { label: t('trk.borderIns'), value: trailer.border_insurance_expiry, Icon: ScanLine },
+        { label: t('drvApp.customsCert'), value: trailer.customs_certificate_expiry, Icon: FileBadge },
       ]
     : [];
 
@@ -159,7 +163,7 @@ export default async function DriverRemindersPage() {
           <div className="min-w-0">
             <div className="font-medium text-slate-800 text-sm truncate">{doc.label}</div>
             <div className="text-xs text-slate-400">
-              {doc.value ? new Date(doc.value).toLocaleDateString('ru-RU') : '—'}
+              {doc.value ? new Date(doc.value).toLocaleDateString(INTL_LOCALE[locale]) : '—'}
             </div>
           </div>
         </div>
@@ -177,9 +181,9 @@ export default async function DriverRemindersPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
             <Clock className="w-6 h-6 text-brand-600" />
-            Напоминания
+            {t('nav.reminders')}
           </h1>
-          <p className="text-slate-500 mt-1 text-sm">Следите за сроками документов и считыванием тахографа</p>
+          <p className="text-slate-500 mt-1 text-sm">{t('drvApp.remHint')}</p>
         </div>
 
         {/* Считывание данных */}
@@ -187,7 +191,7 @@ export default async function DriverRemindersPage() {
           <div className="card p-5 md:p-6">
             <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
               <Download className="w-5 h-5 text-brand-600" />
-              Считывание данных тахографа
+              {t('drvApp.tachoRead')}
             </h2>
 
             <div className="space-y-2">
@@ -198,12 +202,12 @@ export default async function DriverRemindersPage() {
                     <CreditCard className="w-5 h-5 text-slate-400 shrink-0" />
                     <div className="min-w-0">
                       <div className="font-medium text-slate-800 text-sm">
-                        Карта водителя
+                        {t('cmp.docDriverCard')}
                       </div>
                       <div className="text-xs text-slate-400">
                         {driver?.driver_card_last_download
-                          ? `Последнее: ${new Date(driver.driver_card_last_download).toLocaleDateString('ru-RU')} · лимит ${DRIVER_CARD_PERIOD} дн.`
-                          : `Не считана ни разу · лимит ${DRIVER_CARD_PERIOD} дн.`}
+                          ? t('drvApp.lastDl', { date: formatDate(driver.driver_card_last_download, locale), n: DRIVER_CARD_PERIOD })
+                          : t('drvApp.neverF', { n: DRIVER_CARD_PERIOD })}
                       </div>
                       {driverCardBadge.hint && (
                         <div className="text-xs text-slate-500 mt-0.5">{driverCardBadge.hint}</div>
@@ -223,12 +227,12 @@ export default async function DriverRemindersPage() {
                     <Download className="w-5 h-5 text-slate-400 shrink-0" />
                     <div className="min-w-0">
                       <div className="font-medium text-slate-800 text-sm">
-                        Тахограф {truck?.registration_number ? `· ${truck.registration_number}` : ''}
+                        {t('rem.tacho')}{' '}{truck?.registration_number ? `· ${truck.registration_number}` : ''}
                       </div>
                       <div className="text-xs text-slate-400">
                         {truck?.tachograph_last_download
-                          ? `Последнее: ${new Date(truck.tachograph_last_download).toLocaleDateString('ru-RU')} · лимит ${TACHO_PERIOD} дн.`
-                          : `Не считан ни разу · лимит ${TACHO_PERIOD} дн.`}
+                          ? t('drvApp.lastDl', { date: formatDate(truck.tachograph_last_download, locale), n: TACHO_PERIOD })
+                          : t('drvApp.neverM', { n: TACHO_PERIOD })}
                       </div>
                       {tachoBadge.hint && (
                         <div className="text-xs text-slate-500 mt-0.5">{tachoBadge.hint}</div>
@@ -248,7 +252,7 @@ export default async function DriverRemindersPage() {
         <div className="card p-5 md:p-6">
           <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
             <UserIcon className="w-5 h-5 text-brand-600" />
-            Мои документы
+            {t('drvApp.myDocs')}
           </h2>
           <div className="space-y-2">
             {driverDocs.map((doc) => <DocRow key={doc.label} doc={doc} />)}
@@ -260,7 +264,7 @@ export default async function DriverRemindersPage() {
           <div className="card p-5 md:p-6">
             <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
               <TruckIcon className="w-5 h-5 text-brand-600" />
-              Документы тягача
+              {t('drvApp.tractorDocs')}
             </h2>
             <p className="text-sm text-slate-500 mt-1 mb-4">
               {truck.registration_number}
@@ -276,7 +280,7 @@ export default async function DriverRemindersPage() {
           <div className="card p-5 md:p-6">
             <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
               <Container className="w-5 h-5 text-brand-600" />
-              Документы прицепа
+              {t('drvApp.trailerDocs')}
             </h2>
             <p className="text-sm text-slate-500 mt-1 mb-4">
               {trailer.registration_number}
@@ -293,8 +297,8 @@ export default async function DriverRemindersPage() {
             <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-slate-100 text-slate-400 mb-3">
               <TruckIcon className="w-7 h-7" />
             </div>
-            <h2 className="text-lg font-bold text-slate-900 mb-1">Машина не назначена</h2>
-            <p className="text-slate-500 text-sm">У вас нет активного рейса с машиной</p>
+            <h2 className="text-lg font-bold text-slate-900 mb-1">{t('drvApp.noTruck')}</h2>
+            <p className="text-slate-500 text-sm">{t('drvApp.noActiveTruck')}</p>
           </div>
         )}
 

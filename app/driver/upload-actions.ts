@@ -4,6 +4,7 @@ import { createClient } from '../../lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
 import { logAudit } from '../../lib/audit';
 import { requireTripAccess } from '../../lib/driver-access';
+import { getT } from '../../lib/i18n/server';
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
@@ -17,6 +18,7 @@ export async function uploadDocument(
   base64Data: string,
   fileName: string
 ) {
+  const { t } = await getT();
   try {
     // tripId приходит от клиента — проверяем владение рейсом до записи.
     const access = await requireTripAccess(tripId);
@@ -28,7 +30,7 @@ export async function uploadDocument(
 
     const base64 = base64Data.split(',')[1];
     if (!base64) {
-      return { success: false, message: 'Некорректные данные файла' };
+      return { success: false, message: t('drvApp.badFile') };
     }
 
     const binary = atob(base64);
@@ -58,7 +60,7 @@ export async function uploadDocument(
       console.error('[uploadDocument] Storage error:', uploadError);
       return {
         success: false,
-        message: `Ошибка загрузки: ${uploadError.message || 'неизвестная ошибка'}`,
+        message: t('drvApp.uploadErr', { msg: uploadError.message || t('drvApp.unknownErr') }),
       };
     }
 
@@ -81,7 +83,7 @@ export async function uploadDocument(
       await supabase.storage.from('documents').remove([filePath]);
       return {
         success: false,
-        message: `Ошибка сохранения: ${insertError.message || 'неизвестная ошибка'}`,
+        message: t('drvApp.saveErr', { msg: insertError.message || t('drvApp.unknownErr') }),
       };
     }
 
@@ -134,7 +136,7 @@ export async function uploadDocument(
 
     revalidatePath(`/driver/trips/${tripId}`);
     revalidatePath(`/trips/${tripId}`);
-    return { success: true, message: 'Документ загружен!' };
+    return { success: true, message: t('drvApp.docUploaded') };
   } catch (error) {
     console.error('[uploadDocument] Unexpected error:', error);
     const msg =
@@ -142,7 +144,7 @@ export async function uploadDocument(
         ? error.message
         : typeof error === 'string'
           ? error
-          : 'Неизвестная ошибка';
+          : t('shared.unknownError');
     return { success: false, message: msg };
   }
 }
@@ -151,6 +153,7 @@ export async function uploadDocument(
 // УДАЛЕНИЕ
 // ============================================================
 export async function deleteDocument(documentId: string, tripId: string) {
+  const { t } = await getT();
   try {
     const supabase = await createClient();
 
@@ -165,7 +168,7 @@ export async function deleteDocument(documentId: string, tripId: string) {
       console.error('[deleteDocument] Fetch error:', fetchError);
       return {
         success: false,
-        message: `Документ не найден: ${fetchError?.message || 'неизвестная ошибка'}`,
+        message: t('drvApp.docNotFound', { msg: fetchError?.message || t('drvApp.unknownErr') }),
       };
     }
 
@@ -198,7 +201,7 @@ export async function deleteDocument(documentId: string, tripId: string) {
       console.error('[deleteDocument] DB error:', deleteError);
       return {
         success: false,
-        message: `Ошибка удаления записи: ${deleteError.message || 'неизвестная ошибка'}`,
+        message: t('drvApp.deleteRecErr', { msg: deleteError.message || t('drvApp.unknownErr') }),
       };
     }
 
@@ -217,7 +220,7 @@ export async function deleteDocument(documentId: string, tripId: string) {
 
     const docLabel = doc.original_name
       ? doc.original_name
-      : doc.document_type || 'без названия';
+      : doc.document_type || t('drvApp.untitled');
 
     await logAudit({
       entity_type: 'document',
@@ -228,7 +231,7 @@ export async function deleteDocument(documentId: string, tripId: string) {
 
     revalidatePath(`/driver/trips/${tripId}`);
     revalidatePath(`/trips/${tripId}`);
-    return { success: true, message: 'Документ удалён' };
+    return { success: true, message: t('drvApp.docDeleted') };
   } catch (error) {
     console.error('[deleteDocument] Unexpected error:', error);
     const msg =
@@ -236,7 +239,7 @@ export async function deleteDocument(documentId: string, tripId: string) {
         ? error.message
         : typeof error === 'string'
           ? error
-          : 'Неизвестная ошибка';
+          : t('shared.unknownError');
     return { success: false, message: msg };
   }
 }

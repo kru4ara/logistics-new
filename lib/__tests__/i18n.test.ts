@@ -226,6 +226,20 @@ const TRANSLATED_FILES = [
   'app/routes/page.tsx',
   'app/search/actions.ts',
   'app/search/page.tsx',
+  // Приложение водителя
+  'app/driver/OnboardingCard.tsx',
+  'app/driver/TripsList.tsx',
+  'app/driver/balance/page.tsx',
+  'app/driver/expense-actions.ts',
+  'app/driver/logisat/LogisatForm.tsx',
+  'app/driver/logisat/actions.ts',
+  'app/driver/logisat/page.tsx',
+  'app/driver/onboarding-actions.ts',
+  'app/driver/page.tsx',
+  'app/driver/reminders-actions.ts',
+  'app/driver/reminders/page.tsx',
+  'app/driver/stats/page.tsx',
+  'app/driver/trips/[id]/page.tsx',
 ];
 
 function cyrillicLiterals(file: string): string[] {

@@ -13,6 +13,8 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { markDriverOnboarded } from './onboarding-actions';
+import { useT } from '../components/I18nProvider';
+import type { MessageKey } from '../../lib/i18n/translate';
 
 type Step = {
   num: number;
@@ -29,36 +31,37 @@ const STEPS: Step[] = [
     Icon: Rocket,
     iconBg: 'bg-brand-50',
     iconColor: 'text-brand-600',
-    title: 'Начни рейс',
-    text: 'Когда выехал — нажми «Начать рейс» в карточке. Офис увидит, что ты в пути.',
+    title: 'drvApp.obStart',
+    text: 'drvApp.obStartH',
   },
   {
     num: 2,
     Icon: CheckCircle2,
     iconBg: 'bg-emerald-50',
     iconColor: 'text-emerald-600',
-    title: 'Заверши рейс',
-    text: 'После выгрузки укажи дату завершения. Система сама подтянет пробег и расход из Logisat.',
+    title: 'drvApp.obFinish',
+    text: 'drvApp.obFinishH',
   },
   {
     num: 3,
     Icon: Paperclip,
     iconBg: 'bg-amber-50',
     iconColor: 'text-amber-600',
-    title: 'Загрузи CMR',
-    text: 'Сфотографируй CMR с отметкой о выгрузке и загрузи через кнопку «📎 Загрузить документы».',
+    title: 'drvApp.obCmr',
+    text: 'drvApp.obCmrH',
   },
   {
     num: 4,
     Icon: Bell,
     iconBg: 'bg-violet-50',
     iconColor: 'text-violet-600',
-    title: 'Следи за сроками',
-    text: 'В разделе «Напоминания» — все сроки твоих документов: виза, права, карта тахографа.',
+    title: 'drvApp.obExpiry',
+    text: 'drvApp.obExpiryH',
   },
 ];
 
 export default function OnboardingCard({ driverName }: { driverName: string }) {
+  const { t } = useT();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [isHidden, setIsHidden] = useState(false);
@@ -81,7 +84,7 @@ export default function OnboardingCard({ driverName }: { driverName: string }) {
         disabled={isPending}
         className="absolute top-3 right-3 w-8 h-8 rounded-lg flex items-center justify-center
                    text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors z-10"
-        aria-label="Скрыть"
+        aria-label={t('drvApp.hide')}
       >
         <X className="w-4 h-4" strokeWidth={2.5} />
       </button>
@@ -96,10 +99,10 @@ export default function OnboardingCard({ driverName }: { driverName: string }) {
           </div>
           <div className="min-w-0 flex-1 pr-8">
             <div className="text-lg md:text-xl font-bold text-slate-900 break-words">
-              Привет, {driverName}!
+              {t('drvApp.hello')}{' '}{driverName}!
             </div>
             <p className="text-sm text-slate-500 mt-1">
-              Пара коротких советов, как пользоваться приложением
+              {t('drvApp.tips')}
             </p>
           </div>
         </div>
@@ -114,10 +117,10 @@ export default function OnboardingCard({ driverName }: { driverName: string }) {
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="font-semibold text-slate-900 text-sm">
-                    {step.num}. {step.title}
+                    {step.num}. {t(step.title as MessageKey)}
                   </div>
                   <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
-                    {step.text}
+                    {t(step.text as MessageKey)}
                   </p>
                 </div>
               </div>
@@ -137,12 +140,12 @@ export default function OnboardingCard({ driverName }: { driverName: string }) {
           {isPending ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin" />
-              Сохраняю…
+              {t('drvFin.saving')}
             </>
           ) : (
             <>
               <CheckCircle2 className="w-4 h-4" strokeWidth={2.5} />
-              Всё понял, поехали
+              {t('drvApp.gotIt')}
             </>
           )}
         </button>
