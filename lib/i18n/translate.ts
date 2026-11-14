@@ -7,6 +7,8 @@
  * Подстановки — {name}: t('login.wait', { min: 5 }).
  */
 import type { ru } from './messages/ru';
+import type { Locale } from './config';
+import { pluralCategory } from './format';
 
 type Leaves<T, P extends string = ''> = {
   [K in keyof T & string]: T[K] extends string ? `${P}${K}` : Leaves<T[K], `${P}${K}.`>;
@@ -34,4 +36,18 @@ export function createT(messages: Messages, fallback?: Messages): T {
       key;
     return interpolate(value, params);
   };
+}
+
+/**
+ * Ключи с формами числа: «plural.trip_one», «_few», «_many», «_other».
+ * PluralBase — то, что до «_one»: 'plural.trip'.
+ */
+export type PluralBase = {
+  [K in MessageKey]: K extends `${infer B}_one` ? B : never;
+}[MessageKey];
+
+/** «5 рейсов», «2 kursy»: форма по правилам языка, {n} — само число. */
+export function tPlural(t: T, locale: Locale, base: PluralBase, n: number, params?: TParams): string {
+  const key = `${base}_${pluralCategory(locale, n)}` as MessageKey;
+  return t(key, { n, ...params });
 }

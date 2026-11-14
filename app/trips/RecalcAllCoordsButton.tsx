@@ -4,10 +4,12 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { MapPin, Loader2 } from 'lucide-react';
 import { recalcAllTripsCoords } from '../trip-actions';
+import { useT } from '../components/I18nProvider';
 
 const BATCH_SIZE = 20;
 
 export default function RecalcAllCoordsButton({ tripIds }: { tripIds: string[] }) {
+  const { t } = useT();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [progress, setProgress] = useState<{ done: number; total: number; failed: number } | null>(null);
@@ -15,14 +17,12 @@ export default function RecalcAllCoordsButton({ tripIds }: { tripIds: string[] }
 
   function handleClick() {
     if (tripIds.length === 0) {
-      alert('Нет рейсов для пересчёта (пустой список)');
+      alert(t('trips.recalcEmpty'));
       return;
     }
 
     const confirmed = confirm(
-      `Пересчитать координаты для ${tripIds.length} рейсов?\n\n` +
-      `Это может занять до ${Math.ceil(tripIds.length * 2)} секунд (геокодинг). ` +
-      `Обработка идёт порциями по ${BATCH_SIZE}.`
+      t('trips.recalcConfirm', { n: tripIds.length, sec: Math.ceil(tripIds.length * 2), batch: BATCH_SIZE })
     );
     if (!confirmed) return;
 
@@ -39,14 +39,14 @@ export default function RecalcAllCoordsButton({ tripIds }: { tripIds: string[] }
         try {
           const res = await recalcAllTripsCoords(batch);
           if (!res.success) {
-            setError(res.error || 'Ошибка');
+            setError(res.error || t('trips.error'));
             break;
           }
           done += batch.length;
           failed += res.failed;
           setProgress({ done, total: tripIds.length, failed });
         } catch (e) {
-          setError((e as Error).message || 'Ошибка');
+          setError((e as Error).message || t('trips.error'));
           break;
         }
       }
@@ -66,14 +66,14 @@ export default function RecalcAllCoordsButton({ tripIds }: { tripIds: string[] }
         disabled={isPending}
         className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-300 text-slate-700 bg-white
                    hover:bg-slate-50 font-medium text-sm transition-all disabled:opacity-50 active:scale-[0.98]"
-        title="Пересчитать координаты для всех рейсов в списке"
+        title={t('trips.recalcTitle')}
       >
         {isRunning ? (
           <Loader2 className="w-4 h-4 animate-spin" strokeWidth={2.2} />
         ) : (
           <MapPin className="w-4 h-4" strokeWidth={2.2} />
         )}
-        {isRunning ? 'Пересчёт…' : 'Пересчитать координаты'}
+        {isRunning ? t('trips.recalcRunning') : t('trips.recalcButton')}
       </button>
 
       {progress && (
@@ -81,8 +81,8 @@ export default function RecalcAllCoordsButton({ tripIds }: { tripIds: string[] }
           {error
             ? <span className="text-red-600">{error}</span>
             : progress.done < progress.total
-              ? <>Обработано {progress.done} из {progress.total}…</>
-              : <>Готово: {progress.total - progress.failed} из {progress.total}{progress.failed > 0 ? `, ошибок: ${progress.failed}` : ''}</>
+              ? <>{t('trips.recalcProgress', { done: progress.done, total: progress.total })}</>
+              : <>{t('trips.recalcDone', { ok: progress.total - progress.failed, total: progress.total })}{progress.failed > 0 ? t('trips.recalcFailed', { n: progress.failed }) : ''}</>
           }
         </div>
       )}

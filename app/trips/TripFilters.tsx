@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { User, Truck, Calendar, ArrowUpDown, Package } from 'lucide-react';
+import { useT } from '../components/I18nProvider';
 
 type Option = { id: string; label: string };
 
@@ -32,6 +33,7 @@ export default function TripFilters({
   currentSort: string;
   currentMode: string | null;
 }) {
+  const { t } = useT();
   const router = useRouter();
 
   function updateParam(key: string, value: string | null) {
@@ -52,14 +54,14 @@ export default function TripFilters({
         {clients.length > 0 && (
           <div>
             <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2 flex items-center gap-1.5">
-              <User className="w-3.5 h-3.5" /> Клиент
+              <User className="w-3.5 h-3.5" /> {t('trips.filterClient')}
             </div>
             <select
               className="input text-sm py-2"
               value={currentClient || ''}
               onChange={(e) => updateParam('client', e.target.value || null)}
             >
-              <option value="">Все клиенты</option>
+              <option value="">{t('trips.allClients')}</option>
               {clients.map((c) => (
                 <option key={c.id} value={c.id}>{c.label}</option>
               ))}
@@ -70,14 +72,14 @@ export default function TripFilters({
         {drivers.length > 0 && (
           <div>
             <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2 flex items-center gap-1.5">
-              <User className="w-3.5 h-3.5" /> Водитель
+              <User className="w-3.5 h-3.5" /> {t('trips.filterDriver')}
             </div>
             <select
               className="input text-sm py-2"
               value={currentDriver || ''}
               onChange={(e) => updateParam('driver', e.target.value || null)}
             >
-              <option value="">Все водители</option>
+              <option value="">{t('trips.allDrivers')}</option>
               {drivers.map((d) => (
                 <option key={d.id} value={d.id}>{d.label}</option>
               ))}
@@ -88,14 +90,14 @@ export default function TripFilters({
         {tractors.length > 0 && (
           <div>
             <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2 flex items-center gap-1.5">
-              <Truck className="w-3.5 h-3.5" /> Тягач
+              <Truck className="w-3.5 h-3.5" /> {t('trips.filterTractor')}
             </div>
             <select
               className="input text-sm py-2"
               value={currentTruck || ''}
               onChange={(e) => updateParam('truck', e.target.value || null)}
             >
-              <option value="">Все тягачи</option>
+              <option value="">{t('trips.allTractors')}</option>
               {tractors.map((t) => (
                 <option key={t.id} value={t.id}>{t.label}</option>
               ))}
@@ -108,7 +110,7 @@ export default function TripFilters({
       <div className="space-y-4">
         <div>
           <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2 flex items-center gap-1.5">
-            <Calendar className="w-3.5 h-3.5" /> Год / Месяц
+            <Calendar className="w-3.5 h-3.5" /> {t('trips.filterPeriod')}
           </div>
           <div className="flex gap-2">
             <select
@@ -125,7 +127,7 @@ export default function TripFilters({
               value={currentMonth || ''}
               onChange={(e) => updateParam('month', e.target.value || null)}
             >
-              <option value="">Все месяцы</option>
+              <option value="">{t('trips.allMonths')}</option>
               {months.map((mn, i) => (
                 <option key={i+1} value={i+1}>{mn}</option>
               ))}
@@ -135,30 +137,30 @@ export default function TripFilters({
 
         <div>
           <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2 flex items-center gap-1.5">
-            <Package className="w-3.5 h-3.5" /> Режим расчёта
+            <Package className="w-3.5 h-3.5" /> {t('trips.filterMode')}
           </div>
           <select
             className="input text-sm py-2"
             value={currentMode || ''}
             onChange={(e) => updateParam('mode', e.target.value || null)}
           >
-            <option value="">Все заказы</option>
-            <option value="trip">Рейсы</option>
-            <option value="forwarding">Экспедирование</option>
+            <option value="">{t('trips.allOrders')}</option>
+            <option value="trip">{t('trips.modeTrips')}</option>
+            <option value="forwarding">{t('trips.modeForwarding')}</option>
           </select>
         </div>
 
         <div>
           <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2 flex items-center gap-1.5">
-            <ArrowUpDown className="w-3.5 h-3.5" /> Сортировка
+            <ArrowUpDown className="w-3.5 h-3.5" /> {t('trips.sort')}
           </div>
           <select
             className="input text-sm py-2"
             value={currentSort}
             onChange={(e) => updateParam('sort', e.target.value === 'created' ? 'created' : null)}
           >
-            <option value="start">По дате старта</option>
-            <option value="created">Последние созданные</option>
+            <option value="start">{t('trips.sortStart')}</option>
+            <option value="created">{t('trips.sortCreated')}</option>
           </select>
         </div>
       </div>
