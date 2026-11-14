@@ -84,8 +84,9 @@ DATABASE_URL='<строка Session pooler>' node scripts/migrate.mjs   # вто
 | `TENANT_NAME` | `<client>` — имя компании в оповещениях о сбоях |
 | `OPS_TELEGRAM_BOT_TOKEN` / `OPS_TELEGRAM_CHAT_ID` | **ваш** бот и чат поддержки — одинаковые во всех проектах 🔐 (см. ниже) |
 
-3. **Deploy.** Cron-задачи (бэкап, напоминания, курсы валют) подхватятся из `vercel.json` сами.
-4. **Settings → Domains** → `<client>.<domain>` → у регистратора домена: CNAME на `cname.vercel-dns.com`.
+3. Регион функций берётся из `vercel.json` (`dub1`, Дублин — рядом с базой в `eu-west-1`). Если база клиента во Франкфурте (`eu-central-1`) — поставить `fra1` в **Settings → Functions → Function Region**. Без этого функции работают в США (`iad1`): данные водителей уходят за пределы ЕС, а каждый запрос к базе пересекает океан.
+4. **Deploy.** Cron-задачи (бэкап, напоминания, курсы валют) подхватятся из `vercel.json` сами.
+5. **Settings → Domains** → `<client>.<domain>` → у регистратора домена: CNAME на `cname.vercel-dns.com`.
 
 ## 6. Вебхук Telegram
 
