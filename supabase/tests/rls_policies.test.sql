@@ -940,3 +940,15 @@ exception when insufficient_privilege then
 end;
 $$;
 reset role;
+
+-- Журнал миграций (023) — служебный, роли приложения его не видят.
+reset role;
+do $$
+begin
+  if has_table_privilege('anon', 'public.schema_migrations', 'select')
+     or has_table_privilege('authenticated', 'public.schema_migrations', 'select') then
+    raise exception 'FAIL: anon/authenticated читают schema_migrations';
+  end if;
+  raise notice 'ok: schema_migrations закрыт от anon и authenticated';
+end;
+$$;

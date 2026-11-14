@@ -15,7 +15,7 @@
 
 - **Next.js 16.4.3** (App Router, Turbopack) + React 19.3.1 + Supabase + Vercel
 - **Tailwind CSS 4.3.3** — конфиг через `@theme` в `app/globals.css`, файла `tailwind.config.js` нет
-- **Vitest 5** — **214 тестов в 20 файлах** `lib/__tests__/`, **eslint-config-next 16.4.3**, **exceljs 4.4**
+- **Vitest 5** — **223 теста в 21 файле** `lib/__tests__/`, **eslint-config-next 16.4.3**, **exceljs 4.4**
 
 ### ENV (Vercel → Settings → Environment Variables)
 `NEXT_PUBLIC_SUPABASE_URL` · `NEXT_PUBLIC_SUPABASE_ANON_KEY` (клиент, RLS действует) ·
@@ -148,8 +148,12 @@ e-mail идёт напрямую. С миграции `016` вызывать е�
   не применять — там всё уже есть. Обновлять базовую схему не нужно: новые изменения — миграциями 021+.
 - `021_private_documents_bucket` применена (14.11.2026): файлы `documents` — только по временной ссылке на 1 час
   (`lib/storage-urls.ts`).
-- **Ждёт применения: `022_company_settings`** — порядок не важен. Создаёт `company_settings` и заполняет её
-  реквизитами RAIBUILDING (только в базе, где уже есть заказы). До применения код берёт прежние реквизиты.
+- `022_company_settings` применена (14.11.2026).
+- **Миграции применяет `scripts/migrate.mjs`** (журнал `public.schema_migrations`, миграция 023), а не SQL Editor:
+  `DATABASE_URL='…' node scripts/migrate.mjs` — одна база; `--all scripts/tenants.json` — все клиенты;
+  `--dry-run` — только показать. Подключение клиента — `docs/PROVISIONING.md`.
+- **Ждёт применения на проде: `scripts/adopt-prod.sql`** (один раз, SQL Editor): создаёт журнал и отмечает
+  000–023 как применённые. Дальше прод обновляется только скриптом.
 - **`020_lock_dangerous_rpc` применена на проде вручную 14.11.2026** (через SQL Editor), файл — для git
   и новых баз. См. «Безопасность» ниже.
 - **Миграция, которая меняет права или удаляет то, чем пользуется код, — строго после деплоя кода.**
