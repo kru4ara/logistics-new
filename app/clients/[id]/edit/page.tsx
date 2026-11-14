@@ -2,10 +2,12 @@ import { createClient } from '../../../../lib/supabase/admin';
 import { updateClient } from '../../../client-actions';
 import { ArrowLeft, Users, Building2, Save } from 'lucide-react';
 import SubmitButton from '../../../components/SubmitButton';
+import { getT } from '../../../../lib/i18n/server';
 
 export const dynamic = 'force-dynamic';
 
 export default async function EditClientPage({ params }: { params: Promise<{ id: string }> }) {
+  const { t } = await getT();
   const { id: clientId } = await params;
 
   const supabase = await createClient();
@@ -16,7 +18,7 @@ export default async function EditClientPage({ params }: { params: Promise<{ id:
     .eq('id', clientId)
     .single();
 
-  if (error) return <div className="p-8 text-red-500">Ошибка: {error.message}</div>;
+  if (error) return <div className="p-8 text-red-500">{t('dir.error')}{' '} {error.message}</div>;
 
   return (
     <main className="min-h-screen bg-slate-50">
@@ -27,13 +29,13 @@ export default async function EditClientPage({ params }: { params: Promise<{ id:
           className="inline-flex items-center gap-2 text-slate-600 hover:text-brand-600 transition-colors text-sm font-medium"
         >
           <ArrowLeft className="w-4 h-4" strokeWidth={2} />
-          Назад к клиенту
+          {t('cli.back')}
         </a>
 
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2.5 tracking-tight">
             <Users className="w-6 h-6 md:w-7 md:h-7 text-brand-600" strokeWidth={2.2} />
-            Редактировать клиента
+            {t('cli.editTitle')}
           </h1>
         </div>
 
@@ -42,12 +44,12 @@ export default async function EditClientPage({ params }: { params: Promise<{ id:
           <div className="card p-5 md:p-6 space-y-4">
             <h2 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2">
               <Building2 className="w-5 h-5 text-brand-600" strokeWidth={2} />
-              Данные компании
+              {t('cli.company')}
             </h2>
             <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Название компании *
+                  {t('cli.companyName')}
                 </label>
                 <input
                   type="text"
@@ -59,7 +61,7 @@ export default async function EditClientPage({ params }: { params: Promise<{ id:
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Контактное лицо
+                  {t('dir.contact')}
                 </label>
                 <input
                   type="text"
@@ -70,7 +72,7 @@ export default async function EditClientPage({ params }: { params: Promise<{ id:
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Телефон
+                  {t('drv.phone')}
                 </label>
                 <input
                   type="text"
@@ -102,14 +104,14 @@ export default async function EditClientPage({ params }: { params: Promise<{ id:
               className="w-full sm:w-auto text-center px-6 py-3 rounded-xl border border-slate-300 text-slate-700 font-semibold
                          hover:bg-slate-100 transition-all duration-150"
             >
-              Отмена
+              {t('seg.cancel')}
             </a>
             <SubmitButton
               className="btn btn-primary w-full sm:flex-1 py-3"
-              pendingText="Сохраняю изменения…"
+              pendingText={t('tripForm.savingChanges')}
             >
               <Save className="w-4 h-4" strokeWidth={2.5} />
-              Сохранить изменения
+              {t('tripForm.saveChanges')}
             </SubmitButton>
           </div>
         </form>

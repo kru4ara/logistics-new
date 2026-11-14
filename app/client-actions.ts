@@ -5,8 +5,10 @@ import { createClient } from '../lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { logAudit, diffFields } from '../lib/audit';
+import { getT } from '../lib/i18n/server';
 
 export async function updateClient(clientId: string, formData: FormData) {
+  const { t } = await getT();
   await requireOffice();
   const supabase = await createClient();
 
@@ -32,7 +34,7 @@ export async function updateClient(clientId: string, formData: FormData) {
     })
     .eq('id', clientId);
 
-  if (error) throw new Error(`Ошибка обновления: ${error.message}`);
+  if (error) throw new Error(t('dir.updateError', { msg: error.message }));
 
   // Audit: логируем только изменённые поля
   if (before) {
@@ -70,6 +72,7 @@ export async function updateClient(clientId: string, formData: FormData) {
 }
 
 export async function deleteClient(clientId: string) {
+  const { t } = await getT();
   await requireOffice();
   const supabase = await createClient();
 
@@ -85,13 +88,13 @@ export async function deleteClient(clientId: string) {
     .from('trips')
     .update({ client_id: null })
     .eq('client_id', clientId);
-  if (unlinkError) throw new Error(`Ошибка отвязки рейсов: ${unlinkError.message}`);
+  if (unlinkError) throw new Error(t('dir.unlinkError', { msg: unlinkError.message }));
 
   const { error } = await supabase
     .from('clients')
     .delete()
     .eq('id', clientId);
-  if (error) throw new Error(`Ошибка удаления: ${error.message}`);
+  if (error) throw new Error(t('dir.deleteError', { msg: error.message }));
 
   await logAudit({
     entity_type: 'client',
@@ -105,11 +108,12 @@ export async function deleteClient(clientId: string) {
 }
 
 export async function mergeClients(sourceId: string, targetId: string) {
+  const { t } = await getT();
   await requireOffice();
   const supabase = await createClient();
 
   if (sourceId === targetId) {
-    throw new Error('Нельзя объединить клиента с самим собой');
+    throw new Error(t('dir.mergeErrSelf'));
   }
 
   const { error } = await supabase.rpc('merge_clients', {
@@ -117,7 +121,7 @@ export async function mergeClients(sourceId: string, targetId: string) {
     target_id: targetId,
   });
 
-  if (error) throw new Error(`Ошибка объединения: ${error.message}`);
+  if (error) throw new Error(t('dir.mergeError', { msg: error.message }));
 
   await logAudit({
     entity_type: 'client',

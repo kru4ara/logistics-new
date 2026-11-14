@@ -6,10 +6,12 @@ import { EUROPEAN_COUNTRIES } from '../../../../lib/countries';
 import SubmitButton from '../../../components/SubmitButton';
 import { ArrowLeft, MapPin, Globe, Save } from 'lucide-react';
 import { deniedRedirect } from '../../../../lib/roles';
+import { getT } from '../../../../lib/i18n/server';
 
 export const dynamic = 'force-dynamic';
 
 export default async function EditLocationPage({ params }: { params: Promise<{ id: string }> }) {
+  const { t } = await getT();
   const { id } = await params;
 
   const { role } = await getSessionContext();
@@ -25,7 +27,7 @@ export default async function EditLocationPage({ params }: { params: Promise<{ i
     .single();
 
   if (error || !location) {
-    return <div className="p-8 text-red-500">Локация не найдена</div>;
+    return <div className="p-8 text-red-500">{t('loc.notFound')}</div>;
   }
 
   const currentCountry = location.country || '';
@@ -40,13 +42,13 @@ export default async function EditLocationPage({ params }: { params: Promise<{ i
           className="inline-flex items-center gap-2 text-slate-600 hover:text-brand-600 transition-colors text-sm font-medium"
         >
           <ArrowLeft className="w-4 h-4" strokeWidth={2} />
-          Все локации
+          {t('loc.all')}
         </a>
 
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2.5 tracking-tight">
             <MapPin className="w-6 h-6 md:w-7 md:h-7 text-brand-600" strokeWidth={2.2} />
-            Редактировать локацию
+            {t('loc.editTitle')}
           </h1>
         </div>
 
@@ -56,12 +58,12 @@ export default async function EditLocationPage({ params }: { params: Promise<{ i
           <div className="card p-5 md:p-6 space-y-4">
             <h2 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2">
               <MapPin className="w-5 h-5 text-brand-600" strokeWidth={2} />
-              Основные данные
+              {t('loc.main')}
             </h2>
             <div className="space-y-3">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Короткое название *
+                  {t('loc.shortName')}
                 </label>
                 <input
                   type="text"
@@ -74,19 +76,19 @@ export default async function EditLocationPage({ params }: { params: Promise<{ i
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Тип локации *
+                  {t('loc.type')}
                 </label>
                 <select name="type" required className="input" defaultValue={location.type || 'both'}>
-                  <option value="loading">Только погрузка</option>
-                  <option value="unloading">Только выгрузка</option>
-                  <option value="customs">Таможня</option>
-                  <option value="both">Универсальная</option>
+                  <option value="loading">{t('loc.onlyLoading')}</option>
+                  <option value="unloading">{t('loc.onlyUnloading')}</option>
+                  <option value="customs">{t('loc.typeCustoms')}</option>
+                  <option value="both">{t('loc.universal')}</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Название организации
+                  {t('loc.orgName')}
                 </label>
                 <input
                   type="text"
@@ -98,7 +100,7 @@ export default async function EditLocationPage({ params }: { params: Promise<{ i
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Контактное лицо
+                  {t('dir.contact')}
                 </label>
                 <input
                   type="text"
@@ -114,18 +116,18 @@ export default async function EditLocationPage({ params }: { params: Promise<{ i
           <div className="card p-5 md:p-6 space-y-4">
             <h2 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2">
               <Globe className="w-5 h-5 text-brand-600" strokeWidth={2} />
-              Адрес
+              {t('settings.address')}
             </h2>
             <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Страна
+                  {t('addr.country')}
                 </label>
                 <select name="country" className="input" defaultValue={currentCountry}>
-                  <option value="">— Выберите страну —</option>
+                  <option value="">{t('dir.chooseCountry')}</option>
 
                   {!isKnownCountry && currentCountry && (
-                    <option value={currentCountry}>{currentCountry} (текущая)</option>
+                    <option value={currentCountry}>{currentCountry} {' '}{t('dir.current')}</option>
                   )}
 
                   {EUROPEAN_COUNTRIES.map((c) => (
@@ -136,7 +138,7 @@ export default async function EditLocationPage({ params }: { params: Promise<{ i
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Почтовый код
+                  {t('addr.postal')}
                 </label>
                 <input
                   type="text"
@@ -148,7 +150,7 @@ export default async function EditLocationPage({ params }: { params: Promise<{ i
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Город
+                  {t('settings.city')}
                 </label>
                 <input
                   type="text"
@@ -160,7 +162,7 @@ export default async function EditLocationPage({ params }: { params: Promise<{ i
 
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Адрес
+                  {t('settings.address')}
                 </label>
                 <input
                   type="text"
@@ -182,14 +184,14 @@ export default async function EditLocationPage({ params }: { params: Promise<{ i
               className="w-full sm:w-auto text-center px-6 py-3 rounded-xl border border-slate-300 text-slate-700 font-semibold
                          hover:bg-slate-100 transition-all"
             >
-              Отмена
+              {t('seg.cancel')}
             </a>
             <SubmitButton
               className="btn btn-primary w-full sm:flex-1 py-3"
-              pendingText="Сохраняю изменения…"
+              pendingText={t('tripForm.savingChanges')}
             >
               <Save className="w-4 h-4" strokeWidth={2.5} />
-              Сохранить изменения
+              {t('tripForm.saveChanges')}
             </SubmitButton>
           </div>
 

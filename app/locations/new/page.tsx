@@ -5,10 +5,12 @@ import { EUROPEAN_COUNTRIES } from '../../../lib/countries';
 import SubmitButton from '../../components/SubmitButton';
 import { ArrowLeft, MapPin, Globe, Plus } from 'lucide-react';
 import { deniedRedirect } from '../../../lib/roles';
+import { getT } from '../../../lib/i18n/server';
 
 export const dynamic = 'force-dynamic';
 
 export default async function NewLocationPage() {
+  const { t } = await getT();
   const { role } = await getSessionContext();
   const denied = deniedRedirect(role, 'locations.edit');
   if (denied) redirect(denied);
@@ -22,16 +24,16 @@ export default async function NewLocationPage() {
           className="inline-flex items-center gap-2 text-slate-600 hover:text-brand-600 transition-colors text-sm font-medium"
         >
           <ArrowLeft className="w-4 h-4" strokeWidth={2} />
-          Все локации
+          {t('loc.all')}
         </a>
 
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2.5 tracking-tight">
             <MapPin className="w-6 h-6 md:w-7 md:h-7 text-brand-600" strokeWidth={2.2} />
-            Новая локация
+            {t('loc.newTitle')}
           </h1>
           <p className="text-slate-500 mt-1 text-sm md:text-base">
-            Типовой адрес для быстрого создания рейсов и экспедиций
+            {t('loc.newHint')}
           </p>
         </div>
 
@@ -41,12 +43,12 @@ export default async function NewLocationPage() {
           <div className="card p-5 md:p-6 space-y-4">
             <h2 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2">
               <MapPin className="w-5 h-5 text-brand-600" strokeWidth={2} />
-              Основные данные
+              {t('loc.main')}
             </h2>
             <div className="space-y-3">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Короткое название *
+                  {t('loc.shortName')}
                 </label>
                 <input
                   type="text"
@@ -55,24 +57,24 @@ export default async function NewLocationPage() {
                   placeholder="KAMEX Siedlce"
                   className="input"
                 />
-                <p className="text-xs text-slate-400 mt-1">Для быстрого поиска в списках</p>
+                <p className="text-xs text-slate-400 mt-1">{t('loc.shortHint')}</p>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Тип локации *
+                  {t('loc.type')}
                 </label>
                 <select name="type" required className="input" defaultValue="both">
-                  <option value="loading">Только погрузка</option>
-                  <option value="unloading">Только выгрузка</option>
-                  <option value="customs">Таможня</option>
-                  <option value="both">Универсальная</option>
+                  <option value="loading">{t('loc.onlyLoading')}</option>
+                  <option value="unloading">{t('loc.onlyUnloading')}</option>
+                  <option value="customs">{t('loc.typeCustoms')}</option>
+                  <option value="both">{t('loc.universal')}</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Название организации
+                  {t('loc.orgName')}
                 </label>
                 <input
                   type="text"
@@ -84,7 +86,7 @@ export default async function NewLocationPage() {
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Контактное лицо
+                  {t('dir.contact')}
                 </label>
                 <input
                   type="text"
@@ -100,15 +102,15 @@ export default async function NewLocationPage() {
           <div className="card p-5 md:p-6 space-y-4">
             <h2 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2">
               <Globe className="w-5 h-5 text-brand-600" strokeWidth={2} />
-              Адрес
+              {t('settings.address')}
             </h2>
             <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Страна
+                  {t('addr.country')}
                 </label>
                 <select name="country" className="input" defaultValue="">
-                  <option value="">— Выберите страну —</option>
+                  <option value="">{t('dir.chooseCountry')}</option>
                   {EUROPEAN_COUNTRIES.map((c) => (
                     <option key={c} value={c}>{c}</option>
                   ))}
@@ -117,7 +119,7 @@ export default async function NewLocationPage() {
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Почтовый код
+                  {t('addr.postal')}
                 </label>
                 <input
                   type="text"
@@ -129,7 +131,7 @@ export default async function NewLocationPage() {
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Город
+                  {t('settings.city')}
                 </label>
                 <input
                   type="text"
@@ -141,7 +143,7 @@ export default async function NewLocationPage() {
 
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Адрес
+                  {t('settings.address')}
                 </label>
                 <input
                   type="text"
@@ -163,14 +165,14 @@ export default async function NewLocationPage() {
               className="w-full sm:w-auto text-center px-6 py-3 rounded-xl border border-slate-300 text-slate-700 font-semibold
                          hover:bg-slate-100 transition-all"
             >
-              Отмена
+              {t('seg.cancel')}
             </a>
             <SubmitButton
               className="btn btn-primary w-full sm:flex-1 py-3"
-              pendingText="Создаю локацию…"
+              pendingText={t('loc.creating')}
             >
               <Plus className="w-4 h-4" strokeWidth={2.5} />
-              Создать локацию
+              {t('loc.create')}
             </SubmitButton>
           </div>
 

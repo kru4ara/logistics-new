@@ -136,6 +136,22 @@ const TRANSLATED_FILES = [
   'app/drivers/[id]/DriverFinance.tsx',
   'app/drivers/[id]/TelegramLinkCard.tsx',
   'app/drivers/[id]/telegram-link-actions.ts',
+  // Клиенты, подрядчики, локации
+  'app/clients/ClientCardActions.tsx',
+  'app/clients/MergeClientDialog.tsx',
+  'app/clients/[id]/edit/page.tsx',
+  'app/clients/[id]/page.tsx',
+  'app/clients/delete/[id]/page.tsx',
+  'app/clients/page.tsx',
+  'app/contractors/ContractorCardActions.tsx',
+  'app/contractors/MergeContractorDialog.tsx',
+  'app/contractors/[id]/edit/page.tsx',
+  'app/contractors/[id]/page.tsx',
+  'app/contractors/new/page.tsx',
+  'app/contractors/page.tsx',
+  'app/locations/[id]/edit/page.tsx',
+  'app/locations/new/page.tsx',
+  'app/locations/page.tsx',
 ];
 
 function cyrillicLiterals(file: string): string[] {

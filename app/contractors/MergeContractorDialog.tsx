@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { GitMerge, X, Loader2, AlertTriangle } from 'lucide-react';
 import { mergeContractors } from './actions';
+import { useT } from '../components/I18nProvider';
 
 type Option = { id: string; label: string };
 
@@ -18,6 +19,7 @@ export default function MergeContractorDialog({
   otherContractors: Option[];
   onClose: () => void;
 }) {
+  const { t } = useT();
   const router = useRouter();
   const [targetId, setTargetId] = useState('');
   const [isPending, startTransition] = useTransition();
@@ -25,7 +27,7 @@ export default function MergeContractorDialog({
 
   function handleSubmit() {
     if (!targetId) {
-      setError('Выберите, к какому подрядчику присоединить');
+      setError(t('ctr.pickTarget'));
       return;
     }
     setError(null);
@@ -52,7 +54,7 @@ export default function MergeContractorDialog({
         <div className="flex items-start justify-between gap-3">
           <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
             <GitMerge className="w-5 h-5 text-brand-600" strokeWidth={2.2} />
-            Объединить подрядчика
+            {t('ctr.mergeTitle')}
           </h3>
           <button
             type="button"
@@ -65,25 +67,24 @@ export default function MergeContractorDialog({
         </div>
 
         <div className="text-sm text-slate-600">
-          Подрядчик <b>{sourceName}</b> будет объединён с выбранным. Все участки рейсов
-          и заявки экспедирования перепривяжутся, а дубликат удалится.
+          {t('expenseCat.contractor')}{' '}<b>{sourceName}</b>{' '}{t('ctr.mergeHint')}
         </div>
 
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 flex items-start gap-2">
           <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" strokeWidth={2.2} />
-          <span>Действие необратимо. Дубликат будет удалён.</span>
+          <span>{t('dir.irreversible')}</span>
         </div>
 
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">
-            Присоединить к подрядчику
+            {t('ctr.mergeInto')}
           </label>
           <select
             value={targetId}
             onChange={(e) => setTargetId(e.target.value)}
             className="input"
           >
-            <option value="">— Выберите подрядчика —</option>
+            <option value="">{t('seg.pickContractorOpt')}</option>
             {otherContractors.map((c) => (
               <option key={c.id} value={c.id}>{c.label}</option>
             ))}
@@ -103,7 +104,7 @@ export default function MergeContractorDialog({
             disabled={isPending}
             className="btn-secondary flex-1"
           >
-            Отмена
+            {t('seg.cancel')}
           </button>
           <button
             type="button"
@@ -114,12 +115,12 @@ export default function MergeContractorDialog({
             {isPending ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                Объединение...
+                {t('dir.merging')}
               </>
             ) : (
               <>
                 <GitMerge className="w-4 h-4" />
-                Объединить
+                {t('dir.merge')}
               </>
             )}
           </button>

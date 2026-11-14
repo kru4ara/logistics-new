@@ -5,6 +5,7 @@ import { createClient } from '../../lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { logAudit, diffFields } from '../../lib/audit';
+import { getT } from '../../lib/i18n/server';
 
 const TRACKED_FIELDS = [
   'name', 'full_name', 'country', 'address', 'tax_id',
@@ -12,6 +13,7 @@ const TRACKED_FIELDS = [
 ] as const;
 
 export async function createContractor(formData: FormData) {
+  const { t } = await getT();
   await requireOffice();
   const supabase = await createClient();
 
@@ -25,7 +27,7 @@ export async function createContractor(formData: FormData) {
   const email = (formData.get('email') as string)?.trim() || null;
   const notes = (formData.get('notes') as string)?.trim() || null;
 
-  if (!name) throw new Error('Название обязательно');
+  if (!name) throw new Error(t('dir.nameRequired'));
 
   const { data: created, error } = await supabase
     .from('contractors')
@@ -43,7 +45,7 @@ export async function createContractor(formData: FormData) {
     .select('id')
     .single();
 
-  if (error) throw new Error(`Ошибка создания: ${error.message}`);
+  if (error) throw new Error(t('dir.createError', { msg: error.message }));
 
   if (created?.id) {
     await logAudit({
@@ -59,6 +61,7 @@ export async function createContractor(formData: FormData) {
 }
 
 export async function updateContractor(contractorId: string, formData: FormData) {
+  const { t } = await getT();
   await requireOffice();
   const supabase = await createClient();
 
@@ -72,7 +75,7 @@ export async function updateContractor(contractorId: string, formData: FormData)
   const email = (formData.get('email') as string)?.trim() || null;
   const notes = (formData.get('notes') as string)?.trim() || null;
 
-  if (!name) throw new Error('Название обязательно');
+  if (!name) throw new Error(t('dir.nameRequired'));
 
   const { data: before } = await supabase
     .from('contractors')
@@ -95,7 +98,7 @@ export async function updateContractor(contractorId: string, formData: FormData)
     })
     .eq('id', contractorId);
 
-  if (error) throw new Error(`Ошибка обновления: ${error.message}`);
+  if (error) throw new Error(t('dir.updateError', { msg: error.message }));
 
   if (before) {
     const changes = diffFields(
@@ -131,6 +134,7 @@ export async function updateContractor(contractorId: string, formData: FormData)
 }
 
 export async function deleteContractor(contractorId: string) {
+  const { t } = await getT();
   await requireOffice();
   const supabase = await createClient();
 
@@ -145,7 +149,7 @@ export async function deleteContractor(contractorId: string) {
     .delete()
     .eq('id', contractorId);
 
-  if (error) throw new Error(`Ошибка удаления: ${error.message}`);
+  if (error) throw new Error(t('dir.deleteError', { msg: error.message }));
 
   await logAudit({
     entity_type: 'contractor',
@@ -167,9 +171,10 @@ export async function mergeContractors(
   sourceId: string,
   targetId: string
 ): Promise<{ success: true } | { success: false; error: string }> {
+  const { t } = await getT();
   await requireOffice();
   if (sourceId === targetId) {
-    return { success: false, error: 'Нельзя объединить подрядчика с самим собой' };
+    return { success: false, error: t('dir.mergeErrSelfC') };
   }
 
   const supabase = await createClient();
@@ -187,7 +192,7 @@ export async function mergeContractors(
     .maybeSingle();
 
   if (!source || !target) {
-    return { success: false, error: 'Подрядчик не найден' };
+    return { success: false, error: t('ctr.notFound') };
   }
 
   const { error } = await supabase.rpc('merge_contractors', {

@@ -12,12 +12,15 @@ import {
 import { createClient } from '../../../lib/supabase/admin';
 import { buildRouteMap, type SegmentRouteRow } from '../../../lib/trip-route';
 import { fetchAllByIds } from '../../../lib/fetch-all';
+import { getT } from '../../../lib/i18n/server';
+import { INTL_LOCALE } from '../../../lib/i18n/config';
 
 export const dynamic = 'force-dynamic';
 
 export default async function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { t: tr, locale } = await getT();
   const { id: clientId } = await params;
-  if (!clientId) return <div className="p-8">Ошибка: ID клиента не передан</div>;
+  if (!clientId) return <div className="p-8">{tr('cli.noId')}</div>;
 
   const supabase = await createClient();
 
@@ -27,7 +30,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
     .eq('id', clientId)
     .single();
 
-  if (error) return <div className="p-8 text-red-500">Ошибка: {error.message}</div>;
+  if (error) return <div className="p-8 text-red-500">{tr('dir.error')}{' '} {error.message}</div>;
 
   // Без legacy route — маршруты берём из trip_segments ниже
   const { data: trips, error: tripsError } = await supabase
@@ -95,11 +98,11 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
   };
 
   const statusLabels: Record<string, string> = {
-    planned: 'Планируется',
-    active: 'В пути',
-    completed: 'Завершён',
-    invoiced: 'Выставлен счёт',
-    paid: 'Оплачен',
+    planned: tr('status.planned'),
+    active: tr('status.active'),
+    completed: tr('status.completed'),
+    invoiced: tr('status.invoiced'),
+    paid: tr('status.paid'),
   };
 
   return (
@@ -111,7 +114,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
           className="inline-flex items-center gap-2 text-slate-600 hover:text-brand-600 transition-colors text-sm font-medium"
         >
           <ArrowLeft className="w-4 h-4" />
-          Все клиенты
+          {tr('trips.allClients')}
         </Link>
 
         {/* Шапка */}
@@ -153,7 +156,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
                          transition-all duration-150 active:scale-[0.98] shrink-0"
             >
               <Pencil className="w-4 h-4" />
-              Редактировать
+              {tr('trip.edit')}
             </Link>
           </div>
         </div>
@@ -161,15 +164,15 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
         {/* Финансы */}
         <div className="grid gap-5 md:grid-cols-3">
           <div className="card p-5 md:p-6">
-            <div className="text-sm font-medium text-slate-500 mb-2">Общий фрахт</div>
+            <div className="text-sm font-medium text-slate-500 mb-2">{tr('drvCard.totalFreight')}</div>
             <div className="text-2xl font-bold text-green-600">{totalRevenue.toFixed(2)} €</div>
           </div>
           <div className="card p-5 md:p-6">
-            <div className="text-sm font-medium text-slate-500 mb-2">Общие расходы</div>
+            <div className="text-sm font-medium text-slate-500 mb-2">{tr('nav.fixedCosts')}</div>
             <div className="text-2xl font-bold text-red-500">{totalExpenses.toFixed(2)} €</div>
           </div>
           <div className="card p-5 md:p-6">
-            <div className="text-sm font-medium text-slate-500 mb-2">Прибыль</div>
+            <div className="text-sm font-medium text-slate-500 mb-2">{tr('trips.profit')}</div>
             <div className={`text-2xl font-bold ${profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
               {profit.toFixed(2)} €
             </div>
@@ -180,10 +183,10 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
         <div className="card p-5 md:p-6">
           <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
             <FileText className="w-5 h-5 text-brand-600" />
-            Заказы клиента ({trips?.length || 0})
+            {tr('cli.orders')}{trips?.length || 0})
           </h2>
           {trips?.length === 0 ? (
-            <div className="text-slate-400 text-center py-8">У этого клиента ещё нет заказов</div>
+            <div className="text-slate-400 text-center py-8">{tr('cli.noOrders')}</div>
           ) : (
             <div className="space-y-3">
               {trips?.map((trip) => {
@@ -210,9 +213,9 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
                           </div>
                           <div className="text-xs text-slate-400">
                             {trip.end_date
-                              ? new Date(trip.end_date).toLocaleDateString('ru-RU')
+                              ? new Date(trip.end_date).toLocaleDateString(INTL_LOCALE[locale])
                               : trip.start_date
-                                ? new Date(trip.start_date).toLocaleDateString('ru-RU')
+                                ? new Date(trip.start_date).toLocaleDateString(INTL_LOCALE[locale])
                                 : '—'}
                           </div>
                         </div>

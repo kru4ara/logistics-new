@@ -20,10 +20,13 @@ import {
   Inbox,
 } from 'lucide-react';
 import { deniedRedirect } from '../../lib/roles';
+import { getT } from '../../lib/i18n/server';
+import { tPlural } from '../../lib/i18n/translate';
 
 export const dynamic = 'force-dynamic';
 
 export default async function ContractorsPage() {
+  const { t, locale } = await getT();
   const { role } = await getSessionContext();
   const denied = deniedRedirect(role, 'contractors.view');
   if (denied) redirect(denied);
@@ -36,7 +39,7 @@ export default async function ContractorsPage() {
     .order('name');
 
   if (error) {
-    return <div className="p-8 text-red-500">Ошибка загрузки: {error.message}</div>;
+    return <div className="p-8 text-red-500">{t('dir.loadError')}{' '} {error.message}</div>;
   }
 
   // Считаем сколько заявок экспедирования у каждого подрядчика:
@@ -78,10 +81,10 @@ export default async function ContractorsPage() {
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2.5 tracking-tight">
               <Building2 className="w-6 h-6 md:w-7 md:h-7 text-brand-600" strokeWidth={2.2} />
-              Подрядчики
+              {t('nav.contractors')}
             </h1>
             <p className="text-slate-500 mt-1 text-sm md:text-base">
-              Всего: <b className="text-slate-700">{contractors?.length || 0}</b> фирм
+              {tPlural(t, locale, 'count.firm', contractors?.length || 0)}
             </p>
           </div>
           <Link
@@ -89,7 +92,7 @@ export default async function ContractorsPage() {
             className="btn btn-primary text-sm md:text-base w-full sm:w-auto justify-center"
           >
             <Plus className="w-4 h-4 md:w-[18px] md:h-[18px]" strokeWidth={2.5} />
-            Добавить подрядчика
+            {t('ctr.add')}
           </Link>
         </div>
 
@@ -98,11 +101,11 @@ export default async function ContractorsPage() {
             <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-slate-50 flex items-center justify-center">
               <Inbox className="w-8 h-8 text-slate-300" strokeWidth={1.5} />
             </div>
-            <h2 className="text-xl font-bold text-slate-900 mb-2">Подрядчиков пока нет</h2>
-            <p className="text-slate-500 mb-6">Добавьте первого, чтобы передавать им грузы</p>
+            <h2 className="text-xl font-bold text-slate-900 mb-2">{t('ctr.empty')}</h2>
+            <p className="text-slate-500 mb-6">{t('ctr.emptyHint')}</p>
             <Link href="/contractors/new" className="btn btn-primary inline-flex">
               <Plus className="w-4 h-4" strokeWidth={2.5} />
-              Добавить подрядчика
+              {t('ctr.add')}
             </Link>
           </div>
         ) : (
@@ -121,7 +124,7 @@ export default async function ContractorsPage() {
                   <Link
                     href={`/contractors/${c.id}`}
                     className="block flex-1 cursor-pointer"
-                    aria-label={`Открыть карточку ${c.name}`}
+                    aria-label={t('dir.openCard', { name: c.name })}
                   >
                     {/* Шапка карточки */}
                     <div className="p-5 border-b border-slate-100 relative">
@@ -160,14 +163,14 @@ export default async function ContractorsPage() {
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full
                                              bg-violet-50 text-violet-700 border border-violet-200 text-[11px] font-semibold">
                               <Package className="w-3 h-3" strokeWidth={2.2} />
-                              {ordersCount} {ordersCount === 1 ? 'заявка' : ordersCount < 5 ? 'заявки' : 'заявок'}
+                              {tPlural(t, locale, 'count.order', ordersCount)}
                             </span>
                           )}
                           {tripsCount > 0 && (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full
                                              bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-semibold">
                               <Truck className="w-3 h-3" strokeWidth={2.2} />
-                              {tripsCount} {tripsCount === 1 ? 'рейс' : tripsCount < 5 ? 'рейса' : 'рейсов'}
+                              {tPlural(t, locale, 'plural.trip', tripsCount)}
                             </span>
                           )}
                         </div>
@@ -221,7 +224,7 @@ export default async function ContractorsPage() {
 
                       {!c.contact_person && !c.phone && !c.email && !c.tax_id && !c.address && !c.notes && (
                         <div className="text-xs text-slate-400 italic text-center py-4">
-                          Контактные данные не заполнены
+                          {t('ctr.noContacts')}
                         </div>
                       )}
                     </div>
@@ -245,7 +248,7 @@ export default async function ContractorsPage() {
                                    text-xs font-medium hover:bg-red-500 hover:text-white transition-all"
                       >
                         <Trash2 className="w-3.5 h-3.5" strokeWidth={2} />
-                        Удалить
+                        {t('trips.delete')}
                       </button>
                     </form>
                   </div>
