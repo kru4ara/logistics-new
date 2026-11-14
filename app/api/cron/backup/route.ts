@@ -174,7 +174,8 @@ export async function GET(request: Request) {
       meta: Record<string, unknown>;
     } = {
       created_at: new Date().toISOString(),
-      project: 'logistics-new / smodijsjwcvsscfgloh',
+      // Хост проекта Supabase — у каждого клиента свой.
+      project: (process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/^https?:\/\//, '') || 'unknown',
       tables: {},
       meta: {},
     };

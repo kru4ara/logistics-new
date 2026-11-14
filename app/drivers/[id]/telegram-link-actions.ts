@@ -3,6 +3,7 @@
 import { randomBytes, createHash } from 'node:crypto';
 import { createClient } from '../../../lib/supabase/admin';
 import { requireCapability } from '../../../lib/require-office';
+import { getCompany } from '../../../lib/company';
 
 // Срок жизни ссылки привязки Telegram.
 const TTL_HOURS = 24;
@@ -36,5 +37,9 @@ export async function createDriverTelegramLink(
     return { error: 'Не удалось создать ссылку' };
   }
 
-  return { link: `https://t.me/raibuilding_bot?start=${token}` };
+  const { telegramBot } = await getCompany();
+  if (!telegramBot) {
+    return { error: 'Не задан Telegram-бот компании: Настройки → Telegram-бот' };
+  }
+  return { link: `https://t.me/${telegramBot}?start=${token}` };
 }
