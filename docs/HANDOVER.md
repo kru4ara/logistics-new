@@ -15,7 +15,7 @@
 
 - **Next.js 16.4.3** (App Router, Turbopack) + React 19.3.1 + Supabase + Vercel
 - **Tailwind CSS 4.3.3** — конфиг через `@theme` в `app/globals.css`, файла `tailwind.config.js` нет
-- **Vitest 5** — **166 тестов в 15 файлах** `lib/__tests__/`, **eslint-config-next 16.4.3**, **exceljs 4.4**
+- **Vitest 5** — **185 тестов в 17 файлах** `lib/__tests__/`, **eslint-config-next 16.4.3**, **exceljs 4.4**
 
 ### ENV (Vercel → Settings → Environment Variables)
 `NEXT_PUBLIC_SUPABASE_URL` · `NEXT_PUBLIC_SUPABASE_ANON_KEY` (клиент, RLS действует) ·
@@ -144,6 +144,8 @@ e-mail идёт напрямую. С миграции `016` вызывать е�
   Перед ними: `015_fix_lookup_login_email`, `014_manager_passwords`, `013_manager_role_check`,
   `012_managers`, `011_lock_backup_tables`.
 - **Миграция, которая меняет права или удаляет то, чем пользуется код, — строго после деплоя кода.**
+- **Ждёт применения:** `20261114_019_login_failures.sql` (ограничение попыток входа). Порядок не важен:
+  без таблицы код пропускает вход, ограничение просто не действует.
 - **Каждая миграция обязана быть в транзакции** (`BEGIN`/`COMMIT`) — иначе `psql -f` при ошибке
   оставит базу в полуприменённом состоянии.
 - **DDL из приложения недоступен:** RPC `exec_sql_json` даёт `select`, но не `create/alter`.
@@ -230,6 +232,9 @@ e-mail идёт напрямую. С миграции `016` вызывать е�
   `backup_*.json.gz.enc` в Telegram. Без `BACKUP_ENCRYPTION_KEY` не отправляется (алерт).
   Расшифровка: `BACKUP_ENCRYPTION_KEY='…' node scripts/decrypt-backup.mjs <файл>`.
   Новую таблицу — добавить в `TABLES` в роуте. Файлы из Storage (документы, фото) **не бэкапятся**.
+- **Ограничение входа** (`lib/login-throttle*.ts`, таблица `login_failures`): 5 неудач на аккаунт или
+  30 с одного IP за 15 минут — вход закрыт до выхода старой попытки из окна. Логин и IP — хэши.
+  Ошибка БД → вход НЕ блокируется. Снять блок вручную: `delete from login_failures;`
 - `exceljs` — в `dependencies`, ленивый импорт в клиентах, статический — в API.
 - `npm audit` — 5 moderate (`postcss-selector-parser` через Tailwind) — принятый dev-риск.
 - PWA — установка через «Добавить на главный экран».
