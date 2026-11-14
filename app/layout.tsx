@@ -8,6 +8,7 @@ import { SpeedInsights } from '@vercel/speed-insights/next';
 import I18nProvider from './components/I18nProvider';
 import { getLocale } from '../lib/i18n/server';
 import { MESSAGES } from '../lib/i18n/messages';
+import ClientErrorReporter from './components/ClientErrorReporter';
 
 export const viewport: Viewport = {
   themeColor: '#0f172a',
@@ -41,6 +42,7 @@ export default async function RootLayout({
     <html lang={locale}>
       <body>
         <I18nProvider locale={locale} messages={MESSAGES[locale]}>
+          <ClientErrorReporter />
           <Suspense fallback={null}>
             <Toaster />
           </Suspense>

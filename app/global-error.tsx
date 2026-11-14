@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { reportClientError } from '../lib/report-client-error';
 
 export default function GlobalError({
   error,
@@ -11,6 +12,8 @@ export default function GlobalError({
 }) {
   useEffect(() => {
     console.error('[app/global-error]', error.message, error.digest);
+    // С digest — ошибка сервера, её уже отправил instrumentation.ts; без digest — браузерная.
+    if (!error.digest) reportClientError(error);
   }, [error]);
 
   return (

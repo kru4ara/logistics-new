@@ -285,6 +285,8 @@ const OPEN_EXACT_PATHS = [
   '/sw.js',
   '/icon-192.png',
   '/icon-512.png',
+  // отчёт об ошибке в браузере (app/api/client-error): нужен и водителю
+  '/api/client-error',
 ];
 const OPEN_PATH_PREFIXES = ['/driver', '/login'];
 

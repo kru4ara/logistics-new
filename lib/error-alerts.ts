@@ -20,6 +20,40 @@ function tenantName(): string {
   return url.replace(/^https?:\/\//, '').replace(/\/.*$/, '') || 'unknown';
 }
 
+async function send(text: string): Promise<void> {
+  const token = process.env.OPS_TELEGRAM_BOT_TOKEN;
+  const chatId = process.env.OPS_TELEGRAM_CHAT_ID;
+  if (!token || !chatId) return;
+  try {
+    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text, disable_web_page_preview: true }),
+      signal: AbortSignal.timeout(3000),
+    });
+  } catch (e) {
+    console.error('[error-alerts] не удалось отправить в Telegram:', (e as Error).message);
+  }
+}
+
+/** Ошибка в браузере (app/api/client-error). Пользователь уже проверен роутом. */
+export async function reportClientError(input: { message: string; path: string; role: string }): Promise<void> {
+  if (!process.env.OPS_TELEGRAM_BOT_TOKEN || !process.env.OPS_TELEGRAM_CHAT_ID) return;
+  const message = input.message.slice(0, 500);
+  const key = `client|${safePath(input.path)}|${message.slice(0, 120)}`;
+  if (!throttle(key, Date.now())) return;
+  await send(formatAlert({
+    tenant: tenantName(),
+    env: process.env.VERCEL_ENV || process.env.NODE_ENV || 'unknown',
+    err: new Error(message),
+    method: 'BROWSER',
+    path: input.path,
+    routeType: 'client',
+    routePath: `роль ${input.role}`,
+    at: new Date(),
+  }));
+}
+
 export async function reportServerError(
   err: unknown,
   request: { path: string; method: string },
@@ -43,14 +77,5 @@ export async function reportServerError(
     at: new Date(),
   });
 
-  try {
-    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, text, disable_web_page_preview: true }),
-      signal: AbortSignal.timeout(3000),
-    });
-  } catch (e) {
-    console.error('[error-alerts] не удалось отправить в Telegram:', (e as Error).message);
-  }
+  await send(text);
 }
