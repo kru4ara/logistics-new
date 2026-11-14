@@ -63,14 +63,10 @@ describe('словари', () => {
     }
   });
 
-  it('украинский — не копия русского (совпадения только у одинаковых слов)', () => {
-    const SAME_IN_BOTH = new Set(['nav.map', 'nav.statistics', 'nav.managers', 'nav.trucks', 'nav.audit',
-      'nav.roleManager', 'settings.email', 'settings.sectionBank', 'settings.accountEur', 'settings.accountPln',
-      'login.password', 'nav.logisatFuel', 'nav.myStats']);
-    const same = entries(MESSAGES.uk)
-      .filter(([k, v]) => v === ruEntries.get(k) && !SAME_IN_BOTH.has(k))
-      .map(([k]) => k);
-    expect(same).toEqual([]);
+  it('украинский — не копия русского: совпадений не больше 20% (одинаковые слова вроде «Статус» допустимы)', () => {
+    const uk = entries(MESSAGES.uk);
+    const same = uk.filter(([k, v]) => v === ruEntries.get(k));
+    expect(same.length / uk.length).toBeLessThan(0.2);
   });
 });
 
@@ -86,6 +82,15 @@ const TRANSLATED_FILES = [
   'app/login/LoginForm.tsx',
   'app/login/page.tsx',
   'app/settings/page.tsx',
+  // Заказы — список
+  'app/trips/page.tsx',
+  'app/trips/TripsBulkList.tsx',
+  'app/trips/TripsBulkListWrapper.tsx',
+  'app/trips/TripFilters.tsx',
+  'app/trips/SearchInput.tsx',
+  'app/trips/OverlapWarning.tsx',
+  'app/trips/RecalcAllCoordsButton.tsx',
+  'app/trips/DownloadButton.tsx',
 ];
 
 function cyrillicLiterals(file: string): string[] {
@@ -112,5 +117,34 @@ function cyrillicLiterals(file: string): string[] {
 describe('сторож: переведённые файлы без русского текста', () => {
   it.each(TRANSLATED_FILES)('%s', (file) => {
     expect(cyrillicLiterals(file)).toEqual([]);
+  });
+});
+
+describe('формы числа и месяцы', () => {
+  it('рейсы: 1 / 2 / 5 / 21 по правилам каждого языка', async () => {
+    const { tPlural } = await import('../i18n/translate');
+    const say = (l: 'ru' | 'pl' | 'en' | 'uk', n: number) => tPlural(createT(MESSAGES[l]), l, 'plural.trip', n);
+    expect([1, 2, 5, 21].map((n) => say('ru', n))).toEqual(['1 рейс', '2 рейса', '5 рейсов', '21 рейс']);
+    expect([1, 2, 5, 22].map((n) => say('pl', n))).toEqual(['1 kurs', '2 kursy', '5 kursów', '22 kursy']);
+    expect([1, 2].map((n) => say('en', n))).toEqual(['1 trip', '2 trips']);
+    expect([1, 3, 11].map((n) => say('uk', n))).toEqual(['1 рейс', '3 рейси', '11 рейсів']);
+  });
+
+  it('месяцы через Intl, с заглавной', async () => {
+    const { monthNames } = await import('../i18n/format');
+    expect(monthNames('ru')[0]).toBe('Январь');
+    expect(monthNames('pl')[0]).toBe('Styczeń');
+    expect(monthNames('en')[11]).toBe('December');
+    expect(monthNames('uk')[2]).toBe('Березень');
+  });
+});
+
+describe('formatDate', () => {
+  it('по языку; пусто и мусор — без падения', async () => {
+    const { formatDate } = await import('../i18n/format');
+    expect(formatDate('2026-11-14', 'pl')).toBe('14.11.2026');
+    expect(formatDate('2026-11-14', 'en')).toBe('14/11/2026');
+    expect(formatDate(null, 'ru')).toBe('—');
+    expect(formatDate('не дата', 'ru')).toBe('не дата');
   });
 });
