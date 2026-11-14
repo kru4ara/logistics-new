@@ -51,6 +51,18 @@ describe('новые права', () => {
   });
 });
 
+describe('settings.edit', () => {
+  it('реквизиты и счета компании меняет только офис', () => {
+    const cap = capabilityForRequest('/settings', 'GET');
+    expect(cap).toBe('settings.edit');
+    expect(can('office', cap!)).toBe(true);
+    expect(can('admin', cap!)).toBe(true);
+    expect(can('manager', cap!)).toBe(false);
+    expect(can('driver', cap!)).toBe(false);
+    expect(capabilityForRequest('/settings', 'POST')).toBe('settings.edit');
+  });
+});
+
 describe('roleLabel', () => {
   it('подписи ролей, admin — как офис', () => {
     expect(roleLabel('admin')).toBe('Офис');

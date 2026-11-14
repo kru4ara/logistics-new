@@ -59,6 +59,8 @@ export const CAPABILITIES = [
   // только reminders.view — для своего раздела /driver/reminders.
   'reminders.viewAll',
   'reminders.edit',
+  // Настройки компании: реквизиты, условия перевозки, печать, Telegram-бот.
+  'settings.edit',
 ] as const;
 
 export type Capability = (typeof CAPABILITIES)[number];
@@ -93,7 +95,9 @@ const MANAGER: Capability[] = OFFICE.filter(
     c !== 'managers.view' &&
     c !== 'managers.edit' &&
     // отчёты без скоупа показали бы менеджеру чужие заказы
-    c !== 'reports.viewAll'
+    c !== 'reports.viewAll' &&
+    // реквизиты и банковские счета компании меняет только офис
+    c !== 'settings.edit'
 );
 
 export const ROLE_CAPABILITIES: Record<string, Capability[]> = {
@@ -226,6 +230,7 @@ export const PATH_CAPABILITIES: PathRule[] = [
   { prefix: '/locations', capability: 'locations.view', writeCapability: 'locations.edit' },
   { prefix: '/reminders', capability: 'reminders.viewAll', writeCapability: 'reminders.edit' },
   { prefix: '/today', capability: 'today.view' },
+  { prefix: '/settings', capability: 'settings.edit', writeCapability: 'settings.edit' },
   { prefix: '/map', capability: 'map.view' },
   { prefix: '/api/export', capability: 'export.view' },
   { prefix: '/api/logisat/query', capability: 'logisat.view' },

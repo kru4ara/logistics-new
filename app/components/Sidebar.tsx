@@ -28,6 +28,7 @@ import {
   RadioTower,
   HandCoins,
   type LucideIcon,
+  Settings,
 } from 'lucide-react';
 import { logout } from '../login/actions';
 
@@ -69,6 +70,7 @@ const adminSections: NavSection[] = [
       { href: '/reports', label: 'Отчёты', icon: Wallet },
       { href: '/fixed-costs', label: 'Общие расходы', icon: Banknote },
       { href: '/audit', label: 'Аудит', icon: ScrollText },
+      { href: '/settings', label: 'Настройки компании', icon: Settings },
     ],
   },
 ];
