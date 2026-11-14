@@ -3,7 +3,9 @@
 import { createClient } from '../../lib/supabase/server';
 import { createClient as createAdminClient } from '../../lib/supabase/admin';
 import { redirect } from 'next/navigation';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
+import { checkLoginThrottle, recordLoginFailure, clearLoginFailures } from '../../lib/login-throttle';
+import { clientIpFrom, normalizeLoginKey, throttleMessage } from '../../lib/login-throttle-rules';
 
 export type LoginState = { error?: string } | null;
 
@@ -75,6 +77,15 @@ export async function login(
     }
   }
 
+  // Ограничение подбора пароля (lib/login-throttle.ts). Ключ — итоговый
+  // e-mail: фамилия и e-mail одного человека считаются вместе.
+  const loginKey = normalizeLoginKey(realEmail);
+  const ip = clientIpFrom(await headers());
+  const throttle = await checkLoginThrottle(loginKey, ip);
+  if (throttle.blocked) {
+    return { error: throttleMessage(throttle.retryAfterSec) };
+  }
+
   const { data, error } = await supabase.auth.signInWithPassword({
     email: realEmail,
     password: passwordValue,
@@ -82,8 +93,11 @@ export async function login(
 
   if (error) {
     console.error('[login] error:', error.message);
+    await recordLoginFailure(loginKey, ip);
     return { error: 'Неверный логин или пароль' };
   }
+
+  await clearLoginFailures(loginKey);
 
   // Получаем роль, driver_id и manager_id из profiles
   const { data: profile, error: profileError } = await supabase
@@ -182,6 +196,7 @@ export async function logout() {
   cookieStore.delete('user_name');
   cookieStore.delete('role');
   cookieStore.delete('driver_id');
-  
+  cookieStore.delete('manager_id');
+
   redirect('/login');
 }
