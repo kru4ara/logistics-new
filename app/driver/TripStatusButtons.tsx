@@ -11,6 +11,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { changeTripStatus } from './trip-status-actions';
+import { useT } from '../components/I18nProvider';
 
 type StatusBtn = {
   value: string;
@@ -27,6 +28,7 @@ export default function TripStatusButtons({
   currentStatus: string;
   showAdminStatuses?: boolean;
 }) {
+  const { t } = useT();
   const [isPending, startTransition] = useTransition();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]);
@@ -49,7 +51,7 @@ export default function TripStatusButtons({
 
   function handleCompleteConfirm() {
     if (!endDate) {
-      setError('Укажите дату завершения');
+      setError(t('shared.needEndDate'));
       return;
     }
 
@@ -60,13 +62,13 @@ export default function TripStatusButtons({
   }
 
   const driverButtons: StatusBtn[] = [
-    { value: 'active', label: 'Начать рейс', Icon: Truck },
-    { value: 'completed', label: 'Завершить', Icon: CheckCircle2 },
+    { value: 'active', label: t('shared.startTrip'), Icon: Truck },
+    { value: 'completed', label: t('shared.finish'), Icon: CheckCircle2 },
   ];
 
   const adminButtons: StatusBtn[] = [
-    { value: 'invoiced', label: 'Выставить счёт', Icon: BadgeDollarSign },
-    { value: 'paid', label: 'Оплачен', Icon: Banknote },
+    { value: 'invoiced', label: t('shared.invoice'), Icon: BadgeDollarSign },
+    { value: 'paid', label: t('shared.paid'), Icon: Banknote },
   ];
 
   const buttons = showAdminStatuses
@@ -118,15 +120,15 @@ export default function TripStatusButtons({
               <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-brand-50 text-brand-600 mb-3">
                 <Flag className="w-7 h-7" />
               </div>
-              <h3 className="text-lg font-bold text-slate-900">Завершить рейс</h3>
+              <h3 className="text-lg font-bold text-slate-900">{t('shared.finishTrip')}</h3>
               <p className="text-sm text-slate-500 mt-1">
-                Укажите дату фактического завершения
+                {t('shared.finishHint')}
               </p>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
-                Дата завершения *
+                {t('shared.endDate')}
               </label>
               <input
                 type="date"
@@ -136,7 +138,7 @@ export default function TripStatusButtons({
                 className="input w-full text-base"
               />
               <p className="text-xs text-slate-400 mt-1">
-                По этой дате будет рассчитан пробег и расход топлива из Logisat
+                {t('shared.endDateHint')}
               </p>
             </div>
 
@@ -153,7 +155,7 @@ export default function TripStatusButtons({
                 disabled={isPending}
                 className="btn-secondary flex-1"
               >
-                Отмена
+                {t('seg.cancel')}
               </button>
               <button
                 type="button"
@@ -166,12 +168,12 @@ export default function TripStatusButtons({
                 {isPending ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Сохранение...</span>
+                    <span>{t('seg.saving')}</span>
                   </>
                 ) : (
                   <>
                     <CheckCircle2 className="w-4 h-4" />
-                    <span>Подтвердить</span>
+                    <span>{t('shared.confirm')}</span>
                   </>
                 )}
               </button>

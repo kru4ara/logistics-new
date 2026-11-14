@@ -13,6 +13,7 @@ import SegmentAddressBlock from './SegmentAddressBlock';
 import SegmentStopsBlock from './SegmentStopsBlock';
 import SegmentExecutorBlock from './SegmentExecutorBlock';
 import SegmentCargoSelector from './SegmentCargoSelector';
+import { useT } from '../../components/I18nProvider';
 
 function toAddr(
   country: string | null,
@@ -65,6 +66,7 @@ export default function SegmentForm({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { t } = useT();
   const isEdit = Boolean(segmentId);
 
   const [executorType, setExecutorType] = useState<'us' | 'contractor'>(
@@ -256,15 +258,15 @@ export default function SegmentForm({
     setError(null);
 
     if (executorType === 'contractor' && !contractorId) {
-      setError('Выберите подрядчика');
+      setError(t('seg.pickContractor'));
       return;
     }
     if (selectedCargo.size === 0) {
-      setError('Выберите хотя бы один груз для этого участка');
+      setError(t('seg.pickCargoErr'));
       return;
     }
     if (!from.city && !from.country && !to.city && !to.country) {
-      setError('Заполните «Откуда» или «Куда»');
+      setError(t('seg.needFromTo'));
       return;
     }
 
@@ -314,7 +316,7 @@ export default function SegmentForm({
         }
         onSaved();
       } catch (err) {
-        setError((err as Error).message || 'Ошибка сохранения');
+        setError((err as Error).message || t('seg.saveError'));
       }
     });
   }
@@ -331,7 +333,7 @@ export default function SegmentForm({
         <div className="flex items-start justify-between gap-3">
           <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
             <Truck className="w-5 h-5 text-brand-600" strokeWidth={2.2} />
-            {isEdit ? 'Редактировать участок' : 'Добавить участок'}
+            {isEdit ? t('seg.editTitle') : t('seg.add')}
           </h3>
           <button
             type="button"
@@ -395,7 +397,7 @@ export default function SegmentForm({
           {/* ОТКУДА */}
           <SegmentAddressBlock
             type="from"
-            title="Откуда"
+            title={t('addr.from')}
             color="green"
             data={from}
             onChange={setFrom}
@@ -420,7 +422,7 @@ export default function SegmentForm({
           {/* КУДА */}
           <SegmentAddressBlock
             type="to"
-            title="Куда"
+            title={t('addr.to')}
             color="red"
             data={to}
             onChange={setTo}
@@ -432,13 +434,13 @@ export default function SegmentForm({
 
           {/* ЗАМЕТКИ */}
           <div>
-            <label className={labelClass}>Заметки</label>
+            <label className={labelClass}>{t('seg.notes')}</label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
               className="input"
-              placeholder="Время прибытия, особенности ..."
+              placeholder={t('seg.notesPh')}
             />
           </div>
 
@@ -455,7 +457,7 @@ export default function SegmentForm({
               disabled={isPending}
               className="btn-secondary flex-1"
             >
-              Отмена
+              {t('seg.cancel')}
             </button>
             <button
               type="submit"
@@ -465,12 +467,12 @@ export default function SegmentForm({
               {isPending ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Сохранение...
+                  {t('seg.saving')}
                 </>
               ) : (
                 <>
                   <Check className="w-4 h-4" />
-                  Сохранить
+                  {t('common.save')}
                 </>
               )}
             </button>

@@ -2,6 +2,7 @@
 
 import { MapPin, Flag, Wand2 } from 'lucide-react';
 import type { Location, CargoOption, Addr } from './types';
+import { useT } from '../../components/I18nProvider';
 
 export default function SegmentAddressBlock({
   type,
@@ -24,6 +25,7 @@ export default function SegmentAddressBlock({
   onFillFromCargo: (cargoId: string) => void;
   onFillFromLocation: (locId: string) => void;
 }) {
+  const { t } = useT();
   const Icon = type === 'from' ? MapPin : Flag;
   const bgClass = color === 'green' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200';
   const iconColor = color === 'green' ? 'text-green-700' : 'text-red-700';
@@ -46,7 +48,7 @@ export default function SegmentAddressBlock({
         <div>
           <label className={`text-xs font-semibold ${titleColor} mb-1 flex items-center gap-1.5`}>
             <Wand2 className="w-3.5 h-3.5" strokeWidth={2.2} />
-            Подставить из груза
+            {t('addr.fromCargo')}
           </label>
           <select
             onChange={(e) => {
@@ -56,7 +58,7 @@ export default function SegmentAddressBlock({
             className="input bg-white mb-2"
             defaultValue=""
           >
-            <option value="">— Выберите груз —</option>
+            <option value="">{t('addr.pickCargo')}</option>
             {cargoList.map((c) => (
               <option key={c.id} value={c.id}>
                 #{c.position} · {c.label}
@@ -67,7 +69,7 @@ export default function SegmentAddressBlock({
       )}
 
       <div>
-        <label className={labelClass}>Подставить из справочника</label>
+        <label className={labelClass}>{t('addr.fromDirectory')}</label>
         <select
           onChange={(e) => {
             onFillFromLocation(e.target.value);
@@ -79,7 +81,7 @@ export default function SegmentAddressBlock({
               : 'border-red-300 bg-red-50 focus:ring-red-500 focus:border-red-500'}`}
           defaultValue=""
         >
-          <option value="">— Выберите локацию —</option>
+          <option value="">{t('addr.pickLocation')}</option>
           {locations.map((loc) => (
             <option key={loc.id} value={loc.id}>
               {loc.name} {loc.city ? `· ${loc.city}` : ''}
@@ -90,7 +92,7 @@ export default function SegmentAddressBlock({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-slate-100">
         <div>
-          <label className={labelClass}>Компания</label>
+          <label className={labelClass}>{t('addr.company')}</label>
           <input
             type="text"
             value={data.company}
@@ -99,7 +101,7 @@ export default function SegmentAddressBlock({
           />
         </div>
         <div>
-          <label className={labelClass}>Страна</label>
+          <label className={labelClass}>{t('addr.country')}</label>
           <input
             type="text"
             value={data.country}
@@ -108,7 +110,7 @@ export default function SegmentAddressBlock({
           />
         </div>
         <div>
-          <label className={labelClass}>Город</label>
+          <label className={labelClass}>{t('addr.city')}</label>
           <input
             type="text"
             value={data.city}
@@ -117,7 +119,7 @@ export default function SegmentAddressBlock({
           />
         </div>
         <div>
-          <label className={labelClass}>Почтовый код</label>
+          <label className={labelClass}>{t('addr.postal')}</label>
           <input
             type="text"
             value={data.postal_code}
@@ -126,7 +128,7 @@ export default function SegmentAddressBlock({
           />
         </div>
         <div className="md:col-span-2">
-          <label className={labelClass}>Адрес</label>
+          <label className={labelClass}>{t('addr.address')}</label>
           <input
             type="text"
             value={data.address}

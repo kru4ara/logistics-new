@@ -4,6 +4,7 @@ import { requireOffice } from '../../../lib/require-office';
 import { createClient } from '../../../lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
 import { buildDriverTaskText } from '../../../lib/trip-task-text';
+import { getT } from '../../../lib/i18n/server';
 
 export type SendTaskResult =
   | { success: true }
@@ -25,6 +26,7 @@ function pickName(rel: unknown): string | undefined {
 }
 
 export async function sendTaskToDriver(tripId: string): Promise<SendTaskResult> {
+  const { t } = await getT();
   await requireOffice();
   const supabase = await createClient();
 
@@ -38,7 +40,7 @@ export async function sendTaskToDriver(tripId: string): Promise<SendTaskResult> 
     .single();
 
   if (tripErr || !trip) {
-    return { success: false, error: 'Рейс не найден' };
+    return { success: false, error: t('task.tripNotFound') };
   }
 
   const driver = pickOne<{
@@ -51,12 +53,12 @@ export async function sendTaskToDriver(tripId: string): Promise<SendTaskResult> 
   }>((trip as any).drivers);
 
   if (!driver) {
-    return { success: false, error: 'У рейса не назначен водитель' };
+    return { success: false, error: t('task.noDriver') };
   }
   if (!driver.telegram_chat_id) {
     return {
       success: false,
-      error: `Водитель ${driver.first_name} ${driver.last_name} не подключён к Telegram. Пришлите ему ссылку из его карточки.`,
+      error: t('task.noTelegram', { name: `${driver.first_name} ${driver.last_name}` }),
     };
   }
 
@@ -148,7 +150,7 @@ export async function sendTaskToDriver(tripId: string): Promise<SendTaskResult> 
   // ============================================================
   const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!token) {
-    return { success: false, error: 'Не настроен TELEGRAM_BOT_TOKEN' };
+    return { success: false, error: t('task.noBotToken') };
   }
 
   try {
@@ -167,11 +169,11 @@ export async function sendTaskToDriver(tripId: string): Promise<SendTaskResult> 
     if (!res.ok) {
       const body = await res.text();
       console.error('[sendTask] failed:', res.status, body);
-      return { success: false, error: 'Telegram не принял сообщение' };
+      return { success: false, error: t('task.rejected') };
     }
   } catch (e) {
     console.error('[sendTask] exception:', e);
-    return { success: false, error: 'Ошибка отправки в Telegram' };
+    return { success: false, error: t('task.sendError') };
   }
 
   revalidatePath(`/trips/${tripId}`);
@@ -185,6 +187,7 @@ export async function sendSegmentTaskToDriver(
   tripId: string,
   segmentId: string
 ): Promise<SendTaskResult> {
+  const { t } = await getT();
   await requireOffice();
   const supabase = await createClient();
 
@@ -198,16 +201,16 @@ export async function sendSegmentTaskToDriver(
     .maybeSingle();
 
   if (segErr || !segment) {
-    return { success: false, error: 'Участок не найден' };
+    return { success: false, error: t('task.segNotFound') };
   }
   if (segment.trip_id !== tripId) {
-    return { success: false, error: 'Участок не относится к этому рейсу' };
+    return { success: false, error: t('task.segOtherTrip') };
   }
   if (segment.executor_type !== 'us') {
-    return { success: false, error: 'Это участок подрядчика — задание водителю не отправляем' };
+    return { success: false, error: t('task.segContractor') };
   }
   if (!segment.driver_id) {
-    return { success: false, error: 'На участке не назначен водитель' };
+    return { success: false, error: t('task.segNoDriver') };
   }
 
   // ============================================================
@@ -220,12 +223,12 @@ export async function sendSegmentTaskToDriver(
     .maybeSingle();
 
   if (driverErr || !driverRow) {
-    return { success: false, error: 'Водитель не найден' };
+    return { success: false, error: t('task.driverNotFound') };
   }
   if (!driverRow.telegram_chat_id) {
     return {
       success: false,
-      error: `${driverRow.first_name || ''} ${driverRow.last_name || ''} не подключён к Telegram. Пришлите ему ссылку из карточки водителя.`.trim(),
+      error: t('task.noTelegram', { name: `${driverRow.first_name || ''} ${driverRow.last_name || ''}`.trim() }),
     };
   }
 
@@ -288,7 +291,7 @@ export async function sendSegmentTaskToDriver(
     .single();
 
   if (tripErr || !trip) {
-    return { success: false, error: 'Рейс не найден' };
+    return { success: false, error: t('task.tripNotFound') };
   }
 
   // ============================================================
@@ -333,7 +336,7 @@ export async function sendSegmentTaskToDriver(
   // ============================================================
   const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!token) {
-    return { success: false, error: 'Не настроен TELEGRAM_BOT_TOKEN' };
+    return { success: false, error: t('task.noBotToken') };
   }
 
   try {
@@ -352,11 +355,11 @@ export async function sendSegmentTaskToDriver(
     if (!res.ok) {
       const body = await res.text();
       console.error('[sendSegmentTask] failed:', res.status, body);
-      return { success: false, error: 'Telegram не принял сообщение' };
+      return { success: false, error: t('task.rejected') };
     }
   } catch (e) {
     console.error('[sendSegmentTask] exception:', e);
-    return { success: false, error: 'Ошибка отправки в Telegram' };
+    return { success: false, error: t('task.sendError') };
   }
 
   revalidatePath(`/trips/${tripId}`);

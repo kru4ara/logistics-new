@@ -9,6 +9,7 @@ import {
   AlertTriangle,
   Loader2,
 } from 'lucide-react';
+import { useT } from '../../components/I18nProvider';
 
 type Result = {
   success: boolean;
@@ -30,6 +31,7 @@ export default function SyncLogisatButton({
   disabled?: boolean;
   disabledHint?: string;
 }) {
+  const { t } = useT();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [result, setResult] = useState<Result | null>(null);
@@ -55,7 +57,7 @@ export default function SyncLogisatButton({
       } catch {
         setResult({
           success: false,
-          error: `Сервер вернул не-JSON (код ${res.status}): ${text.slice(0, 200)}`,
+          error: t('trip.notJson', { code: res.status, text: text.slice(0, 200) }),
         });
         return;
       }
@@ -105,8 +107,8 @@ export default function SyncLogisatButton({
             {isPending || !result ? (
               <div className="text-center py-6">
                 <Loader2 className="w-10 h-10 text-emerald-600 animate-spin mx-auto" />
-                <div className="mt-4 text-slate-600 font-medium">Запрашиваем данные из Logisat...</div>
-                <div className="mt-2 text-xs text-slate-400">Обычно 2-10 секунд</div>
+                <div className="mt-4 text-slate-600 font-medium">{t('trip.logisatLoading')}</div>
+                <div className="mt-2 text-xs text-slate-400">{t('trip.logisatWait')}</div>
               </div>
             ) : result.success ? (
               <>
@@ -114,44 +116,44 @@ export default function SyncLogisatButton({
                   <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 mb-3">
                     <CheckCircle2 className="w-7 h-7" />
                   </div>
-                  <h3 className="text-lg font-bold text-slate-900">Данные обновлены</h3>
+                  <h3 className="text-lg font-bold text-slate-900">{t('trip.logisatDone')}</h3>
                   {result.truck && (
                     <div className="text-xs text-slate-400 mt-1">
-                      {result.truck} · {result.framesCount} кадров GPS
+                      {result.truck} · {t('trip.gpsFrames', { n: result.framesCount ?? 0 })}
                     </div>
                   )}
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-slate-50 rounded-xl p-3 text-center">
-                    <div className="text-xs text-slate-400 font-medium mb-1">Пробег</div>
+                    <div className="text-xs text-slate-400 font-medium mb-1">{t('trip.mileage')}</div>
                     <div className="text-2xl font-bold text-slate-900">
                       {hasDistance ? result.distanceKm : '—'}
                     </div>
-                    <div className="text-xs text-slate-500">км</div>
+                    <div className="text-xs text-slate-500">{t('units.km')}</div>
                   </div>
                   <div className="bg-slate-50 rounded-xl p-3 text-center">
-                    <div className="text-xs text-slate-400 font-medium mb-1">Топливо</div>
+                    <div className="text-xs text-slate-400 font-medium mb-1">{t('trip.fuel')}</div>
                     <div className="text-2xl font-bold text-slate-900">
                       {hasFuel ? result.fuelLiters : '—'}
                     </div>
-                    <div className="text-xs text-slate-500">л</div>
+                    <div className="text-xs text-slate-500">{t('units.l')}</div>
                   </div>
                 </div>
                 {result.consumption !== undefined && result.consumption > 0 && (
                   <div className="text-center text-sm text-slate-600">
-                    Средний расход: <b className="text-slate-800">{result.consumption} л/100км</b>
+                    {t('trip.avgConsumption')} <b className="text-slate-800">{result.consumption} {t('units.l100km')}</b>
                   </div>
                 )}
                 {!hasDistance && (
                   <div className="flex items-start gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2">
                     <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                    <span>Одометр не передаёт данные — пробег не рассчитан</span>
+                    <span>{t('trip.noOdometer')}</span>
                   </div>
                 )}
                 {!hasFuel && (
                   <div className="flex items-start gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2">
                     <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                    <span>Датчик топлива не передаёт данные</span>
+                    <span>{t('trip.noFuelSensor')}</span>
                   </div>
                 )}
               </>
@@ -161,7 +163,7 @@ export default function SyncLogisatButton({
                   <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-red-50 text-red-600 mb-3">
                     <XCircle className="w-7 h-7" />
                   </div>
-                  <h3 className="text-lg font-bold text-slate-900">Не удалось</h3>
+                  <h3 className="text-lg font-bold text-slate-900">{t('trip.failed')}</h3>
                 </div>
                 <div className="text-sm text-slate-700 bg-red-50 border border-red-200 rounded-xl p-3 break-words">
                   {result.error}
@@ -171,7 +173,7 @@ export default function SyncLogisatButton({
                   onClick={() => setIsOpen(false)}
                   className="btn-secondary w-full"
                 >
-                  Закрыть
+                  {t('trip.close')}
                 </button>
               </>
             )}

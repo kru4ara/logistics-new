@@ -11,6 +11,7 @@ import {
   type FuelExpenseRow,
   type FuelTripRow,
 } from '../../../lib/fuel';
+import { getT } from '../../../lib/i18n/server';
 
 function str(formData: FormData, key: string): string | null {
   const v = (formData.get(key) as string)?.trim();
@@ -222,6 +223,7 @@ async function calcSuggestedStartDate(
 }
 
 export async function createSegment(tripId: string, formData: FormData) {
+  const { t } = await getT();
   await requireOffice();
   const supabase = await createClient();
 
@@ -251,10 +253,10 @@ export async function createSegment(tripId: string, formData: FormData) {
   const currency = str(formData, 'currency') || 'EUR';
 
   if (executorType === 'contractor' && !contractorId) {
-    throw new Error('Выберите подрядчика');
+    throw new Error(t('seg.pickContractor'));
   }
   if (cargoIds.length === 0) {
-    throw new Error('Выберите хотя бы один груз');
+    throw new Error(t('segErr.pickCargo'));
   }
 
   // Подсказка даты старта для нашей машины (если не задана)
@@ -323,13 +325,13 @@ export async function createSegment(tripId: string, formData: FormData) {
     .select('id')
     .single();
 
-  if (error || !created) throw new Error(`Ошибка создания участка: ${error?.message || 'unknown'}`);
+  if (error || !created) throw new Error(t('segErr.create', { msg: error?.message || 'unknown' }));
 
   const links = cargoIds.map((cid) => ({ segment_id: created.id, cargo_id: cid }));
   const { error: linkErr } = await supabase
     .from('trip_segment_cargo')
     .insert(links);
-  if (linkErr) throw new Error(`Ошибка привязки грузов: ${linkErr.message}`);
+  if (linkErr) throw new Error(t('segErr.link', { msg: linkErr.message }));
 
   // ⬅️ Автозаполнение топлива из предыдущего рейса машины
   if (executorType === 'us' && truckId) {
@@ -364,6 +366,7 @@ export async function createSegment(tripId: string, formData: FormData) {
 }
 
 export async function updateSegment(segmentId: string, tripId: string, formData: FormData) {
+  const { t } = await getT();
   await requireOffice();
   const supabase = await createClient();
 
@@ -392,10 +395,10 @@ export async function updateSegment(segmentId: string, tripId: string, formData:
   const currency = str(formData, 'currency') || 'EUR';
 
   if (executorType === 'contractor' && !contractorId) {
-    throw new Error('Выберите подрядчика');
+    throw new Error(t('seg.pickContractor'));
   }
   if (cargoIds.length === 0) {
-    throw new Error('Выберите хотя бы один груз');
+    throw new Error(t('segErr.pickCargo'));
   }
 
   // Подсказка даты старта для нашей машины (если не задана)
@@ -450,7 +453,7 @@ export async function updateSegment(segmentId: string, tripId: string, formData:
     })
     .eq('id', segmentId);
 
-  if (error) throw new Error(`Ошибка обновления участка: ${error.message}`);
+  if (error) throw new Error(t('segErr.update', { msg: error.message }));
 
   await supabase
     .from('trip_segment_cargo')
@@ -461,7 +464,7 @@ export async function updateSegment(segmentId: string, tripId: string, formData:
   const { error: linkErr } = await supabase
     .from('trip_segment_cargo')
     .insert(links);
-  if (linkErr) throw new Error(`Ошибка привязки грузов: ${linkErr.message}`);
+  if (linkErr) throw new Error(t('segErr.link', { msg: linkErr.message }));
 
   // ⬅️ Автозаполнение топлива из предыдущего рейса машины
   if (executorType === 'us' && truckId) {
@@ -491,6 +494,7 @@ export async function updateSegment(segmentId: string, tripId: string, formData:
 }
 
 export async function deleteSegment(segmentId: string, tripId: string) {
+  const { t } = await getT();
   await requireOffice();
   const supabase = await createClient();
 
@@ -507,7 +511,7 @@ export async function deleteSegment(segmentId: string, tripId: string) {
     .delete()
     .eq('id', segmentId);
 
-  if (error) throw new Error(`Ошибка удаления участка: ${error.message}`);
+  if (error) throw new Error(t('segErr.delete', { msg: error.message }));
 
   await logAudit({
     entity_type: 'trip',

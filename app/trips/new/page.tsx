@@ -2,10 +2,12 @@ import Link from 'next/link';
 import { createClient } from '../../../lib/supabase/admin';
 import NewTripForm from './NewTripForm';
 import { ArrowLeft, Package } from 'lucide-react';
+import { getT } from '../../../lib/i18n/server';
 
 export const dynamic = 'force-dynamic';
 
 export default async function NewTripPage() {
+  const { t } = await getT();
   const supabase = await createClient();
 
   const { data: clients } = await supabase
@@ -48,16 +50,16 @@ export default async function NewTripPage() {
           className="inline-flex items-center gap-2 text-slate-600 hover:text-brand-600 transition-colors text-sm font-medium"
         >
           <ArrowLeft className="w-4 h-4" strokeWidth={2} />
-          Все рейсы
+          {t('trip.allTrips')}
         </Link>
 
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2.5 tracking-tight">
             <Package className="w-6 h-6 md:w-7 md:h-7 text-brand-600" strokeWidth={2.2} />
-            Новая заявка
+            {t('tripForm.newTitle')}
           </h1>
           <p className="text-slate-500 mt-1 text-sm md:text-base">
-            Внесите данные из заявки клиента. Транспорт добавите позже, когда найдёте машину.
+            {t('tripForm.newHint')}
           </p>
         </div>
 

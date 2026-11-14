@@ -10,6 +10,7 @@ import {
   Inbox,
   AlertCircle,
 } from 'lucide-react';
+import { useT } from '../components/I18nProvider';
 
 type Doc = {
   id: string;
@@ -31,6 +32,7 @@ export default function DocumentList({
   tripId: string;
   canDelete?: boolean;
 }) {
+  const { t } = useT();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
@@ -41,7 +43,7 @@ export default function DocumentList({
         <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-slate-50 flex items-center justify-center">
           <Inbox className="w-7 h-7 text-slate-300" strokeWidth={1.5} />
         </div>
-        <div className="text-slate-400 text-sm">Файлы ещё не загружены</div>
+        <div className="text-slate-400 text-sm">{t('shared.noFiles')}</div>
       </div>
     );
   }
@@ -95,7 +97,7 @@ export default function DocumentList({
               </div>
               <div className="min-w-0">
                 <div className="font-medium text-slate-800 truncate text-sm">
-                  {doc.original_name || doc.document_type || 'Документ'}
+                  {doc.original_name || doc.document_type || t('shared.document')}
                 </div>
                 <div className="text-xs text-slate-400 tabular-nums">
                   {doc.uploaded_at
@@ -114,7 +116,7 @@ export default function DocumentList({
                   className="inline-flex items-center gap-1.5 text-brand-600 hover:bg-brand-50 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors"
                 >
                   <ExternalLink className="w-3.5 h-3.5" strokeWidth={2.2} />
-                  Открыть
+                  {t('shared.open')}
                 </a>
               )}
 
@@ -132,12 +134,12 @@ export default function DocumentList({
                   {isConfirming ? (
                     <>
                       <Check className="w-3.5 h-3.5" strokeWidth={2.5} />
-                      Точно?
+                      {t('shared.sure')}
                     </>
                   ) : (
                     <>
                       <Trash2 className="w-3.5 h-3.5" strokeWidth={2.2} />
-                      Удалить
+                      {t('trip.delete')}
                     </>
                   )}
                 </button>

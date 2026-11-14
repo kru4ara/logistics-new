@@ -10,6 +10,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { uploadDocument } from './upload-actions';
+import { useT } from '../components/I18nProvider';
 
 // Максимальный размер файла (из-за лимитов Vercel Serverless = 4.5 MB)
 const MAX_FILE_SIZE_MB = 4;
@@ -26,6 +27,7 @@ const ALLOWED_MIMES = [
 ];
 
 export default function FileUpload({ tripId }: { tripId: string }) {
+  const { t } = useT();
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState('');
   const [statusType, setStatusType] = useState<'idle' | 'success' | 'error' | 'loading'>('idle');
@@ -45,7 +47,7 @@ export default function FileUpload({ tripId }: { tripId: string }) {
 
     // Проверка размера
     if (f.size > MAX_FILE_SIZE_BYTES) {
-      setStatus(`Файл больше ${MAX_FILE_SIZE_MB} МБ (${(f.size / 1024 / 1024).toFixed(2)} МБ). Сожмите или выберите другой.`);
+      setStatus(t('shared.fileTooBig', { max: MAX_FILE_SIZE_MB, size: (f.size / 1024 / 1024).toFixed(2) }));
       setStatusType('error');
       setFile(null);
       if (cameraInputRef.current) cameraInputRef.current.value = '';
@@ -56,7 +58,7 @@ export default function FileUpload({ tripId }: { tripId: string }) {
     // Проверка расширения
     const ext = f.name.split('.').pop()?.toLowerCase() || '';
     if (!ALLOWED_EXTENSIONS.includes(ext) && !ALLOWED_MIMES.includes(f.type)) {
-      setStatus('Неподдерживаемый формат. Разрешены: JPG, PNG, HEIC, PDF');
+      setStatus(t('shared.badFormat'));
       setStatusType('error');
       setFile(null);
       if (cameraInputRef.current) cameraInputRef.current.value = '';
@@ -76,14 +78,14 @@ export default function FileUpload({ tripId }: { tripId: string }) {
     if (!file || isUploading) return;
 
     setIsUploading(true);
-    setStatus('Загрузка...');
+    setStatus(t('shared.uploading'));
     setStatusType('loading');
 
     try {
       const base64Data = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(reader.result as string);
-        reader.onerror = () => reject(new Error('Не удалось прочитать файл'));
+        reader.onerror = () => reject(new Error(t('shared.readFailed')));
         reader.readAsDataURL(file);
       });
 
@@ -103,7 +105,7 @@ export default function FileUpload({ tripId }: { tripId: string }) {
         setStatusType('error');
       }
     } catch (error) {
-      const msg = error instanceof Error ? error.message : 'Неизвестная ошибка';
+      const msg = error instanceof Error ? error.message : t('shared.unknownError');
       setStatus(msg);
       setStatusType('error');
     } finally {
@@ -152,7 +154,7 @@ export default function FileUpload({ tripId }: { tripId: string }) {
                      shadow-brand active:scale-[0.98] transition-all text-base"
         >
           <Camera className="w-5 h-5" />
-          <span>Сфотографировать</span>
+          <span>{t('shared.takePhoto')}</span>
         </button>
 
         <button
@@ -163,15 +165,15 @@ export default function FileUpload({ tripId }: { tripId: string }) {
                      hover:bg-slate-50 active:scale-[0.98] transition-all"
         >
           <ImageIcon className="w-5 h-5" />
-          <span>Выбрать файл</span>
+          <span>{t('shared.chooseFile')}</span>
         </button>
       </div>
 
       {file && (
         <div className="text-xs text-slate-500 px-1">
-          Выбран: <b className="text-slate-700">{file.name}</b>
+          {t('shared.selected')} <b className="text-slate-700">{file.name}</b>
           {' · '}
-          {(file.size / 1024 / 1024).toFixed(2)} МБ
+          {(file.size / 1024 / 1024).toFixed(2)} {t('shared.mb')}
         </div>
       )}
 
@@ -188,12 +190,12 @@ export default function FileUpload({ tripId }: { tripId: string }) {
         {isUploading ? (
           <>
             <Loader2 className="w-4 h-4 animate-spin" />
-            Загрузка...
+            {t('shared.uploading')}
           </>
         ) : (
           <>
             <Upload className="w-4 h-4" />
-            Загрузить CMR
+            {t('shared.uploadCmr')}
           </>
         )}
       </button>
@@ -206,7 +208,7 @@ export default function FileUpload({ tripId }: { tripId: string }) {
       )}
 
       <p className="text-xs text-slate-400 px-1">
-        Максимум: <b>{MAX_FILE_SIZE_MB} МБ</b> · Форматы: JPG, PNG, HEIC, PDF
+        {t('shared.maxSize')} <b>{MAX_FILE_SIZE_MB} {t('shared.mb')}</b> {t('shared.formats')}
       </p>
     </div>
   );

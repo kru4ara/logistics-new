@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Download, Loader2 } from 'lucide-react';
+import { useT } from '../../components/I18nProvider';
 
 export default function SegmentDriverDocxButton({
   tripId,
@@ -14,6 +15,7 @@ export default function SegmentDriverDocxButton({
   driverName: string;
   segmentPosition: number;
 }) {
+  const { t } = useT();
   const [isLoading, setIsLoading] = useState(false);
 
   async function handleDownload() {
@@ -25,8 +27,8 @@ export default function SegmentDriverDocxButton({
       const res = await fetch(url, { cache: 'no-store' });
 
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: 'Ошибка' }));
-        alert(`${err.error || 'Не удалось сгенерировать'}`);
+        const err = await res.json().catch(() => ({ error: '' }));
+        alert(err.error || t('seg.genFailed'));
         return;
       }
 
@@ -52,7 +54,7 @@ export default function SegmentDriverDocxButton({
       type="button"
       onClick={handleDownload}
       disabled={isLoading}
-      title="Скачать задание водителю (DOCX)"
+      title={t('seg.driverDocxTitle')}
       className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all
         ${isLoading
           ? 'bg-slate-100 text-slate-400 cursor-wait'
@@ -61,12 +63,12 @@ export default function SegmentDriverDocxButton({
       {isLoading ? (
         <>
           <Loader2 className="w-3 h-3 animate-spin" />
-          Генерация...
+          {t('seg.generating')}
         </>
       ) : (
         <>
           <Download className="w-3 h-3" strokeWidth={2.2} />
-          Задание
+          {t('seg.task')}
         </>
       )}
     </button>

@@ -6,8 +6,10 @@ import {
   Briefcase,
 } from 'lucide-react';
 import RecalcCoordsButton from './RecalcCoordsButton';
+import { getT } from '../../../lib/i18n/server';
+import { formatDate, formatDateTime } from '../../../lib/i18n/format';
 
-export default function TripInfo({
+export default async function TripInfo({
   tripId,
   trip,
   driver,
@@ -25,6 +27,7 @@ export default function TripInfo({
   /** Ответственный менеджер (фаза 39). */
   managerName?: string | null;
 }) {
+  const { t, locale } = await getT();
   // Старт/финиш — ФАКТИЧЕСКИЕ даты заказа (для обоих режимов).
   // Плановые даты (load_date/unload_date) в карточке не показываются.
   const startDate = trip.start_date || null;
@@ -34,21 +37,21 @@ export default function TripInfo({
     <div className="card p-5 md:p-6">
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         <div>
-          <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Менеджер</div>
+          <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">{t('trip.manager')}</div>
           <div className="flex items-start gap-1.5 text-slate-800 font-medium text-sm">
             <Briefcase className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" strokeWidth={2} />
             <span className="break-words">{managerName || '—'}</span>
           </div>
         </div>
         <div className="col-span-2">
-          <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Маршрут</div>
+          <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">{t('trip.route')}</div>
           <div className="flex items-start gap-1.5 text-slate-800 font-medium text-sm">
             <RouteIcon className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" strokeWidth={2} />
             <span className="break-words">{computedRoute}</span>
           </div>
         </div>
         <div>
-          <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Тягач / Прицеп</div>
+          <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">{t('trip.truckTrailer')}</div>
           <div className="flex items-start gap-1.5 text-slate-800 font-medium text-sm">
             <Truck className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" strokeWidth={2} />
             <span className="break-words">
@@ -58,7 +61,7 @@ export default function TripInfo({
           </div>
         </div>
         <div>
-          <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Водитель</div>
+          <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">{t('trip.driver')}</div>
           <div className="flex items-start gap-1.5 text-slate-800 font-medium text-sm">
             <UserCircle className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" strokeWidth={2} />
             <span className="break-words">
@@ -67,7 +70,7 @@ export default function TripInfo({
           </div>
         </div>
         <div className="col-span-2">
-          <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Телефоны</div>
+          <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">{t('trip.phones')}</div>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-slate-800 font-medium text-sm">
             {driver?.phone_by ? (
               <span className="inline-flex items-center gap-1.5">
@@ -96,27 +99,27 @@ export default function TripInfo({
 
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4 mt-4 pt-4 border-t border-slate-100">
         <div>
-          <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Фрахт</div>
+          <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">{t('trip.freight')}</div>
           <div className="text-lg md:text-xl font-bold text-green-600 break-words tabular-nums">
             {trip.revenue_eur ? `${trip.revenue_eur} €` : '—'}
           </div>
         </div>
         <div>
-          <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Топливо</div>
+          <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">{t('trip.fuel')}</div>
           <div className="text-lg md:text-xl font-bold text-brand-600 tabular-nums">
-            {trip.start_fuel_level || 0} л
+            {trip.start_fuel_level || 0} {t('units.l')}
           </div>
         </div>
         <div>
-          <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Старт</div>
+          <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">{t('trip.start')}</div>
           <div className="text-lg md:text-xl font-bold text-slate-800 tabular-nums">
-            {startDate ? new Date(startDate).toLocaleDateString('ru-RU') : '—'}
+            {formatDate(startDate, locale)}
           </div>
         </div>
         <div>
-          <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Финиш</div>
+          <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">{t('trip.finish')}</div>
           <div className={`text-lg md:text-xl font-bold tabular-nums ${endDate ? 'text-emerald-600' : 'text-slate-400'}`}>
-            {endDate ? new Date(endDate).toLocaleDateString('ru-RU') : '—'}
+            {formatDate(endDate, locale)}
           </div>
         </div>
       </div>
@@ -124,21 +127,21 @@ export default function TripInfo({
       {(trip.start_odometer || trip.end_odometer || trip.actual_km) && (
         <div className="grid gap-4 grid-cols-2 lg:grid-cols-3 mt-4 pt-4 border-t border-slate-100">
           <div>
-            <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Одометр старта</div>
+            <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">{t('trip.odoStart')}</div>
             <div className="text-lg md:text-xl font-bold text-slate-700 tabular-nums">
-              {trip.start_odometer ? `${trip.start_odometer} км` : '—'}
+              {trip.start_odometer ? `${trip.start_odometer} ${t('units.km')}` : '—'}
             </div>
           </div>
           <div>
-            <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Одометр финиша</div>
+            <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">{t('trip.odoEnd')}</div>
             <div className="text-lg md:text-xl font-bold text-slate-700 tabular-nums">
-              {trip.end_odometer ? `${trip.end_odometer} км` : '—'}
+              {trip.end_odometer ? `${trip.end_odometer} ${t('units.km')}` : '—'}
             </div>
           </div>
           <div>
-            <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">Пробег за рейс</div>
+            <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">{t('trip.tripKm')}</div>
             <div className="text-lg md:text-xl font-bold text-emerald-600 tabular-nums">
-              {trip.actual_km ? `${trip.actual_km} км` : '—'}
+              {trip.actual_km ? `${trip.actual_km} ${t('units.km')}` : '—'}
             </div>
           </div>
         </div>
@@ -146,13 +149,13 @@ export default function TripInfo({
 
       {trip.logisat_synced_at && (
         <div className="text-xs text-slate-400 mt-3 text-right">
-          Logisat синхронизирован: {new Date(trip.logisat_synced_at).toLocaleString('ru-RU')}
+          {t('trip.logisatSynced', { date: formatDateTime(trip.logisat_synced_at, locale) })}
         </div>
       )}
 
       <div className="flex items-center justify-between gap-3 mt-3 pt-3 border-t border-slate-100">
         <div className="text-xs text-slate-400">
-          {trip.start_lat && trip.start_lng ? 'Координаты есть' : 'Координаты не заполнены'}
+          {trip.start_lat && trip.start_lng ? t('trip.coordsYes') : t('trip.coordsNo')}
         </div>
         <RecalcCoordsButton tripId={tripId} />
       </div>

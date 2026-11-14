@@ -12,6 +12,7 @@ import {
   Coins,
 } from 'lucide-react';
 import { createCargo, updateCargo } from './cargo-actions';
+import { useT } from '../../components/I18nProvider';
 
 type Location = {
   id: string;
@@ -125,6 +126,7 @@ export default function CargoForm({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { t } = useT();
   const isEdit = Boolean(cargoId);
 
   const [label, setLabel] = useState(initialData?.label || '');
@@ -226,7 +228,7 @@ export default function CargoForm({
     setError(null);
 
     if (!label.trim()) {
-      setError('Укажите название груза');
+      setError(t('cargo.needName'));
       return;
     }
 
@@ -266,7 +268,7 @@ export default function CargoForm({
         }
         onSaved();
       } catch (err) {
-        setError((err as Error).message || 'Ошибка сохранения');
+        setError((err as Error).message || t('seg.saveError'));
       }
     });
   }
@@ -283,7 +285,7 @@ export default function CargoForm({
         <div className="flex items-start justify-between gap-3">
           <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
             <Package className="w-5 h-5 text-brand-600" strokeWidth={2.2} />
-            {isEdit ? 'Редактировать груз' : 'Добавить груз'}
+            {isEdit ? t('cargo.editTitle') : t('trip.addCargo')}
           </h3>
           <button
             type="button"
@@ -300,12 +302,12 @@ export default function CargoForm({
           {/* ОСНОВНОЕ */}
           <div className="bg-slate-50 rounded-xl p-4 space-y-3">
             <div>
-              <label className={labelClass}>Название груза *</label>
+              <label className={labelClass}>{t('cargo.name')}</label>
               <input
                 type="text"
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
-                placeholder="Caffarel, Италия / Паллеты 22 шт"
+                placeholder={t('cargo.phName')}
                 required
                 autoFocus
                 className={inputClass}
@@ -314,17 +316,17 @@ export default function CargoForm({
 
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               <div>
-                <label className={labelClass}>Тип груза</label>
+                <label className={labelClass}>{t('cargo.type')}</label>
                 <input
                   type="text"
                   value={cargoType}
                   onChange={(e) => setCargoType(e.target.value)}
-                  placeholder="паллеты / металл"
+                  placeholder={t('cargo.phType')}
                   className={inputClass}
                 />
               </div>
               <div>
-                <label className={labelClass}>Вес (кг)</label>
+                <label className={labelClass}>{t('cargo.weight')}</label>
                 <input
                   type="number"
                   step="0.01"
@@ -335,7 +337,7 @@ export default function CargoForm({
                 />
               </div>
               <div>
-                <label className={labelClass}>Паллеты (шт)</label>
+                <label className={labelClass}>{t('cargo.pallets')}</label>
                 <input
                   type="number"
                   step="1"
@@ -349,13 +351,13 @@ export default function CargoForm({
             </div>
 
             <div>
-              <label className={labelClass}>Клиент</label>
+              <label className={labelClass}>{t('cargo.client')}</label>
               <select
                 value={clientId}
                 onChange={(e) => setClientId(e.target.value)}
                 className={inputClass}
               >
-                <option value="">— Не указан —</option>
+                <option value="">{t('seg.notSetM')}</option>
                 {clients.map((c) => (
                   <option key={c.id} value={c.id}>{c.label}</option>
                 ))}
@@ -367,11 +369,11 @@ export default function CargoForm({
           <div className="bg-green-50 rounded-xl p-4 space-y-3 border border-green-200">
             <div className="flex items-center gap-2">
               <MapPin className="w-4 h-4 text-green-700" strokeWidth={2.2} />
-              <h4 className="text-sm font-bold text-green-800">Откуда (загрузка)</h4>
+              <h4 className="text-sm font-bold text-green-800">{t('cargo.fromLoading')}</h4>
             </div>
 
             <div>
-              <label className={labelClass}>Подставить из справочника</label>
+              <label className={labelClass}>{t('addr.fromDirectory')}</label>
               <select
                 onChange={(e) => {
                   fillFromLocation(e.target.value);
@@ -380,7 +382,7 @@ export default function CargoForm({
                 className={presetClass}
                 defaultValue=""
               >
-                <option value="">— Выберите локацию —</option>
+                <option value="">{t('addr.pickLocation')}</option>
                 {loadingLocations.map((loc) => (
                   <option key={loc.id} value={loc.id}>
                     {loc.name} {loc.city ? `· ${loc.city}` : ''}
@@ -391,7 +393,7 @@ export default function CargoForm({
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-green-100">
               <div>
-                <label className={labelClass}>Компания</label>
+                <label className={labelClass}>{t('addr.company')}</label>
                 <input
                   type="text"
                   value={from.company}
@@ -401,17 +403,17 @@ export default function CargoForm({
                 />
               </div>
               <div>
-                <label className={labelClass}>Страна</label>
+                <label className={labelClass}>{t('addr.country')}</label>
                 <input
                   type="text"
                   value={from.country}
                   onChange={(e) => setFrom({ ...from, country: e.target.value })}
-                  placeholder="Италия"
+                  placeholder={t('cargo.phItaly')}
                   className={inputClass}
                 />
               </div>
               <div>
-                <label className={labelClass}>Город</label>
+                <label className={labelClass}>{t('addr.city')}</label>
                 <input
                   type="text"
                   value={from.city}
@@ -421,7 +423,7 @@ export default function CargoForm({
                 />
               </div>
               <div>
-                <label className={labelClass}>Почтовый код</label>
+                <label className={labelClass}>{t('addr.postal')}</label>
                 <input
                   type="text"
                   value={from.postal_code}
@@ -431,7 +433,7 @@ export default function CargoForm({
                 />
               </div>
               <div className="md:col-span-2">
-                <label className={labelClass}>Адрес</label>
+                <label className={labelClass}>{t('addr.address')}</label>
                 <input
                   type="text"
                   value={from.address}
@@ -447,11 +449,11 @@ export default function CargoForm({
           <div className="bg-slate-100 rounded-xl p-4 space-y-3 border border-slate-300">
             <div className="flex items-center gap-2">
               <ShieldCheck className="w-4 h-4 text-slate-700" strokeWidth={2.2} />
-              <h4 className="text-sm font-bold text-slate-800">Место затаможки</h4>
+              <h4 className="text-sm font-bold text-slate-800">{t('cargo.customsPlace')}</h4>
             </div>
             
             <div>
-              <label className={labelClass}>Подставить из справочника</label>
+              <label className={labelClass}>{t('addr.fromDirectory')}</label>
               <select
                 onChange={(e) => {
                   fillCustomsLocation(e.target.value);
@@ -460,7 +462,7 @@ export default function CargoForm({
                 className="w-full rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 px-3 py-2.5 text-base text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-solid focus:border-slate-500 transition-all"
                 defaultValue=""
               >
-                <option value="">— Выберите локацию —</option>
+                <option value="">{t('addr.pickLocation')}</option>
                 {customsLocations.map((loc) => (
                   <option key={loc.id} value={loc.id}>
                     {loc.name} {loc.city ? `· ${loc.city}` : ''}
@@ -471,37 +473,37 @@ export default function CargoForm({
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-slate-200">
               <div className="md:col-span-2">
-                <label className={labelClass}>Название поста / компании</label>
+                <label className={labelClass}>{t('cargo.customsName')}</label>
                 <input
                   type="text"
                   value={customs.place}
                   onChange={(e) => setCustoms({ ...customs, place: e.target.value })}
-                  placeholder="ТЛЦ Брест"
+                  placeholder={t('cargo.phTerminal')}
                   className={inputClass}
                 />
               </div>
               <div>
-                <label className={labelClass}>Страна</label>
+                <label className={labelClass}>{t('addr.country')}</label>
                 <input
                   type="text"
                   value={customs.country}
                   onChange={(e) => setCustoms({ ...customs, country: e.target.value })}
-                  placeholder="Беларусь"
+                  placeholder={t('cargo.phBelarus')}
                   className={inputClass}
                 />
               </div>
               <div>
-                <label className={labelClass}>Город</label>
+                <label className={labelClass}>{t('addr.city')}</label>
                 <input
                   type="text"
                   value={customs.city}
                   onChange={(e) => setCustoms({ ...customs, city: e.target.value })}
-                  placeholder="Брест"
+                  placeholder={t('cargo.phBrest')}
                   className={inputClass}
                 />
               </div>
               <div>
-                <label className={labelClass}>Почтовый код</label>
+                <label className={labelClass}>{t('addr.postal')}</label>
                 <input
                   type="text"
                   value={customs.postal_code}
@@ -511,12 +513,12 @@ export default function CargoForm({
                 />
               </div>
               <div>
-                <label className={labelClass}>Адрес</label>
+                <label className={labelClass}>{t('addr.address')}</label>
                 <input
                   type="text"
                   value={customs.address}
                   onChange={(e) => setCustoms({ ...customs, address: e.target.value })}
-                  placeholder="ул. Таможенная 1"
+                  placeholder={t('cargo.phCustomsAddr')}
                   className={inputClass}
                 />
               </div>
@@ -527,11 +529,11 @@ export default function CargoForm({
           <div className="bg-red-50 rounded-xl p-4 space-y-3 border border-red-200">
             <div className="flex items-center gap-2">
               <Flag className="w-4 h-4 text-red-700" strokeWidth={2.2} />
-              <h4 className="text-sm font-bold text-red-800">Куда (выгрузка)</h4>
+              <h4 className="text-sm font-bold text-red-800">{t('cargo.toUnloading')}</h4>
             </div>
 
             <div>
-              <label className={labelClass}>Подставить из справочника</label>
+              <label className={labelClass}>{t('addr.fromDirectory')}</label>
               <select
                 onChange={(e) => {
                   fillToLocation(e.target.value);
@@ -540,7 +542,7 @@ export default function CargoForm({
                 className={presetClass}
                 defaultValue=""
               >
-                <option value="">— Выберите локацию —</option>
+                <option value="">{t('addr.pickLocation')}</option>
                 {unloadingLocations.map((loc) => (
                   <option key={loc.id} value={loc.id}>
                     {loc.name} {loc.city ? `· ${loc.city}` : ''}
@@ -551,37 +553,37 @@ export default function CargoForm({
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-red-100">
               <div>
-                <label className={labelClass}>Компания</label>
+                <label className={labelClass}>{t('addr.company')}</label>
                 <input
                   type="text"
                   value={to.company}
                   onChange={(e) => setTo({ ...to, company: e.target.value })}
-                  placeholder="ТЛЦ Брест"
+                  placeholder={t('cargo.phTerminal')}
                   className={inputClass}
                 />
               </div>
               <div>
-                <label className={labelClass}>Страна</label>
+                <label className={labelClass}>{t('addr.country')}</label>
                 <input
                   type="text"
                   value={to.country}
                   onChange={(e) => setTo({ ...to, country: e.target.value })}
-                  placeholder="Беларусь"
+                  placeholder={t('cargo.phBelarus')}
                   className={inputClass}
                 />
               </div>
               <div>
-                <label className={labelClass}>Город</label>
+                <label className={labelClass}>{t('addr.city')}</label>
                 <input
                   type="text"
                   value={to.city}
                   onChange={(e) => setTo({ ...to, city: e.target.value })}
-                  placeholder="Брест"
+                  placeholder={t('cargo.phBrest')}
                   className={inputClass}
                 />
               </div>
               <div>
-                <label className={labelClass}>Почтовый код</label>
+                <label className={labelClass}>{t('addr.postal')}</label>
                 <input
                   type="text"
                   value={to.postal_code}
@@ -591,12 +593,12 @@ export default function CargoForm({
                 />
               </div>
               <div className="md:col-span-2">
-                <label className={labelClass}>Адрес</label>
+                <label className={labelClass}>{t('addr.address')}</label>
                 <input
                   type="text"
                   value={to.address}
                   onChange={(e) => setTo({ ...to, address: e.target.value })}
-                  placeholder="ул. Логистическая 1"
+                  placeholder={t('cargo.phUnloadAddr')}
                   className={inputClass}
                 />
               </div>
@@ -607,11 +609,11 @@ export default function CargoForm({
           <div className="bg-emerald-50 rounded-xl p-4 space-y-3 border border-emerald-200">
             <div className="flex items-center gap-2">
               <Coins className="w-4 h-4 text-emerald-700" strokeWidth={2.2} />
-              <h4 className="text-sm font-bold text-emerald-800">Фрахт</h4>
+              <h4 className="text-sm font-bold text-emerald-800">{t('cargo.freight')}</h4>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className={labelClass}>Сумма</label>
+                <label className={labelClass}>{t('seg.amount')}</label>
                 <input
                   type="number"
                   step="0.01"
@@ -622,7 +624,7 @@ export default function CargoForm({
                 />
               </div>
               <div>
-                <label className={labelClass}>Валюта</label>
+                <label className={labelClass}>{t('seg.currency')}</label>
                 <select
                   value={freightCurrency}
                   onChange={(e) => setFreightCurrency(e.target.value)}
@@ -635,19 +637,19 @@ export default function CargoForm({
               </div>
             </div>
             <p className="text-[11px] text-emerald-700">
-              Сумма автоматически пересчитается в EUR и обновит общий фрахт рейса.
+              {t('cargo.freightHint')}
             </p>
           </div>
 
           {/* ЗАМЕТКИ */}
           <div>
-            <label className={labelClass}>Заметки</label>
+            <label className={labelClass}>{t('seg.notes')}</label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
               className={inputClass}
-              placeholder="Дополнительная информация"
+              placeholder={t('cargo.phNotes')}
             />
           </div>
 
@@ -664,7 +666,7 @@ export default function CargoForm({
               disabled={isPending}
               className="btn-secondary flex-1"
             >
-              Отмена
+              {t('seg.cancel')}
             </button>
             <button
               type="submit"
@@ -674,12 +676,12 @@ export default function CargoForm({
               {isPending ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Сохранение...
+                  {t('seg.saving')}
                 </>
               ) : (
                 <>
                   <Check className="w-4 h-4" />
-                  Сохранить
+                  {t('common.save')}
                 </>
               )}
             </button>

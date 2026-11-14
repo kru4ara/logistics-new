@@ -22,6 +22,9 @@ import SegmentDocxButton from './SegmentDocxButton';
 import SegmentDriverDocxButton from './SegmentDriverDocxButton';
 import SendSegmentTaskButton from './SendSegmentTaskButton';
 import { deleteSegment } from './segment-actions';
+import { useT } from '../../components/I18nProvider';
+import { formatDate } from '../../../lib/i18n/format';
+import type { MessageKey } from '../../../lib/i18n/translate';
  
 type Location = {
   id: string;
@@ -114,14 +117,6 @@ type Segment = {
   cargoLinks: CargoLink[];
 };
 
-function fmtDate(d: string | null): string {
-  if (!d) return '';
-  try {
-    return new Date(d).toLocaleDateString('ru-RU');
-  } catch {
-    return d;
-  }
-}
 
 function fmtPlace(
   company: string | null,
@@ -147,11 +142,11 @@ function stopDbToForm(s: StopDb): StopForm {
   };
 }
 
-const STOP_TYPE_LABELS: Record<StopDb['type'], string> = {
-  load: 'загрузка',
-  reload: 'догруз',
-  unload: 'выгрузка',
-  customs: 'таможня',
+const STOP_TYPE_LABELS: Record<StopDb['type'], MessageKey> = {
+  load: 'seg.stopLoad',
+  reload: 'seg.stopReload',
+  unload: 'seg.stopUnload',
+  customs: 'seg.stopCustoms',
 };
 
 const STOP_TYPE_BADGES: Record<StopDb['type'], string> = {
@@ -190,6 +185,7 @@ export default function TripSegmentsBlock({
   customsLocations: Location[];
   cargoList: CargoOption[];
 }) {
+  const { t, locale } = useT();
   const router = useRouter();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -212,14 +208,14 @@ export default function TripSegmentsBlock({
   }
 
   function handleDelete(id: string, position: number) {
-    if (!confirm(`Удалить участок №${position}? Расход по нему тоже удалится.`)) return;
+    if (!confirm(t('seg.deleteConfirm', { n: position }))) return;
     setIsDeletingId(id);
     startTransition(async () => {
       try {
         await deleteSegment(id, tripId);
         router.refresh();
       } catch (e) {
-        alert('Ошибка удаления: ' + (e as Error).message);
+        alert(t('trip.deleteError', { msg: (e as Error).message }));
       } finally {
         setIsDeletingId(null);
       }
@@ -266,7 +262,7 @@ export default function TripSegmentsBlock({
       <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
         <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
           <ArrowRight className="w-5 h-5 text-brand-600" strokeWidth={2.2} />
-          Участки рейса
+          {t('seg.title')}
           {segments.length > 0 && (
             <span className="text-xs bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full font-medium tabular-nums">
               {segments.length}
@@ -279,26 +275,25 @@ export default function TripSegmentsBlock({
           className="btn-primary inline-flex items-center gap-2 text-sm"
         >
           <Plus className="w-4 h-4" strokeWidth={2.5} />
-          Добавить участок
+          {t('seg.add')}
         </button>
       </div>
 
       <p className="text-xs text-slate-500 mb-4">
-        Кто и куда едет. Участок = одна машина (наша или подрядчика), маршрут этой машины и список грузов.
-        Для подрядчика укажи стоимость — расход создастся автоматически.
+        {t('seg.hint')}
       </p>
 
       {segments.length === 0 ? (
         <div className="text-center py-8 text-slate-400 text-sm">
-          Участков пока нет. Добавь, если рейс сборный или часть пути едет подрядчик.
+          {t('seg.empty')}
         </div>
       ) : (
         <div className="space-y-3">
           {segments.map((s) => {
             const isUs = s.executor_type === 'us';
             const executorLabel = isUs
-              ? `Мы · ${s.truck_reg || '—'}${s.driver_name ? ` · ${s.driver_name}` : ''}`
-              : `Подрядчик · ${s.contractor_name || '—'}`;
+              ? t('seg.us', { truck: `${s.truck_reg || '—'}${s.driver_name ? ` · ${s.driver_name}` : ''}` })
+              : t('seg.contractorLabel', { name: s.contractor_name || '—' });
 
             const stops = s.stops || [];
             const currencySymbol = CURRENCY_SYMBOLS[s.currency || 'EUR'] || s.currency || '€';
@@ -328,9 +323,9 @@ export default function TripSegmentsBlock({
 
                       {(s.date_from || s.date_to) && (
                         <span className="text-xs text-slate-500 tabular-nums">
-                          {s.date_from && fmtDate(s.date_from)}
+                          {s.date_from && formatDate(s.date_from, locale)}
                           {s.date_from && s.date_to && ' → '}
-                          {s.date_to && fmtDate(s.date_to)}
+                          {s.date_to && formatDate(s.date_to, locale)}
                         </span>
                       )}
 
@@ -360,7 +355,7 @@ export default function TripSegmentsBlock({
                               className="flex items-start gap-2 text-xs bg-white rounded-lg border border-amber-200 p-2"
                             >
                               <span className={`shrink-0 text-[10px] uppercase tracking-wide font-semibold px-1.5 py-0.5 rounded border ${STOP_TYPE_BADGES[stop.type] || STOP_TYPE_BADGES.reload}`}>
-                                {STOP_TYPE_LABELS[stop.type] || stop.type}
+                                {STOP_TYPE_LABELS[stop.type] ? t(STOP_TYPE_LABELS[stop.type]) : stop.type}
                               </span>
                               <div className="min-w-0 flex-1">
                                 <div className="text-slate-700 break-words font-medium">
@@ -369,7 +364,7 @@ export default function TripSegmentsBlock({
                                 {stop.date && (
                                   <div className="text-[10px] text-slate-400 mt-0.5 inline-flex items-center gap-1 tabular-nums">
                                     <Calendar className="w-2.5 h-2.5" strokeWidth={2} />
-                                    {fmtDate(stop.date)}
+                                    {formatDate(stop.date, locale)}
                                   </div>
                                 )}
                               </div>
@@ -426,7 +421,7 @@ export default function TripSegmentsBlock({
                             tripId={tripId}
                             segmentId={s.id}
                             disabled={!s.driver_id}
-                            disabledHint="Сначала назначьте водителя на этот участок"
+                            disabledHint={t('seg.needDriver')}
                           />
                           <SegmentDriverDocxButton
                             tripId={tripId}
@@ -442,10 +437,10 @@ export default function TripSegmentsBlock({
                         disabled={isPending}
                         className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 text-slate-600
                                    hover:bg-white text-xs font-medium transition-all active:scale-[0.97] disabled:opacity-50 ml-auto"
-                        title="Изменить"
+                        title={t('trip.change')}
                       >
                         <Pencil className="w-3 h-3" strokeWidth={2.2} />
-                        Изменить
+                        {t('trip.change')}
                       </button>
                       <button
                         type="button"
@@ -453,14 +448,14 @@ export default function TripSegmentsBlock({
                         disabled={isDeletingId === s.id || isPending}
                         className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-50 text-red-600 border border-red-200
                                    hover:bg-red-100 text-xs font-medium transition-all active:scale-[0.97] disabled:opacity-50"
-                        title="Удалить"
+                        title={t('trip.delete')}
                       >
                         {isDeletingId === s.id ? (
                           <Loader2 className="w-3 h-3 animate-spin" />
                         ) : (
                           <Trash2 className="w-3 h-3" strokeWidth={2.2} />
                         )}
-                        Удалить
+                        {t('trip.delete')}
                       </button>
                     </div>
                   </div>

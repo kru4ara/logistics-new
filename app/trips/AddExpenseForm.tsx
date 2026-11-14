@@ -4,25 +4,10 @@ import { useState } from 'react';
 import { PlusCircle } from 'lucide-react';
 import { addExpense } from '../trip-actions';
 import SubmitButton from '../components/SubmitButton';
+import { useT } from '../components/I18nProvider';
+import { EXPENSE_CATEGORIES } from '../../lib/i18n/labels';
 
-type Category = { value: string; label: string; emoji: string };
-
-const CATEGORIES: Category[] = [
-  { value: 'fuel', label: 'Топливо', emoji: '⛽' },
-  { value: 'epi', label: 'EPI', emoji: '📄' },
-  { value: 'border', label: 'Граница', emoji: '🛂' },
-  { value: 'salary', label: 'ЗП водителя', emoji: '💶' },
-  { value: 'permit', label: 'Дозвол', emoji: '📋' },
-  { value: 'tlc', label: 'ТЛЦ', emoji: '🏭' },
-  { value: 'waiting', label: 'Зона ожидания', emoji: '⏳' },
-  { value: 'repair', label: 'Ремонт', emoji: '🔧' },
-  { value: 'parking', label: 'Паркинг', emoji: '🅿️' },
-  { value: 'disinfection', label: 'Дезинфекция', emoji: '🧴' },
-  { value: 'ex1', label: 'ЕХ-1', emoji: '🧾' },
-  { value: 'otkat', label: 'Откат', emoji: '🔄' },
-  { value: 'gps_seal', label: 'GPS пломба', emoji: '📡' },
-  { value: 'other', label: 'Другое', emoji: '📌' },
-];
+const CATEGORIES = EXPENSE_CATEGORIES;
 
 type Props = {
   tripId: string;
@@ -43,6 +28,7 @@ export default function AddExpenseForm({
   allowSalary = true,
   paidByDriverHint,
 }: Props) {
+  const { t } = useT();
   const categories = allowSalary
     ? CATEGORIES
     : CATEGORIES.filter((c) => c.value !== 'salary');
@@ -59,7 +45,7 @@ export default function AddExpenseForm({
 
       <div className="grid gap-4 md:grid-cols-2">
         <div>
-          <label className={labelClass}>Категория</label>
+          <label className={labelClass}>{t('expense.category')}</label>
           <select
             name="category"
             required
@@ -68,13 +54,13 @@ export default function AddExpenseForm({
             onChange={(e) => setCategory(e.target.value)}
           >
             {categories.map((c) => (
-              <option key={c.value} value={c.value}>{c.emoji} {c.label}</option>
+              <option key={c.value} value={c.value}>{c.emoji} {t(`expenseCat.${c.value}`)}</option>
             ))}
           </select>
         </div>
 
         <div>
-          <label className={labelClass}>Валюта</label>
+          <label className={labelClass}>{t('expense.currency')}</label>
           <select name="currency" className={inputClass}>
             <option value="EUR">EUR</option>
             <option value="PLN">PLN</option>
@@ -83,22 +69,22 @@ export default function AddExpenseForm({
         </div>
 
         <div>
-          <label className={labelClass}>Сумма</label>
+          <label className={labelClass}>{t('expense.amount')}</label>
           <input type="number" name="amount" step="0.01" required className={inputClass} />
         </div>
 
         <div>
-          <label className={labelClass}>Литры (для топлива)</label>
+          <label className={labelClass}>{t('expense.liters')}</label>
           <input type="number" name="liters" step="0.01" placeholder="150" className={inputClass} />
         </div>
 
         <div className="md:col-span-2">
-          <label className={labelClass}>Описание</label>
-          <input type="text" name="description" placeholder="Комментарий" className={inputClass} />
+          <label className={labelClass}>{t('expense.description')}</label>
+          <input type="text" name="description" placeholder={t('expense.comment')} className={inputClass} />
         </div>
 
         <div className="md:col-span-2">
-          <label className={labelClass}>Дата</label>
+          <label className={labelClass}>{t('expense.date')}</label>
           <input type="date" name="expense_date" className={inputClass} />
         </div>
 
@@ -120,14 +106,14 @@ export default function AddExpenseForm({
               />
               <div className="min-w-0">
                 <div className="text-sm font-semibold text-slate-800">
-                  🚛 Оплатил водитель за свои
+                  {t('expense.paidByDriver')}
                 </div>
                 <div className="text-xs text-slate-500 mt-0.5">
                   {paidByDriverHint
                     ? paidByDriverHint
                     : hasDriver
-                      ? `Сумма уйдёт в долг водителя${driverName ? ' — ' + driverName : ''}. Погасить можно на его карточке.`
-                      : 'У рейса нет водителя — сначала назначьте, потом можно отмечать.'}
+                      ? t('expense.debtHint', { name: driverName ? ' — ' + driverName : '' })
+                      : t('expense.noDriverHint')}
                 </div>
               </div>
             </label>
@@ -141,12 +127,12 @@ export default function AddExpenseForm({
               <div className="text-lg leading-none mt-0.5">💶</div>
               <div className="min-w-0">
                 <div className="text-sm font-semibold text-slate-800">
-                  Начисление ЗП за рейс
+                  {t('expense.salaryTitle')}
                 </div>
                 <div className="text-xs text-slate-500 mt-0.5">
                   {hasDriver
-                    ? `Сумма уйдёт в долг водителя${driverName ? ' — ' + driverName : ''} как «ЗП за рейс». Погасить можно на его карточке.`
-                    : 'У рейса нет водителя — ЗП не начислится.'}
+                    ? t('expense.salaryHint', { name: driverName ? ' — ' + driverName : '' })
+                    : t('expense.salaryNoDriver')}
                 </div>
               </div>
             </div>
@@ -156,10 +142,10 @@ export default function AddExpenseForm({
 
       <SubmitButton
         className="btn btn-primary w-full py-3"
-        pendingText="Добавляю расход…"
+        pendingText={t('expense.adding')}
       >
         <PlusCircle className="w-4 h-4" strokeWidth={2.5} />
-        Добавить расход
+        {t('trip.addExpense')}
       </SubmitButton>
     </form>
   );

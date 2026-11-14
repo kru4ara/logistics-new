@@ -2,6 +2,7 @@
 
 import { Package } from 'lucide-react';
 import type { CargoOption } from './types';
+import { useT } from '../../components/I18nProvider';
 
 export default function SegmentCargoSelector({
   cargoList,
@@ -12,13 +13,14 @@ export default function SegmentCargoSelector({
   selectedCargo: Set<string>;
   onToggle: (id: string) => void;
 }) {
+  const { t } = useT();
   if (cargoList.length === 0) return null;
 
   return (
     <div className="bg-brand-50 rounded-xl p-4 space-y-3 border border-brand-200">
       <div className="flex items-center gap-2">
         <Package className="w-4 h-4 text-brand-700" strokeWidth={2.2} />
-        <h4 className="text-sm font-bold text-brand-800">Какие грузы везёт этот участок</h4>
+        <h4 className="text-sm font-bold text-brand-800">{t('seg.whichCargo')}</h4>
       </div>
 
       <div className="space-y-1.5">

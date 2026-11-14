@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { createCargoWithTrip } from '../../geocode-actions';
 import SubmitButton from '../../components/SubmitButton';
+import { useT } from '../../components/I18nProvider';
 
 type Location = {
   id: string;
@@ -64,6 +65,7 @@ export default function NewTripForm({
   unloadingLocations,
   customsLocations,
 }: Props) {
+  const { t } = useT();
   const [from, setFrom] = useState<AddrState>({ ...emptyAddr });
   const [to, setTo] = useState<AddrState>({ ...emptyAddr });
   const [customs, setCustoms] = useState<CustomsState>({ ...emptyCustoms });
@@ -125,12 +127,10 @@ export default function NewTripForm({
       <div className={sectionClass}>
         <h2 className={sectionTitleClass}>
           <Coins className="w-5 h-5 text-brand-600" strokeWidth={2.2} />
-          Отметки заказа
+          {t('tripForm.marks')}
         </h2>
         <p className="text-xs text-slate-500 -mt-1">
-          Режим расчёта определяется сам, когда назначен исполнитель: наша машина — рейс,
-          подрядчик — экспедирование. Смешанный заказ считается рейсом, расходы подрядчика идут
-          в прямые расходы рейса. Здесь только пометки — на математику они не влияют.
+          {t('tripForm.marksHint')}
         </p>
 
         <div className="space-y-2 pt-2 border-t border-slate-100">
@@ -144,9 +144,9 @@ export default function NewTripForm({
               className="mt-0.5"
             />
             <span className="min-w-0">
-              <span className="block text-sm font-medium text-slate-800">Экспедирование (происхождение)</span>
+              <span className="block text-sm font-medium text-slate-800">{t('tripForm.fwdOrigin')}</span>
               <span className="block text-xs text-slate-500">
-                Помечает заказ как перевезённый экспедитором. На расчёт не влияет.
+                {t('tripForm.fwdOriginHint')}
               </span>
             </span>
           </label>
@@ -157,36 +157,36 @@ export default function NewTripForm({
       <div className={sectionClass}>
         <h2 className={sectionTitleClass}>
           <FileText className="w-5 h-5 text-brand-600" strokeWidth={2.2} />
-          Клиент и заявка
+          {t('tripForm.clientRequest')}
         </h2>
         <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-3">
           <div>
-            <label className={labelClass}>Клиент</label>
+            <label className={labelClass}>{t('cargo.client')}</label>
             <select name="client_id" className={inputClass}>
-              <option value="">Выберите клиента...</option>
+              <option value="">{t('tripForm.pickClient')}</option>
               {clients.map((c) => (
                 <option key={c.id} value={c.id}>{c.label}</option>
               ))}
             </select>
           </div>
           <div>
-            <label className={labelClass}>Номер заявки</label>
+            <label className={labelClass}>{t('tripForm.requestNo')}</label>
             <input type="text" name="client_request_number" placeholder="ZAM-2026-001" className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>Дата заявки</label>
+            <label className={labelClass}>{t('tripForm.requestDate')}</label>
             <input type="date" name="client_request_date" className={inputClass} />
           </div>
         </div>
         <div className="mt-3 md:mt-4">
           <label className={labelClass}>
-            Ответственный менеджер
+            {t('tripForm.manager')}
             <span className="block text-xs text-slate-500 font-normal mt-0.5">
-              Пусто — заказ без назначенного менеджера, его видят все менеджеры.
+              {t('tripForm.managerHint')}
             </span>
           </label>
           <select name="manager_id" className={inputClass}>
-            <option value="">Без менеджера</option>
+            <option value="">{t('tripForm.noManager')}</option>
             {managers.map((m) => (
               <option key={m.id} value={m.id}>{m.label}</option>
             ))}
@@ -198,16 +198,16 @@ export default function NewTripForm({
       <div className={sectionClass}>
         <h2 className={sectionTitleClass}>
           <MapPin className="w-5 h-5 text-brand-600" strokeWidth={2.2} />
-          Откуда (загрузка)
+          {t('cargo.fromLoading')}
         </h2>
 
         <div>
           <label className={labelClass}>
-            Выбрать из сохранённых локаций
-            <span className="text-xs text-slate-400 font-normal ml-2 hidden sm:inline">(заполнит поля ниже)</span>
+            {t('tripForm.pickSaved')}
+            <span className="text-xs text-slate-400 font-normal ml-2 hidden sm:inline">{t('tripForm.fillsBelow')}</span>
           </label>
           <select onChange={(e) => fillFrom(e.target.value)} className={presetClass} defaultValue="">
-            <option value="">— Выберите локацию —</option>
+            <option value="">{t('addr.pickLocation')}</option>
             {loadingLocations.map((loc) => (
               <option key={loc.id} value={loc.id}>
                 {loc.name} {loc.city ? `· ${loc.city}` : ''}
@@ -218,37 +218,37 @@ export default function NewTripForm({
 
         <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2 pt-2 border-t border-slate-100">
           <div>
-            <label className={labelClass}>Страна</label>
+            <label className={labelClass}>{t('addr.country')}</label>
             <input type="text" name="from_country" value={from.country}
               onChange={(e) => setFrom({ ...from, country: e.target.value })}
-              placeholder="Италия" className={inputClass} />
+              placeholder={t('cargo.phItaly')} className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>Название отправителя</label>
+            <label className={labelClass}>{t('tripForm.senderName')}</label>
             <input type="text" name="from_name" value={from.name}
               onChange={(e) => setFrom({ ...from, name: e.target.value })}
               placeholder="Caffarel S.p.A." className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>Почтовый код</label>
+            <label className={labelClass}>{t('addr.postal')}</label>
             <input type="text" name="from_postal_code" value={from.postal_code}
               onChange={(e) => setFrom({ ...from, postal_code: e.target.value })}
               placeholder="20013" className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>Город</label>
+            <label className={labelClass}>{t('addr.city')}</label>
             <input type="text" name="from_city" value={from.city}
               onChange={(e) => setFrom({ ...from, city: e.target.value })}
               placeholder="Magenta" className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>Адрес</label>
+            <label className={labelClass}>{t('addr.address')}</label>
             <input type="text" name="from_address" value={from.address}
               onChange={(e) => setFrom({ ...from, address: e.target.value })}
               placeholder="Via Milano 10" className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>Погрузочный номер</label>
+            <label className={labelClass}>{t('tripForm.loadingNo')}</label>
             <input type="text" name="from_loading_number" value={from.loading_number}
               onChange={(e) => setFrom({ ...from, loading_number: e.target.value })}
               placeholder="Ramp 4" className={inputClass} />
@@ -260,19 +260,19 @@ export default function NewTripForm({
       <div className={sectionClass}>
         <h2 className={sectionTitleClass}>
           <ShieldCheck className="w-5 h-5 text-slate-600" strokeWidth={2.2} />
-          Место затаможки
+          {t('cargo.customsPlace')}
         </h2>
         <p className="text-xs text-slate-500 -mt-1">
-          Промежуточная точка между откуда и куда. Необязательно.
+          {t('tripForm.customsHint')}
         </p>
 
         <div>
           <label className={labelClass}>
-            Выбрать из сохранённых локаций
-            <span className="text-xs text-slate-400 font-normal ml-2 hidden sm:inline">(заполнит поля ниже)</span>
+            {t('tripForm.pickSaved')}
+            <span className="text-xs text-slate-400 font-normal ml-2 hidden sm:inline">{t('tripForm.fillsBelow')}</span>
           </label>
           <select onChange={(e) => fillCustoms(e.target.value)} className={presetClass} defaultValue="">
-            <option value="">— Выберите локацию —</option>
+            <option value="">{t('addr.pickLocation')}</option>
             {customsLocations.map((loc) => (
               <option key={loc.id} value={loc.id}>
                 {loc.name} {loc.city ? `· ${loc.city}` : ''}
@@ -283,34 +283,34 @@ export default function NewTripForm({
 
         <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2 pt-2 border-t border-slate-100">
           <div className="md:col-span-2">
-            <label className={labelClass}>Название поста / компании</label>
+            <label className={labelClass}>{t('cargo.customsName')}</label>
             <input type="text" name="customs_place" value={customs.place}
               onChange={(e) => setCustoms({ ...customs, place: e.target.value })}
-              placeholder="ТЛЦ Брест" className={inputClass} />
+              placeholder={t('cargo.phTerminal')} className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>Страна</label>
+            <label className={labelClass}>{t('addr.country')}</label>
             <input type="text" name="customs_country" value={customs.country}
               onChange={(e) => setCustoms({ ...customs, country: e.target.value })}
-              placeholder="Беларусь" className={inputClass} />
+              placeholder={t('cargo.phBelarus')} className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>Город</label>
+            <label className={labelClass}>{t('addr.city')}</label>
             <input type="text" name="customs_city" value={customs.city}
               onChange={(e) => setCustoms({ ...customs, city: e.target.value })}
-              placeholder="Брест" className={inputClass} />
+              placeholder={t('cargo.phBrest')} className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>Почтовый код</label>
+            <label className={labelClass}>{t('addr.postal')}</label>
             <input type="text" name="customs_postal_code" value={customs.postal_code}
               onChange={(e) => setCustoms({ ...customs, postal_code: e.target.value })}
               placeholder="224000" className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>Адрес</label>
+            <label className={labelClass}>{t('addr.address')}</label>
             <input type="text" name="customs_address" value={customs.address}
               onChange={(e) => setCustoms({ ...customs, address: e.target.value })}
-              placeholder="ул. Таможенная 1" className={inputClass} />
+              placeholder={t('cargo.phCustomsAddr')} className={inputClass} />
           </div>
         </div>
       </div>
@@ -319,16 +319,16 @@ export default function NewTripForm({
       <div className={sectionClass}>
         <h2 className={sectionTitleClass}>
           <Flag className="w-5 h-5 text-brand-600" strokeWidth={2.2} />
-          Куда (выгрузка)
+          {t('cargo.toUnloading')}
         </h2>
 
         <div>
           <label className={labelClass}>
-            Выбрать из сохранённых локаций
-            <span className="text-xs text-slate-400 font-normal ml-2 hidden sm:inline">(заполнит поля ниже)</span>
+            {t('tripForm.pickSaved')}
+            <span className="text-xs text-slate-400 font-normal ml-2 hidden sm:inline">{t('tripForm.fillsBelow')}</span>
           </label>
           <select onChange={(e) => fillTo(e.target.value)} className={presetClass} defaultValue="">
-            <option value="">— Выберите локацию —</option>
+            <option value="">{t('addr.pickLocation')}</option>
             {unloadingLocations.map((loc) => (
               <option key={loc.id} value={loc.id}>
                 {loc.name} {loc.city ? `· ${loc.city}` : ''}
@@ -339,37 +339,37 @@ export default function NewTripForm({
 
         <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2 pt-2 border-t border-slate-100">
           <div>
-            <label className={labelClass}>Страна</label>
+            <label className={labelClass}>{t('addr.country')}</label>
             <input type="text" name="to_country" value={to.country}
               onChange={(e) => setTo({ ...to, country: e.target.value })}
-              placeholder="Беларусь" className={inputClass} />
+              placeholder={t('cargo.phBelarus')} className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>Название получателя</label>
+            <label className={labelClass}>{t('tripForm.receiverName')}</label>
             <input type="text" name="to_name" value={to.name}
               onChange={(e) => setTo({ ...to, name: e.target.value })}
-              placeholder="ТЛЦ Брест" className={inputClass} />
+              placeholder={t('cargo.phTerminal')} className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>Почтовый код</label>
+            <label className={labelClass}>{t('addr.postal')}</label>
             <input type="text" name="to_postal_code" value={to.postal_code}
               onChange={(e) => setTo({ ...to, postal_code: e.target.value })}
               placeholder="224000" className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>Город</label>
+            <label className={labelClass}>{t('addr.city')}</label>
             <input type="text" name="to_city" value={to.city}
               onChange={(e) => setTo({ ...to, city: e.target.value })}
-              placeholder="Брест" className={inputClass} />
+              placeholder={t('cargo.phBrest')} className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>Адрес</label>
+            <label className={labelClass}>{t('addr.address')}</label>
             <input type="text" name="to_address" value={to.address}
               onChange={(e) => setTo({ ...to, address: e.target.value })}
-              placeholder="ул. Логистическая 1" className={inputClass} />
+              placeholder={t('cargo.phUnloadAddr')} className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>Погрузочный номер</label>
+            <label className={labelClass}>{t('tripForm.loadingNo')}</label>
             <input type="text" name="to_loading_number" value={to.loading_number}
               onChange={(e) => setTo({ ...to, loading_number: e.target.value })}
               placeholder="Ramp 1" className={inputClass} />
@@ -381,29 +381,29 @@ export default function NewTripForm({
       <div className={sectionClass}>
         <h2 className={sectionTitleClass}>
           <Package className="w-5 h-5 text-brand-600" strokeWidth={2.2} />
-          Груз
+          {t('tripForm.cargo')}
         </h2>
         <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
           <div className="md:col-span-2">
-            <label className={labelClass}>Название груза *</label>
+            <label className={labelClass}>{t('cargo.name')}</label>
             <input type="text" name="label" required
-              placeholder="Caffarel, Италия / Паллеты 22 шт" className={inputClass} />
+              placeholder={t('cargo.phName')} className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>Тип груза</label>
-            <input type="text" name="cargo_type" placeholder="паллеты / металл" className={inputClass} />
+            <label className={labelClass}>{t('cargo.type')}</label>
+            <input type="text" name="cargo_type" placeholder={t('cargo.phType')} className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>Вес (кг)</label>
+            <label className={labelClass}>{t('cargo.weight')}</label>
             <input type="number" name="weight_kg" step="0.01" placeholder="22000" className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>Паллеты (шт)</label>
+            <label className={labelClass}>{t('cargo.pallets')}</label>
             <input type="number" name="pallets" step="1" min="0" placeholder="22" className={inputClass} />
           </div>
           <div className="md:col-span-2">
-            <label className={labelClass}>Примечания</label>
-            <textarea name="notes" rows={2} className={inputClass} placeholder="Дополнительная информация" />
+            <label className={labelClass}>{t('tripForm.notes')}</label>
+            <textarea name="notes" rows={2} className={inputClass} placeholder={t('cargo.phNotes')} />
           </div>
         </div>
       </div>
@@ -412,15 +412,15 @@ export default function NewTripForm({
       <div className={sectionClass}>
         <h2 className={sectionTitleClass}>
           <Coins className="w-5 h-5 text-brand-600" strokeWidth={2.2} />
-          Фрахт
+          {t('cargo.freight')}
         </h2>
         <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-3">
           <div className="md:col-span-2">
-            <label className={labelClass}>Сумма</label>
+            <label className={labelClass}>{t('seg.amount')}</label>
             <input type="number" name="freight_amount" step="0.01" min="0" placeholder="0.00" className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>Валюта</label>
+            <label className={labelClass}>{t('seg.currency')}</label>
             <select name="freight_currency" className={inputClass} defaultValue="EUR">
               <option value="EUR">EUR €</option>
               <option value="PLN">PLN zł</option>
@@ -429,7 +429,7 @@ export default function NewTripForm({
           </div>
         </div>
         <p className="text-xs text-slate-500">
-          Фрахт в EUR пересчитается по курсу на дату заявки и попадёт в отчёты.
+          {t('tripForm.freightHint')}
         </p>
       </div>
 
@@ -443,13 +443,13 @@ export default function NewTripForm({
           className="w-full sm:w-auto text-center px-6 py-3 rounded-xl border border-slate-300 text-slate-700 font-semibold
                      hover:bg-slate-100 transition-all duration-150"
         >
-          Отмена
+          {t('seg.cancel')}
         </Link>
         <SubmitButton
           className="w-full sm:flex-1 bg-brand-600 hover:bg-brand-700 disabled:bg-brand-400 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl shadow-brand transition-all duration-150 active:scale-[0.98]"
-          pendingText="Создаю заявку…"
+          pendingText={t('tripForm.creating')}
         >
-          Создать заявку
+          {t('tripForm.create')}
         </SubmitButton>
       </div>
 

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Copy, Check, MessageCircle } from 'lucide-react';
+import { useT } from './I18nProvider';
 
 export default function CopyBlock({
   text,
@@ -10,6 +11,7 @@ export default function CopyBlock({
   text: string;
   phone?: string | null;
 }) {
+  const { t } = useT();
   const [copied, setCopied] = useState(false);
 
   async function handleCopy() {
@@ -33,7 +35,7 @@ export default function CopyBlock({
       <div className="p-4 md:p-5 border-b border-slate-100 flex justify-between items-center gap-3 flex-wrap">
         <h2 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2">
           <Copy className="w-5 h-5 text-brand-600" strokeWidth={2} />
-          Задание для водителя
+          {t('shared.taskForDriver')}
         </h2>
         <div className="flex items-center gap-2">
           {waLink && (
@@ -61,12 +63,12 @@ export default function CopyBlock({
             {copied ? (
               <>
                 <Check className="w-4 h-4" strokeWidth={2.5} />
-                Скопировано
+                {t('shared.copied')}
               </>
             ) : (
               <>
                 <Copy className="w-4 h-4" strokeWidth={2.5} />
-                Скопировать
+                {t('shared.copy')}
               </>
             )}
           </button>

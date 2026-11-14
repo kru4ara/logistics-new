@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { logAudit } from '../lib/audit';
 import { geocode } from '../lib/geocode';
+import { getT } from '../lib/i18n/server';
 
 // ============================================================
 // Конвертация в EUR по курсу на дату (EUR / PLN / BYN)
@@ -50,6 +51,7 @@ async function toEur(
 // Сегмент НЕ создаётся — появится, когда найден транспорт.
 // ============================================================
 export async function createCargoWithTrip(formData: FormData) {
+  const { t } = await getT();
   await requireOffice();
   const supabase = await createClient();
 
@@ -102,7 +104,7 @@ export async function createCargoWithTrip(formData: FormData) {
   // (см. sync_trip_from_segment). До назначения режим не определён (null).
   const isForwarding = formData.get('is_forwarding') === '1' || formData.get('is_forwarding') === 'on';
 
-  if (!label) throw new Error('Укажите название груза');
+  if (!label) throw new Error(t('cargo.needName'));
 
   // ---- Геокодинг ----
   const fromCoords = await geocode(fromCity, fromCountry, fromPostalCode);
@@ -166,7 +168,7 @@ export async function createCargoWithTrip(formData: FormData) {
     .select('id, trip_number')
     .single();
 
-  if (error || !created) throw new Error(`Ошибка создания заявки: ${error?.message || 'unknown'}`);
+  if (error || !created) throw new Error(t('tripErr.createOrder', { msg: error?.message || 'unknown' }));
 
   // ---- 2. Первый груз ----
   const { data: cargo, error: cargoErr } = await supabase
@@ -208,7 +210,7 @@ export async function createCargoWithTrip(formData: FormData) {
   if (cargoErr || !cargo) {
     // откатываем рейс, чтобы не оставлять пустую обёртку
     await supabase.from('trips').delete().eq('id', created.id);
-    throw new Error(`Ошибка создания груза: ${cargoErr?.message || 'unknown'}`);
+    throw new Error(t('cargo.createError', { msg: cargoErr?.message || 'unknown' }));
   }
 
   // ---- 3. Audit ----

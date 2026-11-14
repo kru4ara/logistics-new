@@ -4,6 +4,7 @@ import { requireOffice } from '../../../lib/require-office';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '../../../lib/supabase/admin';
 import { logAudit } from '../../../lib/audit';
+import { getT } from '../../../lib/i18n/server';
 
 function str(formData: FormData, key: string): string | null {
   const v = (formData.get(key) as string)?.trim();
@@ -83,6 +84,7 @@ async function syncTripRevenue(
 }
 
 export async function createCargo(tripId: string, formData: FormData) {
+  const { t } = await getT();
   await requireOffice();
   const supabase = await createClient();
 
@@ -117,7 +119,7 @@ export async function createCargo(tripId: string, formData: FormData) {
   const freightAmount = freightRaw ? parseFloat(freightRaw) : 0;
   const freightCurrency = (str(formData, 'freight_currency') || 'EUR').toUpperCase();
 
-  if (!label) throw new Error('Укажите название груза');
+  if (!label) throw new Error(t('cargo.needName'));
 
   const { data: last } = await supabase
     .from('trip_cargo')
@@ -161,7 +163,7 @@ export async function createCargo(tripId: string, formData: FormData) {
     .select('id')
     .single();
 
-  if (error) throw new Error(`Ошибка создания груза: ${error.message}`);
+  if (error) throw new Error(t('cargo.createError', { msg: error.message }));
 
   // Синхронизируем фрахт рейса
   await syncTripRevenue(supabase, tripId);
@@ -179,6 +181,7 @@ export async function createCargo(tripId: string, formData: FormData) {
 }
 
 export async function updateCargo(cargoId: string, tripId: string, formData: FormData) {
+  const { t } = await getT();
   await requireOffice();
   const supabase = await createClient();
 
@@ -213,7 +216,7 @@ export async function updateCargo(cargoId: string, tripId: string, formData: For
   const freightAmount = freightRaw ? parseFloat(freightRaw) : 0;
   const freightCurrency = (str(formData, 'freight_currency') || 'EUR').toUpperCase();
 
-  if (!label) throw new Error('Укажите название груза');
+  if (!label) throw new Error(t('cargo.needName'));
 
   const { error } = await supabase
     .from('trip_cargo')
@@ -244,7 +247,7 @@ export async function updateCargo(cargoId: string, tripId: string, formData: For
     })
     .eq('id', cargoId);
 
-  if (error) throw new Error(`Ошибка обновления груза: ${error.message}`);
+  if (error) throw new Error(t('cargo.updateError', { msg: error.message }));
 
   // Синхронизируем фрахт рейса
   await syncTripRevenue(supabase, tripId);
@@ -254,6 +257,7 @@ export async function updateCargo(cargoId: string, tripId: string, formData: For
 }
 
 export async function deleteCargo(cargoId: string, tripId: string) {
+  const { t } = await getT();
   await requireOffice();
   const supabase = await createClient();
 
@@ -268,7 +272,7 @@ export async function deleteCargo(cargoId: string, tripId: string) {
     .delete()
     .eq('id', cargoId);
 
-  if (error) throw new Error(`Ошибка удаления груза: ${error.message}`);
+  if (error) throw new Error(t('cargo.deleteError', { msg: error.message }));
 
   // Синхронизируем фрахт рейса
   await syncTripRevenue(supabase, tripId);

@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { Send, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import { sendSegmentTaskToDriver } from './task-actions';
+import { useT } from '../../components/I18nProvider';
 
 export default function SendSegmentTaskButton({
   tripId,
@@ -15,6 +16,7 @@ export default function SendSegmentTaskButton({
   disabled?: boolean;
   disabledHint?: string;
 }) {
+  const { t } = useT();
   const [isPending, startTransition] = useTransition();
   const [status, setStatus] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
 
@@ -26,7 +28,7 @@ export default function SendSegmentTaskButton({
       try {
         const res = await sendSegmentTaskToDriver(tripId, segmentId);
         if (res.success) {
-          setStatus({ kind: 'ok', text: 'Отправлено' });
+          setStatus({ kind: 'ok', text: t('seg.sent') });
           setTimeout(() => setStatus(null), 5000);
         } else {
           setStatus({ kind: 'err', text: res.error });
@@ -64,7 +66,7 @@ export default function SendSegmentTaskButton({
       type="button"
       onClick={handleSend}
       disabled={isPending || disabled}
-      title={disabled ? disabledHint : 'Отправить задание водителю этого участка в Telegram'}
+      title={disabled ? disabledHint : t('seg.sendTitle')}
       className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all
         ${isPending || disabled
           ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
@@ -73,12 +75,12 @@ export default function SendSegmentTaskButton({
       {isPending ? (
         <>
           <Loader2 className="w-3 h-3 animate-spin" />
-          Отправка...
+          {t('trip.sending')}
         </>
       ) : (
         <>
           <Send className="w-3 h-3" strokeWidth={2.2} />
-          Отправить
+          {t('seg.send')}
         </>
       )}
     </button>

@@ -2,6 +2,7 @@
 
 import { Truck, Users, Coins } from 'lucide-react';
 import type { Option } from './types';
+import { useT } from '../../components/I18nProvider';
 
 export default function SegmentExecutorBlock({
   executorType,
@@ -78,12 +79,13 @@ export default function SegmentExecutorBlock({
   contractorPaymentDocType: string;
   setContractorPaymentDocType: (v: string) => void;
 }) {
+  const { t } = useT();
   const inputClass = 'input';
   const labelClass = 'block text-sm font-medium text-slate-700 mb-1';
 
   return (
     <div className="bg-slate-50 rounded-xl p-4 space-y-3">
-      <h4 className="text-sm font-bold text-slate-700">Кто везёт</h4>
+      <h4 className="text-sm font-bold text-slate-700">{t('seg.whoCarries')}</h4>
 
       <div className="grid grid-cols-2 gap-2">
         <button
@@ -97,7 +99,7 @@ export default function SegmentExecutorBlock({
           <div className="flex items-center gap-2">
             <Truck className={`w-4 h-4 ${executorType === 'us' ? 'text-brand-600' : 'text-slate-400'}`} strokeWidth={2.2} />
             <span className={`font-semibold text-sm ${executorType === 'us' ? 'text-brand-700' : 'text-slate-700'}`}>
-              Наша машина
+              {t('seg.ourTruck')}
             </span>
           </div>
         </button>
@@ -112,7 +114,7 @@ export default function SegmentExecutorBlock({
           <div className="flex items-center gap-2">
             <Users className={`w-4 h-4 ${executorType === 'contractor' ? 'text-brand-600' : 'text-slate-400'}`} strokeWidth={2.2} />
             <span className={`font-semibold text-sm ${executorType === 'contractor' ? 'text-brand-700' : 'text-slate-700'}`}>
-              Подрядчик
+              {t('seg.contractor')}
             </span>
           </div>
         </button>
@@ -121,14 +123,14 @@ export default function SegmentExecutorBlock({
       {executorType === 'contractor' && (
         <>
           <div>
-            <label className={labelClass}>Подрядчик *</label>
+            <label className={labelClass}>{t('seg.contractorReq')}</label>
             <select
               value={contractorId}
               onChange={(e) => setContractorId(e.target.value)}
               required
               className={inputClass}
             >
-              <option value="">— Выберите подрядчика —</option>
+              <option value="">{t('seg.pickContractorOpt')}</option>
               {contractors.map((c) => (
                 <option key={c.id} value={c.id}>{c.label}</option>
               ))}
@@ -138,11 +140,11 @@ export default function SegmentExecutorBlock({
           <div className="bg-white rounded-lg border border-amber-200 p-3 space-y-2">
             <div className="flex items-center gap-2 text-xs font-semibold text-amber-800">
               <Coins className="w-3.5 h-3.5" strokeWidth={2.2} />
-              Стоимость подрядчику
+              {t('seg.contractorPrice')}
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Сумма</label>
+                <label className="block text-[11px] font-medium text-slate-600 mb-0.5">{t('seg.amount')}</label>
                 <input
                   type="number"
                   step="0.01"
@@ -153,7 +155,7 @@ export default function SegmentExecutorBlock({
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Валюта</label>
+                <label className="block text-[11px] font-medium text-slate-600 mb-0.5">{t('seg.currency')}</label>
                 <select
                   value={currency}
                   onChange={(e) => setCurrency(e.target.value)}
@@ -166,7 +168,7 @@ export default function SegmentExecutorBlock({
               </div>
             </div>
             <p className="text-[11px] text-amber-700">
-              Расход по этому участку создастся автоматически.
+              {t('seg.autoExpense')}
             </p>
           </div>
 
@@ -273,39 +275,39 @@ export default function SegmentExecutorBlock({
       {executorType === 'us' && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div>
-            <label className={labelClass}>Машина</label>
+            <label className={labelClass}>{t('seg.truck')}</label>
             <select
               value={truckId}
               onChange={(e) => setTruckId(e.target.value)}
               className={inputClass}
             >
-              <option value="">— Не указана —</option>
+              <option value="">{t('seg.notSetF')}</option>
               {trucks.map((t) => (
                 <option key={t.id} value={t.id}>{t.label}</option>
               ))}
             </select>
           </div>
           <div>
-            <label className={labelClass}>Прицеп</label>
+            <label className={labelClass}>{t('seg.trailer')}</label>
             <select
               value={trailerId}
               onChange={(e) => setTrailerId(e.target.value)}
               className={inputClass}
             >
-              <option value="">— Без прицепа —</option>
+              <option value="">{t('seg.noTrailer')}</option>
               {trailers.map((t) => (
                 <option key={t.id} value={t.id}>{t.label}</option>
               ))}
             </select>
           </div>
           <div>
-            <label className={labelClass}>Водитель</label>
+            <label className={labelClass}>{t('seg.driver')}</label>
             <select
               value={driverId}
               onChange={(e) => setDriverId(e.target.value)}
               className={inputClass}
             >
-              <option value="">— Не указан —</option>
+              <option value="">{t('seg.notSetM')}</option>
               {drivers.map((d) => (
                 <option key={d.id} value={d.id}>{d.label}</option>
               ))}
@@ -316,7 +318,7 @@ export default function SegmentExecutorBlock({
 
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className={labelClass}>Дата с</label>
+          <label className={labelClass}>{t('seg.dateFrom')}</label>
           <input
             type="date"
             value={dateFrom}
@@ -325,7 +327,7 @@ export default function SegmentExecutorBlock({
           />
         </div>
         <div>
-          <label className={labelClass}>Дата по</label>
+          <label className={labelClass}>{t('seg.dateTo')}</label>
           <input
             type="date"
             value={dateTo}
