@@ -7,6 +7,7 @@ import { COMPANY_COLUMNS, isMissingTable, STAMP_PATH } from '../../lib/company';
 import { TERM_PLACEHOLDERS, type CompanyRow } from '../../lib/company-rules';
 import { signDocumentPaths } from '../../lib/storage-urls';
 import SubmitButton from '../components/SubmitButton';
+import { getT } from '../../lib/i18n/server';
 import { saveCompanySettings } from './actions';
 
 export const dynamic = 'force-dynamic';
@@ -36,6 +37,7 @@ export default async function CompanySettingsPage({
   if (denied) redirect(denied);
 
   const { saved, error: formError } = await searchParams;
+  const { t } = await getT();
 
   const admin = await createClient();
   const { data, error } = await admin.from('company_settings').select(COMPANY_COLUMNS).eq('id', 1).maybeSingle();
@@ -50,16 +52,16 @@ export default async function CompanySettingsPage({
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2.5 tracking-tight">
             <Building2 className="w-6 h-6 md:w-7 md:h-7 text-brand-600" strokeWidth={2.2} />
-            Настройки компании
+            {t('settings.title')}
           </h1>
           <p className="text-slate-500 mt-1 text-sm md:text-base">
-            Реквизиты и условия для заявок перевозчикам, страница входа, Telegram-бот
+            {t('settings.subtitle')}
           </p>
         </div>
 
         {saved && (
           <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-green-50 border border-green-200 text-sm text-green-800">
-            <CheckCircle2 className="w-4 h-4 shrink-0" strokeWidth={2} /> Сохранено
+            <CheckCircle2 className="w-4 h-4 shrink-0" strokeWidth={2} /> {t('common.saved')}
           </div>
         )}
         {formError && (
@@ -70,14 +72,13 @@ export default async function CompanySettingsPage({
         {migrationMissing && (
           <div className="flex items-start gap-2 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-800">
             <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" strokeWidth={2} />
-            Таблица настроек ещё не создана: примените миграцию 20261114_022_company_settings.sql.
-            До этого заявки используют прежние реквизиты.
+            {t('settings.migrationMissing')}
           </div>
         )}
         {!migrationMissing && !row && (
           <div className="flex items-start gap-2 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-800">
             <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" strokeWidth={2} />
-            Компания ещё не настроена: заполните реквизиты — без них заявки выйдут пустыми.
+            {t('settings.notConfigured')}
           </div>
         )}
 
@@ -85,37 +86,37 @@ export default async function CompanySettingsPage({
           <fieldset disabled={migrationMissing} className="space-y-4 md:space-y-6">
             <div className="card p-5 md:p-6 space-y-3">
               <h2 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2">
-                <Building2 className="w-5 h-5 text-brand-600" strokeWidth={2} /> Компания
+                <Building2 className="w-5 h-5 text-brand-600" strokeWidth={2} /> {t('settings.sectionCompany')}
               </h2>
-              <Field name="name" label="Полное название *" value={row?.name} placeholder="EXAMPLE SP. Z O.O." hint="В шапке заявки и внизу страницы входа" />
-              <Field name="short_name" label="Короткое название" value={row?.short_name} placeholder="EXAMPLE" hint="Крупно на странице входа" />
-              <Field name="address" label="Адрес" value={row?.address} />
-              <Field name="city" label="Город" value={row?.city} hint="Место составления заявки" />
+              <Field name="name" label={t('settings.name')} value={row?.name} placeholder="EXAMPLE SP. Z O.O." hint={t('settings.nameHint')} />
+              <Field name="short_name" label={t('settings.shortName')} value={row?.short_name} placeholder="EXAMPLE" hint={t('settings.shortNameHint')} />
+              <Field name="address" label={t('settings.address')} value={row?.address} />
+              <Field name="city" label={t('settings.city')} value={row?.city} hint={t('settings.cityHint')} />
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <Field name="nip" label="NIP" value={row?.nip} />
                 <Field name="regon" label="REGON" value={row?.regon} />
                 <Field name="eori" label="EORI" value={row?.eori} />
               </div>
-              <Field name="email" label="E-mail" type="email" value={row?.email} hint="Подставляется в условия ({email}) — сюда перевозчик шлёт фактуру и CMR" />
+              <Field name="email" label={t('settings.email')} type="email" value={row?.email} hint={t('settings.emailHint')} />
             </div>
 
             <div className="card p-5 md:p-6 space-y-3">
               <h2 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2">
-                <Landmark className="w-5 h-5 text-brand-600" strokeWidth={2} /> Банк
+                <Landmark className="w-5 h-5 text-brand-600" strokeWidth={2} /> {t('settings.sectionBank')}
               </h2>
-              <Field name="bank" label="Банк и SWIFT" value={row?.bank} />
-              <Field name="account_eur" label="Счёт EUR" value={row?.account_eur} />
-              <Field name="account_pln" label="Счёт PLN" value={row?.account_pln} />
+              <Field name="bank" label={t('settings.bank')} value={row?.bank} />
+              <Field name="account_eur" label={t('settings.accountEur')} value={row?.account_eur} />
+              <Field name="account_pln" label={t('settings.accountPln')} value={row?.account_pln} />
             </div>
 
             <div className="card p-5 md:p-6 space-y-3">
               <h2 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2">
-                <ScrollText className="w-5 h-5 text-brand-600" strokeWidth={2} /> Условия перевозки
+                <ScrollText className="w-5 h-5 text-brand-600" strokeWidth={2} /> {t('settings.sectionTerms')}
               </h2>
               <p className="text-xs text-slate-500">
-                По одному пункту на строку. Подстановки:{' '}
+                {t('settings.termsHelp')}{' '}
                 {Object.entries(TERM_PLACEHOLDERS).map(([k, v], i) => (
-                  <span key={k}>{i > 0 && ', '}<code className="text-slate-700">{k}</code> — {v}</span>
+                  <span key={k}>{i > 0 && ', '}<code className="text-slate-700">{k}</code> — {t(v)}</span>
                 ))}
               </p>
               <textarea name="terms" rows={14} defaultValue={(row?.terms ?? []).join('\n')} className="input font-mono text-xs leading-relaxed" />
@@ -123,27 +124,27 @@ export default async function CompanySettingsPage({
 
             <div className="card p-5 md:p-6 space-y-3">
               <h2 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2">
-                <Stamp className="w-5 h-5 text-brand-600" strokeWidth={2} /> Печать для заявок
+                <Stamp className="w-5 h-5 text-brand-600" strokeWidth={2} /> {t('settings.sectionStamp')}
               </h2>
               {stampUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={stampUrl} alt="Печать" className="h-28 w-auto border border-slate-200 rounded-lg bg-white p-2" />
+                <img src={stampUrl} alt={t('settings.stampAlt')} className="h-28 w-auto border border-slate-200 rounded-lg bg-white p-2" />
               ) : (
-                <p className="text-sm text-slate-500">Печать не загружена — заявки выйдут без неё.</p>
+                <p className="text-sm text-slate-500">{t('settings.stampMissing')}</p>
               )}
               <input type="file" name="stamp" accept="image/png" className="block text-sm" />
-              <p className="text-xs text-slate-400">PNG до 2 МБ, лучше с прозрачным фоном. Заменит текущую.</p>
+              <p className="text-xs text-slate-400">{t('settings.stampHint')}</p>
             </div>
 
             <div className="card p-5 md:p-6 space-y-3">
               <h2 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2">
-                <Send className="w-5 h-5 text-brand-600" strokeWidth={2} /> Telegram и вход
+                <Send className="w-5 h-5 text-brand-600" strokeWidth={2} /> {t('settings.sectionTelegram')}
               </h2>
-              <Field name="telegram_bot" label="Имя Telegram-бота" value={row?.telegram_bot} placeholder="example_bot" hint="Без @. Для ссылок подключения водителей к уведомлениям" />
-              <Field name="legacy_login_domain" label="Домен старых логинов" value={row?.legacy_login_domain} placeholder="не нужен для новых компаний" hint="Логин без e-mail превращается в «логин@домен». Оставьте пустым, если все входят по e-mail или фамилии" />
+              <Field name="telegram_bot" label={t('settings.telegramBot')} value={row?.telegram_bot} placeholder="example_bot" hint={t('settings.telegramBotHint')} />
+              <Field name="legacy_login_domain" label={t('settings.legacyDomain')} value={row?.legacy_login_domain} placeholder={t('settings.legacyDomainPlaceholder')} hint={t('settings.legacyDomainHint')} />
             </div>
 
-            <SubmitButton>Сохранить</SubmitButton>
+            <SubmitButton>{t('common.save')}</SubmitButton>
           </fieldset>
         </form>
       </div>

@@ -1,11 +1,14 @@
 import { RadioTower, Lock } from 'lucide-react';
 import LoginForm from './LoginForm';
-import { getCompany } from '../../lib/company';
+import { getCompanyBranding } from '../../lib/company';
+import { getT } from '../../lib/i18n/server';
+import LanguageSwitcher from '../components/LanguageSwitcher';
 
 export const dynamic = 'force-dynamic';
 
 export default async function LoginPage() {
-  const company = await getCompany();
+  const company = await getCompanyBranding();
+  const { t } = await getT();
   return (
     <main className="min-h-screen flex">
       {/* ЛЕВАЯ ЧАСТЬ: брендинг (только на десктопе) */}
@@ -48,15 +51,15 @@ export default async function LoginPage() {
           {/* Центральный текст */}
           <div className="max-w-md">
             <h1 className="text-4xl xl:text-5xl font-bold leading-tight mb-4">
-              Управляйте
+              {t('login.heroLine1')}
               <br />
-              <span className="text-amber-400">логистикой</span>
+              <span className="text-amber-400">{t('login.heroLine2')}</span>
               <br />
-              из одного окна
+              {t('login.heroLine3')}
             </h1>
             <p className="text-slate-300 text-base xl:text-lg leading-relaxed">
-              Заказы, экспедирование, водители, документы — всё в одном месте.
-              Синхронизация с Logisat, уведомления в Telegram, отчёты в Excel.
+              {t('login.heroText1')}{' '}
+              {t('login.heroText2')}
             </p>
           </div>
 
@@ -64,7 +67,7 @@ export default async function LoginPage() {
           <div className="flex flex-wrap gap-3 text-xs text-slate-400">
             <div className="flex items-center gap-1.5 bg-white/5 backdrop-blur-sm px-3 py-1.5 rounded-full border border-white/10">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-              <span>Работает 24/7</span>
+              <span>{t('login.badge247')}</span>
             </div>
             <div className="flex items-center gap-1.5 bg-white/5 backdrop-blur-sm px-3 py-1.5 rounded-full border border-white/10">
               <RadioTower className="w-3 h-3" />
@@ -72,7 +75,7 @@ export default async function LoginPage() {
             </div>
             <div className="flex items-center gap-1.5 bg-white/5 backdrop-blur-sm px-3 py-1.5 rounded-full border border-white/10">
               <Lock className="w-3 h-3" />
-              <span>Защищено</span>
+              <span>{t('login.badgeSecure')}</span>
             </div>
           </div>
         </div>
@@ -84,6 +87,9 @@ export default async function LoginPage() {
         <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-brand-50/30 to-slate-50 lg:hidden" />
 
         <div className="relative w-full max-w-sm">
+          <div className="flex justify-end mb-4">
+            <LanguageSwitcher />
+          </div>
           {/* Логотип сверху (только мобильный / планшет) */}
           <div className="lg:hidden text-center mb-8">
             <div className="inline-flex items-center gap-3 mb-3">
@@ -107,9 +113,9 @@ export default async function LoginPage() {
           {/* Карточка */}
           <div className="bg-white p-8 rounded-3xl shadow-xl shadow-slate-900/5 border border-slate-100">
             <div className="mb-6">
-              <h2 className="text-2xl font-bold text-slate-900">Вход в систему</h2>
+              <h2 className="text-2xl font-bold text-slate-900">{t('login.title')}</h2>
               <p className="text-sm text-slate-500 mt-1">
-                Введите логин и пароль для продолжения
+                {t('login.subtitle')}
               </p>
             </div>
 

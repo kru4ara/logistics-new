@@ -38,10 +38,11 @@ export type Company = {
   legacyLoginDomain: string | null;
 };
 
+/** Подстановки в условиях перевозки → ключ перевода с пояснением. */
 export const TERM_PLACEHOLDERS = {
-  '{payment_days}': 'срок оплаты в днях',
-  '{documents}': 'какие документы нужны для оплаты (оригинал CMR или сканы)',
-  '{email}': 'e-mail компании',
+  '{payment_days}': 'settings.placeholderPaymentDays',
+  '{documents}': 'settings.placeholderDocuments',
+  '{email}': 'settings.placeholderEmail',
 } as const;
 
 const DOCS_ORIGINALS = 'oryginała CMR (potwierdzonego podpisem, pieczątką odbiorcy)';
@@ -147,22 +148,24 @@ export function companyFromRow(row: CompanyRow): Company {
   };
 }
 
-export type CompanyFormResult = { ok: true; row: CompanyRow } | { ok: false; error: string };
+/** Код ошибки формы — текст подбирает страница на языке пользователя. */
+export type CompanyFormError = 'name' | 'email' | 'bot';
+export type CompanyFormResult = { ok: true; row: CompanyRow } | { ok: false; error: CompanyFormError };
 
 /** Разбор формы /settings. Условия — по одному на строку. */
 export function parseCompanyForm(get: (key: string) => string | null): CompanyFormResult {
   const v = (k: string) => (get(k) ?? '').trim();
   const name = v('name');
-  if (!name) return { ok: false, error: 'Укажите название компании' };
+  if (!name) return { ok: false, error: 'name' };
 
   const email = v('email');
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return { ok: false, error: 'Неверный e-mail' };
+    return { ok: false, error: 'email' };
   }
 
   const bot = v('telegram_bot').replace(/^@/, '');
   if (bot && !/^[A-Za-z0-9_]{5,32}$/.test(bot)) {
-    return { ok: false, error: 'Имя Telegram-бота: латиница, цифры и _, 5–32 символа' };
+    return { ok: false, error: 'bot' };
   }
 
   const terms = v('terms')

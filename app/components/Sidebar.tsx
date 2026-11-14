@@ -2,7 +2,10 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { can, isDriverRole, capabilityForPath } from '../../lib/roles';
+import { can, isDriverRole, isManagerRole, capabilityForPath } from '../../lib/roles';
+import type { MessageKey } from '../../lib/i18n/translate';
+import { useT } from './I18nProvider';
+import LanguageSwitcher from './LanguageSwitcher';
 import { useEffect, useState } from 'react';
 import {
   Package,
@@ -32,57 +35,58 @@ import {
 } from 'lucide-react';
 import { logout } from '../login/actions';
 
+// Подписи — ключи перевода (lib/i18n/messages), не текст.
 type NavItem = {
   href: string;
-  label: string;
+  labelKey: MessageKey;
   icon: LucideIcon;
 };
 
 type NavSection = {
-  title: string;
+  titleKey: MessageKey;
   items: NavItem[];
 };
 
 const adminSections: NavSection[] = [
   {
-    title: 'Работа',
+    titleKey: 'nav.sectionWork',
     items: [
-      { href: '/trips', label: 'Заказы', icon: Package },
-      { href: '/routes', label: 'Маршруты', icon: Route },
-      { href: '/map', label: 'Карта', icon: Map },
+      { href: '/trips', labelKey: 'nav.trips', icon: Package },
+      { href: '/routes', labelKey: 'nav.routes', icon: Route },
+      { href: '/map', labelKey: 'nav.map', icon: Map },
     ],
   },
   {
-    title: 'Справочники',
+    titleKey: 'nav.sectionDirectory',
     items: [
-      { href: '/clients', label: 'Клиенты', icon: Users },
-      { href: '/drivers', label: 'Водители', icon: UserCircle },
-      { href: '/managers', label: 'Менеджеры', icon: Briefcase },
-      { href: '/trucks', label: 'Транспорт', icon: Truck },
-      { href: '/contractors', label: 'Подрядчики', icon: Building2 },
-      { href: '/locations', label: 'Локации', icon: MapPin },
+      { href: '/clients', labelKey: 'nav.clients', icon: Users },
+      { href: '/drivers', labelKey: 'nav.drivers', icon: UserCircle },
+      { href: '/managers', labelKey: 'nav.managers', icon: Briefcase },
+      { href: '/trucks', labelKey: 'nav.trucks', icon: Truck },
+      { href: '/contractors', labelKey: 'nav.contractors', icon: Building2 },
+      { href: '/locations', labelKey: 'nav.locations', icon: MapPin },
     ],
   },
   {
-    title: 'Аналитика',
+    titleKey: 'nav.sectionAnalytics',
     items: [
-      { href: '/statistics', label: 'Статистика', icon: BarChart3 },
-      { href: '/reports', label: 'Отчёты', icon: Wallet },
-      { href: '/fixed-costs', label: 'Общие расходы', icon: Banknote },
-      { href: '/audit', label: 'Аудит', icon: ScrollText },
-      { href: '/settings', label: 'Настройки компании', icon: Settings },
+      { href: '/statistics', labelKey: 'nav.statistics', icon: BarChart3 },
+      { href: '/reports', labelKey: 'nav.reports', icon: Wallet },
+      { href: '/fixed-costs', labelKey: 'nav.fixedCosts', icon: Banknote },
+      { href: '/audit', labelKey: 'nav.audit', icon: ScrollText },
+      { href: '/settings', labelKey: 'nav.settings', icon: Settings },
     ],
   },
 ];
 
 const driverSections: NavSection[] = [
   {
-    title: 'Моё',
+    titleKey: 'nav.sectionMine',
     items: [
-      { href: '/driver', label: 'Мои рейсы', icon: Package },
-      { href: '/driver/logisat', label: 'Logisat — топливо', icon: RadioTower },
-      { href: '/driver/stats', label: 'Моя статистика', icon: BarChart3 },
-      { href: '/driver/balance', label: 'Мои расчёты', icon: HandCoins },
+      { href: '/driver', labelKey: 'nav.myTrips', icon: Package },
+      { href: '/driver/logisat', labelKey: 'nav.logisatFuel', icon: RadioTower },
+      { href: '/driver/stats', labelKey: 'nav.myStats', icon: BarChart3 },
+      { href: '/driver/balance', labelKey: 'nav.myBalance', icon: HandCoins },
     ],
   },
 ];
@@ -113,7 +117,13 @@ function SidebarContent({
 }) {
   const expanded = mobile || isExpanded;
   const sections = isDriverRole(role) ? driverSections : adminSections;
-  const displayName = userName || (isAdmin ? 'Офис' : 'Водитель');
+  const { t } = useT();
+  const roleText = isDriverRole(role)
+    ? t('nav.roleDriver')
+    : isManagerRole(role)
+      ? t('nav.roleManager')
+      : t('nav.roleOffice');
+  const displayName = userName || roleText;
   const initials = displayName
     .split(' ')
     .map((w) => w[0])
@@ -162,10 +172,10 @@ function SidebarContent({
                 ${isActivePath(pathname, '/')
                   ? 'bg-brand-600 text-white shadow-brand'
                   : 'text-slate-300 hover:bg-white/5 hover:text-white'}`}
-              title={expanded ? undefined : 'Главная'}
+              title={expanded ? undefined : t('nav.home')}
             >
               <Home className="w-[18px] h-[18px] shrink-0" strokeWidth={2} />
-              {expanded && <span className="whitespace-nowrap">Главная</span>}
+              {expanded && <span className="whitespace-nowrap">{t('nav.home')}</span>}
             </Link>
             <Link
               href="/today"
@@ -174,19 +184,19 @@ function SidebarContent({
                 ${isActivePath(pathname, '/today')
                   ? 'bg-brand-600 text-white shadow-brand'
                   : 'text-slate-300 hover:bg-white/5 hover:text-white'}`}
-              title={expanded ? undefined : 'Сегодня'}
+              title={expanded ? undefined : t('nav.today')}
             >
               <Calendar className="w-[18px] h-[18px] shrink-0" strokeWidth={2} />
-              {expanded && <span className="whitespace-nowrap">Сегодня</span>}
+              {expanded && <span className="whitespace-nowrap">{t('nav.today')}</span>}
             </Link>
           </div>
         )}
 
         {sections.map((section) => (
-          <div key={section.title} className="mt-4">
+          <div key={section.titleKey} className="mt-4">
             {expanded ? (
               <div className="px-5 mb-1.5 text-[10px] uppercase tracking-[0.1em] text-slate-500 font-semibold">
-                {section.title}
+                {t(section.titleKey)}
               </div>
             ) : (
               <div className="mx-3 my-2 h-px bg-white/5" />
@@ -211,7 +221,7 @@ function SidebarContent({
                   <Link
                     key={item.href}
                     href={item.href}
-                    title={expanded ? undefined : item.label}
+                    title={expanded ? undefined : t(item.labelKey)}
                     className={`relative flex items-center gap-3 rounded-lg text-sm font-medium transition-all duration-150
                       ${expanded ? 'px-3 py-2' : 'justify-center px-0 py-2 w-10 mx-auto'}
                       ${active
@@ -222,7 +232,7 @@ function SidebarContent({
                       <span className="absolute -left-2 top-1/2 -translate-y-1/2 w-1 h-5 rounded-r-full bg-brand-500" />
                     )}
                     <Icon className="w-[18px] h-[18px] shrink-0" strokeWidth={2} />
-                    {expanded && <span className="whitespace-nowrap">{item.label}</span>}
+                    {expanded && <span className="whitespace-nowrap">{t(item.labelKey)}</span>}
                   </Link>
                 );
               })}
@@ -233,7 +243,7 @@ function SidebarContent({
         <div className="mt-4 pt-4 border-t border-white/5 px-2">
           <Link
             href={remindersHref}
-            title={expanded ? undefined : 'Напоминания'}
+            title={expanded ? undefined : t('nav.reminders')}
             className={`relative flex items-center gap-3 rounded-lg text-sm font-medium transition-all duration-150
               ${expanded ? 'px-3 py-2' : 'justify-center px-0 py-2 w-10 mx-auto'}
               ${isActivePath(pathname, remindersHref)
@@ -241,7 +251,7 @@ function SidebarContent({
                 : 'text-slate-300 hover:bg-white/5 hover:text-white'}`}
           >
             <Bell className="w-[18px] h-[18px] shrink-0" strokeWidth={2} />
-            {expanded && <span className="whitespace-nowrap">Напоминания</span>}
+            {expanded && <span className="whitespace-nowrap">{t('nav.reminders')}</span>}
           </Link>
         </div>
       </div>
@@ -258,17 +268,23 @@ function SidebarContent({
             <div className="min-w-0 flex-1">
               <div className="text-white text-sm font-semibold truncate">{displayName}</div>
               <div className="text-slate-500 text-[10px] uppercase tracking-wide">
-                {isAdmin ? 'Admin' : 'Driver'}
+                {roleText}
               </div>
             </div>
           )}
         </div>
 
+        {expanded && (
+          <div className="px-3 py-1">
+            <LanguageSwitcher tone="dark" />
+          </div>
+        )}
+
         {!mobile && (
           <button
             type="button"
             onClick={onTogglePin}
-            title={isPinned ? 'Открепить панель' : 'Закрепить панель'}
+            title={isPinned ? t('nav.unpinPanel') : t('nav.pinPanel')}
             className={`w-full flex items-center gap-3 rounded-lg py-2 text-sm font-medium transition-all
               ${expanded ? 'px-3' : 'justify-center px-0'}
               ${isPinned ? 'text-brand-300 bg-brand-500/10 hover:bg-brand-500/20' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}
@@ -276,20 +292,20 @@ function SidebarContent({
             {isPinned
               ? <PinOff className="w-[18px] h-[18px] shrink-0" strokeWidth={2} />
               : <Pin className="w-[18px] h-[18px] shrink-0" strokeWidth={2} />}
-            {expanded && <span className="whitespace-nowrap">{isPinned ? 'Открепить' : 'Закрепить'}</span>}
+            {expanded && <span className="whitespace-nowrap">{isPinned ? t('nav.unpin') : t('nav.pin')}</span>}
           </button>
         )}
 
         <button
           type="button"
           onClick={handleLogout}
-          title={expanded ? undefined : 'Выйти'}
+          title={expanded ? undefined : t('nav.logout')}
           className={`w-full flex items-center gap-3 rounded-lg py-2 text-sm font-medium transition-all
             text-red-400 hover:bg-red-500/10 hover:text-red-300
             ${expanded ? 'px-3' : 'justify-center px-0'}`}
         >
           <LogOut className="w-[18px] h-[18px] shrink-0" strokeWidth={2} />
-          {expanded && <span className="whitespace-nowrap">Выйти</span>}
+          {expanded && <span className="whitespace-nowrap">{t('nav.logout')}</span>}
         </button>
       </div>
     </div>
@@ -311,6 +327,7 @@ export default function Sidebar({
   isPinned: boolean;
   onTogglePin: () => void;
 }) {
+  const { t } = useT();
   const pathname = usePathname();
   const [isHovered, setIsHovered] = useState(false);
 
@@ -374,7 +391,7 @@ export default function Sidebar({
               onClick={onMobileClose}
               className="absolute top-3 right-3 w-9 h-9 rounded-lg flex items-center justify-center
                          text-slate-400 hover:text-white hover:bg-white/5 transition-colors z-10"
-              aria-label="Закрыть меню"
+              aria-label={t('nav.closeMenu')}
             >
               <X className="w-5 h-5" strokeWidth={2} />
             </button>
