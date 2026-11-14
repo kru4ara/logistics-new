@@ -72,6 +72,7 @@ const adminSections: NavSection[] = [
     items: [
       { href: '/statistics', labelKey: 'nav.statistics', icon: BarChart3 },
       { href: '/reports', labelKey: 'nav.reports', icon: Wallet },
+      { href: '/receivables', labelKey: 'nav.receivables', icon: HandCoins },
       { href: '/fixed-costs', labelKey: 'nav.fixedCosts', icon: Banknote },
       { href: '/audit', labelKey: 'nav.audit', icon: ScrollText },
       { href: '/settings', labelKey: 'nav.settings', icon: Settings },

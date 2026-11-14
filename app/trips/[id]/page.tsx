@@ -23,6 +23,9 @@ import { withSignedUrls } from '../../../lib/storage-urls';
 import { getT } from '../../../lib/i18n/server';
 import { tripStatusKey, TRIP_STATUSES } from '../../../lib/i18n/labels';
 import { getDriverT } from '../../../lib/driver-locale';
+import PaymentBlock from './PaymentBlock';
+import { getSessionContext } from '../../../lib/session';
+import { can } from '../../../lib/roles';
 
 export const dynamic = 'force-dynamic';
  
@@ -45,6 +48,7 @@ function pickOne<T>(rel: unknown): T | null {
 
 export default async function TripDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { t } = await getT();
+  const { role } = await getSessionContext();
   const { id: tripId } = await params;
   if (!tripId) return <div className="p-8">{t('trip.noId')}</div>;
 
@@ -439,6 +443,16 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
           otherExpenses={otherExpenses}
           profit={profit}
         />
+
+        {can(role, 'receivables.edit') && ['invoiced', 'paid'].includes(trip.status) && (
+          <PaymentBlock
+            tripId={tripId}
+            invoiceNumber={trip.invoice_number ?? null}
+            invoicedAt={trip.invoiced_at ?? null}
+            paymentDue={trip.payment_due ?? null}
+            paidAt={trip.paid_at ?? null}
+          />
+        )}
 
         <div className="card p-5 md:p-6">
           <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">

@@ -18,6 +18,11 @@ async function createClient(formData: FormData) {
   const contactPerson = formData.get('contact_person') as string;
   const phone = formData.get('phone') as string;
   const email = formData.get('email') as string;
+  const daysRaw = String(formData.get('payment_days') ?? '').trim();
+  const paymentDays = daysRaw === '' ? null : Number(daysRaw);
+  if (paymentDays !== null && !(Number.isInteger(paymentDays) && paymentDays >= 0 && paymentDays <= 365)) {
+    throw new Error(t('recv.badDays'));
+  }
 
   const { data: created, error } = await supabase
     .from('clients')
@@ -26,7 +31,8 @@ async function createClient(formData: FormData) {
         name: name,
         contact_person: contactPerson || null,
         phone: phone || null,
-        email: email || null
+        email: email || null,
+        payment_days: paymentDays,
       }
     ])
     .select('id')
@@ -120,6 +126,11 @@ export default async function NewClientPage() {
                   placeholder="client@example.com"
                   className="input"
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{t('recv.paymentDays')}</label>
+                <input type="number" name="payment_days" min={0} max={365} placeholder="30" className="input" />
+                <p className="text-xs text-slate-400 mt-1">{t('recv.paymentDaysHint')}</p>
               </div>
             </div>
           </div>
