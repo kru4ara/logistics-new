@@ -50,8 +50,8 @@ const TABLES = [
 
 // Колонки стабильной сортировки при постраничном чтении (по умолчанию id).
 // Должны однозначно задавать строку — обычно первичный ключ.
-// ⚠️ Сверять с продом, а не с supabase/stubs/schema.sql: заглушка схемы
-// местами расходится (у trip_segment_cargo на проде нет id).
+// Ключи — по supabase/migrations/00000000_000_baseline.sql (схема прода):
+// у trip_segment_cargo нет id, ключ составной.
 const ORDER_COLUMNS: Record<string, string[]> = {
   rates: ['rate_date'],
   trip_segment_cargo: ['segment_id', 'cargo_id'],
