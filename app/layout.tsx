@@ -5,6 +5,9 @@ import AppShell from './components/AppShell';
 import Toaster from './components/Toaster';
 import ServiceWorkerRegister from './components/ServiceWorkerRegister';
 import { SpeedInsights } from '@vercel/speed-insights/next';
+import I18nProvider from './components/I18nProvider';
+import { getLocale } from '../lib/i18n/server';
+import { MESSAGES } from '../lib/i18n/messages';
 
 export const viewport: Viewport = {
   themeColor: '#0f172a',
@@ -33,13 +36,16 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const locale = await getLocale();
   return (
-    <html lang="ru">
+    <html lang={locale}>
       <body>
-        <Suspense fallback={null}>
-          <Toaster />
-        </Suspense>
-        <AppShell>{children}</AppShell>
+        <I18nProvider locale={locale} messages={MESSAGES[locale]}>
+          <Suspense fallback={null}>
+            <Toaster />
+          </Suspense>
+          <AppShell>{children}</AppShell>
+        </I18nProvider>
         <ServiceWorkerRegister />
         <SpeedInsights />
       </body>
