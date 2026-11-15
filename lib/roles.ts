@@ -64,6 +64,8 @@ export const CAPABILITIES = [
   // Дебиторка: неоплаченные счета ВСЕХ клиентов (без скоупа менеджера), отметка оплаты.
   'receivables.view',
   'receivables.edit',
+  'payables.view',
+  'payables.edit',
 ] as const;
 
 export type Capability = (typeof CAPABILITIES)[number];
@@ -103,7 +105,9 @@ const MANAGER: Capability[] = OFFICE.filter(
     c !== 'settings.edit' &&
     // дебиторка — по всем клиентам, без скоупа (см. правило 4 в AGENTS.md)
     c !== 'receivables.view' &&
-    c !== 'receivables.edit'
+    c !== 'receivables.edit' &&
+    c !== 'payables.view' &&
+    c !== 'payables.edit'
 );
 
 export const ROLE_CAPABILITIES: Record<string, Capability[]> = {
@@ -239,6 +243,7 @@ export const PATH_CAPABILITIES: PathRule[] = [
   { prefix: '/settings', capability: 'settings.edit', writeCapability: 'settings.edit' },
   { prefix: '/map', capability: 'map.view' },
   { prefix: '/receivables', capability: 'receivables.view', writeCapability: 'receivables.edit' },
+  { prefix: '/payables', capability: 'payables.view', writeCapability: 'payables.edit' },
   { prefix: '/api/invoices', capability: 'receivables.view' },
   { prefix: '/api/export', capability: 'export.view' },
   { prefix: '/api/logisat/query', capability: 'logisat.view' },

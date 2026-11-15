@@ -17,7 +17,8 @@ export type AuditEntityType =
   | 'reminder'
   | 'driver_transaction'
   | 'manager'
-  | 'company';
+  | 'company'
+  | 'purchase_invoice';
 
 type LogInput = {
   entity_type: AuditEntityType;

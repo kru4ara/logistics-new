@@ -107,6 +107,7 @@ DATABASE_URL='<строка Session pooler>' node scripts/migrate.mjs   # вто
 | `TELEGRAM_WEBHOOK_SECRET` | шаг 4.3 🔐 |
 | `LOGISAT_SERVER` / `LOGISAT_USERNAME` / `LOGISAT_PASSWORD` | только если у клиента GPS Logisat 🔐 |
 | `INVOICING_PROVIDER` + ключи сервиса фактур | только если клиент выставляет фактуры из CRM. **Fakturowo.pl:** `FAKTUROWO_API_ID` (Konto → API; услуга API платная, разовая активация) — в KSeF клиент отправляет кнопкой «Wyślij do KSeF» в Fakturowo, CRM подтягивает номер KSeF. **Fakturownia:** `FAKTUROWNIA_DOMAIN` (`firma` из `firma.fakturownia.pl`) и `FAKTUROWNIA_API_TOKEN` (Ustawienia → Ustawienia konta → Integracja) — отправляет в KSeF сама 🔐. Новый сервис — модуль в `lib/invoicing/` |
+| `KSEF_TOKEN` / `KSEF_NIP` | только если клиент хочет видеть счета подрядчиков в CRM: токен KSeF клиента **только с правом «przeglądanie faktur»** (Aplikacja Podatnika KSeF → Tokeny) 🔐 и NIP компании. `KSEF_ENV=demo` — для пробы на демо-среде |
 | `TENANT_NAME` | `<client>` — имя компании в оповещениях о сбоях |
 | `OPS_TELEGRAM_BOT_TOKEN` / `OPS_TELEGRAM_CHAT_ID` | **ваш** бот и чат поддержки — одинаковые во всех проектах 🔐 (см. ниже) |
 
