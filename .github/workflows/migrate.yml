@@ -9,8 +9,8 @@ name: Migrations
 #   staging    — на каждый PR с миграциями (секрет окружения `staging`: STAGING_DATABASE_URL).
 #                Нет секрета — шаг пропускается.
 #   production — после merge в master: ждёт деплой Vercel этого коммита, показывает план
-#                и применяет. Окружение `production` с обязательным подтверждением
-#                (Settings → Environments → production → Required reviewers).
+#                и применяет. Окружение `migrations` с обязательным подтверждением
+#                (Settings → Environments → migrations → Required reviewers).
 #                Секрет окружения: PROD_DATABASE_URL (одна база) или TENANTS_JSON
 #                (все клиенты: [{ "name": "…", "url": "postgresql://…" }]).
 #   вручную    — Actions → Migrations → Run workflow: «только план» (dry run) или применить.
@@ -60,7 +60,7 @@ jobs:
   production:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
-    environment: production
+    environment: migrations
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -100,7 +100,7 @@ jobs:
           elif [ -n "$PROD_DATABASE_URL" ]; then
             echo "MIGRATE_ARGS=" >> "$GITHUB_ENV"
           else
-            echo "::error::Нет секрета PROD_DATABASE_URL или TENANTS_JSON в окружении production"; exit 1
+            echo "::error::Нет секрета PROD_DATABASE_URL или TENANTS_JSON в окружении migrations"; exit 1
           fi
 
       - name: План
