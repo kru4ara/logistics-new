@@ -11,9 +11,9 @@ merge в master ──► Vercel деплоит код ──► GitHub ждёт
 
 Все строки подключения вводятся **только в GitHub**, не в чат и не в код.
 
-### 1. Окружение `production`
+### 1. Окружение `migrations`
 
-GitHub → репозиторий → **Settings → Environments → New environment** → `production`.
+GitHub → репозиторий → **Settings → Environments → New environment** → `migrations`. (Окружения `Production` и `Preview` создал Vercel для своих деплоев — их не трогать.)
 
 - **Required reviewers** — отметить себя. Без вашего нажатия «Approve» миграция не пойдёт.
 - **Deployment branches** → *Selected branches* → `master`.
