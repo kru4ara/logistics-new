@@ -92,15 +92,15 @@ export function planInvoiceSync(provider: ProviderId, remote: RemoteInvoice[], t
       patch.payment_due = r.paymentDue;
       changes.push('due');
     }
+    // Дата счёта — из сервиса, если в CRM её нет (номер вписан вручную, заказ уже оплачен…).
+    if (!trip.invoiced_at && r.issueDate) patch.invoiced_at = r.issueDate;
     const status = trip.status ?? '';
     if (r.payment === 'paid' && status !== 'paid' && (status === 'invoiced' || BEFORE_INVOICE.includes(status))) {
       // Оплату ставим только вперёд: «оплачено» в CRM сервис не отменяет.
       patch.status = 'paid';
-      if (!trip.invoiced_at && r.issueDate) patch.invoiced_at = r.issueDate;
       changes.push('paid');
     } else if (BEFORE_INVOICE.includes(status)) {
       patch.status = 'invoiced';
-      if (!trip.invoiced_at && r.issueDate) patch.invoiced_at = r.issueDate;
       changes.push('invoiced');
     }
     if (Object.keys(patch).length) updates.push({ tripId: trip.id, number: r.number, patch, changes });
