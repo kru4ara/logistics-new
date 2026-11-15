@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { planInvoiceSync, normalizeInvoiceNumber, type SyncTrip } from '../invoicing/sync-rules';
-import { parseDocRow, parseDocPage, isoFromDdMmYyyy } from '../invoicing/fakturowo-rules';
+import { parseDocRow, parseDocPage, isoFromDdMmYyyy, daysFromZaplata } from '../invoicing/fakturowo-rules';
 import type { RemoteInvoice } from '../invoicing/types';
 
 const KSEF = '7011162939-20261114-52D8B6C00001-C4';
@@ -24,6 +24,18 @@ describe('разбор списка Fakturowo', () => {
     expect(d.paymentDue).toBe('2026-11-23');
     expect(d.buyerTaxId).toBe('BY692203928');
   });
+  it('даты и срок: разные форматы; пустой termin — из способа оплаты', () => {
+    expect(isoFromDdMmYyyy('2026-11-23')).toBe('2026-11-23');
+    expect(isoFromDdMmYyyy('23.11.2026')).toBe('2026-11-23');
+    expect(isoFromDdMmYyyy('')).toBeNull();
+    expect(daysFromZaplata('przelew w terminie 10 dni')).toBe(10);
+    expect(daysFromZaplata('10')).toBe(30);
+    expect(daysFromZaplata('gotówka')).toBeNull();
+    const r = row({ termin: '' }).replace(';0;7;;', ';0;przelew w terminie 10 dni;;');
+    expect(parseDocRow(r)!.paymentDue).toBe('2026-11-23');
+    expect(parseDocRow(row({ termin: '' }))!.paymentDue).toBeNull(); // код 7 — неизвестен
+  });
+
   it('строки позиций и мусор — не документы', () => {
     expect(parseDocRow('Usługa transportowa;szt.;1;3800;3800;0;3800;np;0;3800')).toBeNull();
     expect(parseDocPage(['2', row(), 'Usługa;szt.;1;1;1;0;1;np;0;1', row({ id: '9', num: '81/11/2026' })]))
@@ -55,6 +67,11 @@ describe('сверка дебиторки', () => {
       patch: { ksef_number: KSEF, ksef_status: 'ok', ksef_error: null, status: 'paid' },
       changes: ['ksef', 'paid'],
     }]);
+  });
+
+  it('номер вписан вручную и уже связан, даты в CRM нет — берём дату счёта из сервиса', () => {
+    const { updates } = planInvoiceSync('fakturowo', [remote({ payment: 'paid' })], [trip({ status: 'paid', invoiced_at: null })]);
+    expect(updates[0].patch).toEqual({ invoiced_at: '2026-11-13' });
   });
 
   it('ничего не изменилось — нет обновлений', () => {

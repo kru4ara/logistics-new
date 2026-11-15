@@ -91,11 +91,25 @@ export function parseReply(text: string): FakturowoReply {
 /** Номер KSeF: NIP-ГГГГММДД-12 hex-12-2 hex, например 7011162939-20261114-52D8B6C00001-C4. */
 export const KSEF_NUMBER_RE = /\b\d{10}-\d{8}-[0-9A-F]{12}-[0-9A-F]{2}\b/i;
 
-/** «13-11-2026» → «2026-11-13»; не дата — null. */
+/** «13-11-2026», «13.11.2026» или «2026-11-13» → «2026-11-13»; не дата — null. */
 export function isoFromDdMmYyyy(v: string | null | undefined): string | null {
-  const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec((v ?? '').trim());
+  const s = (v ?? '').trim();
+  const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  const m = /^(\d{2})[-.](\d{2})[-.](\d{4})$/.exec(s);
   return m ? `${m[3]}-${m[2]}-${m[1]}` : null;
 }
+
+/** Срок из способа оплаты: «przelew w terminie 10 dni» / код 8, 10, 11 (14, 30, 60 дней). */
+export function daysFromZaplata(v: string | null | undefined): number | null {
+  const s = (v ?? '').trim();
+  const m = /(\d{1,3})\s*dni/i.exec(s);
+  if (m) return Number(m[1]);
+  const byCode: Record<string, number> = { '8': 14, '10': 30, '11': 60 };
+  return byCode[s] ?? null;
+}
+
+const addDays = (iso: string, n: number) => new Date(Date.parse(`${iso}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
 
 /** Документ из списка Fakturowo (api_zadanie=3). */
 export type FakturowoDoc = {
@@ -140,7 +154,10 @@ export function parseDocRow(line: string): FakturowoDoc | null {
     buyerName: f[12] || null,
     buyerTaxId: f[f.length - 5] || null,
     status: tail[0] || null,
-    paymentDue: isoFromDdMmYyyy(tail[2]),
+    // Срок: поле termin; пустое — из способа оплаты («przelew w terminie N dni»).
+    paymentDue:
+      isoFromDdMmYyyy(tail[2]) ??
+      (isoFromDdMmYyyy(f[3]) && daysFromZaplata(tail[1]) != null ? addDays(isoFromDdMmYyyy(f[3])!, daysFromZaplata(tail[1])!) : null),
     ksefNumber: ksef && KSEF_NUMBER_RE.test(ksef) ? ksef.match(KSEF_NUMBER_RE)![0] : ksef || null,
   };
 }
