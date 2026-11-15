@@ -1889,6 +1889,7 @@ export const pl: Messages = {
     taxNp: 'nie podlega (np)',
     taxZw: 'zwolnione (zw)',
     npKind: 'Podstawa „np”',
+    npPlain: 'np. — bez wskazania podstawy (zwykle poza UE)',
     npEu: 'Usługa w UE (art. 100 ust. 1 pkt 4)',
     npOutside: 'Usługa poza UE',
     reverseCharge: 'Adnotacja „Odwrotne obciążenie”',

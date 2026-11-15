@@ -26,6 +26,7 @@ type Defaults = {
   reverseCharge: boolean;
   lang: string;
   positionName: string;
+  note: string | null;
 };
 
 type Props = {
@@ -164,7 +165,7 @@ export default function InvoiceBlock({ tripId, provider, issued, defaults, clien
 
       <label className="block">
         <span className="block text-sm font-medium text-slate-700 mb-1">{t('inv.position')}</span>
-        <input name="position_name" defaultValue={defaults.positionName} maxLength={256} className="input" required />
+        <textarea name="position_name" defaultValue={defaults.positionName} maxLength={512} rows={4} className="input" required />
       </label>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -193,7 +194,8 @@ export default function InvoiceBlock({ tripId, provider, issued, defaults, clien
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <label className="block">
             <span className="block text-sm font-medium text-slate-700 mb-1">{t('inv.npKind')}</span>
-            <select name="np_kind" defaultValue={defaults.npKind ?? 'export_service_eu'} className="input">
+            <select name="np_kind" defaultValue={defaults.npKind ?? ''} className="input">
+              <option value="">{t('inv.npPlain')}</option>
               <option value="export_service_eu">{t('inv.npEu')}</option>
               <option value="export_service">{t('inv.npOutside')}</option>
             </select>
@@ -230,7 +232,7 @@ export default function InvoiceBlock({ tripId, provider, issued, defaults, clien
 
       <label className="block">
         <span className="block text-sm font-medium text-slate-700 mb-1">{t('inv.note')}</span>
-        <input name="note" maxLength={200} className="input" />
+        <textarea name="note" defaultValue={defaults.note ?? ''} maxLength={500} rows={2} className="input" />
       </label>
 
       {provider.autoKsef ? (
