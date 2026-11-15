@@ -26,6 +26,7 @@ import { getDriverT } from '../../../lib/driver-locale';
 import PaymentBlock from './PaymentBlock';
 import InvoiceBlock from './InvoiceBlock';
 import ContractorInvoices from './ContractorInvoices';
+import { isMonthClosed, tripMonth } from '../../../lib/closed-months';
 import { getInvoiceProvider, providerById, providerInfo } from '../../../lib/invoicing';
 import { ksefStateOf } from '../../../lib/invoicing/types';
 import { normalizeCountry, suggestVat, suggestLang, positionName, normalizeTaxId, placeOf, vehicleNote } from '../../../lib/invoice-rules';
@@ -547,6 +548,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
                 .map((e: any) => [e.segment_id as string, Number(e.amount_eur) || 0]),
             )}
             canEdit={can(role, 'payables.edit')}
+            monthClosed={await isMonthClosed(supabase, tripMonth(trip))}
           />
         )}
 

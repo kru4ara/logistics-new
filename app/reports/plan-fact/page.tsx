@@ -1,10 +1,13 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { Scale, ArrowLeft } from 'lucide-react';
+import { Scale, ArrowLeft, Lock } from 'lucide-react';
 import { createClient } from '../../../lib/supabase/admin';
 import { fetchAll, fetchAllByIds } from '../../../lib/fetch-all';
 import { getSessionContext } from '../../../lib/session';
-import { deniedRedirect } from '../../../lib/roles';
+import { can, deniedRedirect } from '../../../lib/roles';
+import { formatDateTime } from '../../../lib/i18n/format';
+import { previewSegmentCost } from '../../../lib/payables/cost';
+import { CloseMonthButton, ApplyCostButton } from './MonthControls';
 import { getT } from '../../../lib/i18n/server';
 import { INTL_LOCALE } from '../../../lib/i18n/config';
 import { buildPlanFact, eurAt, monthRange, type ClientPF, type RateRow, type SegmentPF } from '../../../lib/plan-fact';
@@ -86,6 +89,19 @@ export default async function PlanFactPage({ searchParams }: { searchParams: Pro
   }));
   const r = buildPlanFact(segments, clients);
 
+  // Закрытие месяца: итоги на момент закрытия и изменения по счетам, ждущие подтверждения.
+  const canClose = can(role, 'months.close');
+  const { data: closedRow, error: closedErr } = await supabase.from('closed_months').select('*').eq('month', month).maybeSingle();
+  const closed = !closedErr && closedRow ? (closedRow as { closed_at: string; closed_by: string | null; snapshot: Record<string, number> | null }) : null;
+  const pending: { seg: SegmentPF; currentEur: number | null; targetEur: number | null }[] = [];
+  if (closed) {
+    for (const s of segments.filter((x) => x.invoiceCount > 0)) {
+      const p = await previewSegmentCost(supabase, s.segmentId);
+      if (p?.pending) pending.push({ seg: s, currentEur: p.currentEur, targetEur: p.targetEur });
+    }
+  }
+  const monthLabel = new Intl.DateTimeFormat(INTL_LOCALE[locale], { month: 'long', year: 'numeric' }).format(new Date(`${month}-01T00:00:00Z`));
+
   const tripLink = (id: string, n: string | null, pos?: number) => (
     <Link href={`/trips/${id}`} className="text-brand-600 hover:underline">
       №{n ?? '—'}{pos != null ? ` · ${t('pf.leg', { n: pos })}` : ''}
@@ -108,11 +124,53 @@ export default async function PlanFactPage({ searchParams }: { searchParams: Pro
             </h1>
             <p className="text-slate-500 mt-1 text-sm md:text-base">{t('pf.hint')}</p>
           </div>
+          <div className="flex flex-wrap items-start gap-2">
+          {canClose && !closedErr && <CloseMonthButton month={month} closed={Boolean(closed)} label={monthLabel} />}
           <form className="flex items-center gap-2" method="get">
             <input type="month" name="month" defaultValue={month} className="input text-sm" />
             <button type="submit" className="btn btn-secondary text-sm">{t('pf.show')}</button>
           </form>
+          </div>
         </div>
+
+        {closed && (
+          <section className="card p-4 md:p-5 border border-slate-300 bg-slate-50 space-y-3">
+            <div className="flex items-start gap-2 text-sm text-slate-700">
+              <Lock className="w-4 h-4 mt-0.5 text-slate-500 shrink-0" />
+              <div>
+                <div className="font-semibold">{t('pf.closedTitle', { date: formatDateTime(closed.closed_at, locale), who: closed.closed_by ?? '—' })}</div>
+                {closed.snapshot && (
+                  <div className="text-xs text-slate-500 mt-0.5">
+                    {t('pf.snapshot', {
+                      trips: closed.snapshot.trips ?? 0,
+                      revenue: eur(closed.snapshot.revenueEur ?? 0),
+                      expenses: eur(closed.snapshot.expensesEur ?? 0),
+                      margin: eur(closed.snapshot.marginEur ?? 0),
+                    })}
+                  </div>
+                )}
+                <div className="text-xs text-slate-500 mt-0.5">{t('pf.closedHint')}</div>
+              </div>
+            </div>
+            {pending.length > 0 && (
+              <div>
+                <div className="text-sm font-semibold text-amber-700 mb-1">{t('pf.pending', { n: pending.length })}</div>
+                <table className="w-full text-sm">
+                  <tbody className="divide-y divide-slate-200">
+                    {pending.map(({ seg, currentEur, targetEur }) => (
+                      <tr key={seg.segmentId}>
+                        <td className="py-2 pr-3">{tripLink(seg.tripId, seg.tripNumber, seg.position)}</td>
+                        <td className="py-2 pr-3">{seg.contractorName ?? '—'}</td>
+                        <td className="py-2 pr-3 text-right tabular-nums">{t('pf.pendingAmounts', { now: eur(currentEur ?? 0), target: eur(targetEur ?? 0) })}</td>
+                        <td className="py-2 text-right">{canClose && <ApplyCostButton segmentId={seg.segmentId} />}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <div className="card p-4">

@@ -298,6 +298,8 @@ const TRANSLATED_FILES = [
   // plan-fact
   'app/reports/plan-fact/page.tsx',
   'lib/plan-fact.ts',
+  // close month
+  'app/reports/plan-fact/MonthControls.tsx',
 ];
 
 function cyrillicLiterals(file: string): string[] {

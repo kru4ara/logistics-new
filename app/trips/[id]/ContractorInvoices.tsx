@@ -41,11 +41,14 @@ export default async function ContractorInvoices({
   segments,
   actualEurBySegment,
   canEdit,
+  monthClosed = false,
 }: {
   segments: Seg[];
   /** сумма расхода «Подрядчик» участка в EUR — уже по счетам, если они есть */
   actualEurBySegment: Record<string, number>;
   canEdit: boolean;
+  /** месяц рейса закрыт — изменения по счетам ждут подтверждения в «План → факт» */
+  monthClosed?: boolean;
 }) {
   if (!segments.length) return null;
   const { t, locale } = await getT();
@@ -86,6 +89,12 @@ export default async function ContractorInvoices({
           {t('pay.block')}
         </h2>
         <p className="text-xs text-slate-500 mt-1">{t('pay.blockHint')}</p>
+        {monthClosed && (
+          <p className="text-xs text-slate-700 bg-slate-100 rounded-lg px-2.5 py-1.5 mt-2">
+            {t('pay.monthClosed')}{' '}
+            <Link href="/reports/plan-fact" className="underline">{t('pf.title')}</Link>
+          </p>
+        )}
       </div>
 
       {rows.map(({ s, planEur, list, actualEur, diff }) => (
