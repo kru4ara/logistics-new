@@ -74,7 +74,7 @@ export function buildFakturowoParams(
   // У типов 48/49 пометка о «np»/odwrotne obciążenie уже в самом документе.
   const note = [rodzaj === '0' && i.reverseCharge ? 'Odwrotne obciążenie' : null, i.note?.trim() || null]
     .filter(Boolean)
-    .join('. ');
+    .join('\n');
   if (note) p.dokument_uwagi = note;
   return p;
 }

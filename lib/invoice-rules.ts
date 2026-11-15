@@ -46,14 +46,15 @@ export function isValidNip(nip: string): boolean {
  * Предложение НДС по стране покупателя — только значение по умолчанию в форме,
  * офис может поменять. Транспортная услуга B2B облагается по месту покупателя
  * (art. 28b): польский покупатель — 23 %, покупатель из ЕС — «np» с пометкой
- * «odwrotne obciążenie», вне ЕС — «np» (услуга за пределами ЕС).
+ * «odwrotne obciążenie», вне ЕС — «np.» без уточнения основания.
  */
 export function suggestVat(country: string | null): VatTreatment {
   if (!country || country === 'PL') return { tax: '23', npKind: null, reverseCharge: false };
   if ((EU_COUNTRIES as readonly string[]).includes(country)) {
     return { tax: 'np', npKind: 'export_service_eu', reverseCharge: true };
   }
-  return { tax: 'np', npKind: 'export_service', reverseCharge: false };
+  // Вне ЕС — «np.» без уточнения основания (так выставляли и раньше, KSeF принимает).
+  return { tax: 'np', npKind: null, reverseCharge: false };
 }
 
 /** Язык фактуры: польскому покупателю — польский, остальным — польско-английская. */
@@ -106,7 +107,7 @@ export function validateInvoice(i: InvoiceInput): InvoiceError | null {
   if (!ISO_DATE.test(i.issueDate) || !ISO_DATE.test(i.sellDate)) return 'dates';
   if (!Number.isInteger(i.paymentDays) || i.paymentDays < 0 || i.paymentDays > 365) return 'dates';
   const name = i.positionName.trim();
-  if (!name || name.length > 256) return 'positionName';
+  if (!name || name.length > POSITION_MAX) return 'positionName';
   if (!(TAX_RATES as readonly string[]).includes(i.tax)) return 'tax';
   return null;
 }
@@ -165,8 +166,8 @@ export function buildInvoicePayload(i: InvoiceInput, bankAccount: string | null)
   if (i.tax === 'np' && i.npKind) invoice.np_tax_kind = i.npKind;
   if (i.buyer.email) invoice.buyer_email = i.buyer.email;
   if (bankAccount) invoice.seller_bank_account = bankAccount;
-  const note = [i.reverseCharge ? 'Odwrotne obciążenie' : null, i.note?.trim() || null].filter(Boolean).join('. ');
-  if (note) invoice.description = note.slice(0, 256);
+  const note = [i.reverseCharge ? 'Odwrotne obciążenie' : null, i.note?.trim() || null].filter(Boolean).join('\n');
+  if (note) invoice.description = note.slice(0, 1000);
   return { invoice };
 }
 
@@ -200,12 +201,50 @@ export function govErrors(v: unknown): string | null {
   return String(v);
 }
 
-/** Текст позиции: «Usługa transportowa: Poznań, PL → Berlin, DE. Zlecenie nr 123». */
-export function positionName(route: string | null, requestNo: string | null, tripNumber: string | null): string {
-  const parts = ['Usługa transportowa' + (route ? `: ${route}` : '')];
-  if (requestNo) parts.push(`Zlecenie nr ${requestNo}`);
-  else if (tripNumber) parts.push(`Zlecenie nr ${tripNumber}`);
-  return parts.join('. ').slice(0, 256);
+export const POSITION_MAX = 512;
+
+/**
+ * Текст позиции в несколько строк — как в фактурах компании:
+ *   Usługa transportowa
+ *   Zlecenie klienta: 6877
+ *   Załadunek: Trud village, Bulgaria
+ *   Rozładunek: Brest, Belarus
+ */
+export function positionName(p: {
+  requestNo: string | null;
+  tripNumber: string | null;
+  load: string | null;
+  unload: string | null;
+}): string {
+  const lines = ['Usługa transportowa'];
+  if (p.requestNo) lines.push(`Zlecenie klienta: ${p.requestNo}`);
+  else if (p.tripNumber) lines.push(`Zlecenie nr ${p.tripNumber}`);
+  if (p.load) lines.push(`Załadunek: ${p.load}`);
+  if (p.unload) lines.push(`Rozładunek: ${p.unload}`);
+  return lines.join('\n').slice(0, POSITION_MAX);
+}
+
+/** «Город, страна» из частей адреса; пустые части пропускаем. */
+export const placeOf = (city: string | null | undefined, country: string | null | undefined) =>
+  [city, country].map((x) => (x ?? '').trim()).filter(Boolean).join(', ') || null;
+
+/**
+ * «Dane pojazdu: РВ7970ТН / РВ6190ЕС --- WI042NM / WI652AX» — машины всех участков рейса
+ * (свои — тягач / прицеп, у перевозчика — номер из заявки), без повторов.
+ */
+export function vehicleNote(
+  segments: { truck: string | null; trailer: string | null; contractorTruck: string | null }[],
+): string | null {
+  const seen = new Set<string>();
+  const parts: string[] = [];
+  for (const s of segments) {
+    const v = s.contractorTruck?.trim() || [s.truck, s.trailer].map((x) => x?.trim()).filter(Boolean).join(' / ');
+    if (v && !seen.has(v)) {
+      seen.add(v);
+      parts.push(v);
+    }
+  }
+  return parts.length ? `Dane pojazdu: ${parts.join(' --- ')}` : null;
 }
 
 export type ClientRequisites = {

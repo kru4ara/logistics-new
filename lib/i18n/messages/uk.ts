@@ -1889,6 +1889,7 @@ export const uk: Messages = {
     taxNp: 'не оподатковується (np)',
     taxZw: 'звільнено (zw)',
     npKind: 'Підстава «np»',
+    npPlain: 'np. — без уточнення (як зазвичай поза ЄС)',
     npEu: 'Послуга в ЄС (art. 100 ust. 1 pkt 4)',
     npOutside: 'Послуга поза ЄС',
     reverseCharge: 'Позначка «Odwrotne obciążenie»',

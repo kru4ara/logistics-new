@@ -1889,6 +1889,7 @@ export const en: Messages = {
     taxNp: 'not subject (np)',
     taxZw: 'exempt (zw)',
     npKind: '“np” basis',
+    npPlain: 'np. — no basis specified (usual outside the EU)',
     npEu: 'Service in the EU (art. 100(1)(4))',
     npOutside: 'Service outside the EU',
     reverseCharge: '“Odwrotne obciążenie” (reverse charge) note',

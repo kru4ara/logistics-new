@@ -26,6 +26,8 @@ describe('fakturowo-rules', () => {
     expect(fakturowoKind({ tax: 'np', npKind: 'export_service_eu' })).toEqual({ rodzaj: '49', stawka: 'npII' });
     expect(fakturowoKind({ tax: 'np', npKind: 'export_service' })).toEqual({ rodzaj: '48', stawka: 'npI' });
     expect(fakturowoKind({ tax: '23', npKind: null })).toEqual({ rodzaj: '0', stawka: '23' });
+    // Беларусь и прочие вне ЕС: обычная Faktura VAT со ставкой «np» — как в фактурах компании.
+    expect(fakturowoKind({ tax: 'np', npKind: null })).toEqual({ rodzaj: '0', stawka: 'np' });
     expect(nipKind('PL', '5261040828')).toBe('0');
     expect(nipKind('DE', 'DE123')).toBe('2');
     expect(nipKind('UA', '123')).toBe('3');
@@ -51,6 +53,19 @@ describe('fakturowo-rules', () => {
       dokument_przelicz_walute: 'PLN', dokument_rodzaj_kursu: '0', dokument_data_wymiany: '13-11-2026',
       nabywca_nip_oznaczenie: '0' });
     expect(p.dokument_konto).toBeUndefined();
+  });
+
+  it('параметры: Беларусь, как в FV 80/11/2026', () => {
+    const p = buildFakturowoParams({ ...base, npKind: null, reverseCharge: false, paymentDays: 10,
+      issueDate: '2026-11-13', sellDate: '2026-11-13',
+      positionName: 'Usługa transportowa\nZlecenie klienta: 6877',
+      note: 'Dane pojazdu: РВ7970ТН / РВ6190ЕС --- WI042NM / WI652AX',
+      buyer: { ...base.buyer, name: 'MSB Logistics, LLC', taxId: 'BY692203928', country: 'BY', email: null } }, '2026-11-23', null);
+    expect(p).toMatchObject({ dokument_rodzaj: '0', produkt_stawka_vat: 'np', dokument_waluta: '1',
+      dokument_termin: '23-11-2026', nabywca_nip: 'BY692203928', nabywca_kraj: 'BY', nabywca_nip_oznaczenie: '3',
+      produkt_nazwa: 'Usługa transportowa\nZlecenie klienta: 6877',
+      dokument_uwagi: 'Dane pojazdu: РВ7970ТН / РВ6190ЕС --- WI042NM / WI652AX' });
+    expect(p.dokument_przelicz_walute).toBeUndefined();
   });
 
   it('ответы API', () => {

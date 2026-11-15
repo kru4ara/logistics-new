@@ -1891,6 +1891,7 @@ export const ru = {
     taxNp: 'не облагается (np)',
     taxZw: 'освобождено (zw)',
     npKind: 'Основание «np»',
+    npPlain: 'np. — без уточнения (как обычно вне ЕС)',
     npEu: 'Услуга в ЕС (art. 100 ust. 1 pkt 4)',
     npOutside: 'Услуга вне ЕС',
     reverseCharge: 'Пометка «Odwrotne obciążenie»',

@@ -27,7 +27,7 @@ import PaymentBlock from './PaymentBlock';
 import InvoiceBlock from './InvoiceBlock';
 import { getInvoiceProvider, providerById, providerInfo } from '../../../lib/invoicing';
 import { ksefStateOf } from '../../../lib/invoicing/types';
-import { normalizeCountry, suggestVat, suggestLang, positionName, normalizeTaxId } from '../../../lib/invoice-rules';
+import { normalizeCountry, suggestVat, suggestLang, positionName, normalizeTaxId, placeOf, vehicleNote } from '../../../lib/invoice-rules';
 import type { MessageKey } from '../../../lib/i18n/translate';
 import { getSessionContext } from '../../../lib/session';
 import { can } from '../../../lib/roles';
@@ -222,7 +222,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
 
   const segments = (segmentsRaw || []).map((s: any) => {
     const truck = pickOne<{ registration_number: string | null }>(s.trucks);
-    const trailer = pickOne<{ registration_number: string | null }>(s.trailer);
+    const trailer = pickOne<{ registration_number: string | null }>(s.trailers);
     const driver = pickOne<{ first_name: string | null; last_name: string | null }>(s.drivers);
     const driverName = driver
       ? `${driver.first_name || ''} ${driver.last_name || ''}`.trim() || null
@@ -344,7 +344,8 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
     if (cl && !normalizeTaxId(cl.tax_id, country)) missing.push('inv.missTaxId');
     if (cl && (!cl.street || !cl.city)) missing.push('inv.missAddress');
     if (cl && !country) missing.push('inv.missCountry');
-    const route = buildRouteMap((segmentsRaw || []) as never).get(tripId)?.route ?? null;
+    const firstSeg = segments[0];
+    const lastSeg = segments[segments.length - 1];
     const todayStr = new Date().toISOString().slice(0, 10);
     const sell = (trip.unload_date || (trip.end_date ? String(trip.end_date).slice(0, 10) : null) || todayStr) as string;
     const provider = trip.invoice_external_id ? providerById(trip.invoice_provider) : getInvoiceProvider();
@@ -389,7 +390,15 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
           npKind: vat.npKind,
           reverseCharge: vat.reverseCharge,
           lang: suggestLang(country),
-          positionName: positionName(route, trip.client_request_number ?? null, trip.trip_number ?? null),
+          positionName: positionName({
+            requestNo: trip.client_request_number ?? null,
+            tripNumber: trip.trip_number != null ? String(trip.trip_number) : null,
+            load: placeOf(firstSeg?.from_city, firstSeg?.from_country),
+            unload: placeOf(lastSeg?.to_city, lastSeg?.to_country),
+          }),
+          note: vehicleNote(segments.map((sg) => ({
+            truck: sg.truck_reg, trailer: sg.trailer_reg, contractorTruck: sg.contractor_truck_number ?? null,
+          }))),
         }}
         clientId={trip.client_id ?? null}
         clientName={cl?.name ?? null}

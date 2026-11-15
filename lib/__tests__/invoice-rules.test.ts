@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   normalizeCountry, normalizeTaxId, isValidNip, suggestVat, validateInvoice,
-  buildInvoicePayload, fakturowniaKsefState, govErrors, positionName, addDaysIso, taxNoKind,
+  buildInvoicePayload, fakturowniaKsefState, govErrors, positionName, addDaysIso, taxNoKind, placeOf, vehicleNote,
   type InvoiceInput,
 } from '../invoice-rules';
 
@@ -41,7 +41,8 @@ describe('invoice-rules', () => {
     expect(suggestVat('PL')).toEqual({ tax: '23', npKind: null, reverseCharge: false });
     expect(suggestVat(null).tax).toBe('23');
     expect(suggestVat('DE')).toEqual({ tax: 'np', npKind: 'export_service_eu', reverseCharge: true });
-    expect(suggestVat('UA')).toEqual({ tax: 'np', npKind: 'export_service', reverseCharge: false });
+    expect(suggestVat('UA')).toEqual({ tax: 'np', npKind: null, reverseCharge: false });
+    expect(suggestVat('BY')).toEqual({ tax: 'np', npKind: null, reverseCharge: false });
   });
 
   it('валидирует ввод', () => {
@@ -89,8 +90,17 @@ describe('invoice-rules', () => {
   it('прочее', () => {
     expect(addDaysIso('2026-12-20', 14)).toBe('2027-01-03');
     expect(taxNoKind('UA', '12345')).toBe('other');
-    expect(positionName('A → B', null, '77')).toBe('Usługa transportowa: A → B. Zlecenie nr 77');
-    expect(positionName(null, 'Z-1', '77')).toBe('Usługa transportowa. Zlecenie nr Z-1');
+    expect(positionName({ requestNo: '6877', tripNumber: '77', load: 'Trud village, Bulgaria', unload: 'Brest, Belarus' }))
+      .toBe('Usługa transportowa\nZlecenie klienta: 6877\nZaładunek: Trud village, Bulgaria\nRozładunek: Brest, Belarus');
+    expect(positionName({ requestNo: null, tripNumber: '77', load: null, unload: null })).toBe('Usługa transportowa\nZlecenie nr 77');
+    expect(placeOf(' Brest ', 'Belarus')).toBe('Brest, Belarus');
+    expect(placeOf(null, '')).toBeNull();
+    expect(vehicleNote([
+      { truck: null, trailer: null, contractorTruck: 'РВ7970ТН / РВ6190ЕС' },
+      { truck: 'WI042NM', trailer: 'WI652AX', contractorTruck: null },
+      { truck: 'WI042NM', trailer: 'WI652AX', contractorTruck: null },
+    ])).toBe('Dane pojazdu: РВ7970ТН / РВ6190ЕС --- WI042NM / WI652AX');
+    expect(vehicleNote([{ truck: null, trailer: null, contractorTruck: null }])).toBeNull();
   });
 });
 
