@@ -17,6 +17,7 @@ import { readUnmatched } from '../../lib/invoicing/sync';
 import { rankTripsForInvoice, type TripOption } from '../../lib/invoicing/sync-rules';
 import { formatDateTime } from '../../lib/i18n/format';
 import { getInvoiceProvider } from '../../lib/invoicing';
+import { loadInvoicedTrips } from '../../lib/receivables-load';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,12 +41,7 @@ export default async function ReceivablesPage() {
 
   const supabase = await createClient();
   const [{ data: trips, error }, { data: clients }] = await Promise.all([
-    fetchAll(
-      supabase
-        .from('trips')
-        .select('id, trip_number, invoice_number, client_id, revenue_eur, invoiced_at, payment_due, end_date')
-        .eq('status', 'invoiced'),
-    ),
+    loadInvoicedTrips(supabase),
     fetchAll(supabase.from('clients').select('id, name, payment_days')),
   ]);
   if (error) return <div className="p-8 text-red-600">{t('trip.loadError', { msg: error.message })}</div>;
@@ -224,7 +220,14 @@ export default async function ReceivablesPage() {
                               </Link>
                             </td>
                             <td className="px-4 py-2.5 text-slate-600">{r.invoice_number || '—'}</td>
-                            <td className="px-4 py-2.5 text-right font-semibold tabular-nums">{eur(r.amount)}</td>
+                            <td className="px-4 py-2.5 text-right font-semibold tabular-nums">
+                              {eur(r.amount)}
+                              {r.amountDiff != null && (
+                                <div className="text-[11px] font-normal text-amber-600" title={t('recv.amountDiffHint')}>
+                                  {t('recv.freight', { amount: eur(Number(r.revenue_eur) || 0) })}
+                                </div>
+                              )}
+                            </td>
                             <td className="px-4 py-2.5 text-slate-600 tabular-nums" title={r.estimated ? t('recv.estimated') : undefined}>
                               {r.due ? `${r.estimated ? '≈ ' : ''}${formatDate(r.due, locale)}` : '—'}
                             </td>

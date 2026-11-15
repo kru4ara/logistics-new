@@ -1863,6 +1863,8 @@ export const en: Messages = {
     colAmount: 'Amount',
     unmatchedGone: 'The invoice is no longer in the list — run the sync again',
     unmatchedTaken: 'This invoice is already linked to another order',
+    freight: 'order freight {amount}',
+    amountDiffHint: 'The invoice amount differs from the order freight — check the freight: the margin is based on it',
   },
   inv: {
     block: 'Invoice',

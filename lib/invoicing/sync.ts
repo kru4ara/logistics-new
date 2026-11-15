@@ -71,18 +71,25 @@ export async function runInvoiceSync(): Promise<SyncReport> {
   }
 
   const supabase = await createClient();
-  const { data, error } = await fetchAll(
-    supabase
-      .from('trips')
-      .select('id, status, invoice_provider, invoice_external_id, invoice_number, invoiced_at, payment_due, ksef_number, ksef_status')
-      .in('status', ['active', 'completed', 'invoiced', 'paid']),
+  const SYNC_COLS = 'id, status, invoice_provider, invoice_external_id, invoice_number, invoiced_at, payment_due, ksef_number, ksef_status';
+  const statuses = ['active', 'completed', 'invoiced', 'paid'];
+  let { data, error }: { data: unknown[] | null; error: { message: string } | null } = await fetchAll(
+    supabase.from('trips').select(`${SYNC_COLS}, invoice_amount, invoice_currency`).in('status', statuses),
   );
+  // До миграции 030 — без суммы фактуры (и не пишем её).
+  const hasAmount = !(error && /invoice_amount|invoice_currency/.test(error.message));
+  if (!hasAmount) ({ data, error } = await fetchAll(supabase.from('trips').select(SYNC_COLS).in('status', statuses)));
   if (error || !data) return { ok: false, reason: 'error', message: error?.message };
   const trips = data as unknown as SyncTrip[];
 
   const plan = planInvoiceSync(provider.id, remote, trips);
   let updated = 0;
   for (const u of plan.updates) {
+    if (!hasAmount) {
+      delete u.patch.invoice_amount;
+      delete u.patch.invoice_currency;
+      if (!Object.keys(u.patch).length) continue;
+    }
     const { error: upErr } = await supabase.from('trips').update(u.patch).eq('id', u.tripId);
     if (upErr) {
       console.error('[invoice-sync] update failed', u.tripId, upErr.message);

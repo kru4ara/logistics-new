@@ -1863,6 +1863,8 @@ export const pl: Messages = {
     colAmount: 'Kwota',
     unmatchedGone: 'Faktury nie ma już na liście — uruchom uzgodnienie ponownie',
     unmatchedTaken: 'Ta faktura jest już powiązana z innym zleceniem',
+    freight: 'fracht w zleceniu {amount}',
+    amountDiffHint: 'Kwota faktury różni się od frachtu zlecenia — sprawdź fracht: od niego liczona jest marża',
   },
   inv: {
     block: 'Faktura',

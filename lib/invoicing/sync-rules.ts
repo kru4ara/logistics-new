@@ -12,9 +12,11 @@ export type SyncTrip = {
   payment_due: string | null;
   ksef_number: string | null;
   ksef_status: string | null;
+  invoice_amount?: number | string | null;
+  invoice_currency?: string | null;
 };
 
-export type TripPatch = Record<string, string | null>;
+export type TripPatch = Record<string, string | number | null>;
 
 export type SyncUpdate = {
   tripId: string;
@@ -59,6 +61,11 @@ export function patchFromRemote(provider: ProviderId, r: RemoteInvoice, trip: Sy
   if (r.paymentDue && r.paymentDue !== trip.payment_due) {
     patch.payment_due = r.paymentDue;
     changes.push('due');
+  }
+  // Сумма фактуры — для дебиторки (может отличаться от фрахта заказа).
+  if (r.gross != null && (Number(trip.invoice_amount) !== r.gross || (trip.invoice_currency ?? null) !== (r.currency ?? null))) {
+    patch.invoice_amount = r.gross;
+    patch.invoice_currency = r.currency ?? null;
   }
   // Дата счёта — из сервиса, если в CRM её нет (номер вписан вручную, заказ уже оплачен…).
   if (!trip.invoiced_at && r.issueDate) patch.invoiced_at = r.issueDate;

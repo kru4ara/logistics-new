@@ -63,7 +63,8 @@ const remote = (o: Partial<RemoteInvoice> = {}): RemoteInvoice => ({
 });
 const trip = (o: Partial<SyncTrip> = {}): SyncTrip => ({
   id: 't1', status: 'invoiced', invoice_provider: 'fakturowo', invoice_external_id: '818950', invoice_number: '80/11/2026',
-  invoiced_at: '2026-11-13', payment_due: '2026-11-23', ksef_number: null, ksef_status: 'pending', ...o,
+  invoiced_at: '2026-11-13', payment_due: '2026-11-23', ksef_number: null, ksef_status: 'pending',
+  invoice_amount: 3800, invoice_currency: 'EUR', ...o,
 });
 
 describe('сверка дебиторки', () => {
@@ -86,6 +87,11 @@ describe('сверка дебиторки', () => {
   it('номер вписан вручную и уже связан, даты в CRM нет — берём дату счёта из сервиса', () => {
     const { updates } = planInvoiceSync('fakturowo', [remote({ payment: 'paid' })], [trip({ status: 'paid', invoiced_at: null })]);
     expect(updates[0].patch).toEqual({ invoiced_at: '2026-11-13' });
+  });
+
+  it('сумма фактуры отличается от записанной — обновляем (рейс 30Е: 4 100 €)', () => {
+    const { updates } = planInvoiceSync('fakturowo', [remote({ gross: 4100 })], [trip({ invoice_amount: '3900.00' })]);
+    expect(updates[0].patch).toEqual({ invoice_amount: 4100, invoice_currency: 'EUR' });
   });
 
   it('ничего не изменилось — нет обновлений', () => {
@@ -124,11 +130,12 @@ import { patchFromRemote, visibleUnmatched, rankTripsForInvoice } from '../invoi
 
 describe('фактуры без заказа', () => {
   it('ручная привязка: связь, номер, даты, KSeF, оплата', () => {
-    const t = trip({ status: 'completed', invoice_provider: null, invoice_external_id: null, invoice_number: '6822', invoiced_at: null, payment_due: null, ksef_status: null });
+    const t = trip({ status: 'completed', invoice_provider: null, invoice_external_id: null, invoice_number: '6822', invoiced_at: null, payment_due: null, ksef_status: null, invoice_amount: null, invoice_currency: null });
     const { patch } = patchFromRemote('fakturowo', remote({ ksefNumber: KSEF, payment: 'paid' }), t, true);
     expect(patch).toEqual({
       invoice_provider: 'fakturowo', invoice_external_id: '818950', invoice_number: '80/11/2026',
       ksef_number: KSEF, ksef_status: 'ok', ksef_error: null, payment_due: '2026-11-23', invoiced_at: '2026-11-13', status: 'paid',
+      invoice_amount: 3800, invoice_currency: 'EUR',
     });
   });
 
