@@ -2,10 +2,11 @@
 
 import Link from 'next/link';
 import { useState, useTransition } from 'react';
-import { FileText, Loader2, RefreshCw, Send, Download, AlertTriangle, CheckCircle2, Clock } from 'lucide-react';
+import { FileText, Loader2, RefreshCw, Send, Download, AlertTriangle, CheckCircle2, Clock, ExternalLink } from 'lucide-react';
 import { useT } from '../../components/I18nProvider';
 import { issueInvoice, refreshInvoice, resendInvoiceToKsef } from '../../invoices/actions';
-import { TAX_RATES, ksefState, type KsefState, type TaxRate, type NpKind } from '../../../lib/invoice-rules';
+import { TAX_RATES, type TaxRate, type NpKind } from '../../../lib/invoice-rules';
+import { ksefStateOf, type KsefState, type ProviderInfo } from '../../../lib/invoicing/types';
 import type { MessageKey } from '../../../lib/i18n/translate';
 
 type Issued = {
@@ -29,7 +30,8 @@ type Defaults = {
 
 type Props = {
   tripId: string;
-  configured: boolean;
+  /** сервис фактур компании (или тот, которым выставлена фактура); null — не подключён */
+  provider: ProviderInfo | null;
   issued: Issued | null;
   defaults: Defaults;
   clientId: string | null;
@@ -40,6 +42,7 @@ type Props = {
 
 const STATE_UI: Record<KsefState, { label: MessageKey; cls: string; Icon: typeof Clock }> = {
   none: { label: 'inv.ksefNone', cls: 'bg-slate-100 text-slate-600', Icon: Clock },
+  pending: { label: 'inv.ksefPending', cls: 'bg-amber-50 text-amber-700', Icon: Clock },
   processing: { label: 'inv.ksefProcessing', cls: 'bg-amber-50 text-amber-700', Icon: Clock },
   ok: { label: 'inv.ksefOk', cls: 'bg-emerald-50 text-emerald-700', Icon: CheckCircle2 },
   error: { label: 'inv.ksefError', cls: 'bg-red-50 text-red-700', Icon: AlertTriangle },
@@ -52,7 +55,7 @@ const TAX_LABEL: Record<TaxRate, MessageKey> = {
 };
 
 /** Фактура по заказу: выставить в Fakturownia (+ KSeF) или показать выставленную. */
-export default function InvoiceBlock({ tripId, configured, issued, defaults, clientId, clientName, clientMissing }: Props) {
+export default function InvoiceBlock({ tripId, provider, issued, defaults, clientId, clientName, clientMissing }: Props) {
   const { t } = useT();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -71,11 +74,15 @@ export default function InvoiceBlock({ tripId, configured, issued, defaults, cli
         <FileText className="w-5 h-5 text-brand-600" strokeWidth={2} />
         {t('inv.block')}
       </h2>
-      <p className="text-xs text-slate-500 mt-1">{t('inv.blockHint')}</p>
+      {provider && (
+        <p className="text-xs text-slate-500 mt-1">
+          {t(provider.autoKsef ? 'inv.blockHintAuto' : 'inv.blockHintManual', { provider: provider.name })}
+        </p>
+      )}
     </div>
   );
 
-  if (!configured) {
+  if (!provider) {
     return (
       <div className="card p-5 md:p-6 space-y-2">
         {header}
@@ -85,7 +92,7 @@ export default function InvoiceBlock({ tripId, configured, issued, defaults, cli
   }
 
   if (issued) {
-    const state = ksefState(issued.ksefStatus);
+    const state = ksefStateOf(issued.ksefStatus);
     const ui = STATE_UI[state];
     return (
       <div className="card p-5 md:p-6 space-y-4">
@@ -104,6 +111,15 @@ export default function InvoiceBlock({ tripId, configured, issued, defaults, cli
             </span>
           )}
         </div>
+        {state === 'pending' && (
+          <p className="text-sm text-amber-800 bg-amber-50 rounded-lg p-3">
+            {t('inv.manualKsef', { provider: provider.name })}{' '}
+            <a href={provider.appUrl} target="_blank" rel="noopener" className="underline font-medium inline-flex items-center gap-1">
+              {t('inv.openProvider', { provider: provider.name })}
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+          </p>
+        )}
         {issued.ksefError && state === 'error' && (
           <p className="text-sm text-red-600 break-words">{issued.ksefError}</p>
         )}
@@ -116,7 +132,7 @@ export default function InvoiceBlock({ tripId, configured, issued, defaults, cli
             {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
             {t('inv.refresh')}
           </button>
-          {(state === 'error' || state === 'none') && (
+          {provider.autoKsef && (state === 'error' || state === 'none') && (
             <button type="button" disabled={isPending} onClick={() => run(() => resendInvoiceToKsef(tripId))} className="btn btn-primary text-sm disabled:opacity-50">
               <Send className="w-4 h-4" />
               {t('inv.resend')}
@@ -217,10 +233,14 @@ export default function InvoiceBlock({ tripId, configured, issued, defaults, cli
         <input name="note" maxLength={200} className="input" />
       </label>
 
-      <label className="flex items-center gap-2 text-sm text-slate-700">
-        <input type="checkbox" name="send_ksef" defaultChecked />
-        {t('inv.sendKsef')}
-      </label>
+      {provider.autoKsef ? (
+        <label className="flex items-center gap-2 text-sm text-slate-700">
+          <input type="checkbox" name="send_ksef" defaultChecked />
+          {t('inv.sendKsef')}
+        </label>
+      ) : (
+        <p className="text-xs text-slate-500">{t('inv.manualKsef', { provider: provider.name })}</p>
+      )}
 
       <p className="text-xs text-slate-500">{t('inv.vatHint')}</p>
 

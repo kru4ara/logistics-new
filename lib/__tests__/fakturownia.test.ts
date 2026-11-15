@@ -49,7 +49,7 @@ afterAll(() => {
 
 describe('fakturownia client', () => {
   it('проверяет домен', async () => {
-    const m = await import('../fakturownia');
+    const m = await import('../invoicing/fakturownia-api');
     process.env.FAKTUROWNIA_DOMAIN = 'https://firma.fakturownia.pl/';
     expect(m.fakturowniaDomain()).toBe('firma');
     process.env.FAKTUROWNIA_DOMAIN = 'evil.com/x';
@@ -60,7 +60,7 @@ describe('fakturownia client', () => {
   });
 
   it('создаёт фактуру с отправкой в KSeF, читает статус, PDF, оплату', async () => {
-    const m = await import('../fakturownia');
+    const m = await import('../invoicing/fakturownia-api');
     const inv = await m.createInvoice({ invoice: { buyer_tax_no: '1', payment_to: '2026-12-15' } }, true);
     expect(inv).toMatchObject({ id: 42, number: 'FV 1/11/2026', gov_status: 'processing' });
     expect(seen.at(-1)).toMatchObject({ method: 'POST', url: '/invoices.json?gov_save_and_send=1', auth: 'Bearer tok' });
@@ -72,7 +72,7 @@ describe('fakturownia client', () => {
   });
 
   it('передаёт текст ошибки Fakturownia', async () => {
-    const m = await import('../fakturownia');
+    const m = await import('../invoicing/fakturownia-api');
     await expect(m.createInvoice({ invoice: {} }, false)).rejects.toThrow('buyer_tax_no: nie może być puste');
     expect(seen.at(-1)!.url).toBe('/invoices.json');
   });

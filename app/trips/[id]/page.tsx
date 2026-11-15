@@ -25,7 +25,8 @@ import { tripStatusKey, TRIP_STATUSES } from '../../../lib/i18n/labels';
 import { getDriverT } from '../../../lib/driver-locale';
 import PaymentBlock from './PaymentBlock';
 import InvoiceBlock from './InvoiceBlock';
-import { isFakturowniaConfigured } from '../../../lib/fakturownia';
+import { getInvoiceProvider, providerById, providerInfo } from '../../../lib/invoicing';
+import { ksefStateOf } from '../../../lib/invoicing/types';
 import { normalizeCountry, suggestVat, suggestLang, positionName, normalizeTaxId } from '../../../lib/invoice-rules';
 import type { MessageKey } from '../../../lib/i18n/translate';
 import { getSessionContext } from '../../../lib/session';
@@ -331,10 +332,10 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
     paid: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   };
 
-  // Фактура (Fakturownia → KSeF): офис, заказ завершён или уже со счётом.
+  // Фактура (сервис фактур компании → KSeF): офис, заказ завершён или уже со счётом.
   let invoiceBlock: React.ReactNode = null;
   if (can(role, 'receivables.edit') && ['completed', 'invoiced', 'paid'].includes(trip.status)
-      && (trip.fakturownia_id || trip.status !== 'paid')) {
+      && (trip.invoice_external_id || trip.status !== 'paid')) {
     const cl = pickOne<{ name: string; tax_id: string | null; street: string | null; city: string | null;
       country: string | null; payment_days: number | null }>(trip.clients);
     const country = normalizeCountry(cl?.country);
@@ -346,16 +347,39 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
     const route = buildRouteMap((segmentsRaw || []) as never).get(tripId)?.route ?? null;
     const todayStr = new Date().toISOString().slice(0, 10);
     const sell = (trip.unload_date || (trip.end_date ? String(trip.end_date).slice(0, 10) : null) || todayStr) as string;
+    const provider = trip.invoice_external_id ? providerById(trip.invoice_provider) : getInvoiceProvider();
+    let issued: { invoiceNumber: string | null; ksefStatus: string | null; ksefNumber: string | null; ksefError: string | null } | null =
+      trip.invoice_external_id
+        ? { invoiceNumber: trip.invoice_number ?? null, ksefStatus: trip.ksef_status ?? null, ksefNumber: trip.ksef_number ?? null, ksefError: trip.ksef_error ?? null }
+        : null;
+    // Ждём номер KSeF — спросим сервис фактур сразу при открытии (не дольше 5 с, сбой не мешает странице).
+    const waiting = ['pending', 'processing'].includes(ksefStateOf(trip.ksef_status));
+    if (issued && provider && waiting) {
+      const snap = await Promise.race([
+        provider.refresh(trip.invoice_external_id as string).catch(() => null),
+        new Promise<null>((r) => setTimeout(() => r(null), 5000)),
+      ]);
+      if (snap) {
+        const fields = {
+          ...(snap.number ? { invoice_number: snap.number } : {}),
+          ksef_status: snap.ksef === 'none' ? null : snap.ksef,
+          ksef_number: snap.ksefNumber,
+          ksef_error: snap.ksefError,
+        };
+        await supabase.from('trips').update(fields).eq('id', tripId);
+        issued = {
+          invoiceNumber: snap.number ?? issued.invoiceNumber,
+          ksefStatus: fields.ksef_status,
+          ksefNumber: snap.ksefNumber,
+          ksefError: snap.ksefError,
+        };
+      }
+    }
     invoiceBlock = (
       <InvoiceBlock
         tripId={tripId}
-        configured={isFakturowniaConfigured()}
-        issued={trip.fakturownia_id ? {
-          invoiceNumber: trip.invoice_number ?? null,
-          ksefStatus: trip.ksef_status ?? null,
-          ksefNumber: trip.ksef_number ?? null,
-          ksefError: trip.ksef_error ?? null,
-        } : null}
+        provider={provider ? providerInfo(provider) : null}
+        issued={issued}
         defaults={{
           issueDate: todayStr,
           sellDate: sell,

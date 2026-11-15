@@ -266,6 +266,10 @@ const TRANSLATED_FILES = [
   'app/clients/RequisitesFields.tsx',
   'app/trips/[id]/InvoiceBlock.tsx',
   'lib/invoice-rules.ts',
+  // invoice providers
+  'lib/invoicing/fakturowo-rules.ts',
+  'lib/invoicing/index.ts',
+  'lib/invoicing/types.ts',
 ];
 
 function cyrillicLiterals(file: string): string[] {

@@ -1,6 +1,6 @@
-// Чистые правила фактуры для Fakturownia (без сети и Supabase — покрыты тестами).
-// Fakturownia сама формирует XML FA(3) и отправляет его в KSeF; мы готовим JSON
-// фактуры и понимаем её ответ.
+// Чистые правила фактуры (без сети и Supabase — покрыты тестами): общие для всех
+// сервисов фактур (НДС, проверки, реквизиты) и JSON для Fakturownia.
+import type { KsefState } from './invoicing/types';
 
 export const EU_COUNTRIES = [
   'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR', 'HU', 'IE',
@@ -170,10 +170,8 @@ export function buildInvoicePayload(i: InvoiceInput, bankAccount: string | null)
   return { invoice };
 }
 
-/** Наше состояние отправки в KSeF по gov_status Fakturownia. */
-export type KsefState = 'none' | 'processing' | 'ok' | 'error' | 'notConnected' | 'notApplicable';
-
-export function ksefState(govStatus: string | null | undefined): KsefState {
+/** gov_status Fakturownia → наше состояние KSeF. */
+export function fakturowniaKsefState(govStatus: string | null | undefined): KsefState {
   switch (govStatus) {
     case null:
     case undefined:

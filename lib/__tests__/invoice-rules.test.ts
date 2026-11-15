@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   normalizeCountry, normalizeTaxId, isValidNip, suggestVat, validateInvoice,
-  buildInvoicePayload, ksefState, govErrors, positionName, addDaysIso, taxNoKind,
+  buildInvoicePayload, fakturowniaKsefState, govErrors, positionName, addDaysIso, taxNoKind,
   type InvoiceInput,
 } from '../invoice-rules';
 
@@ -76,12 +76,12 @@ describe('invoice-rules', () => {
   });
 
   it('понимает gov_status', () => {
-    expect(ksefState(null)).toBe('none');
-    expect(ksefState('ok')).toBe('ok');
-    expect(ksefState('demo_ok')).toBe('ok');
-    expect(ksefState('offline')).toBe('processing');
-    expect(ksefState('send_error')).toBe('error');
-    expect(ksefState('not_connected')).toBe('notConnected');
+    expect(fakturowniaKsefState(null)).toBe('none');
+    expect(fakturowniaKsefState('ok')).toBe('ok');
+    expect(fakturowniaKsefState('demo_ok')).toBe('ok');
+    expect(fakturowniaKsefState('offline')).toBe('processing');
+    expect(fakturowniaKsefState('send_error')).toBe('error');
+    expect(fakturowniaKsefState('not_connected')).toBe('notConnected');
     expect(govErrors(['a', 'b'])).toBe('a; b');
     expect(govErrors(null)).toBeNull();
   });
