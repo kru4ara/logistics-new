@@ -36,3 +36,18 @@ describe('дебиторка', () => {
     expect(s.clients[0].items.map((i) => i.id)).toEqual(['1', '3']);
   });
 });
+
+describe('сумма долга — по фактуре', () => {
+  const base = { id: 't', trip_number: '30Е', invoice_number: '74/10/2026', client_id: 'c', revenue_eur: 3900, invoiced_at: '2026-10-29', payment_due: '2026-11-08', end_date: null };
+  it('фактура известна — долг по ней, разница с фрахтом видна', () => {
+    const r = toReceivable({ ...base, invoice_amount: '4100.00', invoice_currency: 'EUR' }, 30, '2026-11-15');
+    expect(r).toMatchObject({ amount: 4100, amountDiff: 200, daysOverdue: 7 });
+  });
+  it('совпадает с фрахтом или фактуры нет — по фрахту, без пометки', () => {
+    expect(toReceivable({ ...base, invoice_amount: 3900, invoice_currency: 'EUR' }, 30, '2026-11-15')).toMatchObject({ amount: 3900, amountDiff: null });
+    expect(toReceivable(base, 30, '2026-11-15')).toMatchObject({ amount: 3900, amountDiff: null });
+  });
+  it('фактура не в евро — дебиторка в EUR остаётся по фрахту', () => {
+    expect(toReceivable({ ...base, invoice_amount: 17000, invoice_currency: 'PLN' }, 30, '2026-11-15')).toMatchObject({ amount: 3900, amountDiff: null });
+  });
+});

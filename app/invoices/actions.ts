@@ -119,17 +119,23 @@ export async function issueInvoice(tripId: string, fd: FormData): Promise<Result
     return { ok: false, message: t('inv.apiError', { provider: provider.name, msg: errMsg(e) }) };
   }
 
-  const { error: upErr } = await supabase
-    .from('trips')
-    .update({
+  const tripPatch = {
       ...snapFields(res),
       invoice_provider: provider.id,
       invoice_external_id: res.externalId,
+      // Брутто фактуры — для дебиторки (сверка потом уточнит по сервису).
+      invoice_amount: Math.round(input.netAmount * (/^\d+$/.test(input.tax) ? 1 + Number(input.tax) / 100 : 1) * 100) / 100,
+      invoice_currency: input.currency,
       invoiced_at: input.issueDate,
       payment_due: res.paymentDue,
       ...(trip.status !== 'invoiced' ? { status: 'invoiced' } : {}),
-    })
-    .eq('id', tripId);
+  };
+  let { error: upErr } = await supabase.from('trips').update(tripPatch).eq('id', tripId);
+  // До миграции 030 колонок суммы нет — сохраняем без них, фактура уже выставлена.
+  if (upErr && /invoice_amount|invoice_currency/.test(upErr.message)) {
+    const { invoice_amount: _a, invoice_currency: _c, ...rest } = tripPatch;
+    ({ error: upErr } = await supabase.from('trips').update(rest).eq('id', tripId));
+  }
   if (upErr) {
     // Фактура в сервисе уже есть — не теряем её id в логах, повторно не выставлять.
     console.error('[invoices] trip update failed after invoice', provider.id, res.externalId, upErr.message);

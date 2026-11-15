@@ -115,7 +115,7 @@ export async function linkRemoteInvoice(externalId: string, tripId: string): Pro
 
   const { data: trip } = await supabase
     .from('trips')
-    .select('id, trip_number, status, invoice_provider, invoice_external_id, invoice_number, invoiced_at, payment_due, ksef_number, ksef_status')
+    .select('id, trip_number, status, invoice_provider, invoice_external_id, invoice_number, invoiced_at, payment_due, ksef_number, ksef_status, invoice_amount, invoice_currency')
     .eq('id', tripId)
     .maybeSingle();
   if (!trip) return { ok: false, message: t('inv.notFound') };

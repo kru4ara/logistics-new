@@ -1,6 +1,7 @@
 import { getSessionContext } from '../../lib/session';
 import { can } from '../../lib/roles';
 import { toReceivable, type ReceivableTrip } from '../../lib/receivables';
+import { loadInvoicedTrips } from '../../lib/receivables-load';
 import { redirect } from 'next/navigation';
 import {
   Calendar,
@@ -353,12 +354,7 @@ export default async function TodayPage() {
   const overdueInvoices = { count: 0, amount: 0 };
   if (can(role, 'receivables.view')) {
     const [{ data: inv }, { data: cl }] = await Promise.all([
-      fetchAll(
-        supabase
-          .from('trips')
-          .select('id, trip_number, invoice_number, client_id, revenue_eur, invoiced_at, payment_due, end_date')
-          .eq('status', 'invoiced'),
-      ),
+      loadInvoicedTrips(supabase),
       fetchAll(supabase.from('clients').select('id, payment_days')),
     ]);
     const days = new Map((cl || []).map((c: any) => [c.id as string, c.payment_days as number | null]));
