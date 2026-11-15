@@ -1999,5 +1999,8 @@ export const pl: Messages = {
     srcManual: 'ręcznie',
     file: 'plik',
     leg: 'Odcinek {n}',
+    backfill: 'Pobierz od',
+    backfillGo: 'Pobierz',
+    korekta: 'korekta',
   },
 };

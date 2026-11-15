@@ -1999,5 +1999,8 @@ export const uk: Messages = {
     srcManual: 'вручну',
     file: 'файл',
     leg: 'Ділянка {n}',
+    backfill: 'Довантажити з',
+    backfillGo: 'Завантажити',
+    korekta: 'korekta',
   },
 };

@@ -21,16 +21,23 @@ function useAction() {
   return { isPending, msg, run };
 }
 
-/** «Загрузить из KSeF». */
+/** «Загрузить из KSeF» + догрузка прошлого периода «с даты». */
 export function SyncPurchasesButton() {
   const { t } = useT();
   const { isPending, msg, run } = useAction();
+  const [since, setSince] = useState('');
   return (
     <div className="flex flex-col items-start md:items-end gap-1">
-      <button type="button" disabled={isPending} onClick={() => run(syncPurchasesNow)} className="btn btn-secondary text-sm disabled:opacity-50">
+      <button type="button" disabled={isPending} onClick={() => run(() => syncPurchasesNow())} className="btn btn-secondary text-sm disabled:opacity-50">
         {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <DownloadCloud className="w-4 h-4" />}
         {t('pay.sync')}
       </button>
+      <div className="flex items-center gap-1.5 text-xs text-slate-500">
+        <span>{t('pay.backfill')}</span>
+        <input type="date" value={since} onChange={(e) => setSince(e.target.value)} className="input text-xs py-1 px-2 w-36" />
+        <button type="button" disabled={isPending || !since} onClick={() => run(() => syncPurchasesNow(since))}
+          className="btn btn-secondary text-xs px-2 py-1 disabled:opacity-50">{t('pay.backfillGo')}</button>
+      </div>
       {msg && <p className={`text-xs max-w-md ${msg.ok ? 'text-slate-600' : 'text-red-600'}`}>{msg.text}</p>}
       <p className="text-[11px] text-slate-400">{t('pay.syncAuto')}</p>
     </div>

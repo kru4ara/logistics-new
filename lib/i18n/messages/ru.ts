@@ -2001,5 +2001,8 @@ export const ru = {
     srcManual: 'вручную',
     file: 'файл',
     leg: 'Участок {n}',
+    backfill: 'Догрузить с',
+    backfillGo: 'Загрузить',
+    korekta: 'korekta',
   },
 } as const;

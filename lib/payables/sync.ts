@@ -3,7 +3,7 @@ import { createClient } from '../supabase/admin';
 import { fetchAll, fetchAllByIds } from '../fetch-all';
 import { logAudit } from '../audit';
 import { isKsefConfigured, queryPurchaseMetadata, downloadInvoiceXml, type InvoiceMetadata } from '../ksef/client';
-import { parseFa3, MAX_WINDOW_DAYS } from '../ksef/rules';
+import { parseFa3, MAX_WINDOW_DAYS, dateWindows } from '../ksef/rules';
 import { suggestSegments, autoMatch, normalizeNip, type SegmentCandidate, type PurchaseForMatch } from './match-rules';
 import { recalcSegmentCost } from './cost';
 
@@ -142,20 +142,34 @@ async function recalcLinkedSegments(supabase: Supabase): Promise<void> {
   for (const id of ids) await recalcSegmentCost(supabase, id);
 }
 
-/** Скачать новые входящие фактуры из KSeF и сопоставить с участками подрядчиков. */
-export async function runKsefPurchaseSync(): Promise<PurchaseSyncReport> {
+/**
+ * Скачать новые входящие фактуры из KSeF и сопоставить с участками подрядчиков.
+ * since (YYYY-MM-DD) — догрузить прошлый период: окна по ≤ 90 дней от since до отметки
+ * последней загрузки; отметку не трогает (обычная загрузка продолжает с неё).
+ */
+export async function runKsefPurchaseSync(opts: { since?: string } = {}): Promise<PurchaseSyncReport> {
   if (!isKsefConfigured()) return { ok: false, reason: 'notConfigured' };
   const supabase = await createClient();
 
   const { data: state } = await supabase.from('integration_state').select('value').eq('key', STATE_KEY).maybeSingle();
-  const floor = Date.now() - MAX_WINDOW_DAYS * 86_400_000;
   const saved = Date.parse(state?.value ?? '');
-  const from = new Date(Number.isNaN(saved) ? Date.now() - FIRST_RUN_DAYS * 86_400_000 : Math.max(saved, floor)).toISOString();
+  const backfill = Boolean(opts.since);
 
-  let meta: InvoiceMetadata[];
-  let hwm: string | null;
+  let meta: InvoiceMetadata[] = [];
+  let hwm: string | null = null;
   try {
-    ({ invoices: meta, hwm } = await queryPurchaseMetadata(from));
+    if (backfill) {
+      const fromIso = new Date(`${opts.since}T00:00:00Z`).toISOString();
+      const toIso = new Date(Number.isNaN(saved) ? Date.now() : saved).toISOString();
+      // KSeF: не больше 20 запросов метаданных в час — ограничиваем окна (≈ 2 года).
+      for (const w of dateWindows(fromIso, toIso).slice(0, 8)) {
+        meta.push(...(await queryPurchaseMetadata(w.from, w.to)).invoices);
+      }
+    } else {
+      const floor = Date.now() - MAX_WINDOW_DAYS * 86_400_000;
+      const from = new Date(Number.isNaN(saved) ? Date.now() - FIRST_RUN_DAYS * 86_400_000 : Math.max(saved, floor)).toISOString();
+      ({ invoices: meta, hwm } = await queryPurchaseMetadata(from));
+    }
   } catch (e) {
     return { ok: false, reason: 'error', message: e instanceof Error ? e.message : String(e) };
   }
@@ -204,7 +218,7 @@ export async function runKsefPurchaseSync(): Promise<PurchaseSyncReport> {
   // Отметка «просмотрено до»: всё скачали — HWM KSeF; иначе — последняя скачанная.
   const remaining = fresh.length - downloaded;
   const mark = remaining === 0 && !failed ? hwm ?? lastStored : lastStored;
-  if (mark) {
+  if (mark && !backfill) {
     await supabase.from('integration_state').upsert({ key: STATE_KEY, value: mark, updated_at: new Date().toISOString() });
   }
 

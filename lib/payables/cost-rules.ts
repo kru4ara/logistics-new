@@ -3,6 +3,8 @@
 
 export type InvoiceForCost = {
   net: number | null;
+  /** корректирующая фактура (KOR, KOR_ZAL, …): её сумма — разница к основной */
+  isCorrection?: boolean;
   gross: number | null;
   currency: string | null;
   /** нетто в EUR (пересчитано по курсу на дату счёта) */
@@ -26,26 +28,47 @@ export type SegmentCost = {
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
+/** Тип фактуры KSeF/FA(3) — корректирующая? (KOR, KOR_ZAL, KOR_ROZ, Kor…) */
+export const isCorrectionType = (t: string | null | undefined) => /^kor/i.test((t ?? '').trim());
+
 /**
- * Стоимость участка: счета есть — сумма их нетто (korekta — со своим знаком);
- * нет — план. Возвращает null, если и плана нет.
+ * Стоимость участка.
+ * • Есть основные счета — сумма их нетто плюс korekty (со своим знаком).
+ * • Только korekty (основной счёт ещё не загружен/не привязан) — план плюс korekty:
+ *   korekta — это разница, а не цена; нулевая korekta (исправление данных) ничего не меняет.
+ * • Счета на 0 как основной факт не считаются.
+ * Нет ни счетов, ни плана — null.
  */
 export function segmentCost(
   plan: { price: number | null; currency: string | null; priceEur: number | null },
   invoices: InvoiceForCost[],
 ): SegmentCost | null {
-  const usable = invoices.filter((i) => costAmount(i) != null && i.netEur != null);
-  if (usable.length) {
-    const currencies = new Set(usable.map((i) => (i.currency || 'EUR').toUpperCase()));
-    const amountEur = round2(usable.reduce((s, i) => s + (i.netEur as number), 0));
-    if (currencies.size === 1) {
-      const currency = [...currencies][0];
-      return { actual: true, amountEur, originalAmount: round2(usable.reduce((s, i) => s + (costAmount(i) as number), 0)), currency };
-    }
+  const usable = invoices.filter((i) => i.netEur != null && costAmount(i) != null && costAmount(i) !== 0);
+  const base = usable.filter((i) => !i.isCorrection);
+  const corrections = usable.filter((i) => i.isCorrection);
+  const sumEur = (xs: InvoiceForCost[]) => xs.reduce((s, i) => s + (i.netEur as number), 0);
+  const sumOrig = (xs: InvoiceForCost[]) => xs.reduce((s, i) => s + (costAmount(i) as number), 0);
+  const curOf = (i: { currency: string | null }) => (i.currency || 'EUR').toUpperCase();
+
+  if (base.length) {
+    const all = [...base, ...corrections];
+    const currencies = new Set(all.map(curOf));
+    const amountEur = round2(sumEur(all));
+    if (currencies.size === 1) return { actual: true, amountEur, originalAmount: round2(sumOrig(all)), currency: [...currencies][0] };
     return { actual: true, amountEur, originalAmount: amountEur, currency: 'EUR' };
   }
+
   if (plan.price == null || plan.priceEur == null) return null;
-  return { actual: false, amountEur: round2(plan.priceEur), originalAmount: plan.price, currency: (plan.currency || 'EUR').toUpperCase() };
+  const planCur = (plan.currency || 'EUR').toUpperCase();
+  if (!corrections.length) return { actual: false, amountEur: round2(plan.priceEur), originalAmount: plan.price, currency: planCur };
+  const amountEur = round2(plan.priceEur + sumEur(corrections));
+  const sameCur = corrections.every((i) => curOf(i) === planCur);
+  return {
+    actual: true,
+    amountEur,
+    originalAmount: sameCur ? round2(plan.price + sumOrig(corrections)) : amountEur,
+    currency: sameCur ? planCur : 'EUR',
+  };
 }
 
 /** Расхождение факта с планом: больше 1 % и больше 1 € — подсветить. */
