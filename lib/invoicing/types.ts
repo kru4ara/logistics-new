@@ -37,6 +37,8 @@ export interface InvoiceProvider extends ProviderInfo {
   /** повторная отправка в KSeF — только у сервисов с autoKsef */
   resendToKsef?(externalId: string): Promise<InvoiceSnapshot>;
   markPaid(externalId: string): Promise<void>;
+  /** удалить фактуру в сервисе — только пока она не ушла в KSeF */
+  cancel(externalId: string): Promise<void>;
   pdf(externalId: string): Promise<ArrayBuffer>;
 }
 

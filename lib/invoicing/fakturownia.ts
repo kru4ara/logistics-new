@@ -1,7 +1,7 @@
 import 'server-only';
 import { buildInvoicePayload, govErrors, fakturowniaKsefState } from '../invoice-rules';
 import {
-  createInvoice, getInvoice, resendToKsef, markPaid, getInvoicePdf, FakturowniaError,
+  createInvoice, getInvoice, resendToKsef, markPaid, getInvoicePdf, deleteInvoice, FakturowniaError,
   type FakturowniaInvoice,
 } from './fakturownia-api';
 import { InvoicingError, type InvoiceProvider, type InvoiceSnapshot } from './types';
@@ -38,5 +38,6 @@ export const fakturownia: InvoiceProvider = {
   refresh: async (id) => snap(await wrap(getInvoice(Number(id)))),
   resendToKsef: async (id) => snap(await wrap(resendToKsef(Number(id)))),
   markPaid: (id) => wrap(markPaid(Number(id))),
+  cancel: (id) => wrap(deleteInvoice(Number(id))),
   pdf: (id) => wrap(getInvoicePdf(Number(id))),
 };

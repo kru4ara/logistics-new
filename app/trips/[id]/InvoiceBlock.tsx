@@ -2,9 +2,10 @@
 
 import Link from 'next/link';
 import { useState, useTransition } from 'react';
-import { FileText, Loader2, RefreshCw, Send, Download, AlertTriangle, CheckCircle2, Clock, ExternalLink } from 'lucide-react';
+import { FileText, Loader2, RefreshCw, Send, Download, AlertTriangle, CheckCircle2, Clock, ExternalLink, Undo2 } from 'lucide-react';
 import { useT } from '../../components/I18nProvider';
-import { issueInvoice, refreshInvoice, resendInvoiceToKsef } from '../../invoices/actions';
+import { issueInvoice, refreshInvoice, resendInvoiceToKsef, cancelInvoice } from '../../invoices/actions';
+import { changeTripStatus } from '../../driver/trip-status-actions';
 import { TAX_RATES, type TaxRate, type NpKind } from '../../../lib/invoice-rules';
 import { ksefStateOf, type KsefState, type ProviderInfo } from '../../../lib/invoicing/types';
 import type { MessageKey } from '../../../lib/i18n/translate';
@@ -139,6 +140,21 @@ export default function InvoiceBlock({ tripId, provider, issued, defaults, clien
               {t('inv.resend')}
             </button>
           )}
+          {['pending', 'none', 'error'].includes(state) && !issued.ksefNumber && (
+            <button
+              type="button"
+              disabled={isPending}
+              onClick={() => {
+                if (window.confirm(t('inv.cancelConfirm', { number: issued.invoiceNumber ?? '—', provider: provider.name }))) {
+                  run(() => cancelInvoice(tripId));
+                }
+              }}
+              className="btn btn-secondary text-sm text-red-600 disabled:opacity-50"
+            >
+              <Undo2 className="w-4 h-4" />
+              {t('inv.cancel')}
+            </button>
+          )}
         </div>
         {error && <p className="text-sm text-red-600">{error}</p>}
       </div>
@@ -146,7 +162,7 @@ export default function InvoiceBlock({ tripId, provider, issued, defaults, clien
   }
 
   return (
-    <form className="card p-5 md:p-6 space-y-4" action={(fd) => run(() => issueInvoice(tripId, fd))}>
+    <form id="invoice" className="card p-5 md:p-6 space-y-4 scroll-mt-4 transition-shadow" action={(fd) => run(() => issueInvoice(tripId, fd))}>
       {header}
 
       <div className="text-sm text-slate-700">
@@ -253,6 +269,20 @@ export default function InvoiceBlock({ tripId, provider, issued, defaults, clien
         </button>
         {error && <span className="text-sm text-red-600">{error}</span>}
       </div>
+      <button
+        type="button"
+        disabled={isPending}
+        onClick={() => {
+          if (window.confirm(t('inv.markOnlyConfirm'))) {
+            startTransition(async () => {
+              await changeTripStatus(tripId, 'invoiced');
+            });
+          }
+        }}
+        className="text-xs text-slate-500 underline hover:text-slate-700 disabled:opacity-50"
+      >
+        {t('inv.markOnly')}
+      </button>
     </form>
   );
 }

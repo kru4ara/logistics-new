@@ -33,7 +33,8 @@ const ERR: Record<InvoiceError, MessageKey> = {
   tax: 'inv.errTax',
 };
 
-const ISSUABLE = ['completed', 'invoiced'];
+// Фактуру можно выставить и по рейсу в пути (выгрузка уже была, рейс не закрыли).
+const ISSUABLE = ['active', 'completed', 'invoiced'];
 
 const str = (fd: FormData, k: string) => {
   const v = fd.get(k);
@@ -126,7 +127,7 @@ export async function issueInvoice(tripId: string, fd: FormData): Promise<Result
       invoice_external_id: res.externalId,
       invoiced_at: input.issueDate,
       payment_due: res.paymentDue,
-      ...(trip.status === 'completed' ? { status: 'invoiced' } : {}),
+      ...(trip.status !== 'invoiced' ? { status: 'invoiced' } : {}),
     })
     .eq('id', tripId);
   if (upErr) {
@@ -190,5 +191,67 @@ export async function resendInvoiceToKsef(tripId: string): Promise<Result> {
   }
   await logAudit({ entity_type: 'trip', entity_id: tripId, action: 'update', changes: {}, summary: `Повторная отправка фактуры в KSeF (${provider.name})` });
   revalidatePath(`/trips/${tripId}`);
+  return { ok: true };
+}
+
+/** Фактура уже в KSeF (или отправляется) — удалить нельзя, только korekta. */
+const IN_KSEF = (s: InvoiceSnapshot) => Boolean(s.ksefNumber) || s.ksef === 'ok' || s.ksef === 'processing';
+
+/**
+ * Отменить фактуру, пока она не ушла в KSeF: удалить в сервисе фактур и освободить заказ,
+ * чтобы выставить заново. Отправленную в KSeF фактуру не удалить — нужна korekta.
+ */
+export async function cancelInvoice(tripId: string): Promise<Result> {
+  await requireCapability('receivables.edit');
+  const { t } = await getT();
+  const supabase = await createClient();
+  const { data: trip } = await supabase
+    .from('trips')
+    .select('trip_number, status, invoice_provider, invoice_external_id, invoice_number')
+    .eq('id', tripId)
+    .maybeSingle();
+  const provider = providerById(trip?.invoice_provider);
+  if (!trip?.invoice_external_id || !provider) return { ok: false, message: t('inv.notFound') };
+  if (trip.status === 'paid') return { ok: false, message: t('inv.cancelPaid') };
+
+  const externalId = trip.invoice_external_id as string;
+  try {
+    // Состояние спрашиваем у сервиса, а не у своей базы: фактуру могли отправить в KSeF только что.
+    const s = await provider.refresh(externalId);
+    if (IN_KSEF(s)) {
+      await supabase.from('trips').update(snapFields(s)).eq('id', tripId);
+      revalidatePath(`/trips/${tripId}`);
+      return { ok: false, message: t('inv.cancelInKsef') };
+    }
+    await provider.cancel(externalId);
+  } catch (e) {
+    return { ok: false, message: t('inv.apiError', { provider: provider.name, msg: errMsg(e) }) };
+  }
+
+  const { error } = await supabase
+    .from('trips')
+    .update({
+      invoice_provider: null,
+      invoice_external_id: null,
+      invoice_number: null,
+      ksef_status: null,
+      ksef_number: null,
+      ksef_error: null,
+      invoiced_at: null,
+      payment_due: null,
+      ...(trip.status === 'invoiced' ? { status: 'completed' } : {}),
+    })
+    .eq('id', tripId);
+  if (error) return { ok: false, message: t('dir.updateError', { msg: error.message }) };
+
+  await logAudit({
+    entity_type: 'trip',
+    entity_id: tripId,
+    action: 'update',
+    changes: { invoice_number: { before: trip.invoice_number ?? null, after: null } },
+    summary: `Отменена фактура ${trip.invoice_number ?? externalId} по заказу №${trip.trip_number ?? '—'} (${provider.name}, до KSeF)`,
+  });
+  revalidatePath(`/trips/${tripId}`);
+  revalidatePath('/receivables');
   return { ok: true };
 }

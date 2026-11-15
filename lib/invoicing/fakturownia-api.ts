@@ -100,6 +100,12 @@ export async function markPaid(id: number): Promise<void> {
   if (!res.ok) throw new FakturowniaError(errorText(await res.json().catch(() => null), res.status), res.status);
 }
 
+/** Удалить фактуру (до отправки в KSeF). */
+export async function deleteInvoice(id: number): Promise<void> {
+  const res = await call(`/invoices/${id}.json`, { method: 'DELETE' });
+  if (!res.ok) throw new FakturowniaError(errorText(await res.json().catch(() => null), res.status), res.status);
+}
+
 /** PDF фактуры (с номером KSeF и QR-кодом, когда он уже присвоен). */
 export async function getInvoicePdf(id: number): Promise<ArrayBuffer> {
   const res = await call(`/invoices/${id}.pdf`, { headers: { Accept: 'application/pdf' } });

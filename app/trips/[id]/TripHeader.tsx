@@ -18,6 +18,7 @@ export default function TripHeader({
   fuelLeftIsCritical,
   statusLabels,
   statusColors,
+  invoiceForm = false,
 }: {
   tripId: string;
   trip: any;
@@ -28,6 +29,8 @@ export default function TripHeader({
   fuelLeftIsCritical: boolean;
   statusLabels: Record<string, string>;
   statusColors: Record<string, string>;
+  /** в заказе есть форма фактуры — «Выставить счёт» ведёт к ней */
+  invoiceForm?: boolean;
 }) {
   const { t, locale } = useT();
   return (
@@ -67,7 +70,7 @@ export default function TripHeader({
 
         {/* ДЕЙСТВИЯ ПО РЕЙСУ (сжатые) */}
         <div className="mb-4 pb-4 border-b border-slate-100">
-          <TripStatusButtons tripId={tripId} currentStatus={trip.status} showAdminStatuses={true} />
+          <TripStatusButtons tripId={tripId} currentStatus={trip.status} showAdminStatuses={true} invoiceForm={invoiceForm} />
         </div>
 
         {/* КНОПКИ РЕДАКТИРОВАНИЯ */}

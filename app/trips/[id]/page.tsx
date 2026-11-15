@@ -334,7 +334,8 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
 
   // Фактура (сервис фактур компании → KSeF): офис, заказ завершён или уже со счётом.
   let invoiceBlock: React.ReactNode = null;
-  if (can(role, 'receivables.edit') && ['completed', 'invoiced', 'paid'].includes(trip.status)
+  let invoiceForm = false;
+  if (can(role, 'receivables.edit') && ['active', 'completed', 'invoiced', 'paid'].includes(trip.status)
       && (trip.invoice_external_id || trip.status !== 'paid')) {
     const cl = pickOne<{ name: string; tax_id: string | null; street: string | null; city: string | null;
       country: string | null; payment_days: number | null }>(trip.clients);
@@ -376,6 +377,8 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
         };
       }
     }
+    // Форма есть (даже если в карточке клиента чего-то не хватает — она подскажет, чего).
+    invoiceForm = Boolean(provider && !issued);
     invoiceBlock = (
       <InvoiceBlock
         tripId={tripId}
@@ -421,6 +424,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
           fuelLeftIsCritical={fuelLeftIsCritical}
           statusLabels={statusLabels}
           statusColors={statusColors}
+          invoiceForm={invoiceForm}
         />
 
         {needsSalary && (
