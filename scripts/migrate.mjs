@@ -14,6 +14,8 @@
  *     node scripts/migrate.mjs --all scripts/tenants.json [--dry-run]
  *     tenants.json: [{ "name": "raibuilding", "url": "postgresql://…" }, …]
  *
+ * Обычно запускается сама: .github/workflows/migrate.yml (docs/RELEASES.md).
+ *
  * Порядок релиза: код → деплой → эта команда (миграции, которые убирают то,
  * чем пользуется старый код, — только после деплоя; см. docs/HANDOVER.md).
  *
