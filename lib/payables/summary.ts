@@ -2,7 +2,8 @@
 
 export type PayableRow = {
   id: string;
-  ksef_number: string;
+  ksef_number: string | null;
+  source?: 'ksef' | 'manual';
   invoice_number: string | null;
   issue_date: string | null;
   seller_nip: string | null;

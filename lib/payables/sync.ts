@@ -5,6 +5,7 @@ import { logAudit } from '../audit';
 import { isKsefConfigured, queryPurchaseMetadata, downloadInvoiceXml, type InvoiceMetadata } from '../ksef/client';
 import { parseFa3, MAX_WINDOW_DAYS } from '../ksef/rules';
 import { suggestSegments, autoMatch, normalizeNip, type SegmentCandidate, type PurchaseForMatch } from './match-rules';
+import { recalcSegmentCost } from './cost';
 
 const STATE_KEY = 'ksef.purchases.hwm';
 /** первый запуск — за 60 дней назад */
@@ -114,6 +115,7 @@ async function matchUnlinked(supabase: Supabase): Promise<number> {
     const { error } = await supabase.from('purchase_invoices').update(patch).eq('id', inv.id);
     if (!error && segId) {
       matched++;
+      await recalcSegmentCost(supabase, segId);
       const seg = segments.find((s) => s.id === segId)!;
       await logAudit({
         entity_type: 'trip',
@@ -125,6 +127,19 @@ async function matchUnlinked(supabase: Supabase): Promise<number> {
     }
   }
   return matched;
+}
+
+/**
+ * Пересчитать стоимость подрядчика у участков со счетами за ~полгода: выравнивает
+ * расходы, если счёт привязали/отвязали до появления пересчёта или правили участок.
+ */
+async function recalcLinkedSegments(supabase: Supabase): Promise<void> {
+  const since = new Date(Date.now() - 180 * 86_400_000).toISOString().slice(0, 10);
+  const { data } = await fetchAll(
+    supabase.from('purchase_invoices').select('segment_id').not('segment_id', 'is', null).gte('issue_date', since),
+  );
+  const ids = [...new Set(((data ?? []) as { segment_id: string }[]).map((r) => r.segment_id))];
+  for (const id of ids) await recalcSegmentCost(supabase, id);
 }
 
 /** Скачать новые входящие фактуры из KSeF и сопоставить с участками подрядчиков. */
@@ -194,6 +209,7 @@ export async function runKsefPurchaseSync(): Promise<PurchaseSyncReport> {
   }
 
   const matched = await matchUnlinked(supabase);
+  await recalcLinkedSegments(supabase);
   if (failed && downloaded === 0) return { ok: false, reason: 'error', message: failed };
   return { ok: true, found: fresh.length, downloaded, matched, remaining };
 }

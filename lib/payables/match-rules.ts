@@ -98,21 +98,25 @@ export function suggestSegments(inv: PurchaseForMatch, segments: SegmentCandidat
     }
     // Без NIP и без номера заявки совпадение суммы — случайность.
     if (!order && !sameNip) continue;
-    if (s.linked) score -= 40;
+    // У участка уже есть счёт: доплату/korekta берём только по номеру заявки.
+    if (s.linked && !order) score -= 40;
     if (score > 0) out.push({ segmentId: s.id, score, reasons });
   }
   return out.sort((a, b) => b.score - a.score);
 }
 
 /**
- * Автопривязка: лучший вариант не занят и однозначен —
- * номер заявки, или NIP + сумма (в подходящие даты), и второй вариант заметно слабее.
+ * Автопривязка: лучший вариант однозначен — номер заявки, или NIP + сумма (в подходящие даты),
+ * и второй вариант заметно слабее. К участку, у которого уже есть счёт (доплата, korekta), —
+ * только по номеру заявки.
  */
 export function autoMatch(suggestions: MatchSuggestion[], segments: SegmentCandidate[]): string | null {
   const [best, second] = suggestions;
   if (!best) return null;
   const seg = segments.find((s) => s.id === best.segmentId);
-  if (!seg || seg.linked) return null;
+  if (!seg) return null;
+  // К участку со счётом — только доплата с номером нашей заявки.
+  if (seg.linked && !best.reasons.includes('order')) return null;
   const strong =
     best.reasons.includes('order') ||
     (best.reasons.includes('nip') && best.reasons.includes('amount') && best.reasons.includes('date'));
