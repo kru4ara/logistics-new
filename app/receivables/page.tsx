@@ -11,6 +11,8 @@ import { formatDate } from '../../lib/i18n/format';
 import type { MessageKey } from '../../lib/i18n/translate';
 import { summarize, toReceivable, type Bucket, type Receivable, type ReceivableTrip } from '../../lib/receivables';
 import MarkPaidButton from './MarkPaidButton';
+import SyncInvoicesButton from './SyncInvoicesButton';
+import { getInvoiceProvider } from '../../lib/invoicing';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,6 +29,7 @@ export default async function ReceivablesPage() {
   const denied = deniedRedirect(role, 'receivables.view');
   if (denied) redirect(denied);
   const canEdit = can(role, 'receivables.edit');
+  const invoiceProvider = getInvoiceProvider();
   const { t, locale } = await getT();
   const eur = (n: number) =>
     new Intl.NumberFormat(INTL_LOCALE[locale], { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n);
@@ -70,12 +73,15 @@ export default async function ReceivablesPage() {
   return (
     <main className="min-h-screen bg-slate-50">
       <div className="max-w-[1200px] mx-auto px-4 md:px-6 py-6 md:py-8 space-y-5">
+        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2.5 tracking-tight">
             <HandCoins className="w-6 h-6 md:w-7 md:h-7 text-brand-600" strokeWidth={2.2} />
             {t('recv.title')}
           </h1>
           <p className="text-slate-500 mt-1 text-sm md:text-base">{t('recv.hint')}</p>
+        </div>
+        {canEdit && invoiceProvider?.listInvoices && <SyncInvoicesButton provider={invoiceProvider.name} />}
         </div>
 
         {s.count === 0 ? (

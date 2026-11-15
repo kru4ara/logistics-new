@@ -1,7 +1,7 @@
 import 'server-only';
 import { addDaysIso, type InvoiceInput } from '../invoice-rules';
-import { buildFakturowoParams, parseReply, parseDocList } from './fakturowo-rules';
-import { InvoicingError, type InvoiceProvider, type InvoiceSnapshot } from './types';
+import { buildFakturowoParams, parseReply, parseDocList, parseDocPage, type FakturowoDoc } from './fakturowo-rules';
+import { InvoicingError, type InvoiceProvider, type InvoiceSnapshot, type RemoteInvoice } from './types';
 
 // Fakturowo.pl. Переменная: FAKTUROWO_API_ID — Konto → API (услуга API платная, разовая активация).
 // FAKTUROWO_API_URL — только для тестов (заглушка).
@@ -29,10 +29,30 @@ async function post(params: Record<string, string>): Promise<string[]> {
   return reply.lines;
 }
 
-async function snapshot(apiNumer: string): Promise<InvoiceSnapshot> {
-  const lines = await post({ api_zadanie: '3', api_numer: apiNumer });
-  const doc = parseDocList(lines, apiNumer);
+/** Страницы списка документов (по 100). Порядок у Fakturowo не описан — читаем до maxPages. */
+async function listDocs(maxPages: number): Promise<FakturowoDoc[]> {
+  const out: FakturowoDoc[] = [];
+  for (let p = 1; p <= maxPages; p++) {
+    const { pages, docs } = parseDocPage(await post({ api_zadanie: '3', p: String(p) }));
+    out.push(...docs);
+    if (p >= pages || docs.length === 0) break;
+  }
+  return out;
+}
+
+async function findDoc(apiNumer: string): Promise<FakturowoDoc> {
+  // Сначала — запрос по одному документу; если строки документа в ответе нет
+  // (там могут быть только позиции), ищем его в общем списке.
+  const one = parseDocList(await post({ api_zadanie: '3', api_numer: apiNumer }), apiNumer);
+  if (one) return one;
+  const all = await listDocs(20);
+  const doc = all.find((d) => d.apiNumer === apiNumer);
   if (!doc) throw new InvoicingError(`document ${apiNumer} not found`);
+  return doc;
+}
+
+async function snapshot(apiNumer: string): Promise<InvoiceSnapshot> {
+  const doc = await findDoc(apiNumer);
   return {
     number: doc.number,
     // Номер KSeF появляется, когда пользователь отправил фактуру кнопкой в Fakturowo.
@@ -41,6 +61,19 @@ async function snapshot(apiNumer: string): Promise<InvoiceSnapshot> {
     ksefError: null,
   };
 }
+
+const toRemote = (d: FakturowoDoc): RemoteInvoice => ({
+  externalId: d.apiNumer,
+  number: d.number,
+  issueDate: d.issueDate,
+  paymentDue: d.paymentDue,
+  payment: d.status === '1' ? 'paid' : d.status === '2' ? 'partial' : 'unpaid',
+  ksefNumber: d.ksefNumber,
+  gross: d.gross,
+  currency: d.currency,
+  buyerName: d.buyerName,
+  buyerTaxId: d.buyerTaxId,
+});
 
 export const fakturowo: InvoiceProvider = {
   id: 'fakturowo',
@@ -66,6 +99,10 @@ export const fakturowo: InvoiceProvider = {
   },
 
   refresh: snapshot,
+
+  async listInvoices(opts) {
+    return (await listDocs(opts?.maxPages ?? 50)).map(toRemote);
+  },
 
   async markPaid(externalId) {
     await post({ api_zadanie: '1', api_numer: externalId, dokument_status: '1' });

@@ -88,24 +88,75 @@ export function parseReply(text: string): FakturowoReply {
   return { ok: false, error: lines.slice(1).filter(Boolean).join(' ') || text.trim().slice(0, 300) || 'empty response' };
 }
 
-export type FakturowoDoc = { apiNumer: string; number: string | null; ksefNumber: string | null; status: string | null };
+/** Номер KSeF: NIP-ГГГГММДД-12 hex-12-2 hex, например 7011162939-20261114-52D8B6C00001-C4. */
+export const KSEF_NUMBER_RE = /\b\d{10}-\d{8}-[0-9A-F]{12}-[0-9A-F]{2}\b/i;
+
+/** «13-11-2026» → «2026-11-13»; не дата — null. */
+export function isoFromDdMmYyyy(v: string | null | undefined): string | null {
+  const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec((v ?? '').trim());
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : null;
+}
+
+/** Документ из списка Fakturowo (api_zadanie=3). */
+export type FakturowoDoc = {
+  apiNumer: string;
+  kind: string | null;
+  number: string | null;
+  issueDate: string | null;
+  currency: string | null;
+  gross: number | null;
+  buyerName: string | null;
+  buyerTaxId: string | null;
+  /** 0 — не оплачена, 1 — оплачена, 2 — частично */
+  status: string | null;
+  paymentDue: string | null;
+  ksefNumber: string | null;
+};
+
+const num = (v: string | undefined) => {
+  const n = Number((v ?? '').replace(/\s/g, '').replace(',', '.'));
+  return Number.isFinite(n) && v?.trim() ? n : null;
+};
 
 /**
- * Строка списка документов (api_zadanie=3), поля через «;»:
- * 1 api_numer, 3 dokument_numer, 16 dokument_status, 19 numer ksef (последнее).
- * Ищем строку нужного документа: за ней идут строки позиций.
+ * Строка документа, поля через «;» (19 штук):
+ * 1 api_numer, 2 rodzaj, 3 numer, 4 data_w, 5 data_s, 6 waluta, 7–9 netto/vat/brutto,
+ * 10–12 продавец, 13–15 покупатель, 16 status, 17 zaplata, 18 termin, 19 numer ksef.
+ * Адреса могут содержать «;», поэтому начало читаем с начала, конец — с конца.
+ * Строки позиций (без даты в 4-м поле) — не документы.
  */
+export function parseDocRow(line: string): FakturowoDoc | null {
+  const f = line.split(';').map((x) => x.trim());
+  if (f.length < 19 || !/^\d+$/.test(f[0]) || !isoFromDdMmYyyy(f[3])) return null;
+  const tail = f.slice(-4);
+  const ksef = tail[3] || (line.match(KSEF_NUMBER_RE)?.[0] ?? '');
+  return {
+    apiNumer: f[0],
+    kind: f[1] || null,
+    number: f[2] || null,
+    issueDate: isoFromDdMmYyyy(f[3]),
+    currency: f[5] || null,
+    gross: num(f[8]),
+    buyerName: f[12] || null,
+    buyerTaxId: f[f.length - 5] || null,
+    status: tail[0] || null,
+    paymentDue: isoFromDdMmYyyy(tail[2]),
+    ksefNumber: ksef && KSEF_NUMBER_RE.test(ksef) ? ksef.match(KSEF_NUMBER_RE)![0] : ksef || null,
+  };
+}
+
+/** Все документы со страницы списка: lines[0] — число страниц, дальше строки. */
+export function parseDocPage(lines: string[]): { pages: number; docs: FakturowoDoc[] } {
+  const pages = Number(lines[0]) || 0;
+  const docs = lines.slice(1).map(parseDocRow).filter((d): d is FakturowoDoc => d !== null);
+  return { pages, docs };
+}
+
+/** Нужный документ в ответе — где бы ни была его строка (с номером страниц или без). */
 export function parseDocList(lines: string[], apiNumer: string): FakturowoDoc | null {
-  // lines[0] — число страниц, дальше строки документов.
-  for (const line of lines.slice(1)) {
-    const f = line.split(';').map((x) => x.trim());
-    if (f[0] !== apiNumer || f.length < 19) continue;
-    return {
-      apiNumer,
-      number: f[2] || null,
-      ksefNumber: f[f.length - 1] || null,
-      status: f[f.length - 4] || null,
-    };
+  for (const line of lines) {
+    const d = parseDocRow(line);
+    if (d && d.apiNumer === apiNumer) return d;
   }
   return null;
 }
