@@ -23,10 +23,13 @@ export default function TripStatusButtons({
   tripId,
   currentStatus,
   showAdminStatuses = false,
+  invoiceForm = false,
 }: {
   tripId: string;
   currentStatus: string;
   showAdminStatuses?: boolean;
+  /** «Выставить счёт» ведёт к форме фактуры (#invoice), статус ставит сама фактура */
+  invoiceForm?: boolean;
 }) {
   const { t } = useT();
   const [isPending, startTransition] = useTransition();
@@ -42,6 +45,18 @@ export default function TripStatusButtons({
       setIsModalOpen(true);
       setError(null);
       return;
+    }
+
+    // Счёт выставляется фактурой: ведём к форме, статус поменяется после выставления.
+    if (status === 'invoiced' && invoiceForm) {
+      const el = document.getElementById('invoice');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        el.classList.add('ring-2', 'ring-brand-500');
+        window.setTimeout(() => el.classList.remove('ring-2', 'ring-brand-500'), 2000);
+        el.querySelector<HTMLElement>('textarea, input')?.focus({ preventScroll: true });
+        return;
+      }
     }
 
     startTransition(async () => {

@@ -108,6 +108,7 @@ beforeAll(async () => {
         return res.end('1\n818950\nhttps://www.fakturowo.pl/pobierz/abc\nhttps://www.fakturowo.pl/pokaz/abc\nfv.pdf');
       }
       if (z === '1') return res.end('1\n818950');
+      if (z === '2') return res.end(form.get('api_numer') === '818950' ? '1' : '0\nBrak dokumentu');
       if (z === '3') {
         const row = ['818950', '49', 'FV 12/11/2026', '15-11-2026', '16-11-2026', '1', '1500', '0', '1500', 'S', 'a', '1',
           'B', 'b', 'DE1', '0', '10', '15-12-2026', ksef].join(';');
@@ -148,6 +149,9 @@ describe('fakturowo provider', () => {
     expect(hits.at(-1)!.form.get('dokument_status')).toBe('1');
     expect(hits.at(-1)!.form.get('api_numer')).toBe('818950');
     expect(Buffer.from(await fakturowo.pdf('818950')).toString()).toBe('%PDF-1.4');
+    await fakturowo.cancel('818950');
+    expect(hits.at(-1)!.form.get('api_zadanie')).toBe('2');
+    await expect(fakturowo.cancel('1')).rejects.toThrow('Brak dokumentu');
     await expect(fakturowo.issue({ ...base, buyer: { ...base.buyer, taxId: null } }, { bankAccount: null, sendToKsef: false }))
       .rejects.toThrow('Brak NIP nabywcy');
     process.env.FAKTUROWO_API_ID = 'bad';

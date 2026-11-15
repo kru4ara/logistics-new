@@ -71,6 +71,10 @@ export const fakturowo: InvoiceProvider = {
     await post({ api_zadanie: '1', api_numer: externalId, dokument_status: '1' });
   },
 
+  async cancel(externalId) {
+    await post({ api_zadanie: '2', api_numer: externalId });
+  },
+
   async pdf(externalId) {
     const url = `${base()}/pobierz?${new URLSearchParams({ api_id: apiId(), api_numer: externalId })}`;
     const res = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(30_000) });
