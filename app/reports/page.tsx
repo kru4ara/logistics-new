@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase/admin';
 import { buildRouteMap, type SegmentRouteRow } from '../../lib/trip-route';
 import DownloadButton, { type ReportRow } from './DownloadButton';
-import {
+import { Scale,
   Coins,
   BarChart3,
   Download,
@@ -72,6 +72,13 @@ const QUICK_LINKS: QuickLink[] = [
     hint: 'rep.qExcelHint',
     Icon: Download,
     gradient: 'from-emerald-600 to-emerald-800',
+  },
+  {
+    href: '/reports/plan-fact',
+    title: 'pf.qTitle',
+    hint: 'pf.qHint',
+    Icon: Scale,
+    gradient: 'from-rose-600 to-rose-800',
   },
   {
     href: '/reports/contractors',
