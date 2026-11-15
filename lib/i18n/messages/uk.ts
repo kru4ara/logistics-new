@@ -1842,6 +1842,12 @@ export const uk: Messages = {
     paymentDaysHint: 'Від дати рахунку. Порожньо — 30 днів.',
     badDays: 'Термін оплати — від 0 до 365 днів',
     attention: 'Прострочені рахунки ·',
+    sync: 'Звірити з {provider}',
+    syncAuto: 'Автоматично — щодня зранку',
+    syncDone: '{provider}: перевірено фактур — {checked}, оновлено замовлень — {updated} (оплачено — {paid}, номерів KSeF — {ksef}, пов’язано за номером — {linked}).',
+    syncUnmatched: 'Неоплачених фактур без замовлення в CRM: {n}.',
+    syncUnsupported: 'Цей сервіс фактур не віддає список фактур — звірка недоступна.',
+    syncError: 'Звірка не вдалася: {msg}',
   },
   inv: {
     block: 'Фактура',

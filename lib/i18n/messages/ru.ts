@@ -1844,6 +1844,12 @@ export const ru = {
     paymentDaysHint: 'От даты счёта. Пусто — 30 дней.',
     badDays: 'Срок оплаты — от 0 до 365 дней',
     attention: 'Просроченные счета ·',
+    sync: 'Сверить с {provider}',
+    syncAuto: 'Автоматически — каждый день утром',
+    syncDone: '{provider}: проверено фактур — {checked}, обновлено заказов — {updated} (оплачено — {paid}, номеров KSeF — {ksef}, связано по номеру — {linked}).',
+    syncUnmatched: 'Неоплаченных фактур без заказа в CRM: {n}.',
+    syncUnsupported: 'Этот сервис фактур не отдаёт список фактур — сверка недоступна.',
+    syncError: 'Сверка не удалась: {msg}',
   },
   inv: {
     block: 'Фактура',

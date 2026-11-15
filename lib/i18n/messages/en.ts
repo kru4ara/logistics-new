@@ -1842,6 +1842,12 @@ export const en: Messages = {
     paymentDaysHint: 'From the invoice date. Empty — 30 days.',
     badDays: 'Payment term must be 0–365 days',
     attention: 'Overdue invoices ·',
+    sync: 'Sync with {provider}',
+    syncAuto: 'Automatically every morning',
+    syncDone: '{provider}: {checked} invoices checked, {updated} orders updated ({paid} paid, {ksef} KSeF numbers, {linked} linked by number).',
+    syncUnmatched: 'Unpaid invoices without an order in the CRM: {n}.',
+    syncUnsupported: 'This invoicing service does not provide an invoice list — sync is unavailable.',
+    syncError: 'Sync failed: {msg}',
   },
   inv: {
     block: 'Invoice',

@@ -31,6 +31,20 @@ export type ProviderInfo = {
   appUrl: string;
 };
 
+/** Фактура из списка сервиса — для сверки дебиторки. */
+export type RemoteInvoice = {
+  externalId: string;
+  number: string | null;
+  issueDate: string | null;
+  paymentDue: string | null;
+  payment: 'paid' | 'partial' | 'unpaid';
+  ksefNumber: string | null;
+  gross: number | null;
+  currency: string | null;
+  buyerName: string | null;
+  buyerTaxId: string | null;
+};
+
 export interface InvoiceProvider extends ProviderInfo {
   issue(input: InvoiceInput, opts: { bankAccount: string | null; sendToKsef: boolean }): Promise<IssueResult>;
   refresh(externalId: string): Promise<InvoiceSnapshot>;
@@ -40,6 +54,8 @@ export interface InvoiceProvider extends ProviderInfo {
   /** удалить фактуру в сервисе — только пока она не ушла в KSeF */
   cancel(externalId: string): Promise<void>;
   pdf(externalId: string): Promise<ArrayBuffer>;
+  /** все фактуры сервиса (для сверки оплат и номеров KSeF); нет — сверки нет */
+  listInvoices?(opts?: { maxPages?: number }): Promise<RemoteInvoice[]>;
 }
 
 /** Ошибка сервиса фактур с понятным текстом (его показываем пользователю). */

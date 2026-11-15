@@ -270,6 +270,10 @@ const TRANSLATED_FILES = [
   'lib/invoicing/fakturowo-rules.ts',
   'lib/invoicing/index.ts',
   'lib/invoicing/types.ts',
+  // invoice sync
+  'app/api/cron/invoices-sync/route.ts',
+  'app/receivables/SyncInvoicesButton.tsx',
+  'lib/invoicing/sync-rules.ts',
 ];
 
 function cyrillicLiterals(file: string): string[] {

@@ -6,6 +6,7 @@ import { createClient } from '../../lib/supabase/admin';
 import { logAudit } from '../../lib/audit';
 import { getT } from '../../lib/i18n/server';
 import { providerById } from '../../lib/invoicing';
+import { runInvoiceSync } from '../../lib/invoicing/sync';
 
 /** Отметить счёт оплаченным сегодня. Дату оплаты ставит триггер trips_payment_dates. */
 export async function markTripPaid(tripId: string): Promise<{ ok: boolean; message?: string }> {
@@ -78,4 +79,23 @@ export async function updateTripPayment(tripId: string, formData: FormData): Pro
   revalidatePath(`/trips/${tripId}`);
   revalidatePath('/receivables');
   return { ok: true };
+}
+
+/** Сверить дебиторку с сервисом фактур сейчас (то же делает cron раз в день). */
+export async function syncInvoicesNow(): Promise<{ ok: boolean; message: string }> {
+  await requireCapability('receivables.edit');
+  const { t } = await getT();
+  const r = await runInvoiceSync();
+  if (!r.ok) {
+    if (r.reason === 'notConfigured') return { ok: false, message: t('inv.notConfigured') };
+    if (r.reason === 'unsupported') return { ok: false, message: t('recv.syncUnsupported') };
+    return { ok: false, message: t('recv.syncError', { msg: r.message ?? '' }) };
+  }
+  revalidatePath('/receivables');
+  return {
+    ok: true,
+    message: t('recv.syncDone', {
+      provider: r.provider, checked: r.checked, updated: r.updated, paid: r.paid, ksef: r.ksef, linked: r.linked,
+    }) + (r.unpaidUnmatched ? ' ' + t('recv.syncUnmatched', { n: r.unpaidUnmatched }) : ''),
+  };
 }

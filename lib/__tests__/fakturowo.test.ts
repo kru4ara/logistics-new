@@ -76,7 +76,7 @@ describe('fakturowo-rules', () => {
       ['818950', '0', 'FV 12/11/2026', '15-11-2026', '16-11-2026', '1', '1500', '0', '1500', 'Seller', 'adr', '111',
         'Buyer', 'adr2', 'DE1', '0', '10', '15-12-2026', ksef].join(';');
     const lines = ['1', row(''), 'Usługa;usł.;1;1500;1500;0;1500;npII;0;1500'];
-    expect(parseDocList(lines, '818950')).toEqual({ apiNumer: '818950', number: 'FV 12/11/2026', ksefNumber: null, status: '0' });
+    expect(parseDocList(lines, '818950')).toMatchObject({ apiNumer: '818950', number: 'FV 12/11/2026', ksefNumber: null, status: '0' });
     expect(parseDocList(['1', row('5261040828-20261116-0A1B2C3D4E5F-01')], '818950')?.ksefNumber)
       .toBe('5261040828-20261116-0A1B2C3D4E5F-01');
     expect(parseDocList(lines, '1')).toBeNull();
@@ -112,7 +112,10 @@ beforeAll(async () => {
       if (z === '3') {
         const row = ['818950', '49', 'FV 12/11/2026', '15-11-2026', '16-11-2026', '1', '1500', '0', '1500', 'S', 'a', '1',
           'B', 'b', 'DE1', '0', '10', '15-12-2026', ksef].join(';');
-        return res.end(`1\n1\n${row}\nUsługa;usł.;1;1500;1500;0;1500;npII;0;1500`);
+        // По одному документу Fakturowo может вернуть только позиции — CRM ищет в общем списке.
+        if (form.get('api_numer')) return res.end('1\nUsługa;usł.;1;1500;1500;0;1500;npII;0;1500');
+        const paid = row.replace(/;0;10;15-12-2026;/, ';1;10;15-12-2026;');
+        return res.end(`1\n1\n${ksef ? paid : row}\nUsługa;usł.;1;1500;1500;0;1500;npII;0;1500`);
       }
       res.end('0\nunknown');
     });
@@ -141,6 +144,15 @@ describe('fakturowo provider', () => {
 
     ksef = '5261040828-20261116-0A1B2C3D4E5F-01';
     expect(await fakturowo.refresh('818950')).toMatchObject({ ksef: 'ok', ksefNumber: ksef });
+  });
+
+  it('список фактур для сверки', async () => {
+    const { fakturowo } = await import('../invoicing/fakturowo');
+    ksef = '5261040828-20261116-0A1B2C3D4E5F-01';
+    const list = await fakturowo.listInvoices!();
+    expect(list).toEqual([expect.objectContaining({
+      externalId: '818950', number: 'FV 12/11/2026', payment: 'paid', ksefNumber: ksef, paymentDue: '2026-12-15',
+    })]);
   });
 
   it('оплата, PDF, ошибки', async () => {

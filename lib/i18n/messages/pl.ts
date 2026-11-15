@@ -1842,6 +1842,12 @@ export const pl: Messages = {
     paymentDaysHint: 'Od daty faktury. Puste — 30 dni.',
     badDays: 'Termin płatności — od 0 do 365 dni',
     attention: 'Faktury po terminie ·',
+    sync: 'Uzgodnij z {provider}',
+    syncAuto: 'Automatycznie — codziennie rano',
+    syncDone: '{provider}: sprawdzono faktur — {checked}, zaktualizowano zleceń — {updated} (opłaconych — {paid}, numerów KSeF — {ksef}, powiązanych po numerze — {linked}).',
+    syncUnmatched: 'Nieopłaconych faktur bez zlecenia w CRM: {n}.',
+    syncUnsupported: 'Ten program do faktur nie udostępnia listy faktur — uzgodnienie niedostępne.',
+    syncError: 'Uzgodnienie nie powiodło się: {msg}',
   },
   inv: {
     block: 'Faktura',
