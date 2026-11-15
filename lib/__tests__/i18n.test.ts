@@ -295,6 +295,9 @@ const TRANSLATED_FILES = [
   'lib/payables/cost-rules.ts',
   // unmatched
   'app/receivables/UnmatchedInvoices.tsx',
+  // plan-fact
+  'app/reports/plan-fact/page.tsx',
+  'lib/plan-fact.ts',
 ];
 
 function cyrillicLiterals(file: string): string[] {
