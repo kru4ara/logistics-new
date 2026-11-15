@@ -1,0 +1,115 @@
+name: Migrations
+
+# Миграции на базы клиентов — автоматически, вместо SQL Editor.
+#
+# Порядок релиза прежний: код → деплой → миграции. Поэтому каждая миграция
+# обязана быть совместимой со старым кодом (добавить — да, удалить/переименовать —
+# отдельным PR позже, см. AGENTS.md «Миграции»). Сторож — lib/__tests__/migrations-safe.test.ts.
+#
+#   staging    — на каждый PR с миграциями (секрет окружения `staging`: STAGING_DATABASE_URL).
+#                Нет секрета — шаг пропускается.
+#   production — после merge в master: ждёт деплой Vercel этого коммита, показывает план
+#                и применяет. Окружение `production` с обязательным подтверждением
+#                (Settings → Environments → production → Required reviewers).
+#                Секрет окружения: PROD_DATABASE_URL (одна база) или TENANTS_JSON
+#                (все клиенты: [{ "name": "…", "url": "postgresql://…" }]).
+#   вручную    — Actions → Migrations → Run workflow: «только план» (dry run) или применить.
+
+on:
+  pull_request:
+    branches: [master]
+    paths: ['supabase/migrations/**']
+  push:
+    branches: [master]
+    paths: ['supabase/migrations/**']
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Только показать план, ничего не применять'
+        type: boolean
+        default: true
+
+concurrency:
+  group: migrations-${{ github.event_name == 'pull_request' && 'staging' || 'production' }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  deployments: read
+
+jobs:
+  staging:
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm }
+      - run: npm ci --ignore-scripts
+      - name: Миграции на staging
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::notice::STAGING_DATABASE_URL не задан — staging пропущен"
+            exit 0
+          fi
+          node scripts/migrate.mjs
+
+  production:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm }
+      - run: npm ci --ignore-scripts
+
+      - name: Дождаться деплоя Vercel этого коммита
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Vercel отмечает деплой в GitHub Deployments. Старый код уже на проде,
+          # новый — вот-вот; миграции идут после него (код → деплой → миграции).
+          for i in $(seq 1 40); do
+            # Имя окружения у Vercel: «Production» или «Production – <проект>».
+            url=$(gh api "repos/${{ github.repository }}/deployments?sha=${{ github.sha }}" \
+              --jq '[.[] | select(.environment | startswith("Production"))][0].statuses_url // empty')
+            state=""
+            [ -n "$url" ] && state=$(gh api "$url" --jq '.[0].state // empty')
+            echo "деплой: ${state:-ещё нет}"
+            case "$state" in
+              success) exit 0 ;;
+              failure|error) echo "::error::Деплой Vercel упал — миграции не применяю"; exit 1 ;;
+            esac
+            sleep 30
+          done
+          echo "::warning::Деплой Vercel не найден за 20 минут — продолжаю (миграции совместимы со старым кодом)"
+
+      - name: Подключение
+        env:
+          PROD_DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+          TENANTS_JSON: ${{ secrets.TENANTS_JSON }}
+        run: |
+          if [ -n "$TENANTS_JSON" ]; then
+            umask 077; printf '%s' "$TENANTS_JSON" > "$RUNNER_TEMP/tenants.json"
+            echo "MIGRATE_ARGS=--all $RUNNER_TEMP/tenants.json" >> "$GITHUB_ENV"
+          elif [ -n "$PROD_DATABASE_URL" ]; then
+            echo "MIGRATE_ARGS=" >> "$GITHUB_ENV"
+          else
+            echo "::error::Нет секрета PROD_DATABASE_URL или TENANTS_JSON в окружении production"; exit 1
+          fi
+
+      - name: План
+        env:
+          DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+        run: node scripts/migrate.mjs $MIGRATE_ARGS --dry-run
+
+      - name: Применить
+        if: github.event_name == 'push' || inputs.dry_run == false
+        env:
+          DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+        run: node scripts/migrate.mjs $MIGRATE_ARGS
