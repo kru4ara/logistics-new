@@ -490,7 +490,8 @@ export async function updateSegment(segmentId: string, tripId: string, formData:
     );
   }
   // Привязанные счета подрядчика важнее цены из заявки — факт поверх плана.
-  await recalcSegmentCost(supabase, segmentId);
+  // force: участок правят вручную, расход уже пересоздан — и в закрытом месяце.
+  await recalcSegmentCost(supabase, segmentId, { force: true });
 
   revalidatePath(`/trips/${tripId}`);
   return { success: true };

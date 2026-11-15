@@ -66,6 +66,8 @@ export const CAPABILITIES = [
   'receivables.edit',
   'payables.view',
   'payables.edit',
+  // Закрытие месяца: цифры закрытого месяца меняются только с подтверждения.
+  'months.close',
 ] as const;
 
 export type Capability = (typeof CAPABILITIES)[number];
@@ -107,7 +109,8 @@ const MANAGER: Capability[] = OFFICE.filter(
     c !== 'receivables.view' &&
     c !== 'receivables.edit' &&
     c !== 'payables.view' &&
-    c !== 'payables.edit'
+    c !== 'payables.edit' &&
+    c !== 'months.close'
 );
 
 export const ROLE_CAPABILITIES: Record<string, Capability[]> = {

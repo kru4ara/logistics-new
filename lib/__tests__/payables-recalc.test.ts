@@ -104,3 +104,28 @@ describe('пересчёт расхода «Подрядчик» участка'
     expect(tables.trip_expenses).toEqual([fuel]);
   });
 });
+
+describe('закрытый месяц', () => {
+  it('без подтверждения расход не меняется; с подтверждением (force) — по счетам', async () => {
+    const { recalcSegmentCost, previewSegmentCost } = await import('../payables/cost');
+    const tables: Record<string, Row[]> = {
+      trip_segments: [{ ...segment, trips: { start_date: '2026-09-07', end_date: '2026-09-10' } }],
+      trip_expenses: [planExpense()],
+      purchase_invoices: [{ segment_id: 's1', invoice_number: 'FV 1', invoice_type: 'VAT', net_amount: 3100, gross_amount: 3100, currency: 'EUR', issue_date: '2026-10-02' }],
+      closed_months: [{ month: '2026-09' }],
+      rates: [],
+    };
+    const db = fakeDb(tables);
+    expect(await recalcSegmentCost(db, 's1')).toBe('closed');
+    expect(tables.trip_expenses[0].amount_eur).toBe(2900);
+    expect(await previewSegmentCost(db, 's1')).toEqual({ currentEur: 2900, targetEur: 3100, pending: true });
+    expect(await recalcSegmentCost(db, 's1', { force: true })).toBe('updated');
+    expect(tables.trip_expenses[0].amount_eur).toBe(3100);
+    expect((await previewSegmentCost(db, 's1'))?.pending).toBe(false);
+    // месяц открыт — пересчёт как обычно
+    tables.closed_months = [];
+    tables.purchase_invoices[0].net_amount = 3200;
+    expect(await recalcSegmentCost(db, 's1')).toBe('updated');
+    expect(tables.trip_expenses[0].amount_eur).toBe(3200);
+  });
+});

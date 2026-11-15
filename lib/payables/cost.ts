@@ -2,23 +2,15 @@ import 'server-only';
 import type { createClient } from '../supabase/admin';
 import { toEur } from '../fx';
 import { segmentCost, costAmount, isCorrectionType, type InvoiceForCost } from './cost-rules';
+import { isMonthClosed, tripMonth } from '../closed-months';
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
 
-/**
- * Пересчитать расход «Подрядчик» участка: есть привязанные счета — по их сумме нетто
- * (доплаты и korekta складываются), нет — по цене из заявки. У участка одна строка
- * такого расхода, поэтому маржа рейса и отчёты не задваиваются.
- * Вызывать после любой привязки/отвязки счёта и после правки участка.
- */
-export async function recalcSegmentCost(supabase: Supabase, segmentId: string): Promise<void> {
-  const { data: seg } = await supabase
-    .from('trip_segments')
-    .select('id, trip_id, executor_type, price, currency, date_from, from_city, to_city, contractors(name)')
-    .eq('id', segmentId)
-    .maybeSingle();
-  if (!seg || seg.executor_type !== 'contractor') return;
+type SegRow = { id: string; price: number | string | null; currency: string | null; date_from: string | null };
 
+/** Что должно стоять в расходе участка по счетам и плану (без записи). */
+async function computeCost(supabase: Supabase, seg: SegRow) {
+  const segmentId = seg.id;
   const today = new Date().toISOString().slice(0, 10);
   const { data: invRows } = await supabase
     .from('purchase_invoices')
@@ -51,9 +43,58 @@ export async function recalcSegmentCost(supabase: Supabase, segmentId: string): 
     .eq('category', 'contractor');
   const ids = ((rows ?? []) as { id: string }[]).map((r) => r.id);
 
+  return { invoices, cost, ids };
+}
+
+/**
+ * Предпросмотр для закрытого месяца: сумма расхода сейчас и сумма по счетам/плану.
+ * pending — они расходятся (изменение ждёт подтверждения).
+ */
+export async function previewSegmentCost(supabase: Supabase, segmentId: string) {
+  const { data: seg } = await supabase
+    .from('trip_segments')
+    .select('id, price, currency, date_from, executor_type')
+    .eq('id', segmentId)
+    .maybeSingle();
+  if (!seg || seg.executor_type !== 'contractor') return null;
+  const { cost, ids } = await computeCost(supabase, seg as SegRow);
+  let currentEur: number | null = null;
+  if (ids.length) {
+    const { data } = await supabase.from('trip_expenses').select('amount_eur').in('id', ids);
+    currentEur = ((data ?? []) as { amount_eur: number | string | null }[]).reduce((sum, r) => sum + (Number(r.amount_eur) || 0), 0);
+  }
+  const targetEur = cost?.amountEur ?? null;
+  const pending = (currentEur ?? 0) !== (targetEur ?? 0) && Math.abs((currentEur ?? 0) - (targetEur ?? 0)) >= 0.01;
+  return { currentEur, targetEur, pending };
+}
+
+/**
+ * Пересчитать расход «Подрядчик» участка: есть привязанные счета — по их сумме нетто
+ * (доплаты и korekta складываются), нет — по цене из заявки. У участка одна строка
+ * такого расхода, поэтому маржа рейса и отчёты не задваиваются.
+ * Вызывать после любой привязки/отвязки счёта и после правки участка.
+ *
+ * Месяц рейса закрыт — без force ничего не меняет (вернёт 'closed'): изменение ждёт
+ * подтверждения в отчёте «План → факт».
+ */
+export async function recalcSegmentCost(
+  supabase: Supabase,
+  segmentId: string,
+  opts: { force?: boolean } = {},
+): Promise<'updated' | 'closed' | 'skipped'> {
+  const { data: seg } = await supabase
+    .from('trip_segments')
+    .select('id, trip_id, executor_type, price, currency, date_from, from_city, to_city, contractors(name), trips(start_date, end_date)')
+    .eq('id', segmentId)
+    .maybeSingle();
+  if (!seg || seg.executor_type !== 'contractor') return 'skipped';
+  const trip = (Array.isArray(seg.trips) ? seg.trips[0] : seg.trips) as { start_date: string | null; end_date: string | null } | null;
+  if (!opts.force && (await isMonthClosed(supabase, tripMonth(trip)))) return 'closed';
+
+  const { invoices, cost, ids } = await computeCost(supabase, seg);
   if (!cost) {
     if (ids.length) await supabase.from('trip_expenses').delete().in('id', ids);
-    return;
+    return 'updated';
   }
 
   const contractor = (Array.isArray(seg.contractors) ? seg.contractors[0] : seg.contractors) as { name: string } | null;
@@ -82,4 +123,5 @@ export async function recalcSegmentCost(supabase: Supabase, segmentId: string): 
       expense_date: seg.date_from || null,
     });
   }
+  return 'updated';
 }
