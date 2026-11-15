@@ -5,6 +5,8 @@ import SubmitButton from '../../../components/SubmitButton';
 import RequisitesFields from '../../RequisitesFields';
 import PortalLinkBlock from '../../PortalLinkBlock';
 import { getT } from '../../../../lib/i18n/server';
+import { LOCALE_LABELS } from '../../../../lib/i18n/config';
+import { MAIL_LOCALES, mailLocaleOf } from '../../../../lib/dunning-rules';
 
 export const dynamic = 'force-dynamic';
 
@@ -106,6 +108,17 @@ export default async function EditClientPage({ params }: { params: Promise<{ id:
                 <label className="block text-sm font-medium text-slate-700 mb-1">{t('recv.paymentDays')}</label>
                 <input type="number" name="payment_days" min={0} max={365} placeholder="30" defaultValue={client.payment_days ?? ''} className="input" />
                 <p className="text-xs text-slate-400 mt-1">{t('recv.paymentDaysHint')}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{t('dun.mailLocale')}</label>
+                <select name="mail_locale" defaultValue={mailLocaleOf(client.mail_locale)} className="input">
+                  {MAIL_LOCALES.map((l) => (
+                    <option key={l} value={l}>
+                      {LOCALE_LABELS[l]}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-slate-400 mt-1">{t('dun.mailLocaleHint')}</p>
               </div>
             </div>
             <RequisitesFields values={client} />

@@ -12,6 +12,7 @@ import type { MessageKey } from '../../lib/i18n/translate';
 import { summarize, toReceivable, type Bucket, type Receivable, type ReceivableTrip } from '../../lib/receivables';
 import MarkPaidButton from './MarkPaidButton';
 import SyncInvoicesButton from './SyncInvoicesButton';
+import RemindButton from './RemindButton';
 import UnmatchedInvoices, { type UnmatchedRow } from './UnmatchedInvoices';
 import { readUnmatched } from '../../lib/invoicing/sync';
 import { rankTripsForInvoice, type TripOption } from '../../lib/invoicing/sync-rules';
@@ -45,6 +46,15 @@ export default async function ReceivablesPage() {
     fetchAll(supabase.from('clients').select('id, name, payment_days')),
   ]);
   if (error) return <div className="p-8 text-red-600">{t('trip.loadError', { msg: error.message })}</div>;
+
+  // Последнее напоминание по клиенту (миграция 033; до неё таблицы нет — без подписи).
+  const { data: reminders } = await supabase
+    .from('client_reminders')
+    .select('client_id, sent_at')
+    .order('sent_at', { ascending: false })
+    .limit(1000);
+  const lastReminder = new Map<string, string>();
+  for (const r of reminders ?? []) if (!lastReminder.has(r.client_id as string)) lastReminder.set(r.client_id as string, r.sent_at as string);
 
   const clientById = new Map((clients || []).map((c) => [c.id as string, c as { id: string; name: string; payment_days: number | null }]));
   const today = new Date().toISOString().slice(0, 10);
@@ -192,10 +202,19 @@ export default async function ReceivablesPage() {
                     ) : (
                       <span className="font-bold text-slate-500">{t('recv.noClient')}</span>
                     )}
-                    <div className="text-sm tabular-nums">
-                      <b className="text-slate-900">{eur(g.total)}</b>
-                      {g.overdue > 0 && (
-                        <span className="text-red-700 ml-2">· {t('recv.clientOverdue', { amount: eur(g.overdue) })}</span>
+                    <div className="text-sm tabular-nums flex flex-wrap items-center gap-x-3 gap-y-1">
+                      <span>
+                        <b className="text-slate-900">{eur(g.total)}</b>
+                        {g.overdue > 0 && (
+                          <span className="text-red-700 ml-2">· {t('recv.clientOverdue', { amount: eur(g.overdue) })}</span>
+                        )}
+                      </span>
+                      {canEdit && client && g.overdue > 0 && (
+                        <RemindButton
+                          clientId={client.id}
+                          clientName={client.name}
+                          lastSent={lastReminder.has(client.id) ? formatDate(lastReminder.get(client.id) as string, locale) : null}
+                        />
                       )}
                     </div>
                   </div>
