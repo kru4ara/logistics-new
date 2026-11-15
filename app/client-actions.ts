@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { logAudit, diffFields } from '../lib/audit';
 import { getT } from '../lib/i18n/server';
+import { parseClientRequisites } from '../lib/invoice-rules';
 
 /** Срок оплаты клиента: пусто → null, иначе целое 0–365 (иначе ошибка). */
 function parsePaymentDays(v: FormDataEntryValue | null): number | null | 'bad' {
@@ -27,11 +28,13 @@ export async function updateClient(clientId: string, formData: FormData) {
 
   const paymentDays = parsePaymentDays(formData.get('payment_days'));
   if (paymentDays === 'bad') throw new Error(t('recv.badDays'));
+  const req = parseClientRequisites((k) => formData.get(k) as string | null);
+  if (req === 'badCountry') throw new Error(t('inv.badCountry'));
 
   // Берём старые значения для audit
   const { data: before } = await supabase
     .from('clients')
-    .select('name, contact_person, phone, email, payment_days')
+    .select('name, contact_person, phone, email, payment_days, tax_id, street, post_code, city, country')
     .eq('id', clientId)
     .maybeSingle();
 
@@ -43,6 +46,7 @@ export async function updateClient(clientId: string, formData: FormData) {
       phone: phone || null,
       email: email || null,
       payment_days: paymentDays,
+      ...req,
     })
     .eq('id', clientId);
 
@@ -57,6 +61,11 @@ export async function updateClient(clientId: string, formData: FormData) {
         phone: before.phone,
         email: before.email,
         payment_days: before.payment_days,
+        tax_id: before.tax_id,
+        street: before.street,
+        post_code: before.post_code,
+        city: before.city,
+        country: before.country,
       },
       {
         name: name || '',
@@ -64,8 +73,9 @@ export async function updateClient(clientId: string, formData: FormData) {
         phone: phone || null,
         email: email || null,
         payment_days: paymentDays,
+        ...req,
       },
-      ['name', 'contact_person', 'phone', 'email', 'payment_days']
+      ['name', 'contact_person', 'phone', 'email', 'payment_days', 'tax_id', 'street', 'post_code', 'city', 'country']
     );
 
     const changedCount = Object.keys(changes).length;

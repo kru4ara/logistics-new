@@ -24,6 +24,10 @@ import { getT } from '../../../lib/i18n/server';
 import { tripStatusKey, TRIP_STATUSES } from '../../../lib/i18n/labels';
 import { getDriverT } from '../../../lib/driver-locale';
 import PaymentBlock from './PaymentBlock';
+import InvoiceBlock from './InvoiceBlock';
+import { isFakturowniaConfigured } from '../../../lib/fakturownia';
+import { normalizeCountry, suggestVat, suggestLang, positionName, normalizeTaxId } from '../../../lib/invoice-rules';
+import type { MessageKey } from '../../../lib/i18n/translate';
 import { getSessionContext } from '../../../lib/session';
 import { can } from '../../../lib/roles';
 
@@ -60,7 +64,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
   const { data: trip, error: tripError } = await applyTripScope(
       supabase
         .from('trips')
-        .select('*, clients(name), drivers!driver_id(first_name, last_name, phone_by, phone_pl, telegram_chat_id), trucks!truck_id(registration_number)'),
+        .select('*, clients(name, email, tax_id, street, post_code, city, country, payment_days), drivers!driver_id(first_name, last_name, phone_by, phone_pl, telegram_chat_id), trucks!truck_id(registration_number)'),
       scope
     )
     .eq('id', tripId)
@@ -327,6 +331,49 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
     paid: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   };
 
+  // Фактура (Fakturownia → KSeF): офис, заказ завершён или уже со счётом.
+  let invoiceBlock: React.ReactNode = null;
+  if (can(role, 'receivables.edit') && ['completed', 'invoiced', 'paid'].includes(trip.status)
+      && (trip.fakturownia_id || trip.status !== 'paid')) {
+    const cl = pickOne<{ name: string; tax_id: string | null; street: string | null; city: string | null;
+      country: string | null; payment_days: number | null }>(trip.clients);
+    const country = normalizeCountry(cl?.country);
+    const vat = suggestVat(country);
+    const missing: MessageKey[] = [];
+    if (cl && !normalizeTaxId(cl.tax_id, country)) missing.push('inv.missTaxId');
+    if (cl && (!cl.street || !cl.city)) missing.push('inv.missAddress');
+    if (cl && !country) missing.push('inv.missCountry');
+    const route = buildRouteMap((segmentsRaw || []) as never).get(tripId)?.route ?? null;
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const sell = (trip.unload_date || (trip.end_date ? String(trip.end_date).slice(0, 10) : null) || todayStr) as string;
+    invoiceBlock = (
+      <InvoiceBlock
+        tripId={tripId}
+        configured={isFakturowniaConfigured()}
+        issued={trip.fakturownia_id ? {
+          invoiceNumber: trip.invoice_number ?? null,
+          ksefStatus: trip.ksef_status ?? null,
+          ksefNumber: trip.ksef_number ?? null,
+          ksefError: trip.ksef_error ?? null,
+        } : null}
+        defaults={{
+          issueDate: todayStr,
+          sellDate: sell,
+          paymentDays: cl?.payment_days ?? 30,
+          netAmount: trip.revenue_eur != null ? Number(trip.revenue_eur) : null,
+          tax: vat.tax,
+          npKind: vat.npKind,
+          reverseCharge: vat.reverseCharge,
+          lang: suggestLang(country),
+          positionName: positionName(route, trip.client_request_number ?? null, trip.trip_number ?? null),
+        }}
+        clientId={trip.client_id ?? null}
+        clientName={cl?.name ?? null}
+        clientMissing={cl ? missing : ['inv.missClient']}
+      />
+    );
+  }
+
   return (
     <main className="min-h-screen bg-slate-50">
       <div className="max-w-[900px] mx-auto px-4 md:px-6 py-6 md:py-8 space-y-5 md:space-y-6">
@@ -443,6 +490,8 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
           otherExpenses={otherExpenses}
           profit={profit}
         />
+
+        {invoiceBlock}
 
         {can(role, 'receivables.edit') && ['invoiced', 'paid'].includes(trip.status) && (
           <PaymentBlock

@@ -2,6 +2,7 @@ import { createClient } from '../../../../lib/supabase/admin';
 import { updateClient } from '../../../client-actions';
 import { ArrowLeft, Users, Building2, Save } from 'lucide-react';
 import SubmitButton from '../../../components/SubmitButton';
+import RequisitesFields from '../../RequisitesFields';
 import { getT } from '../../../../lib/i18n/server';
 
 export const dynamic = 'force-dynamic';
@@ -98,6 +99,7 @@ export default async function EditClientPage({ params }: { params: Promise<{ id:
                 <p className="text-xs text-slate-400 mt-1">{t('recv.paymentDaysHint')}</p>
               </div>
             </div>
+            <RequisitesFields values={client} />
           </div>
 
           <div className="flex flex-col-reverse sm:flex-row gap-3 sticky bottom-3 sm:static
