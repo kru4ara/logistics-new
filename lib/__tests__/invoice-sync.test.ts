@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { planInvoiceSync, normalizeInvoiceNumber, type SyncTrip } from '../invoicing/sync-rules';
-import { parseDocRow, parseDocPage, isoFromDdMmYyyy, daysFromZaplata } from '../invoicing/fakturowo-rules';
+import { parseDocRow, parseDocPage, isoFromDdMmYyyy, daysFromZaplata, paymentCode } from '../invoicing/fakturowo-rules';
 import type { RemoteInvoice } from '../invoicing/types';
 
 const KSEF = '7011162939-20261114-52D8B6C00001-C4';
@@ -34,6 +34,20 @@ describe('разбор списка Fakturowo', () => {
     const r = row({ termin: '' }).replace(';0;7;;', ';0;przelew w terminie 10 dni;;');
     expect(parseDocRow(r)!.paymentDue).toBe('2026-11-23');
     expect(parseDocRow(row({ termin: '' }))!.paymentDue).toBeNull(); // код 7 — неизвестен
+  });
+
+  it('строка с «;» в конце (как отдаёт Fakturowo): оплата, срок и KSeF не съезжают', () => {
+    const d = parseDocRow(row({ status: '1', ksef: KSEF }) + ';')!;
+    expect(d).toMatchObject({ status: '1', paymentDue: '2026-11-23', ksefNumber: KSEF, buyerTaxId: 'BY692203928' });
+    const empty = parseDocRow(row({ status: '1', ksef: '' }) + ';')!;
+    expect(empty).toMatchObject({ status: '1', paymentDue: '2026-11-23', ksefNumber: null });
+    // «;» в адресе и в конце сразу
+    expect(parseDocRow(row({ addr: 'ul. A; lok. 5', status: '1', ksef: KSEF }) + ';')).toMatchObject({ status: '1', paymentDue: '2026-11-23', ksefNumber: KSEF });
+  });
+
+  it('статус оплаты — код или текст', () => {
+    expect(['1', 'zapłacona', 'Opłacona', '2', 'częściowo zapłacona', '0', 'niezapłacona', '', 'xyz'].map(paymentCode))
+      .toEqual(['1', '1', '1', '2', '2', '0', '0', '0', '0']);
   });
 
   it('строки позиций и мусор — не документы', () => {

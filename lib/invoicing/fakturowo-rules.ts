@@ -139,26 +139,45 @@ const num = (v: string | undefined) => {
  * Адреса могут содержать «;», поэтому начало читаем с начала, конец — с конца.
  * Строки позиций (без даты в 4-м поле) — не документы.
  */
+/** Статус оплаты → код: 1 — оплачена, 2 — частично, 0 — нет (понимает и код, и текст). */
+export function paymentCode(v: string | null | undefined): '0' | '1' | '2' {
+  const s = (v ?? '').trim().toLowerCase();
+  if (s === '1') return '1';
+  if (s === '2' || /cz[eę][sś]ciow/.test(s) || /partial/.test(s)) return '2';
+  if (/^(nie|un)/.test(s)) return '0';
+  if (/zap[łl]acon|op[łl]acon|^paid/.test(s)) return '1';
+  return '0';
+}
+
 export function parseDocRow(line: string): FakturowoDoc | null {
   const f = line.split(';').map((x) => x.trim());
+  // Строки часто заканчиваются «;» — пустое последнее поле сдвигало бы поля, считанные с конца.
+  while (f.length > 19 && f[f.length - 1] === '') f.pop();
   if (f.length < 19 || !/^\d+$/.test(f[0]) || !isoFromDdMmYyyy(f[3])) return null;
-  const tail = f.slice(-4);
-  const ksef = tail[3] || (line.match(KSEF_NUMBER_RE)?.[0] ?? '');
+  // Ровно 19 полей — читаем по номерам; больше («;» внутри адреса) — конец строки с конца.
+  const at = f.length === 19 ? { buyerTaxId: 14, status: 15, zaplata: 16, termin: 17, ksef: 18 } : null;
+  const fromEnd = (k: number) => f[f.length - k];
+  const buyerTaxId = at ? f[at.buyerTaxId] : fromEnd(5);
+  const statusRaw = at ? f[at.status] : fromEnd(4);
+  const zaplata = at ? f[at.zaplata] : fromEnd(3);
+  const termin = at ? f[at.termin] : fromEnd(2);
+  const ksefField = at ? f[at.ksef] : fromEnd(1);
+  const ksef = ksefField?.match(KSEF_NUMBER_RE)?.[0] ?? line.match(KSEF_NUMBER_RE)?.[0] ?? null;
+  const issueDate = isoFromDdMmYyyy(f[3]);
+  const days = daysFromZaplata(zaplata);
   return {
     apiNumer: f[0],
     kind: f[1] || null,
     number: f[2] || null,
-    issueDate: isoFromDdMmYyyy(f[3]),
+    issueDate,
     currency: f[5] || null,
     gross: num(f[8]),
     buyerName: f[12] || null,
-    buyerTaxId: f[f.length - 5] || null,
-    status: tail[0] || null,
+    buyerTaxId: buyerTaxId || null,
+    status: paymentCode(statusRaw),
     // Срок: поле termin; пустое — из способа оплаты («przelew w terminie N dni»).
-    paymentDue:
-      isoFromDdMmYyyy(tail[2]) ??
-      (isoFromDdMmYyyy(f[3]) && daysFromZaplata(tail[1]) != null ? addDays(isoFromDdMmYyyy(f[3])!, daysFromZaplata(tail[1])!) : null),
-    ksefNumber: ksef && KSEF_NUMBER_RE.test(ksef) ? ksef.match(KSEF_NUMBER_RE)![0] : ksef || null,
+    paymentDue: isoFromDdMmYyyy(termin) ?? (issueDate && days != null ? addDays(issueDate, days) : null),
+    ksefNumber: ksef,
   };
 }
 
