@@ -7,7 +7,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { checkLogisat } from './actions';
-import type { SummaryResult } from '../../../lib/logisat';
+import type { SummaryResult } from '../../../lib/gps/sync';
 import { useT } from '../../components/I18nProvider';
 
 type Truck = { id: string; label: string; deviceId: string };

@@ -1,7 +1,8 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { syncTripFromLogisat } from '../../../../lib/logisat';
+import { syncTripFromGps as syncTripFromLogisat } from '../../../../lib/gps/sync';
 import { getSessionContext } from '../../../../lib/session';
 import { can } from '../../../../lib/roles';
+import { getGpsProvider } from '../../../../lib/gps';
 
 export async function POST(request: NextRequest) {
   const { role } = await getSessionContext();
@@ -10,16 +11,12 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const SERVER = process.env.LOGISAT_SERVER;
-    const USERNAME = process.env.LOGISAT_USERNAME;
-    const PASSWORD = process.env.LOGISAT_PASSWORD;
-
-    if (!SERVER || !USERNAME || !PASSWORD) {
+    if (!getGpsProvider()) {
       return NextResponse.json(
         {
           success: false,
           stage: 'env',
-          error: 'Logisat не настроен. Проверь LOGISAT_SERVER, LOGISAT_USERNAME, LOGISAT_PASSWORD в Vercel.',
+          error: 'GPS не настроен: задайте GPS_PROVIDER и ключи сервиса (для Logisat — LOGISAT_SERVER, LOGISAT_USERNAME, LOGISAT_PASSWORD) в Vercel.',
         },
         { status: 500 }
       );

@@ -3,7 +3,7 @@
 import { createClient } from '../../../lib/supabase/admin';
 import { getSessionContext } from '../../../lib/session';
 import { can } from '../../../lib/roles';
-import { fetchLogisatSummary, type SummaryResult } from '../../../lib/logisat';
+import { fetchGpsSummary as fetchLogisatSummary, type SummaryResult } from '../../../lib/gps/sync';
 import { getT } from '../../../lib/i18n/server';
 
 export async function checkLogisat(

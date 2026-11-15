@@ -158,7 +158,7 @@ export async function changeTripStatus(
   // Автосинхронизация Logisat при завершении
   if (status === 'completed') {
     try {
-      const { syncTripFromLogisat } = await import('../../lib/logisat');
+      const { syncTripFromGps: syncTripFromLogisat } = await import('../../lib/gps/sync');
       const syncResult = await syncTripFromLogisat(tripId);
       if (syncResult.success) {
         console.log('[changeTripStatus] Logisat sync OK:', {

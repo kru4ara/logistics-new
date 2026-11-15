@@ -281,6 +281,13 @@ const TRANSLATED_FILES = [
   'lib/ksef/rules.ts',
   'lib/payables/match-rules.ts',
   'lib/payables/summary.ts',
+  // gps
+  'app/api/logisat/query/route.ts',
+  'app/api/logisat/test/route.ts',
+  'lib/gps/index.ts',
+  'lib/gps/logisat.ts',
+  'lib/gps/metrics.ts',
+  'lib/gps/types.ts',
 ];
 
 function cyrillicLiterals(file: string): string[] {

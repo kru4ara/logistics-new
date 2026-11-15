@@ -45,7 +45,7 @@ export default async function LogisatPage() {
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2.5 tracking-tight">
             <Satellite className="w-6 h-6 md:w-7 md:h-7 text-brand-600" strokeWidth={2.2} />
-            Logisat
+            GPS
           </h1>
           <p className="text-slate-500 mt-1 text-sm md:text-base">
             {tr('lgs.hint')}
