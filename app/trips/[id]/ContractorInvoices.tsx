@@ -7,7 +7,7 @@ import { INTL_LOCALE } from '../../../lib/i18n/config';
 import { formatDate } from '../../../lib/i18n/format';
 import { toEur } from '../../../lib/fx';
 import { signDocumentPaths } from '../../../lib/storage-urls';
-import { costDiff, MANUAL_CURRENCIES } from '../../../lib/payables/cost-rules';
+import { costDiff, MANUAL_CURRENCIES, isCorrectionType } from '../../../lib/payables/cost-rules';
 import { UnlinkButton } from '../../payables/PayablesControls';
 import { AddManualInvoice, DeleteManualInvoice } from './ContractorInvoicesForms';
 
@@ -25,6 +25,7 @@ type Inv = {
   source: 'ksef' | 'manual';
   segment_id: string;
   invoice_number: string | null;
+  invoice_type: string | null;
   issue_date: string | null;
   net_amount: number | null;
   gross_amount: number | null;
@@ -57,7 +58,7 @@ export default async function ContractorInvoices({
     (chunk) =>
       supabase
         .from('purchase_invoices')
-        .select('id, source, segment_id, invoice_number, issue_date, net_amount, gross_amount, currency, payment_due, paid_at, file_path, ksef_number')
+        .select('id, source, segment_id, invoice_number, invoice_type, issue_date, net_amount, gross_amount, currency, payment_due, paid_at, file_path, ksef_number')
         .in('segment_id', chunk),
   );
   // До миграции 028/029 таблицы может не быть — блок просто не показываем.
@@ -114,6 +115,7 @@ export default async function ContractorInvoices({
                 <li key={i.id} className="py-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
                   <span className="font-medium">{i.invoice_number ?? '—'}</span>
                   <span className="text-[10px] uppercase tracking-wide text-slate-400">{i.source === 'ksef' ? t('pay.srcKsef') : t('pay.srcManual')}</span>
+                  {isCorrectionType(i.invoice_type) && <span className="text-[10px] uppercase tracking-wide text-amber-600">{t('pay.korekta')}</span>}
                   <span className="text-xs text-slate-500">{i.issue_date ? formatDate(i.issue_date, locale) : ''}</span>
                   <span className="tabular-nums">{t('pay.net')} {money(i.net_amount, i.currency)}</span>
                   <span className="text-xs text-slate-500">

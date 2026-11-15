@@ -1,7 +1,7 @@
 import 'server-only';
 import type { createClient } from '../supabase/admin';
 import { toEur } from '../fx';
-import { segmentCost, costAmount, type InvoiceForCost } from './cost-rules';
+import { segmentCost, costAmount, isCorrectionType, type InvoiceForCost } from './cost-rules';
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
 
@@ -22,7 +22,7 @@ export async function recalcSegmentCost(supabase: Supabase, segmentId: string): 
   const today = new Date().toISOString().slice(0, 10);
   const { data: invRows } = await supabase
     .from('purchase_invoices')
-    .select('invoice_number, net_amount, gross_amount, currency, issue_date')
+    .select('invoice_number, invoice_type, net_amount, gross_amount, currency, issue_date')
     .eq('segment_id', segmentId)
     .order('issue_date', { ascending: true });
   const invoices: (InvoiceForCost & { number: string | null })[] = [];
@@ -32,6 +32,7 @@ export async function recalcSegmentCost(supabase: Supabase, segmentId: string): 
     const amount = costAmount({ net, gross });
     invoices.push({
       number: r.invoice_number,
+      isCorrection: isCorrectionType(r.invoice_type),
       net,
       gross,
       currency: r.currency,
@@ -57,7 +58,7 @@ export async function recalcSegmentCost(supabase: Supabase, segmentId: string): 
 
   const contractor = (Array.isArray(seg.contractors) ? seg.contractors[0] : seg.contractors) as { name: string } | null;
   const route = [seg.from_city, seg.to_city].filter(Boolean).join(' → ');
-  const numbers = invoices.map((i) => i.number).filter(Boolean).join(', ');
+  const numbers = invoices.filter((i) => (costAmount(i) ?? 0) !== 0).map((i) => i.number).filter(Boolean).join(', ');
   const description =
     `Подрядчик: ${contractor?.name || 'Подрядчик'}${route ? ` · ${route}` : ''}` +
     (cost.actual ? ` · по счетам${numbers ? `: ${numbers}` : ''}` : '');

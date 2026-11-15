@@ -74,6 +74,18 @@ describe('пересчёт расхода «Подрядчик» участка'
     expect(tables.trip_expenses.find((e) => e.id === 'e1')).toMatchObject({ amount_eur: 2900, original_amount: 2900, description: 'Подрядчик: Trans-Kowalski · Trud → Brest' });
   });
 
+  it('рейс 18Е: нулевая korekta не обнуляет расход подрядчика', async () => {
+    const { recalcSegmentCost } = await import('../payables/cost');
+    const tables: Record<string, Row[]> = {
+      trip_segments: [{ ...segment, price: 2400 }],
+      trip_expenses: [{ ...planExpense(), amount_eur: 0, original_amount: 0 }],
+      purchase_invoices: [{ segment_id: 's1', invoice_number: 'KS 032/09/2026', invoice_type: 'KOR', net_amount: 0, gross_amount: 0, currency: 'EUR', issue_date: '2026-10-02' }],
+      rates: [],
+    };
+    await recalcSegmentCost(fakeDb(tables), 's1');
+    expect(tables.trip_expenses[0]).toMatchObject({ amount_eur: 2400, original_amount: 2400, description: 'Подрядчик: Trans-Kowalski · Trud → Brest' });
+  });
+
   it('нет строки расхода — создаёт одну; лишние дубли удаляет', async () => {
     const { recalcSegmentCost } = await import('../payables/cost');
     const tables: Record<string, Row[]> = { trip_segments: [segment], trip_expenses: [], purchase_invoices: [], rates: [] };

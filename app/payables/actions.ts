@@ -12,10 +12,11 @@ import { parseManualInvoice } from '../../lib/payables/cost-rules';
 type Result = { ok: boolean; message?: string };
 
 /** Загрузить входящие фактуры из KSeF сейчас (то же делает cron ночью). */
-export async function syncPurchasesNow(): Promise<Result> {
+export async function syncPurchasesNow(since?: string): Promise<Result> {
   await requireCapability('payables.edit');
   const { t } = await getT();
-  const r = await runKsefPurchaseSync();
+  if (since !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(since)) return { ok: false, message: t('pay.errDate') };
+  const r = await runKsefPurchaseSync(since ? { since } : {});
   revalidatePath('/payables');
   if (!r.ok) {
     return { ok: false, message: r.reason === 'notConfigured' ? t('pay.notConfigured') : t('pay.syncError', { msg: r.message ?? '' }) };

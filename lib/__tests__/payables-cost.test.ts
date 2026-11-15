@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { segmentCost, costDiff, costAmount, parseManualInvoice } from '../payables/cost-rules';
+import { segmentCost, costDiff, costAmount, parseManualInvoice, isCorrectionType } from '../payables/cost-rules';
 
 const plan = { price: 2900, currency: 'EUR', priceEur: 2900 };
 
@@ -13,9 +13,30 @@ describe('стоимость участка: план и факт', () => {
     const c = segmentCost(plan, [
       { net: 2900, gross: 2900, currency: 'EUR', netEur: 2900 },
       { net: 150, gross: 150, currency: 'EUR', netEur: 150 }, // простой
-      { net: -50, gross: -50, currency: 'EUR', netEur: -50 }, // korekta
+      { net: -50, gross: -50, currency: 'EUR', netEur: -50, isCorrection: true }, // korekta
     ]);
     expect(c).toEqual({ actual: true, amountEur: 3000, originalAmount: 3000, currency: 'EUR' });
+  });
+
+  it('рейс 18Е: только нулевая korekta (основного счёта нет) — остаётся план, а не 0', () => {
+    expect(segmentCost({ price: 2400, currency: 'EUR', priceEur: 2400 }, [{ net: 0, gross: 0, currency: 'EUR', netEur: 0, isCorrection: true }]))
+      .toEqual({ actual: false, amountEur: 2400, originalAmount: 2400, currency: 'EUR' });
+  });
+
+  it('счёт на 0 без пометки korekta — тоже не факт', () => {
+    expect(segmentCost(plan, [{ net: 0, gross: 0, currency: 'EUR', netEur: 0 }])).toMatchObject({ actual: false, amountEur: 2900 });
+  });
+
+  it('только korekta с суммой — план плюс разница', () => {
+    expect(segmentCost(plan, [{ net: -200, gross: -200, currency: 'EUR', netEur: -200, isCorrection: true }]))
+      .toEqual({ actual: true, amountEur: 2700, originalAmount: 2700, currency: 'EUR' });
+    expect(segmentCost(plan, [{ net: -1000, gross: -1230, currency: 'PLN', netEur: -235, isCorrection: true }]))
+      .toEqual({ actual: true, amountEur: 2665, originalAmount: 2665, currency: 'EUR' });
+  });
+
+  it('тип корректирующей фактуры', () => {
+    expect(['KOR', 'Kor', 'KOR_ZAL', 'KorRoz'].map(isCorrectionType)).toEqual([true, true, true, true]);
+    expect(['VAT', 'ZAL', null, ''].map(isCorrectionType)).toEqual([false, false, false, false]);
   });
 
   it('польский счёт с НДС: в себестоимость — нетто', () => {

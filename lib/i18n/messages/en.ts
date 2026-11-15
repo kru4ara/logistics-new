@@ -1999,5 +1999,8 @@ export const en: Messages = {
     srcManual: 'manual',
     file: 'file',
     leg: 'Leg {n}',
+    backfill: 'Fetch from',
+    backfillGo: 'Fetch',
+    korekta: 'credit note',
   },
 };
