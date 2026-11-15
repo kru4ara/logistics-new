@@ -108,6 +108,7 @@ DATABASE_URL='<строка Session pooler>' node scripts/migrate.mjs   # вто
 | `GPS_PROVIDER` + ключи GPS-сервиса | только если у клиента GPS-мониторинг. Сейчас поддержан **Logisat**: `LOGISAT_SERVER` / `LOGISAT_USERNAME` / `LOGISAT_PASSWORD` 🔐. Другой сервис — модуль в `lib/gps/` (нужны документация API и тестовый доступ) |
 | `INVOICING_PROVIDER` + ключи сервиса фактур | только если клиент выставляет фактуры из CRM. **Fakturowo.pl:** `FAKTUROWO_API_ID` (Konto → API; услуга API платная, разовая активация) — в KSeF клиент отправляет кнопкой «Wyślij do KSeF» в Fakturowo, CRM подтягивает номер KSeF. **Fakturownia:** `FAKTUROWNIA_DOMAIN` (`firma` из `firma.fakturownia.pl`) и `FAKTUROWNIA_API_TOKEN` (Ustawienia → Ustawienia konta → Integracja) — отправляет в KSeF сама 🔐. Новый сервис — модуль в `lib/invoicing/` |
 | `KSEF_TOKEN` / `KSEF_NIP` | только если клиент хочет видеть счета подрядчиков в CRM: токен KSeF клиента **только с правом «przeglądanie faktur»** (Aplikacja Podatnika KSeF → Tokeny) 🔐 и NIP компании. `KSEF_ENV=demo` — для пробы на демо-среде |
+| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` / `SMTP_FROM` | только если клиент хочет отправлять из дебиторки напоминания о просрочке: SMTP его рабочего ящика (465 — SSL, 587 — STARTTLS) 🔐. Gmail/Workspace — `smtp.gmail.com` и пароль приложения. `SMTP_FROM` — «Firma <biuro@firma.pl>» |
 | `TENANT_NAME` | `<client>` — имя компании в оповещениях о сбоях |
 | `OPS_TELEGRAM_BOT_TOKEN` / `OPS_TELEGRAM_CHAT_ID` | **ваш** бот и чат поддержки — одинаковые во всех проектах 🔐 (см. ниже) |
 
@@ -161,6 +162,9 @@ curl "https://api.telegram.org/bot<TOKEN>/setWebhook" \
 ---
 
 ## Обновления для всех клиентов
+
+Миграции раскатываются автоматически: `.github/workflows/migrate.yml`, все базы — секрет `TENANTS_JSON` окружения `migrations` (см. `docs/RELEASES.md`).
+
 
 1. Мерж в `master` → **все** проекты Vercel деплоятся сами (подключены к одному репозиторию).
 2. Дождаться деплоя → миграции на все базы:

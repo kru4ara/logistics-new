@@ -7,6 +7,7 @@ import { redirect } from 'next/navigation';
 import { logAudit, diffFields } from '../lib/audit';
 import { getT } from '../lib/i18n/server';
 import { parseClientRequisites } from '../lib/invoice-rules';
+import { mailLocaleOf } from '../lib/dunning-rules';
 
 /** Срок оплаты клиента: пусто → null, иначе целое 0–365 (иначе ошибка). */
 function parsePaymentDays(v: FormDataEntryValue | null): number | null | 'bad' {
@@ -51,6 +52,15 @@ export async function updateClient(clientId: string, formData: FormData) {
     .eq('id', clientId);
 
   if (error) throw new Error(t('dir.updateError', { msg: error.message }));
+
+  // Язык писем клиенту — отдельно: до миграции 033 колонки нет, остальное сохраняем.
+  if (formData.has('mail_locale')) {
+    const { error: locErr } = await supabase
+      .from('clients')
+      .update({ mail_locale: mailLocaleOf(formData.get('mail_locale')) })
+      .eq('id', clientId);
+    if (locErr && !/mail_locale/.test(locErr.message)) throw new Error(t('dir.updateError', { msg: locErr.message }));
+  }
 
   // Audit: логируем только изменённые поля
   if (before) {

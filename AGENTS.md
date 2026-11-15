@@ -107,6 +107,7 @@ PostgREST отдаёт **не больше 1000 строк** на запрос �
 | Фактуры | `lib/invoicing/` — `InvoiceProvider`, `getInvoiceProvider()` (`INVOICING_PROVIDER`) | `fakturowo`, `fakturownia` |
 | GPS | `lib/gps/` — `GpsProvider`, `getGpsProvider()` (`GPS_PROVIDER`); расчёт пробега и топлива — `lib/gps/metrics.ts` | `logisat` |
 | KSeF (входящие) | `lib/ksef/` — напрямую, токен только на чтение | — |
+| Почта (письма клиентам) | `lib/mail/` — `MailProvider`, `getMailProvider()` (`MAIL_PROVIDER`) | `smtp` (ящик компании) |
 
 ### Правила
 

@@ -305,6 +305,8 @@ const TRANSLATED_FILES = [
   'app/portal/[token]/invoice/[tripId]/route.ts',
   'app/portal/[token]/page.tsx',
   'lib/portal-rules.ts',
+  // Напоминания о просрочке
+  'app/receivables/RemindButton.tsx',
 ];
 
 function cyrillicLiterals(file: string): string[] {
