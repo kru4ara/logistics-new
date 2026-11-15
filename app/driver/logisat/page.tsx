@@ -47,7 +47,7 @@ export default async function DriverLogisatPage() {
         </a>
 
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">📡 Logisat</h1>
+          <h1 className="text-2xl font-bold text-slate-900">📡 GPS</h1>
           <p className="text-slate-500 text-sm mt-1">
             {tr('drvApp.lsPageHint')}
           </p>

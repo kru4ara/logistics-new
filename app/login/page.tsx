@@ -71,7 +71,7 @@ export default async function LoginPage() {
             </div>
             <div className="flex items-center gap-1.5 bg-white/5 backdrop-blur-sm px-3 py-1.5 rounded-full border border-white/10">
               <RadioTower className="w-3 h-3" />
-              <span>Logisat</span>
+              <span>GPS</span>
             </div>
             <div className="flex items-center gap-1.5 bg-white/5 backdrop-blur-sm px-3 py-1.5 rounded-full border border-white/10">
               <Lock className="w-3 h-3" />

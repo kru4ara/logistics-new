@@ -1,7 +1,7 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { getSessionContext } from '../../../../lib/session';
 import { can } from '../../../../lib/roles';
-import { syncTripFromLogisat } from '../../../../lib/logisat';
+import { syncTripFromGps as syncTripFromLogisat } from '../../../../lib/gps/sync';
 
 export const dynamic = 'force-dynamic';
 

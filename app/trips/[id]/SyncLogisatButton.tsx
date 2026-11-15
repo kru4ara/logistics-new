@@ -92,7 +92,7 @@ export default function SyncLogisatButton({
             : 'border-emerald-300 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 active:scale-[0.98] disabled:opacity-50'}`}
       >
         <RadioTower className="w-4 h-4" />
-        <span>Logisat</span>
+        <span>GPS</span>
       </button>
 
       {isOpen && (
