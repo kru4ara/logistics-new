@@ -119,3 +119,30 @@ describe('сверка дебиторки', () => {
     expect(r.updates).toEqual([]);
   });
 });
+
+import { patchFromRemote, visibleUnmatched, rankTripsForInvoice } from '../invoicing/sync-rules';
+
+describe('фактуры без заказа', () => {
+  it('ручная привязка: связь, номер, даты, KSeF, оплата', () => {
+    const t = trip({ status: 'completed', invoice_provider: null, invoice_external_id: null, invoice_number: '6822', invoiced_at: null, payment_due: null, ksef_status: null });
+    const { patch } = patchFromRemote('fakturowo', remote({ ksefNumber: KSEF, payment: 'paid' }), t, true);
+    expect(patch).toEqual({
+      invoice_provider: 'fakturowo', invoice_external_id: '818950', invoice_number: '80/11/2026',
+      ksef_number: KSEF, ksef_status: 'ok', ksef_error: null, payment_due: '2026-11-23', invoiced_at: '2026-11-13', status: 'paid',
+    });
+  });
+
+  it('скрытые «не к заказу» не показываются', () => {
+    expect(visibleUnmatched([remote(), remote({ externalId: '2' })], ['818950']).map((r) => r.externalId)).toEqual(['2']);
+  });
+
+  it('подсказки: тот же покупатель и сумма — выше', () => {
+    const ranked = rankTripsForInvoice(remote({ buyerTaxId: 'BY692203928', gross: 3800 }), [
+      { id: 'a', trip_number: '1', client_tax_id: 'PL5261040828', revenue_eur: 3800, date: '2026-11-12' },
+      { id: 'b', trip_number: '2', client_tax_id: 'BY692203928', revenue_eur: 3800, date: '2026-11-10' },
+      { id: 'c', trip_number: '3', client_tax_id: 'BY692203928', revenue_eur: 1000, date: '2026-06-01' },
+    ]);
+    expect(ranked.map((r) => r.id)).toEqual(['b', 'c', 'a']);
+    expect(ranked[0].score).toBeGreaterThanOrEqual(80);
+  });
+});

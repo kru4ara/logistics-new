@@ -12,6 +12,10 @@ import type { MessageKey } from '../../lib/i18n/translate';
 import { summarize, toReceivable, type Bucket, type Receivable, type ReceivableTrip } from '../../lib/receivables';
 import MarkPaidButton from './MarkPaidButton';
 import SyncInvoicesButton from './SyncInvoicesButton';
+import UnmatchedInvoices, { type UnmatchedRow } from './UnmatchedInvoices';
+import { readUnmatched } from '../../lib/invoicing/sync';
+import { rankTripsForInvoice, type TripOption } from '../../lib/invoicing/sync-rules';
+import { formatDateTime } from '../../lib/i18n/format';
 import { getInvoiceProvider } from '../../lib/invoicing';
 
 export const dynamic = 'force-dynamic';
@@ -53,6 +57,49 @@ export default async function ReceivablesPage() {
   );
   const s = summarize(items);
 
+  // Фактуры сервиса без заказа (из последней сверки) — с подсказками заказов.
+  const unmatched = invoiceProvider?.listInvoices ? await readUnmatched(supabase).catch(() => null) : null;
+  let unmatchedRows: UnmatchedRow[] = [];
+  if (unmatched?.items.length) {
+    const { data: freeTrips } = await fetchAll(
+      supabase
+        .from('trips')
+        .select('id, trip_number, revenue_eur, start_date, end_date, status, clients(name, tax_id)')
+        .is('invoice_external_id', null)
+        .in('status', ['active', 'completed', 'invoiced', 'paid']),
+    );
+    const opts: (TripOption & { client: string | null })[] = ((freeTrips ?? []) as any[]).map((tr) => {
+      const c = Array.isArray(tr.clients) ? tr.clients[0] : tr.clients;
+      return {
+        id: tr.id,
+        trip_number: tr.trip_number,
+        client_tax_id: c?.tax_id ?? null,
+        client: c?.name ?? null,
+        revenue_eur: tr.revenue_eur != null ? Number(tr.revenue_eur) : null,
+        date: String(tr.end_date ?? tr.start_date ?? '').slice(0, 10) || null,
+      };
+    });
+    const money = (n: number | null, cur: string | null) =>
+      n == null ? '—' : new Intl.NumberFormat(INTL_LOCALE[locale], { style: 'currency', currency: cur || 'EUR', maximumFractionDigits: 2 }).format(n);
+    unmatchedRows = unmatched.items.map((r) => {
+      const ranked = rankTripsForInvoice(r, opts).slice(0, 40) as (TripOption & { client: string | null; score: number })[];
+      return {
+        externalId: r.externalId,
+        number: r.number ?? r.externalId,
+        issueDate: r.issueDate ? formatDate(r.issueDate, locale) : '—',
+        amount: money(r.gross, r.currency),
+        buyer: r.buyerName ?? '—',
+        options: ranked.map((o) => ({
+          id: o.id,
+          suggested: o.score >= 50,
+          label: [`№${o.trip_number ?? '—'}`, o.client, o.revenue_eur != null ? eur(o.revenue_eur) : null, o.date ? formatDate(o.date, locale) : null]
+            .filter(Boolean)
+            .join(' · '),
+        })),
+      };
+    });
+  }
+
   const dueLabel = (r: Receivable) => {
     if (r.daysOverdue === null) return t('recv.noDue');
     if (r.daysOverdue > 0) return t('recv.daysOverdue', { n: r.daysOverdue });
@@ -83,6 +130,10 @@ export default async function ReceivablesPage() {
         </div>
         {canEdit && invoiceProvider?.listInvoices && <SyncInvoicesButton provider={invoiceProvider.name} />}
         </div>
+
+        {unmatched && (
+          <UnmatchedInvoices rows={unmatchedRows} canEdit={canEdit} provider={invoiceProvider?.name ?? ''} at={formatDateTime(unmatched.at, locale)} />
+        )}
 
         {s.count === 0 ? (
           <div className="card p-10 text-center">
