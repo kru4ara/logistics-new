@@ -12,6 +12,8 @@ import {
 const PUBLIC_API_PATHS = [
   '/api/cron',
   '/api/telegram/webhook',
+  // Портал клиента: вход по секретной ссылке, доступ проверяет сама страница (lib/portal.ts).
+  '/portal/',
 ];
 
 export async function proxy(request: NextRequest) {

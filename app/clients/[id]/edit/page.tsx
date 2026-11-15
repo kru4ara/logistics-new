@@ -3,6 +3,7 @@ import { updateClient } from '../../../client-actions';
 import { ArrowLeft, Users, Building2, Save } from 'lucide-react';
 import SubmitButton from '../../../components/SubmitButton';
 import RequisitesFields from '../../RequisitesFields';
+import PortalLinkBlock from '../../PortalLinkBlock';
 import { getT } from '../../../../lib/i18n/server';
 
 export const dynamic = 'force-dynamic';
@@ -20,6 +21,14 @@ export default async function EditClientPage({ params }: { params: Promise<{ id:
     .single();
 
   if (error) return <div className="p-8 text-red-500">{t('dir.error')}{' '} {error.message}</div>;
+
+  // Портал клиента — действующая ссылка (до миграции 032 таблицы нет — блок без ссылки).
+  const { data: portal } = await supabase
+    .from('client_portal_links')
+    .select('created_at, last_seen_at')
+    .eq('client_id', clientId)
+    .is('revoked_at', null)
+    .maybeSingle();
 
   return (
     <main className="min-h-screen bg-slate-50">
@@ -122,6 +131,13 @@ export default async function EditClientPage({ params }: { params: Promise<{ id:
             </SubmitButton>
           </div>
         </form>
+
+        <div className="card p-5 md:p-6">
+          <PortalLinkBlock
+            clientId={clientId}
+            active={portal ? { createdAt: portal.created_at as string, lastSeen: (portal.last_seen_at as string | null) ?? null } : null}
+          />
+        </div>
       </div>
     </main>
   );
