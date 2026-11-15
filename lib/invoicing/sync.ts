@@ -3,11 +3,50 @@ import { createClient } from '../supabase/admin';
 import { fetchAll } from '../fetch-all';
 import { logAudit } from '../audit';
 import { getInvoiceProvider } from './index';
-import { planInvoiceSync, type SyncTrip } from './sync-rules';
+import { planInvoiceSync, visibleUnmatched, type SyncTrip } from './sync-rules';
+import type { RemoteInvoice } from './types';
 
 export type SyncReport =
   | { ok: true; provider: string; checked: number; updated: number; paid: number; ksef: number; linked: number; unpaidUnmatched: number }
   | { ok: false; reason: 'notConfigured' | 'unsupported' | 'error'; message?: string };
+
+const UNMATCHED_KEY = 'invoicing.unmatched';
+const IGNORED_KEY = 'invoicing.ignored';
+
+type Supabase = Awaited<ReturnType<typeof createClient>>;
+
+async function readJson<T>(supabase: Supabase, key: string, fallback: T): Promise<T> {
+  const { data } = await supabase.from('integration_state').select('value').eq('key', key).maybeSingle();
+  try {
+    return data?.value ? (JSON.parse(data.value) as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+async function writeJson(supabase: Supabase, key: string, value: unknown) {
+  await supabase.from('integration_state').upsert({ key, value: JSON.stringify(value), updated_at: new Date().toISOString() });
+}
+
+export type UnmatchedState = { at: string; provider: string; items: RemoteInvoice[] };
+
+/** Неоплаченные фактуры сервиса без заказа в CRM (после последней сверки), без отмеченных «не к заказу». */
+export async function readUnmatched(supabase: Supabase): Promise<UnmatchedState | null> {
+  const state = await readJson<UnmatchedState | null>(supabase, UNMATCHED_KEY, null);
+  if (!state) return null;
+  const ignored = await readJson<string[]>(supabase, IGNORED_KEY, []);
+  return { ...state, items: visibleUnmatched(state.items, ignored) };
+}
+
+/** Убрать фактуру из списка «без заказа»: привязана к заказу или не относится к заказам. */
+export async function dropUnmatched(supabase: Supabase, externalId: string, ignore: boolean) {
+  const state = await readJson<UnmatchedState | null>(supabase, UNMATCHED_KEY, null);
+  if (state) await writeJson(supabase, UNMATCHED_KEY, { ...state, items: state.items.filter((r) => r.externalId !== externalId) });
+  if (ignore) {
+    const ignored = await readJson<string[]>(supabase, IGNORED_KEY, []);
+    if (!ignored.includes(externalId)) await writeJson(supabase, IGNORED_KEY, [...ignored, externalId].slice(-2000));
+  }
+}
 
 const CHANGE_RU: Record<string, string> = {
   linked: 'связана по номеру',
@@ -59,6 +98,14 @@ export async function runInvoiceSync(): Promise<SyncReport> {
     });
   }
 
+  // Неоплаченные без заказа — сохраняем для списка в дебиторке.
+  await writeJson(supabase, UNMATCHED_KEY, {
+    at: new Date().toISOString(),
+    provider: provider.id,
+    items: plan.unpaidUnmatched.slice(0, 300),
+  } satisfies UnmatchedState);
+  const ignored = await readJson<string[]>(supabase, IGNORED_KEY, []);
+
   const count = (c: string) => plan.updates.filter((u) => u.changes.includes(c as never)).length;
   return {
     ok: true,
@@ -68,6 +115,6 @@ export async function runInvoiceSync(): Promise<SyncReport> {
     paid: count('paid'),
     ksef: count('ksef'),
     linked: count('linked'),
-    unpaidUnmatched: plan.unpaidUnmatched.length,
+    unpaidUnmatched: visibleUnmatched(plan.unpaidUnmatched, ignored).length,
   };
 }

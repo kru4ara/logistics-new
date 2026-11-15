@@ -293,6 +293,8 @@ const TRANSLATED_FILES = [
   'app/trips/[id]/ContractorInvoicesForms.tsx',
   'lib/fx.ts',
   'lib/payables/cost-rules.ts',
+  // unmatched
+  'app/receivables/UnmatchedInvoices.tsx',
 ];
 
 function cyrillicLiterals(file: string): string[] {

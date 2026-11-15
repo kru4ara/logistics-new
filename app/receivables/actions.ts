@@ -6,7 +6,9 @@ import { createClient } from '../../lib/supabase/admin';
 import { logAudit } from '../../lib/audit';
 import { getT } from '../../lib/i18n/server';
 import { providerById } from '../../lib/invoicing';
-import { runInvoiceSync } from '../../lib/invoicing/sync';
+import { runInvoiceSync, readUnmatched, dropUnmatched } from '../../lib/invoicing/sync';
+import { patchFromRemote, type SyncTrip } from '../../lib/invoicing/sync-rules';
+import { getInvoiceProvider } from '../../lib/invoicing';
 
 /** Отметить счёт оплаченным сегодня. Дату оплаты ставит триггер trips_payment_dates. */
 export async function markTripPaid(tripId: string): Promise<{ ok: boolean; message?: string }> {
@@ -98,4 +100,50 @@ export async function syncInvoicesNow(): Promise<{ ok: boolean; message: string 
       provider: r.provider, checked: r.checked, updated: r.updated, paid: r.paid, ksef: r.ksef, linked: r.linked,
     }) + (r.unpaidUnmatched ? ' ' + t('recv.syncUnmatched', { n: r.unpaidUnmatched }) : ''),
   };
+}
+
+/** Привязать фактуру сервиса (из списка «без заказа») к заказу: номер, даты, KSeF, оплата. */
+export async function linkRemoteInvoice(externalId: string, tripId: string): Promise<{ ok: boolean; message?: string }> {
+  await requireCapability('receivables.edit');
+  const { t } = await getT();
+  const provider = getInvoiceProvider();
+  if (!provider) return { ok: false, message: t('inv.notConfigured') };
+  const supabase = await createClient();
+  const state = await readUnmatched(supabase);
+  const r = state?.items.find((x) => x.externalId === externalId);
+  if (!r || state?.provider !== provider.id) return { ok: false, message: t('recv.unmatchedGone') };
+
+  const { data: trip } = await supabase
+    .from('trips')
+    .select('id, trip_number, status, invoice_provider, invoice_external_id, invoice_number, invoiced_at, payment_due, ksef_number, ksef_status')
+    .eq('id', tripId)
+    .maybeSingle();
+  if (!trip) return { ok: false, message: t('inv.notFound') };
+  if (trip.invoice_external_id) return { ok: false, message: t('inv.already') };
+
+  const { patch } = patchFromRemote(provider.id, r, trip as SyncTrip, true);
+  const { error } = await supabase.from('trips').update(patch).eq('id', tripId);
+  if (error) {
+    return { ok: false, message: /duplicate key/i.test(error.message) ? t('recv.unmatchedTaken') : t('dir.updateError', { msg: error.message }) };
+  }
+  await dropUnmatched(supabase, externalId, false);
+  await logAudit({
+    entity_type: 'trip',
+    entity_id: tripId,
+    action: 'update',
+    changes: { invoice_number: { before: trip.invoice_number ?? null, after: r.number } },
+    summary: `Фактура ${r.number ?? externalId} (${provider.name}) привязана к заказу №${trip.trip_number ?? '—'} вручную`,
+  });
+  revalidatePath('/receivables');
+  revalidatePath(`/trips/${tripId}`);
+  return { ok: true };
+}
+
+/** Фактура не относится к заказам (услуга вне перевозок и т. п.) — убрать из списка. */
+export async function ignoreRemoteInvoice(externalId: string): Promise<{ ok: boolean; message?: string }> {
+  await requireCapability('receivables.edit');
+  const supabase = await createClient();
+  await dropUnmatched(supabase, externalId, true);
+  revalidatePath('/receivables');
+  return { ok: true };
 }
