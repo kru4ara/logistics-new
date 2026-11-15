@@ -6,20 +6,12 @@ import { createClient } from '../../lib/supabase/admin';
 import { logAudit } from '../../lib/audit';
 import { getT } from '../../lib/i18n/server';
 import { getCompany } from '../../lib/company';
-import {
-  createInvoice,
-  getInvoice,
-  resendToKsef,
-  isFakturowniaConfigured,
-  FakturowniaError,
-  type FakturowniaInvoice,
-} from '../../lib/fakturownia';
+import { getInvoiceProvider, providerById } from '../../lib/invoicing';
+import type { InvoiceSnapshot } from '../../lib/invoicing/types';
 import {
   validateInvoice,
-  buildInvoicePayload,
   normalizeCountry,
   normalizeTaxId,
-  govErrors,
   TAX_RATES,
   type InvoiceInput,
   type TaxRate,
@@ -48,31 +40,34 @@ const str = (fd: FormData, k: string) => {
   return typeof v === 'string' ? v.trim() : '';
 };
 
-/** Поля заказа из ответа Fakturownia: номер, срок, состояние KSeF. */
-function ksefFields(inv: FakturowniaInvoice) {
+const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e));
+
+/** Поля заказа из ответа сервиса фактур. Номер не затираем пустым. */
+function snapFields(s: InvoiceSnapshot) {
   return {
-    invoice_number: inv.number ?? null,
-    ksef_status: inv.gov_status ?? null,
-    ksef_number: inv.gov_id ?? null,
-    ksef_error: govErrors(inv.gov_error_messages),
+    ...(s.number ? { invoice_number: s.number } : {}),
+    ksef_status: s.ksef === 'none' ? null : s.ksef,
+    ksef_number: s.ksefNumber,
+    ksef_error: s.ksefError,
   };
 }
 
-/** Выставить фактуру по заказу в Fakturownia (и сразу отправить в KSeF). */
+/** Выставить фактуру по заказу в сервисе фактур компании. */
 export async function issueInvoice(tripId: string, fd: FormData): Promise<Result> {
   await requireCapability('receivables.edit');
   const { t } = await getT();
-  if (!isFakturowniaConfigured()) return { ok: false, message: t('inv.notConfigured') };
+  const provider = getInvoiceProvider();
+  if (!provider) return { ok: false, message: t('inv.notConfigured') };
 
   const supabase = await createClient();
   const { data: trip, error } = await supabase
     .from('trips')
-    .select('id, trip_number, status, fakturownia_id, clients(name, email, tax_id, street, post_code, city, country)')
+    .select('id, trip_number, status, invoice_external_id, clients(name, email, tax_id, street, post_code, city, country)')
     .eq('id', tripId)
     .maybeSingle();
   if (error) return { ok: false, message: t('dir.updateError', { msg: error.message }) };
   if (!trip) return { ok: false, message: t('inv.notFound') };
-  if (trip.fakturownia_id) return { ok: false, message: t('inv.already') };
+  if (trip.invoice_external_id) return { ok: false, message: t('inv.already') };
   if (!ISSUABLE.includes(trip.status)) return { ok: false, message: t('inv.badStatus') };
 
   const client = (Array.isArray(trip.clients) ? trip.clients[0] : trip.clients) as {
@@ -113,80 +108,87 @@ export async function issueInvoice(tripId: string, fd: FormData): Promise<Result
   if (invalid) return { ok: false, message: t(ERR[invalid]) };
 
   const company = await getCompany();
-  const bank = (currency === 'EUR' ? company.accountEur : company.accountPln) || null;
-  const sendToKsef = fd.get('send_ksef') === 'on';
+  const bankAccount = (currency === 'EUR' ? company.accountEur : company.accountPln) || null;
+  const sendToKsef = provider.autoKsef && fd.get('send_ksef') === 'on';
 
-  let inv: FakturowniaInvoice;
+  let res;
   try {
-    inv = await createInvoice(buildInvoicePayload(input, bank), sendToKsef);
+    res = await provider.issue(input, { bankAccount, sendToKsef });
   } catch (e) {
-    const msg = e instanceof FakturowniaError ? e.message : String(e);
-    return { ok: false, message: t('inv.apiError', { msg }) };
+    return { ok: false, message: t('inv.apiError', { provider: provider.name, msg: errMsg(e) }) };
   }
 
   const { error: upErr } = await supabase
     .from('trips')
     .update({
-      ...ksefFields(inv),
-      fakturownia_id: inv.id,
+      ...snapFields(res),
+      invoice_provider: provider.id,
+      invoice_external_id: res.externalId,
       invoiced_at: input.issueDate,
-      payment_due: inv.payment_to ?? null,
+      payment_due: res.paymentDue,
       ...(trip.status === 'completed' ? { status: 'invoiced' } : {}),
     })
     .eq('id', tripId);
   if (upErr) {
-    // Фактура в Fakturownia уже есть — не теряем её id: повтор вернёт ошибку oid_unique.
-    console.error('[invoices] trip update failed after invoice', inv.id, upErr.message);
-    return { ok: false, message: t('inv.savedRemote', { number: inv.number ?? String(inv.id) }) };
+    // Фактура в сервисе уже есть — не теряем её id в логах, повторно не выставлять.
+    console.error('[invoices] trip update failed after invoice', provider.id, res.externalId, upErr.message);
+    return { ok: false, message: t('inv.savedRemote', { provider: provider.name, number: res.number ?? res.externalId }) };
   }
 
   await logAudit({
     entity_type: 'trip',
     entity_id: tripId,
     action: 'update',
-    changes: { invoice_number: { before: null, after: inv.number ?? null } },
-    summary: `Фактура ${inv.number ?? inv.id} по заказу №${trip.trip_number ?? '—'} (Fakturownia${sendToKsef ? ', KSeF' : ''})`,
+    changes: { invoice_number: { before: null, after: res.number ?? null } },
+    summary: `Фактура ${res.number ?? res.externalId} по заказу №${trip.trip_number ?? '—'} (${provider.name}${sendToKsef ? ', KSeF' : ''})`,
   });
   revalidatePath(`/trips/${tripId}`);
   revalidatePath('/receivables');
   return { ok: true };
 }
 
-async function loadInvoiceId(tripId: string) {
+async function loadRef(tripId: string) {
   const supabase = await createClient();
-  const { data } = await supabase.from('trips').select('fakturownia_id').eq('id', tripId).maybeSingle();
-  return { supabase, id: (data?.fakturownia_id as number | null) ?? null };
+  const { data } = await supabase
+    .from('trips')
+    .select('invoice_provider, invoice_external_id')
+    .eq('id', tripId)
+    .maybeSingle();
+  const provider = providerById(data?.invoice_provider);
+  const externalId = (data?.invoice_external_id as string | null) ?? null;
+  return { supabase, provider, externalId };
 }
 
-/** Подтянуть номер и состояние KSeF из Fakturownia. */
+/** Подтянуть номер фактуры и состояние KSeF из сервиса фактур. */
 export async function refreshInvoice(tripId: string): Promise<Result> {
   await requireCapability('receivables.edit');
   const { t } = await getT();
-  const { supabase, id } = await loadInvoiceId(tripId);
-  if (!id) return { ok: false, message: t('inv.notFound') };
+  const { supabase, provider, externalId } = await loadRef(tripId);
+  if (!provider || !externalId) return { ok: false, message: t('inv.notFound') };
   try {
-    const inv = await getInvoice(id);
-    await supabase.from('trips').update(ksefFields(inv)).eq('id', tripId);
+    const s = await provider.refresh(externalId);
+    await supabase.from('trips').update(snapFields(s)).eq('id', tripId);
   } catch (e) {
-    return { ok: false, message: t('inv.apiError', { msg: e instanceof Error ? e.message : String(e) }) };
+    return { ok: false, message: t('inv.apiError', { provider: provider.name, msg: errMsg(e) }) };
   }
   revalidatePath(`/trips/${tripId}`);
   return { ok: true };
 }
 
-/** Повторить отправку в KSeF (например, после исправления реквизитов в Fakturownia). */
+/** Повторить отправку в KSeF — у сервисов, которые отправляют сами. */
 export async function resendInvoiceToKsef(tripId: string): Promise<Result> {
   await requireCapability('receivables.edit');
   const { t } = await getT();
-  const { supabase, id } = await loadInvoiceId(tripId);
-  if (!id) return { ok: false, message: t('inv.notFound') };
+  const { supabase, provider, externalId } = await loadRef(tripId);
+  if (!provider || !externalId) return { ok: false, message: t('inv.notFound') };
+  if (!provider.resendToKsef) return { ok: false, message: t('inv.manualKsef', { provider: provider.name }) };
   try {
-    const inv = await resendToKsef(id);
-    await supabase.from('trips').update(ksefFields(inv)).eq('id', tripId);
+    const s = await provider.resendToKsef(externalId);
+    await supabase.from('trips').update(snapFields(s)).eq('id', tripId);
   } catch (e) {
-    return { ok: false, message: t('inv.apiError', { msg: e instanceof Error ? e.message : String(e) }) };
+    return { ok: false, message: t('inv.apiError', { provider: provider.name, msg: errMsg(e) }) };
   }
-  await logAudit({ entity_type: 'trip', entity_id: tripId, action: 'update', changes: {}, summary: 'Повторная отправка фактуры в KSeF' });
+  await logAudit({ entity_type: 'trip', entity_id: tripId, action: 'update', changes: {}, summary: `Повторная отправка фактуры в KSeF (${provider.name})` });
   revalidatePath(`/trips/${tripId}`);
   return { ok: true };
 }
