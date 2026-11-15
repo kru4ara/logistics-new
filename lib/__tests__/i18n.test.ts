@@ -300,6 +300,11 @@ const TRANSLATED_FILES = [
   'lib/plan-fact.ts',
   // close month
   'app/reports/plan-fact/MonthControls.tsx',
+  // portal
+  'app/clients/PortalLinkBlock.tsx',
+  'app/portal/[token]/invoice/[tripId]/route.ts',
+  'app/portal/[token]/page.tsx',
+  'lib/portal-rules.ts',
 ];
 
 function cyrillicLiterals(file: string): string[] {
