@@ -288,6 +288,11 @@ const TRANSLATED_FILES = [
   'lib/gps/logisat.ts',
   'lib/gps/metrics.ts',
   'lib/gps/types.ts',
+  // contractor cost
+  'app/trips/[id]/ContractorInvoices.tsx',
+  'app/trips/[id]/ContractorInvoicesForms.tsx',
+  'lib/fx.ts',
+  'lib/payables/cost-rules.ts',
 ];
 
 function cyrillicLiterals(file: string): string[] {

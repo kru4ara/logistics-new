@@ -50,7 +50,10 @@ describe('сопоставление счёта подрядчика', () => {
   it('чужой NIP и нет номера — не кандидат; занятый участок не берём', () => {
     expect(suggestSegments(inv({ sellerNip: '1111111111', description: '' }), [seg()])).toEqual([]);
     const segs = [seg({ linked: true })];
-    expect(autoMatch(suggestSegments(inv(), segs), segs)).toBeNull();
+    // доплата / korekta с номером заявки — к участку, у которого уже есть счёт
+    expect(autoMatch(suggestSegments(inv(), segs), segs)).toBe('s1');
+    // без номера заявки (только NIP + сумма) — к занятому участку не привязываем
+    expect(autoMatch(suggestSegments(inv({ description: 'Transport' }), segs), segs)).toBeNull();
   });
 
   it('даты далеко — штраф, автопривязки только по NIP+сумме нет', () => {

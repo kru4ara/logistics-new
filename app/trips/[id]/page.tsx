@@ -25,6 +25,7 @@ import { tripStatusKey, TRIP_STATUSES } from '../../../lib/i18n/labels';
 import { getDriverT } from '../../../lib/driver-locale';
 import PaymentBlock from './PaymentBlock';
 import InvoiceBlock from './InvoiceBlock';
+import ContractorInvoices from './ContractorInvoices';
 import { getInvoiceProvider, providerById, providerInfo } from '../../../lib/invoicing';
 import { ksefStateOf } from '../../../lib/invoicing/types';
 import { normalizeCountry, suggestVat, suggestLang, positionName, normalizeTaxId, placeOf, vehicleNote } from '../../../lib/invoice-rules';
@@ -527,6 +528,27 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
           otherExpenses={otherExpenses}
           profit={profit}
         />
+
+        {can(role, 'payables.view') && (
+          <ContractorInvoices
+            segments={segments
+              .filter((sg: any) => sg.executor_type === 'contractor')
+              .map((sg: any) => ({
+                id: sg.id,
+                position: sg.position,
+                contractorName: sg.contractor_name,
+                price: sg.price,
+                currency: sg.currency,
+                dateFrom: sg.date_from,
+              }))}
+            actualEurBySegment={Object.fromEntries(
+              (expenses || [])
+                .filter((e: any) => e.category === 'contractor' && e.segment_id)
+                .map((e: any) => [e.segment_id as string, Number(e.amount_eur) || 0]),
+            )}
+            canEdit={can(role, 'payables.edit')}
+          />
+        )}
 
         {invoiceBlock}
 

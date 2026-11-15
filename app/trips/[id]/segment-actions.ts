@@ -12,6 +12,7 @@ import {
   type FuelTripRow,
 } from '../../../lib/fuel';
 import { getT } from '../../../lib/i18n/server';
+import { recalcSegmentCost } from '../../../lib/payables/cost';
 
 function str(formData: FormData, key: string): string | null {
   const v = (formData.get(key) as string)?.trim();
@@ -488,6 +489,8 @@ export async function updateSegment(segmentId: string, tripId: string, formData:
       routeHint
     );
   }
+  // Привязанные счета подрядчика важнее цены из заявки — факт поверх плана.
+  await recalcSegmentCost(supabase, segmentId);
 
   revalidatePath(`/trips/${tripId}`);
   return { success: true };

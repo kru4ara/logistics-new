@@ -31,7 +31,7 @@ export default async function PayablesPage() {
   const { data, error } = await fetchAll(
     supabase
       .from('purchase_invoices')
-      .select('id, ksef_number, invoice_number, issue_date, seller_nip, seller_name, net_amount, gross_amount, currency, payment_due, description, segment_id, match_status, paid_at')
+      .select('id, ksef_number, source, invoice_number, issue_date, seller_nip, seller_name, net_amount, gross_amount, currency, payment_due, description, segment_id, match_status, paid_at')
       .order('issue_date', { ascending: false }),
   );
   if (error) {
@@ -57,7 +57,7 @@ export default async function PayablesPage() {
   const segById = new Map(segments.map((s) => [s.id, s]));
   const segLabel = (s: SegmentCandidate) =>
     [
-      `№${carrierOrderNumber(s)}`,
+      `№${carrierOrderNumber(s)}${s.linked ? ' ✓' : ''}`,
       s.contractorName,
       s.price != null ? money(s.price, s.currency) : null,
       s.dateTo ? formatDate(s.dateTo, locale) : null,
@@ -69,7 +69,8 @@ export default async function PayablesPage() {
       segments,
     ).slice(0, 5);
     const sugIds = new Set(sug.map((x) => x.segmentId));
-    const free = segments.filter((s) => !s.linked && !sugIds.has(s.id)).slice(0, 200);
+    // Участки с уже привязанным счётом тоже доступны: доплата, korekta.
+    const free = segments.filter((s) => !sugIds.has(s.id)).slice(0, 200);
     return [
       ...sug.map((x) => ({ id: x.segmentId, label: segLabel(segById.get(x.segmentId)!), suggested: true })),
       ...free.map((s) => ({ id: s.id, label: segLabel(s), suggested: false })),
@@ -107,7 +108,10 @@ export default async function PayablesPage() {
         <div className="text-xs text-slate-400">{r.seller_nip}</div>
       </td>
       <td className="py-2.5 pr-3">
-        <div>{r.invoice_number ?? '—'}</div>
+        <div>
+          {r.invoice_number ?? '—'}
+          {r.source === 'manual' && <span className="ml-1.5 text-[10px] uppercase text-slate-400">{t('pay.srcManual')}</span>}
+        </div>
         <div className="text-xs text-slate-400">{r.issue_date ? formatDate(r.issue_date, locale) : ''}</div>
       </td>
       <td className="py-2.5 pr-3 text-right tabular-nums whitespace-nowrap">
