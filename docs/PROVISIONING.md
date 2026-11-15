@@ -106,6 +106,7 @@ DATABASE_URL='<строка Session pooler>' node scripts/migrate.mjs   # вто
 | `TELEGRAM_CHAT_ID` | шаг 4.2 |
 | `TELEGRAM_WEBHOOK_SECRET` | шаг 4.3 🔐 |
 | `LOGISAT_SERVER` / `LOGISAT_USERNAME` / `LOGISAT_PASSWORD` | только если у клиента GPS Logisat 🔐 |
+| `FAKTUROWNIA_DOMAIN` / `FAKTUROWNIA_API_TOKEN` | только если клиент выставляет фактуры через Fakturownia: поддомен (`firma` из `firma.fakturownia.pl`) и токен из Ustawienia → Ustawienia konta → Integracja → Kod autoryzacyjny API 🔐. KSeF подключается в самой Fakturownia |
 | `TENANT_NAME` | `<client>` — имя компании в оповещениях о сбоях |
 | `OPS_TELEGRAM_BOT_TOKEN` / `OPS_TELEGRAM_CHAT_ID` | **ваш** бот и чат поддержки — одинаковые во всех проектах 🔐 (см. ниже) |
 

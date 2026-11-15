@@ -5,6 +5,7 @@ import { requireCapability } from '../../lib/require-office';
 import { createClient } from '../../lib/supabase/admin';
 import { logAudit } from '../../lib/audit';
 import { getT } from '../../lib/i18n/server';
+import { markPaid as markPaidRemote, isFakturowniaConfigured } from '../../lib/fakturownia';
 
 /** Отметить счёт оплаченным сегодня. Дату оплаты ставит триггер trips_payment_dates. */
 export async function markTripPaid(tripId: string): Promise<{ ok: boolean; message?: string }> {
@@ -16,10 +17,17 @@ export async function markTripPaid(tripId: string): Promise<{ ok: boolean; messa
     .update({ status: 'paid' })
     .eq('id', tripId)
     .eq('status', 'invoiced')
-    .select('id, trip_number')
+    .select('id, trip_number, fakturownia_id')
     .maybeSingle();
   if (error) return { ok: false, message: t('dir.updateError', { msg: error.message }) };
   if (!data) return { ok: false, message: t('recv.notInvoiced') };
+
+  // Оплату отмечаем и в Fakturownia; сбой там не отменяет оплату в CRM.
+  if (data.fakturownia_id && isFakturowniaConfigured()) {
+    await markPaidRemote(data.fakturownia_id as number).catch((e) =>
+      console.error('[receivables] fakturownia paid', e instanceof Error ? e.message : e),
+    );
+  }
 
   await logAudit({
     entity_type: 'trip',

@@ -6,6 +6,8 @@ import SubmitButton from '../../components/SubmitButton';
 import { logAudit } from '../../../lib/audit';
 import { ArrowLeft, Users, Building2, Save } from 'lucide-react';
 import DuplicateChecker from '../../components/DuplicateChecker';
+import RequisitesFields from '../RequisitesFields';
+import { parseClientRequisites } from '../../../lib/invoice-rules';
 import { getT } from '../../../lib/i18n/server';
 
 async function createClient(formData: FormData) {
@@ -23,6 +25,8 @@ async function createClient(formData: FormData) {
   if (paymentDays !== null && !(Number.isInteger(paymentDays) && paymentDays >= 0 && paymentDays <= 365)) {
     throw new Error(t('recv.badDays'));
   }
+  const req = parseClientRequisites((k) => (formData.get(k) as string | null));
+  if (req === 'badCountry') throw new Error(t('inv.badCountry'));
 
   const { data: created, error } = await supabase
     .from('clients')
@@ -33,6 +37,7 @@ async function createClient(formData: FormData) {
         phone: phone || null,
         email: email || null,
         payment_days: paymentDays,
+        ...req,
       }
     ])
     .select('id')
@@ -133,6 +138,7 @@ export default async function NewClientPage() {
                 <p className="text-xs text-slate-400 mt-1">{t('recv.paymentDaysHint')}</p>
               </div>
             </div>
+            <RequisitesFields />
           </div>
 
           <div className="flex flex-col-reverse sm:flex-row gap-3 sticky bottom-3 sm:static

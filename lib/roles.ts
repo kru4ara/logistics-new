@@ -239,6 +239,7 @@ export const PATH_CAPABILITIES: PathRule[] = [
   { prefix: '/settings', capability: 'settings.edit', writeCapability: 'settings.edit' },
   { prefix: '/map', capability: 'map.view' },
   { prefix: '/receivables', capability: 'receivables.view', writeCapability: 'receivables.edit' },
+  { prefix: '/api/invoices', capability: 'receivables.view' },
   { prefix: '/api/export', capability: 'export.view' },
   { prefix: '/api/logisat/query', capability: 'logisat.view' },
   { prefix: '/api/logisat', capability: 'logisat.sync' },
