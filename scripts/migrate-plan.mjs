@@ -52,3 +52,28 @@ export function planMigrations(files, applied, opts) {
 
   return { adopt: [], pending, changed, unknown, outOfOrder };
 }
+
+/**
+ * Почему строка подключения не разбирается — без самого пароля (вывод идёт в лог CI).
+ * null — строка выглядит правильно.
+ */
+export function explainDbUrl(url) {
+  const s = String(url ?? '');
+  if (!s.trim()) return 'пустая строка';
+  if (s !== s.trim() || /\s/.test(s)) return 'в строке пробел или перенос строки — уберите их';
+  if (!/^postgres(ql)?:\/\//.test(s)) return 'строка должна начинаться с postgresql://';
+  if (/[<>]/.test(s)) return 'остались угловые скобки <…> из шаблона — вставьте настоящую строку';
+  if (/\[|\]/.test(s)) return 'остались квадратные скобки, например [YOUR-PASSWORD] — подставьте пароль без скобок';
+  const rest = s.replace(/^postgres(ql)?:\/\//, '');
+  const at = rest.lastIndexOf('@');
+  if (at < 0) return 'нет «@» между паролем и адресом сервера';
+  const cred = rest.slice(0, at);
+  if (cred.includes('@')) return 'в пароле есть «@» — смените пароль на буквы и цифры';
+  if (/[/?#%]/.test(cred)) return 'в пароле есть / ? # или % — смените пароль на буквы и цифры';
+  try {
+    new URL(s);
+  } catch {
+    return 'строка не разбирается как адрес — скопируйте её заново из Supabase → Connect → Session pooler';
+  }
+  return null;
+}
