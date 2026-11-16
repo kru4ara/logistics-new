@@ -9,6 +9,8 @@ import I18nProvider from './components/I18nProvider';
 import { getLocale } from '../lib/i18n/server';
 import { MESSAGES } from '../lib/i18n/messages';
 import ClientErrorReporter from './components/ClientErrorReporter';
+import DemoBanner from './components/DemoBanner';
+import { isDemoMode } from '../lib/demo/mode';
 
 export const viewport: Viewport = {
   themeColor: '#0f172a',
@@ -46,6 +48,7 @@ export default async function RootLayout({
           <Suspense fallback={null}>
             <Toaster />
           </Suspense>
+          {isDemoMode() && <DemoBanner />}
           <AppShell>{children}</AppShell>
         </I18nProvider>
         <ServiceWorkerRegister />

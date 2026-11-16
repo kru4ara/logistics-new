@@ -2232,4 +2232,18 @@ export const pl: Messages = {
     requireNeedMigration: 'Ustawienie pojawi się po migracji 036',
     save: 'Zapisz',
   },
+  demo: {
+    banner: 'Wersja demo: firma i dane są fikcyjne, resetują się co noc.',
+    title: 'Wypróbuj demo',
+    hint: 'Zaloguj się jednym kliknięciem w dowolnej roli. Hasło dla wszystkich: {password}',
+    asOffice: 'Biuro',
+    asAccountant: 'Księgowość',
+    asManager: 'Spedytor',
+    asDriver: 'Kierowca',
+    reset: 'Zresetuj dane demo',
+    resetDone: 'Gotowe: dane demo odświeżone ({n} zleceń)',
+    resetTooSoon: 'Demo resetowano mniej niż 10 minut temu — spróbuj później',
+    resetFailed: 'Nie udało się zresetować demo: {msg}',
+    blocked: 'W demo to jest wyłączone, by nie przeszkadzać innym',
+  },
 };

@@ -2232,4 +2232,18 @@ export const en: Messages = {
     requireNeedMigration: 'Available after migration 036',
     save: 'Save',
   },
+  demo: {
+    banner: 'Demo: the company and data are fictional and reset every night.',
+    title: 'Try the demo',
+    hint: 'Sign in with one click in any role. Password for all: {password}',
+    asOffice: 'Office',
+    asAccountant: 'Accountant',
+    asManager: 'Manager',
+    asDriver: 'Driver',
+    reset: 'Reset demo data',
+    resetDone: 'Done: demo data refreshed ({n} orders)',
+    resetTooSoon: 'The demo was reset less than 10 minutes ago — try later',
+    resetFailed: 'Demo reset failed: {msg}',
+    blocked: 'Disabled in the demo so as not to disturb other visitors',
+  },
 };

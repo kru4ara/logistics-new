@@ -28,6 +28,7 @@ const ERR_KEY: Record<string, MessageKey> = {
   taken: 'staff.errTaken',
   migration: 'staff.needMigration',
   mfaSelfFirst: 'mfa.requireSelfFirst',
+  demo: 'demo.blocked',
   mfaMigration: 'mfa.requireNeedMigration',
 };
 
