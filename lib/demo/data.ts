@@ -186,12 +186,12 @@ export function buildDemoData(todayIso: string, seed = 2026): DemoData {
   const expenses: Row[] = [];
   const documents: Row[] = [];
 
-  const TRIP_COUNT = 72;
+  const TRIP_COUNT = 105;
   for (let i = 0; i < TRIP_COUNT; i++) {
     const tripId = demoId(7, i + 1);
     const segId = demoId(8, i + 1);
     // Рейсы равномерно за ~150 дней; последние — в пути и запланированные.
-    const startMs = today - (150 - i * 2.15) * DAY;
+    const startMs = today - (150 - i * 1.47) * DAY;
     const days = Math.round(between(2, 5));
     const endMs = startMs + days * DAY;
     const start = iso(startMs);
@@ -321,10 +321,10 @@ export function buildDemoData(todayIso: string, seed = 2026): DemoData {
     d.setUTCMonth(d.getUTCMonth() - m);
     const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
     const rows: [string, number][] = [
-      ['Biuro — czynsz', 1150],
-      ['Księgowość', 420],
-      ['Leasing ciągników', 6800],
-      ['Ubezpieczenia OC/AC', 1900],
+      ['Biuro — czynsz', 900],
+      ['Księgowość', 350],
+      ['Leasing ciągników', 2400],
+      ['Ubezpieczenia OC/AC', 650],
     ];
     rows.forEach(([category, eur], k) =>
       fixedCosts.push({

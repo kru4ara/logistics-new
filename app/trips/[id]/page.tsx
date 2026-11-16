@@ -1,3 +1,4 @@
+import { notFound } from 'next/navigation';
 import { createClient } from '../../../lib/supabase/admin';
 import { scopedClient } from '../../../lib/supabase/scoped';
 import AddExpenseForm from '../AddExpenseForm';
@@ -75,8 +76,10 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
       scope
     )
     .eq('id', tripId)
-    .single();
+    .maybeSingle();
 
+  // Нет заказа (удалён, чужой для менеджера, опечатка в ссылке) — 404, а не текст ошибки PostgREST.
+  if (!tripError && !trip) notFound();
   if (tripError) {
     return <div className="p-8 text-red-500">{t('trip.loadError', { msg: tripError.message })}</div>;
   }

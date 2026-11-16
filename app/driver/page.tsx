@@ -180,7 +180,10 @@ export default async function DriverPage({
   const filteredTrips = (trips || []).filter((t) => matchesSearch(t) && matchesStatus(t));
 
   const activeTrips = filteredTrips.filter((t) => t.status === 'active');
-  const otherTrips = filteredTrips.filter((t) => t.status !== 'active');
+  // История — новые сверху: водитель ищет последний рейс, а не первый.
+  const otherTrips = filteredTrips
+    .filter((t) => t.status !== 'active')
+    .sort((a, b) => String(b.start_date ?? '').localeCompare(String(a.start_date ?? '')));
 
   // ============================================================
   // Salary total
