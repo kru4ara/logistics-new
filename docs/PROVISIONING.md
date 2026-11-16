@@ -12,6 +12,28 @@
 
 ---
 
+## Кнопкой из GitHub (без node на компьютере)
+
+**Actions → Provision tenant → Run workflow**: имя клиента, домен, e-mail офиса, регион. Сначала с
+галочкой «только план», затем без неё → **Approve** (окружение `provisioning`). Workflow запускает
+тот же `scripts/provision-tenant.mjs`; вход клиента, строку для `TENANTS_JSON` и ключ бэкапов присылает
+в ваш личный Telegram (OPS), состояние со всеми секретами хранит зашифрованным артефактом
+`tenant-<имя>` 90 дней — упал на шаге, запустите с тем же именем.
+
+Один раз: GitHub → Settings → Environments → New environment `provisioning`, **Required reviewers** — вы,
+**Deployment branches** — `master`, секреты:
+
+| Секрет | Где взять |
+|---|---|
+| `SUPABASE_ACCESS_TOKEN` | supabase.com → Account → Access Tokens → Generate |
+| `SUPABASE_ORG` | slug организации: supabase.com/dashboard/org/**&lt;slug&gt;** |
+| `VERCEL_TOKEN` | vercel.com → Account Settings → Tokens → Create (scope — ваша команда) |
+| `VERCEL_TEAM_ID` | только для команды Vercel: Team Settings → General → Team ID |
+| `OPS_TELEGRAM_BOT_TOKEN`, `OPS_TELEGRAM_CHAT_ID` | бот владельца для оповещений о сбоях (те же, что в Vercel) |
+| `PROVISION_STATE_KEY` | любая длинная случайная строка; сохраните в менеджере паролей — без неё повторный запуск не продолжит |
+
+После развёртывания: DNS у регистратора (CNAME `<имя>` → `cname.vercel-dns.com`), строка в `TENANTS_JSON`.
+
 ## Автоматически: `scripts/provision-tenant.mjs`
 
 Шаги 1–3, 5 и 6 ниже — одной командой (~10 минут, из них ~3 — Supabase создаёт проект):

@@ -109,3 +109,27 @@ export function mask(value) {
   if (typeof value !== 'string' || value.length < 8) return '***';
   return `${value.slice(0, 3)}…${value.slice(-2)}`;
 }
+
+/**
+ * Итог развёртывания для владельца (личный Telegram OPS): вход клиента, строка для
+ * TENANTS_JSON (миграции), ключ бэкапов. Только то, без чего не обойтись; остальное —
+ * в зашифрованном состоянии (артефакт workflow «Provision tenant»).
+ */
+export function buildReport(o, s) {
+  const lines = [
+    `✅ Новый клиент: ${o.name}`,
+    `CRM: ${appUrl(o)}`,
+    `DNS у регистратора: CNAME ${o.name} → cname.vercel-dns.com`,
+    '',
+    `Вход офиса: ${o.officeEmail}`,
+    `Пароль: ${s.secrets?.officePassword ?? '—'} (попросите сменить после входа)`,
+    '',
+    'Добавьте в секрет TENANTS_JSON (GitHub → Environments → migrations) элемент:',
+    JSON.stringify({ name: o.name, url: s.databaseUrl ?? '' }),
+    '',
+    `Ключ расшифровки бэкапов: ${s.secrets?.backupKey ?? '—'}`,
+    '',
+    'Перенесите это в менеджер паролей и удалите сообщение.',
+  ];
+  return lines.join('\n');
+}
