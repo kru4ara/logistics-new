@@ -310,6 +310,10 @@ const TRANSLATED_FILES = [
   // К выставлению
   'app/receivables/ToInvoiceSection.tsx',
   'lib/to-invoice.ts',
+  // Сотрудники офиса
+  'app/settings/users/ConfirmSubmit.tsx',
+  'app/settings/users/page.tsx',
+  'lib/staff-rules.ts',
 ];
 
 function cyrillicLiterals(file: string): string[] {

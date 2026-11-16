@@ -19,11 +19,14 @@ export default function ExpensesList({
   segments,
   tripId,
   totalExpenses,
+  readOnly = false,
 }: {
   expenses: any[];
   segments: any[];
   tripId: string;
   totalExpenses: number;
+  /** только просмотр (бухгалтер) */
+  readOnly?: boolean;
 }) {
   const { t, locale } = useT();
   const [editingExpense, setEditingExpense] = useState<any>(null);
@@ -61,7 +64,7 @@ export default function ExpensesList({
                         </span>
                       )}
                     </div>
-                    {!seg && (
+                    {!seg && !readOnly && (
                       <div className="flex items-center gap-1">
                         <button
                           onClick={() => setEditingExpense(exp)}
@@ -156,7 +159,7 @@ export default function ExpensesList({
                         {formatDate(exp.expense_date, locale)}
                       </td>
                       <td className="py-3 pl-2 text-right">
-                        {!seg && (
+                        {!seg && !readOnly && (
                           <div className="flex items-center justify-end gap-1">
                             <button
                               onClick={() => setEditingExpense(exp)}

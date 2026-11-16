@@ -57,6 +57,8 @@ function pickOne<T>(rel: unknown): T | null {
 export default async function TripDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { t } = await getT();
   const { role } = await getSessionContext();
+  // Бухгалтер видит заказ, но не правит его (lib/roles.ts → ACCOUNTANT).
+  const readOnly = !can(role, 'trips.editAny');
   const { id: tripId } = await params;
   if (!tripId) return <div className="p-8">{t('trip.noId')}</div>;
 
@@ -429,9 +431,10 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
           statusLabels={statusLabels}
           statusColors={statusColors}
           invoiceForm={invoiceForm}
+          readOnly={readOnly}
         />
 
-        {needsSalary && (
+        {needsSalary && !readOnly && (
           <div className="card border-l-4 border-l-amber-500 bg-amber-50/40 p-4 md:p-5">
             <div className="flex items-start gap-3">
               <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" strokeWidth={2.2} />
@@ -466,6 +469,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
           unloadingLocations={(unloadingLocations || []) as any}
           customsLocations={(customsLocations || []) as any}
           defaultClientId={trip.client_id}
+          readOnly={readOnly}
         />
 
         <TripSegmentsBlock
@@ -493,8 +497,11 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
             to_address: c.to_address,
             to_postal_code: c.to_postal_code,
           }))}
+          readOnly={readOnly}
         />
 
+        {!readOnly && (
+        <>
         <div className="space-y-3">
           <CopyBlock text={taskText} phone={driver?.phone_by || driver?.phone_pl} />
           <div className="card p-5 md:p-6">
@@ -510,12 +517,15 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
           <FileUpload tripId={tripId} />
         </div>
 
+        </>
+        )}
+
         <div className="card p-5 md:p-6">
           <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
             <FolderOpen className="w-5 h-5 text-brand-600" strokeWidth={2} />
             {t('trip.uploadedFiles')}
           </h2>
-          <DocumentList documents={documents || []} tripId={tripId} canDelete={true} />
+          <DocumentList documents={documents || []} tripId={tripId} canDelete={!readOnly} />
         </div>
 
         <ExpensesList
@@ -523,6 +533,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
           segments={segments}
           tripId={tripId}
           totalExpenses={totalExpenses}
+          readOnly={readOnly}
         />
 
         <TripEconomics
@@ -566,6 +577,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
           />
         )}
 
+        {!readOnly && (
         <div className="card p-5 md:p-6">
           <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
             <PlusCircle className="w-5 h-5 text-brand-600" strokeWidth={2} />
@@ -582,6 +594,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
           />
         </div>
 
+        )}
       </div>
     </main>
   );

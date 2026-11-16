@@ -63,6 +63,21 @@ describe('settings.edit', () => {
   });
 });
 
+describe('бухгалтер', () => {
+  it('деньги и просмотр заказов — да; логистика и правка заказов — нет', () => {
+    for (const c of ['trips.viewAll', 'receivables.edit', 'payables.edit', 'months.close', 'clients.edit', 'contractors.edit', 'fixedCosts.edit', 'export.view', 'reports.viewAll'] as const) {
+      expect(can('accountant', c), c).toBe(true);
+    }
+    for (const c of ['trips.editAny', 'trips.create', 'drivers.edit', 'trucks.view', 'locations.view', 'managers.view', 'settings.edit', 'audit.view', 'logisat.view'] as const) {
+      expect(can('accountant', c), c).toBe(false);
+    }
+  });
+  it('менеджер больше не правит постоянные расходы', () => {
+    expect(can('manager', 'fixedCosts.edit')).toBe(false);
+    expect(can('manager', 'fixedCosts.view')).toBe(true);
+  });
+});
+
 describe('roleLabel', () => {
   it('подписи ролей, admin — как офис', () => {
     expect(roleLabel('admin')).toBe('Офис');
@@ -70,7 +85,8 @@ describe('roleLabel', () => {
     expect(roleLabel('manager')).toBe('Менеджер');
     expect(roleLabel('driver')).toBe('Водитель');
     expect(roleLabel(null)).toBe('Неизвестно');
-    expect(roleLabel('accountant')).toBe('accountant');
+    expect(roleLabel('accountant')).toBe('Бухгалтер');
+    expect(roleLabel('logistics')).toBe('logistics');
   });
 });
 

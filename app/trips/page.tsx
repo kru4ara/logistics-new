@@ -393,15 +393,17 @@ export default async function TripsPage({
             </p>
           </div>
           <div className="flex flex-wrap gap-2 md:gap-3">
-            <RecalcAllCoordsButton tripIds={filteredTrips.map((t) => t.id)} />
+            {can(role, 'trips.editAny') && <RecalcAllCoordsButton tripIds={filteredTrips.map((t) => t.id)} />}
             <DownloadButton data={filteredTrips.map(prepareTrip)} />
-            <Link
-              href="/trips/new"
-              className="btn btn-primary text-sm md:text-base flex-1 sm:flex-none"
-            >
-              <Plus className="w-4 h-4 md:w-[18px] md:h-[18px]" strokeWidth={2.5} />
-              {tr('trips.create')}
-            </Link>
+            {can(role, 'trips.create') && (
+              <Link
+                href="/trips/new"
+                className="btn btn-primary text-sm md:text-base flex-1 sm:flex-none"
+              >
+                <Plus className="w-4 h-4 md:w-[18px] md:h-[18px]" strokeWidth={2.5} />
+                {tr('trips.create')}
+              </Link>
+            )}
           </div>
         </div>
 
@@ -473,7 +475,7 @@ export default async function TripsPage({
               >
                 {tr('trips.resetFilters')}
               </Link>
-            ) : (
+            ) : can(role, 'trips.create') && (
               <Link
                 href="/trips/new"
                 className="btn btn-primary inline-flex"

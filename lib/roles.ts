@@ -6,9 +6,9 @@
  * забытое место = дыра в доступе. Поэтому проверяем capability (право),
  * а матрица ниже отображает роль -> набор прав.
  *
- * Роли сейчас: office (офис), manager (менеджер), driver (водитель).
- * Заведены впрок: logistics, accountant, client — правила доступа для них
- * пока не финализированы, поэтому реальные профили их не получают.
+ * Роли сейчас: office (офис), manager (менеджер), accountant (бухгалтер),
+ * driver (водитель). Заведены впрок: logistics, client — правила доступа для
+ * них пока не финализированы, поэтому реальные профили их не получают.
  *
  * ВАЖНО: роль 'admin' из старых профилей в БД продолжит работать —
  * см. ROLE_ALIASES.
@@ -110,12 +110,47 @@ const MANAGER: Capability[] = OFFICE.filter(
     c !== 'receivables.edit' &&
     c !== 'payables.view' &&
     c !== 'payables.edit' &&
-    c !== 'months.close'
+    c !== 'months.close' &&
+    // постоянные расходы компании — офис и бухгалтер
+    c !== 'fixedCosts.edit'
 );
+
+/**
+ * Бухгалтер — деньги без логистики:
+ *   видит все заказы (только просмотр: без правки, статусов и удаления),
+ *   выставляет счета, ведёт дебиторку и кредиторку, закрывает месяц,
+ *   правит реквизиты клиентов и подрядчиков, постоянные расходы и курсы,
+ *   смотрит отчёты и выгружает Excel.
+ *   Без водителей и машин (кроме просмотра водителей — зарплаты и долги),
+ *   без точек, менеджеров, напоминаний, GPS, аудита и настроек компании.
+ */
+const ACCOUNTANT: Capability[] = [
+  'trips.viewAll',
+  'expenses.view',
+  'fixedCosts.view',
+  'fixedCosts.edit',
+  'rates.manage',
+  'clients.view',
+  'clients.edit',
+  'contractors.view',
+  'contractors.edit',
+  'drivers.view',
+  'reports.view',
+  'reports.viewAll',
+  'statistics.view',
+  'search.view',
+  'export.view',
+  'receivables.view',
+  'receivables.edit',
+  'payables.view',
+  'payables.edit',
+  'months.close',
+];
 
 export const ROLE_CAPABILITIES: Record<string, Capability[]> = {
   office: OFFICE,
   manager: MANAGER,
+  accountant: ACCOUNTANT,
   driver: DRIVER,
 };
 
@@ -182,6 +217,7 @@ export function roleLabel(role: string | null | undefined): string {
   const r = normalizeRole(role);
   if (r === 'office') return 'Офис';
   if (r === 'manager') return 'Менеджер';
+  if (r === 'accountant') return 'Бухгалтер';
   if (r === 'driver') return 'Водитель';
   return r || 'Неизвестно';
 }
