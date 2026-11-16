@@ -25,7 +25,7 @@ export async function uploadDocument(
   const { t } = await getT();
   try {
     // tripId приходит от клиента — проверяем владение рейсом до записи.
-    const access = await requireTripAccess(tripId);
+    const access = await requireTripAccess(tripId, { allowLocked: true });
     if (!access.ok) {
       return { success: false, message: access.reason };
     }

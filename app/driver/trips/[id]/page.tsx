@@ -16,8 +16,7 @@ import {
   Trash2,
   Calendar,
   Globe,
-  ArrowRight,
-} from 'lucide-react';
+  ArrowRight, Lock } from 'lucide-react';
 import { createClient as createAuthClient } from '../../../../lib/supabase/server'; // <-- user session (RLS)
 import { buildRouteMap, type SegmentRouteRow } from '../../../../lib/trip-route';
 import { deleteExpense } from '../../../trip-actions';
@@ -25,6 +24,7 @@ import AddExpenseForm from '../../../trips/AddExpenseForm';
 import FileUpload from '../../FileUpload';
 import DocumentList from '../../DocumentList';
 import TripStatusButtons from '../../TripStatusButtons';
+import { driverTripLocked } from '../../../../lib/access-rules';
 import { isDriverRole } from '../../../../lib/roles';
 import { withSignedUrls } from '../../../../lib/storage-urls';
 import { getT } from '../../../../lib/i18n/server';
@@ -251,6 +251,8 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
   }
 
 
+  // Счёт выставлен / оплачен — рейс водителю только для чтения (lib/access-rules.ts).
+  const locked = driverTripLocked(trip.status);
   const fuelCardClass = fuelLeftIsCritical
     ? 'bg-gradient-to-br from-red-600 to-red-800'
     : fuelLeftIsNegative
@@ -318,7 +320,13 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
           </div>
         </div>
 
-        {/* Кнопки статуса */}
+        {/* Кнопки статуса — у закрытого рейса (счёт выставлен) только пометка */}
+        {locked ? (
+          <div className="card p-5 flex items-start gap-3 bg-slate-50">
+            <Lock className="w-5 h-5 text-slate-500 shrink-0 mt-0.5" strokeWidth={2} />
+            <p className="text-sm text-slate-600">{t('drvLock.note')}</p>
+          </div>
+        ) : (
         <div className="card p-5">
           <h2 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
             <Settings2 className="w-4 h-4 text-slate-500" strokeWidth={2} />
@@ -331,6 +339,7 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
             needCmr={!(documentRows ?? []).some((d) => d.document_type === 'cmr')}
           />
         </div>
+        )}
 
         {/* Остаток топлива */}
         <div className={`${fuelCardClass} rounded-2xl p-5 shadow-lg text-white`}>
@@ -513,7 +522,7 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
           <DocumentList
             documents={documents || []}
             tripId={tripId}
-            canDelete={true}
+            canDelete={!locked}
           />
         </div>
 
@@ -560,6 +569,7 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
                       <Calendar className="w-3 h-3" strokeWidth={2} />
                       {exp.expense_date ? new Date(exp.expense_date).toLocaleDateString(INTL_LOCALE[locale]) : '—'}
                     </span>
+                    {!locked && (
                     <form action={async () => {
                       'use server';
                       await deleteExpense(exp.id, tripId);
@@ -572,6 +582,7 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
                         {t('trips.delete')}
                       </button>
                     </form>
+                    )}
                   </div>
                 </div>
               ))}
@@ -579,7 +590,8 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
           )}
         </div>
 
-              {/* Добавить расход */}
+        {/* Добавить расход */}
+        {!locked && (
         <div className="card p-5">
           <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
             <PlusCircle className="w-5 h-5 text-brand-600" strokeWidth={2} />
@@ -596,7 +608,7 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
             paidByDriverHint={t('drvApp.paidSelfDebt')}
           />
         </div>
-
+        )}
       </div>
     </main>
   );

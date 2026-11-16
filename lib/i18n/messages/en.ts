@@ -2246,4 +2246,7 @@ export const en: Messages = {
     resetFailed: 'Demo reset failed: {msg}',
     blocked: 'Disabled in the demo so as not to disturb other visitors',
   },
+  drvLock: {
+    note: 'Trip closed: the client has already been invoiced. Status, expenses and file deletion — only via the office. You can still upload documents.',
+  },
 };

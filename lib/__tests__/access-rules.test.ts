@@ -99,3 +99,19 @@ describe('менеджер: видимость решает база', () => {
     expect(evaluateExpenseAccess(managerNoCard, false).ok).toBe(false);
   });
 });
+
+describe('закрытый рейс водителю только для чтения', () => {
+  const driver = { role: 'driver', driverId: 'd-1', managerId: null } as ActorState;
+  const office = { role: 'office', driverId: null, managerId: null } as ActorState;
+  it('выставлен / оплачен — нельзя; в пути и завершён — можно', () => {
+    expect(evaluateTripAccess(driver, true, 'invoiced').ok).toBe(false);
+    expect(evaluateTripAccess(driver, true, 'paid').ok).toBe(false);
+    expect(evaluateTripAccess(driver, true, 'active').ok).toBe(true);
+    expect(evaluateTripAccess(driver, true, 'completed').ok).toBe(true);
+    expect(evaluateExpenseAccess(driver, true, 'paid').ok).toBe(false);
+    expect(evaluateExpenseAccess(driver, true, 'completed').ok).toBe(true);
+  });
+  it('офис правит и закрытый', () => {
+    expect(evaluateTripAccess(office, true, 'paid').ok).toBe(true);
+  });
+});
