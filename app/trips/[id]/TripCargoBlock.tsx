@@ -185,7 +185,7 @@ export default function TripCargoBlock({
 <button
           type="button"
           onClick={handleAdd}
-          className="btn-primary inline-flex items-center gap-2 text-sm"
+          className="btn btn-primary text-sm py-2"
         >
           <Plus className="w-4 h-4" strokeWidth={2.5} />
           {t('trip.addCargo')}

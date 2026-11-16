@@ -2246,4 +2246,7 @@ export const pl: Messages = {
     resetFailed: 'Nie udało się zresetować demo: {msg}',
     blocked: 'W demo to jest wyłączone, by nie przeszkadzać innym',
   },
+  drvLock: {
+    note: 'Kurs zamknięty: faktura dla klienta już wystawiona. Status, koszty i usuwanie plików — tylko przez biuro. Dokumenty można dograć.',
+  },
 };

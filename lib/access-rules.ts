@@ -10,6 +10,16 @@
 
 export type ActorRole = 'office' | 'manager' | 'driver';
 
+/**
+ * Рейс закрыт для водителя: счёт выставлен или оплачен — суммы ушли клиенту и в
+ * отчёты. Водитель видит рейс, но не меняет статус, расходы и документы;
+ * исправления — через офис.
+ */
+export const DRIVER_LOCKED_STATUSES = ['invoiced', 'paid'] as const;
+export const driverTripLocked = (status: string | null | undefined) =>
+  (DRIVER_LOCKED_STATUSES as readonly string[]).includes(status ?? '');
+export const DRIVER_LOCKED_REASON = 'Рейс закрыт: счёт уже выставлен — изменения через офис';
+
 export type ActorState = {
   role: ActorRole | null;
   driverId: string | null;
@@ -48,7 +58,8 @@ export function actorOwnsTrip(
  */
 export function evaluateTripAccess(
   actor: ActorState,
-  tripVisible: boolean
+  tripVisible: boolean,
+  tripStatus?: string | null
 ): { ok: true } | { ok: false; reason: string } {
   if (actor.role === 'office') return { ok: true };
 
@@ -69,6 +80,10 @@ export function evaluateTripAccess(
     return { ok: false, reason: 'Рейс не принадлежит вам' };
   }
 
+  if (driverTripLocked(tripStatus)) {
+    return { ok: false, reason: DRIVER_LOCKED_REASON };
+  }
+
   return { ok: true };
 }
 
@@ -82,7 +97,8 @@ export function evaluateTripAccess(
  */
 export function evaluateExpenseAccess(
   actor: ActorState,
-  expenseVisible: boolean
+  expenseVisible: boolean,
+  tripStatus?: string | null
 ): { ok: true } | { ok: false; reason: string } {
   if (actor.role === 'office') return { ok: true };
 
@@ -101,6 +117,10 @@ export function evaluateExpenseAccess(
 
   if (!expenseVisible) {
     return { ok: false, reason: 'Расход не принадлежит вам' };
+  }
+
+  if (driverTripLocked(tripStatus)) {
+    return { ok: false, reason: DRIVER_LOCKED_REASON };
   }
 
   return { ok: true };

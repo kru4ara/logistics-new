@@ -137,7 +137,7 @@ export default function TripStatusButtons({
                 }`}
             >
               <Icon className="w-4 h-4 md:w-5 md:h-5 shrink-0" />
-              <span className="truncate">{label}</span>
+              <span className="text-center leading-tight">{label}</span>
               {isActive && <CheckCircle2 className="w-3.5 h-3.5 ml-1 shrink-0" />}
             </button>
           );

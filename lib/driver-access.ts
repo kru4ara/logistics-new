@@ -70,12 +70,17 @@ export async function driverOwnsTrip(
   tripId: string,
   driverId: string
 ): Promise<boolean> {
-  if (!tripId || !driverId) return false;
+  return (await driverTripState(tripId, driverId)).visible;
+}
+
+/** Виден ли рейс водителю (RLS) и его статус — закрытый рейс водитель не меняет. */
+async function driverTripState(tripId: string, driverId: string): Promise<{ visible: boolean; status: string | null }> {
+  if (!tripId || !driverId) return { visible: false, status: null };
 
   const rls = await createRlsClient();
   const { data, error } = await rls
     .from('trips')
-    .select('id')
+    .select('id, status')
     .eq('id', tripId)
     .maybeSingle();
 
@@ -84,10 +89,10 @@ export async function driverOwnsTrip(
       '[driver-access] чтение trips через RLS не удалось:',
       error.message
     );
-    return false;
+    return { visible: false, status: null };
   }
 
-  return Boolean(data);
+  return { visible: Boolean(data), status: (data?.status as string | null) ?? null };
 }
 
 export type AccessResult =
@@ -103,7 +108,10 @@ export type AccessResult =
  *
  * Офис имеет доступ ко всем рейсам; менеджеру и водителю видимость считает база (RLS).
  */
-export async function requireTripAccess(tripId: string): Promise<AccessResult> {
+export async function requireTripAccess(
+  tripId: string,
+  opts: { allowLocked?: boolean } = {}
+): Promise<AccessResult> {
   const actor = await getActorContext();
   const state = toActorState(actor);
 
@@ -120,8 +128,9 @@ export async function requireTripAccess(tripId: string): Promise<AccessResult> {
     return { ok: false, reason: 'Нет доступа' };
   }
 
-  const owns = await driverOwnsTrip(tripId, state.driverId);
-  return evaluateTripAccess(state, owns);
+  const { visible, status } = await driverTripState(tripId, state.driverId);
+  // allowLocked — догрузить документ (CMR-оригинал) в уже выставленный рейс можно.
+  return evaluateTripAccess(state, visible, opts.allowLocked ? null : status);
 }
 
 /**
@@ -161,7 +170,7 @@ export async function requireExpenseAccess(
   const rls = await createRlsClient();
   const { data: expense, error } = await rls
     .from('trip_expenses')
-    .select('id')
+    .select('id, trips(status)')
     .eq('id', expenseId)
     .maybeSingle();
 
@@ -177,5 +186,7 @@ export async function requireExpenseAccess(
     return { ok: false, reason: 'Расход не найден' };
   }
 
-  return evaluateExpenseAccess(state, true);
+  const t = (expense as { trips?: { status?: string | null } | { status?: string | null }[] | null }).trips;
+  const tripStatus = (Array.isArray(t) ? t[0]?.status : t?.status) ?? null;
+  return evaluateExpenseAccess(state, true, tripStatus);
 }
