@@ -65,3 +65,19 @@ describe('развёртывание клиента: план', () => {
     expect(r.stdout).not.toMatch(/BACKUP_ENCRYPTION_KEY = [A-Za-z0-9+/]{40}/);
   });
 });
+
+import { buildReport } from '../../scripts/provision-plan.mjs';
+
+describe('итог развёртывания владельцу', () => {
+  it('вход, строка для TENANTS_JSON, ключ бэкапов', () => {
+    const text = buildReport(
+      { name: 'acme', domain: 'crm.example.com', officeEmail: 'office@acme.pl' },
+      { databaseUrl: 'postgresql://u:p@h:5432/postgres', secrets: { officePassword: 'Pw123', backupKey: 'KEY=' } },
+    );
+    expect(text).toContain('https://acme.crm.example.com');
+    expect(text).toContain('office@acme.pl');
+    expect(text).toContain('Pw123');
+    expect(text).toContain('{"name":"acme","url":"postgresql://u:p@h:5432/postgres"}');
+    expect(text).toContain('KEY=');
+  });
+});

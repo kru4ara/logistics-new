@@ -1,0 +1,153 @@
+name: Provision tenant
+
+# Новый клиент одной кнопкой: Actions → Provision tenant → Run workflow.
+# То же, что scripts/provision-tenant.mjs на компьютере, но без node у вас.
+#
+# Окружение `provisioning` (Required reviewers — вы), секреты:
+#   SUPABASE_ACCESS_TOKEN, SUPABASE_ORG, VERCEL_TOKEN, [VERCEL_TEAM_ID],
+#   OPS_TELEGRAM_BOT_TOKEN, OPS_TELEGRAM_CHAT_ID — сюда придёт вход клиента и строка для миграций,
+#   PROVISION_STATE_KEY — пароль шифрования состояния (любая длинная строка; не терять).
+#
+# Состояние (пароль базы, ключи) хранится зашифрованным артефактом `tenant-<name>` (90 дней):
+# упал на шаге — запустите с тем же именем, сделанное пропустится. Настройка — docs/PROVISIONING.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      name:
+        description: 'Имя клиента (латиница, будет поддоменом): acme'
+        required: true
+      domain:
+        description: 'Домен CRM для клиентов: crm.example.com → acme.crm.example.com'
+        required: true
+      office_email:
+        description: 'E-mail первого сотрудника офиса клиента'
+        required: true
+      office_name:
+        description: 'Имя сотрудника офиса'
+        required: false
+      company:
+        description: 'Название компании клиента'
+        required: false
+      region:
+        description: 'Регион базы (только ЕС)'
+        type: choice
+        options: [eu-west-1, eu-central-1, eu-west-2, eu-west-3, eu-north-1]
+        default: eu-west-1
+      dry_run:
+        description: 'Только показать план, ничего не создавать'
+        type: boolean
+        default: true
+
+concurrency:
+  group: provision-${{ inputs.name }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  provision:
+    runs-on: ubuntu-latest
+    environment: provisioning
+    timeout-minutes: 30
+    env:
+      NAME: ${{ inputs.name }}
+      STATE: scripts/tenants/${{ inputs.name }}.json
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm }
+      - run: npm ci --ignore-scripts
+
+      - name: Проверка имени и секретов
+        env:
+          HAS_OPS: ${{ secrets.OPS_TELEGRAM_BOT_TOKEN != '' && secrets.OPS_TELEGRAM_CHAT_ID != '' }}
+        run: |
+          if [ "${{ inputs.dry_run }}" != "true" ] && [ "$HAS_OPS" != "true" ]; then
+            echo "::error::Нужны OPS_TELEGRAM_BOT_TOKEN и OPS_TELEGRAM_CHAT_ID в окружении provisioning — туда придёт вход клиента"; exit 1
+          fi
+          if ! printf '%s' "$NAME" | grep -Eq '^[a-z][a-z0-9-]{1,30}$'; then
+            echo "::error::Имя — латиница в нижнем регистре, цифры и дефис, 2–31 символ"; exit 1
+          fi
+
+      - name: Прошлое состояние (если запуск повторный)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          KEY: ${{ secrets.PROVISION_STATE_KEY }}
+        run: |
+          [ -n "$KEY" ] || { echo "::error::Нет секрета PROVISION_STATE_KEY в окружении provisioning"; exit 1; }
+          id=$(gh api "repos/${{ github.repository }}/actions/artifacts?name=tenant-$NAME&per_page=1" --jq '.artifacts[0].id // empty')
+          if [ -z "$id" ]; then echo "первый запуск для $NAME"; exit 0; fi
+          gh api "repos/${{ github.repository }}/actions/artifacts/$id/zip" > "$RUNNER_TEMP/state.zip"
+          unzip -o -q "$RUNNER_TEMP/state.zip" -d "$RUNNER_TEMP/state"
+          mkdir -p scripts/tenants
+          umask 077
+          openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -pass env:KEY -in "$RUNNER_TEMP/state/state.enc" -out "$STATE" \
+            || { echo "::error::Не удалось расшифровать состояние — PROVISION_STATE_KEY не тот, что при первом запуске"; exit 1; }
+          echo "продолжаю с сохранённого состояния"
+
+      - name: Развёртывание
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_ORG: ${{ secrets.SUPABASE_ORG }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_TEAM_ID: ${{ secrets.VERCEL_TEAM_ID }}
+          OPS_TELEGRAM_BOT_TOKEN: ${{ secrets.OPS_TELEGRAM_BOT_TOKEN }}
+          OPS_TELEGRAM_CHAT_ID: ${{ secrets.OPS_TELEGRAM_CHAT_ID }}
+          PROVISION_REPO: ${{ github.repository }}
+          # поля формы — через env, не подстановкой в скрипт (кавычки в названии компании не сломают команду)
+          IN_DOMAIN: ${{ inputs.domain }}
+          IN_EMAIL: ${{ inputs.office_email }}
+          IN_OFFICE_NAME: ${{ inputs.office_name }}
+          IN_COMPANY: ${{ inputs.company }}
+          IN_REGION: ${{ inputs.region }}
+          IN_DRY: ${{ inputs.dry_run }}
+        run: |
+          args=(--name "$NAME" --domain "$IN_DOMAIN" --office-email "$IN_EMAIL" --region "$IN_REGION")
+          [ -n "$IN_OFFICE_NAME" ] && args+=(--office-name "$IN_OFFICE_NAME")
+          [ -n "$IN_COMPANY" ] && args+=(--company "$IN_COMPANY")
+          [ "$IN_DRY" = "true" ] && args+=(--dry-run)
+          node scripts/provision-tenant.mjs "${args[@]}"
+
+      - name: Сохранить состояние (зашифрованно)
+        if: always() && inputs.dry_run == false
+        env:
+          KEY: ${{ secrets.PROVISION_STATE_KEY }}
+        run: |
+          [ -f "$STATE" ] || { echo "состояния нет — нечего сохранять"; exit 0; }
+          mkdir -p "$RUNNER_TEMP/out"
+          openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -pass env:KEY -in "$STATE" -out "$RUNNER_TEMP/out/state.enc"
+          rm -f "$STATE"
+
+      - uses: actions/upload-artifact@v4
+        if: always() && inputs.dry_run == false
+        with:
+          name: tenant-${{ inputs.name }}
+          path: ${{ runner.temp }}/out/state.enc
+          retention-days: 90
+          overwrite: true
+          if-no-files-found: ignore
+
+      - name: Вход клиента — в ваш Telegram
+        if: success() && inputs.dry_run == false
+        env:
+          OPS_TELEGRAM_BOT_TOKEN: ${{ secrets.OPS_TELEGRAM_BOT_TOKEN }}
+          OPS_TELEGRAM_CHAT_ID: ${{ secrets.OPS_TELEGRAM_CHAT_ID }}
+          KEY: ${{ secrets.PROVISION_STATE_KEY }}
+          IN_DOMAIN: ${{ inputs.domain }}
+        run: |
+          # состояние уже зашифровано и удалено — расшифровываем во временный файл для отчёта
+          mkdir -p scripts/tenants
+          umask 077
+          openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -pass env:KEY -in "$RUNNER_TEMP/out/state.enc" -out "$STATE"
+          node scripts/provision-report.mjs "$NAME"
+          rm -f "$STATE"
+          {
+            echo "### ✅ ${NAME}: https://${NAME}.${IN_DOMAIN}"
+            echo ""
+            echo "1. DNS у регистратора: **CNAME ${NAME} → cname.vercel-dns.com**"
+            echo "2. Вход офиса, строка для TENANTS_JSON и ключ бэкапов — в вашем Telegram (сообщение удалите после сохранения)."
+            echo "3. Добавьте строку в секрет **TENANTS_JSON** (Environments → migrations) — тогда миграции пойдут и в эту базу."
+          } >> "$GITHUB_STEP_SUMMARY"
