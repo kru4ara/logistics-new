@@ -9,7 +9,7 @@ import { formatDateTime } from '../../../lib/i18n/format';
 import type { MessageKey } from '../../../lib/i18n/translate';
 import { isStaffProfile, STAFF_ROLES } from '../../../lib/staff-rules';
 import { addStaff, setStaffRole, setStaffPassword, revokeStaff, resetStaffMfa, setRequireStaff2fa } from './actions';
-import ConfirmSubmit from './ConfirmSubmit';
+import ConfirmSubmit from '../../components/ConfirmSubmit';
 
 export const dynamic = 'force-dynamic';
 

@@ -30,6 +30,7 @@ const ENTITY_LABELS: Record<string, string> = {
   reminder: 'aud.eReminder',
   purchase_invoice: 'aud.ePurchase',
   user: 'aud.eUser',
+  fixed_cost: 'payx.eFixedCost',
 };
 
 const ACTION_META: Record<string, { text: string; badge: string; strip: string; Icon: LucideIcon }> = {

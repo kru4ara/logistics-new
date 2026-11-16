@@ -8,6 +8,7 @@ import { getT } from '../../lib/i18n/server';
 import { runKsefPurchaseSync } from '../../lib/payables/sync';
 import { recalcSegmentCost } from '../../lib/payables/cost';
 import { parseManualInvoice } from '../../lib/payables/cost-rules';
+import { invoiceKey, isValidPaidDate } from '../../lib/payables/duplicate-rules';
 
 type Result = { ok: boolean; message?: string };
 
@@ -103,14 +104,22 @@ export async function unlinkPurchase(invoiceId: string): Promise<Result> {
   return { ok: true };
 }
 
-/** Отметить оплату счёта подрядчика (или снять). */
-export async function setPurchasePaid(invoiceId: string, paid: boolean): Promise<Result> {
+/**
+ * Отметить оплату счёта подрядчика (или снять). date — день оплаты по выписке
+ * (YYYY-MM-DD, не в будущем); без даты — сегодня. Повторный вызов с датой — исправить дату.
+ */
+export async function setPurchasePaid(invoiceId: string, paid: boolean, date?: string): Promise<Result> {
   await requireCapability('payables.edit');
   const { t } = await getT();
+  const today = new Date().toISOString().slice(0, 10);
+  const paidAt = paid ? date || today : null;
+  if (paidAt && !isValidPaidDate(paidAt, today)) return { ok: false, message: t('payx.errPaidDate') };
   const supabase = await createClient();
+  const { data: before } = await supabase.from('purchase_invoices').select('paid_at').eq('id', invoiceId).maybeSingle();
+  if (!before) return { ok: false, message: t('pay.notFound') };
   const { data, error } = await supabase
     .from('purchase_invoices')
-    .update({ paid_at: paid ? new Date().toISOString().slice(0, 10) : null, updated_at: new Date().toISOString() })
+    .update({ paid_at: paidAt, updated_at: new Date().toISOString() })
     .eq('id', invoiceId)
     .select('invoice_number, seller_name')
     .maybeSingle();
@@ -120,8 +129,8 @@ export async function setPurchasePaid(invoiceId: string, paid: boolean): Promise
     entity_type: 'purchase_invoice',
     entity_id: invoiceId,
     action: 'update',
-    changes: { paid: { before: !paid, after: paid } },
-    summary: `Счёт подрядчика ${data.invoice_number ?? ''} (${data.seller_name ?? ''}) — ${paid ? 'оплачен' : 'оплата снята'}`,
+    changes: { paid_at: { before: before.paid_at ?? null, after: paidAt } },
+    summary: `Счёт подрядчика ${data.invoice_number ?? ''} (${data.seller_name ?? ''}) — ${paidAt ? `оплачен ${paidAt}` : 'оплата снята'}`,
   });
   revalidatePath('/payables');
   return { ok: true };
@@ -160,6 +169,19 @@ export async function addManualPurchase(fd: FormData): Promise<Result> {
   const file = fd.get('file');
   const hasFile = file instanceof File && file.size > 0;
   if (hasFile && (file.size > MAX_FILE || !FILE_TYPES.includes(file.type))) return { ok: false, message: t('pay.errFile') };
+
+  // Тот же счёт уже пришёл из KSeF — второй раз не вносим (иначе расход рейса удвоится).
+  const key = invoiceKey(contractor?.tax_id, parsed.invoiceNumber);
+  if (key) {
+    const { data: same } = await supabase
+      .from('purchase_invoices')
+      .select('seller_nip, invoice_number')
+      .eq('source', 'ksef')
+      .ilike('invoice_number', parsed.invoiceNumber.trim());
+    if ((same ?? []).some((x) => invoiceKey(x.seller_nip, x.invoice_number) === key)) {
+      return { ok: false, message: t('payx.errKsefExists') };
+    }
+  }
 
   const days = Number(seg.contractor_payment_days ?? 30);
   const due = parsed.paymentDue ?? new Date(Date.parse(parsed.issueDate) + (Number.isFinite(days) ? days : 30) * 86_400_000).toISOString().slice(0, 10);

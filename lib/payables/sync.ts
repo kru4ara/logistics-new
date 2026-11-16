@@ -4,6 +4,7 @@ import { fetchAll, fetchAllByIds } from '../fetch-all';
 import { logAudit } from '../audit';
 import { isKsefConfigured, queryPurchaseMetadata, downloadInvoiceXml, type InvoiceMetadata } from '../ksef/client';
 import { parseFa3, MAX_WINDOW_DAYS, dateWindows } from '../ksef/rules';
+import { findDuplicateGroups, planManualMerge } from './duplicate-rules';
 import { suggestSegments, autoMatch, normalizeNip, type SegmentCandidate, type PurchaseForMatch } from './match-rules';
 import { recalcSegmentCost } from './cost';
 
@@ -130,6 +131,45 @@ async function matchUnlinked(supabase: Supabase): Promise<number> {
 }
 
 /**
+ * Ручной счёт, который позже пришёл из KSeF: перенести привязку, оплату и файл в строку
+ * KSeF и удалить ручную — иначе расход рейса учтён дважды. Неоднозначные пары
+ * (привязаны к разным участкам) остаются — их показывает «Возможные дубли».
+ */
+async function mergeManualDuplicates(supabase: Supabase): Promise<void> {
+  const { data } = await fetchAll(
+    supabase.from('purchase_invoices').select('id, source, seller_nip, invoice_number, segment_id, match_status, paid_at, file_path, contractor_id'),
+  );
+  const rows = (data ?? []) as any[];
+  for (const g of findDuplicateGroups(rows)) {
+    const plan = planManualMerge(g);
+    if (!plan) continue;
+    const { keep, drop } = plan as { keep: any; drop: any };
+    const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    if (!keep.segment_id && drop.segment_id) {
+      patch.segment_id = drop.segment_id;
+      patch.match_status = 'manual';
+    }
+    if (!keep.paid_at && drop.paid_at) patch.paid_at = drop.paid_at;
+    if (!keep.file_path && drop.file_path) patch.file_path = drop.file_path;
+    if (!keep.contractor_id && drop.contractor_id) patch.contractor_id = drop.contractor_id;
+    const { error } = await supabase.from('purchase_invoices').update(patch).eq('id', keep.id);
+    if (error) continue;
+    // Файл переехал в строку KSeF — удаляем только запись.
+    const { error: delErr } = await supabase.from('purchase_invoices').delete().eq('id', drop.id);
+    if (delErr) continue;
+    const segId = (patch.segment_id as string | undefined) ?? keep.segment_id;
+    if (segId) await recalcSegmentCost(supabase, segId);
+    await logAudit({
+      entity_type: 'purchase_invoice',
+      entity_id: keep.id,
+      action: 'merge',
+      changes: { manual_duplicate: { before: drop.id, after: keep.id } },
+      summary: `Счёт ${keep.invoice_number ?? ''}: ручная запись объединена с фактурой из KSeF`,
+    });
+  }
+}
+
+/**
  * Пересчитать стоимость подрядчика у участков со счетами за ~полгода: выравнивает
  * расходы, если счёт привязали/отвязали до появления пересчёта или правили участок.
  */
@@ -222,6 +262,7 @@ export async function runKsefPurchaseSync(opts: { since?: string } = {}): Promis
     await supabase.from('integration_state').upsert({ key: STATE_KEY, value: mark, updated_at: new Date().toISOString() });
   }
 
+  await mergeManualDuplicates(supabase);
   const matched = await matchUnlinked(supabase);
   await recalcLinkedSegments(supabase);
   if (failed && downloaded === 0) return { ok: false, reason: 'error', message: failed };

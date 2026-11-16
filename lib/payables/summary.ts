@@ -33,13 +33,15 @@ function byCurrency(rows: PayableRow[]): ByCurrency {
 /** Сводка: к оплате, просрочено (по валютам), без привязки, оплаченные за 60 дней. */
 export function summarizePayables(rows: PayableRow[], today: string) {
   const unpaid = rows.filter((r) => !r.paid_at);
-  const unmatched = unpaid.filter((r) => r.match_status === 'none' && !r.segment_id);
+  // Без привязки — и оплаченные тоже: иначе счёт, отмеченный оплаченным раньше привязки,
+  // навсегда пропадает из «требуют привязки», и расход не доходит до рейса.
+  const unmatched = rows.filter((r) => r.match_status === 'none' && !r.segment_id);
   const toPay = unpaid
     .filter((r) => !unmatched.includes(r))
     .sort((a, b) => (a.payment_due ?? '9999').localeCompare(b.payment_due ?? '9999'));
   const overdue = unpaid.filter((r) => r.payment_due && r.payment_due < today);
   const since = new Date(Date.parse(today) - 60 * 86_400_000).toISOString().slice(0, 10);
-  const paidRecent = rows.filter((r) => r.paid_at && r.paid_at >= since);
+  const paidRecent = rows.filter((r) => r.paid_at && r.paid_at >= since && !unmatched.includes(r));
   return {
     unmatched,
     toPay,
