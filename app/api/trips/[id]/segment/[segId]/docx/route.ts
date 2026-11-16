@@ -18,6 +18,7 @@ import {
 import { fmtDate, txt, divider, cellLabel, cellValue, FONT, LINE, BLUE, RED, GREEN, GRAY, AMBER } from '../../../../../../../lib/docx/helpers';
 import { getImageDimensions, scaleImage, downloadAsset, generateQrBuffer } from '../../../../../../../lib/docx/assets';
 import { createClient } from '../../../../../../../lib/supabase/admin';
+import { scopedClient } from '../../../../../../../lib/supabase/scoped';
 import { getCompany, renderTerms, APP_URL, STAMP_PATH } from '../../../../../../../lib/company';
 
 export const dynamic = 'force-dynamic';
@@ -119,8 +120,9 @@ export async function GET(
   const { id: tripId, segId: segmentId } = await params;
 
   const supabase = await createClient();
+  const scoped = await scopedClient();
 
-  const { data: trip, error: tripErr } = await supabase
+  const { data: trip, error: tripErr } = await scoped
     .from('trips')
     .select('id, trip_number, client_request_number')
     .eq('id', tripId)
@@ -130,7 +132,7 @@ export async function GET(
     return NextResponse.json({ error: 'Рейс не найден' }, { status: 404 });
   }
 
-  const { data: segment, error: segErr } = await supabase
+  const { data: segment, error: segErr } = await scoped
     .from('trip_segments')
     .select('*')
     .eq('id', segmentId)
@@ -162,7 +164,7 @@ export async function GET(
   }
 
   // Грузы сегмента
-  const { data: segmentCargoRaw } = await supabase
+  const { data: segmentCargoRaw } = await scoped
     .from('trip_segment_cargo')
     .select('cargo_id, trip_cargo(position, label, cargo_type, weight_kg, pallets)')
     .eq('segment_id', segmentId);

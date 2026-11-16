@@ -13,6 +13,7 @@ import {
 } from 'docx';
 import { fmtDate, txt, divider, cellLabel, cellValue, FONT, LINE, BLUE, RED, GREEN, GRAY, AMBER } from '../../../../../../../lib/docx/helpers';
 import { createClient } from '../../../../../../../lib/supabase/admin';
+import { scopedClient } from '../../../../../../../lib/supabase/scoped';
 import { getCompany } from '../../../../../../../lib/company';
 import { can } from '../../../../../../../lib/roles';
 import { getDriverT } from '../../../../../../../lib/driver-locale';
@@ -97,6 +98,7 @@ export async function GET(
   const COMPANY = await getCompany();
   const { id: tripId, segId: segmentId } = await params;
   const supabase = await createClient();
+  const scoped = await scopedClient();
 
   // 1. Проверяем авторизацию и права
   const { data: { user } } = await supabase.auth.getUser();
@@ -115,7 +117,7 @@ export async function GET(
   const isAdmin = can(profile?.role || 'driver', 'trips.viewAll');
 
   // 2. Получаем рейс
-  const { data: trip, error: tripErr } = await supabase
+  const { data: trip, error: tripErr } = await scoped
     .from('trips')
     .select('id, trip_number, client_request_number, trailer_id')
     .eq('id', tripId)
@@ -126,7 +128,7 @@ export async function GET(
   }
 
   // 3. Получаем сегмент
-  const { data: segment, error: segErr } = await supabase
+  const { data: segment, error: segErr } = await scoped
     .from('trip_segments')
     .select('*')
     .eq('id', segmentId)
@@ -186,7 +188,7 @@ export async function GET(
     trailer = data;
   }
 
-  const { data: segmentCargoRaw } = await supabase
+  const { data: segmentCargoRaw } = await scoped
     .from('trip_segment_cargo')
     .select('cargo_id, trip_cargo(position, label, cargo_type, weight_kg)')
     .eq('segment_id', segmentId);

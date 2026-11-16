@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '../../lib/supabase/admin';
+import { scopedClient } from '../../lib/supabase/scoped';
 import { getSessionContext } from '../../lib/session';
 import { can } from '../../lib/roles';
 import { FORWARDING_SUFFIX } from '../../lib/orders-core';
@@ -60,6 +61,7 @@ export async function globalSearch(rawQuery: string): Promise<SearchResult> {
   if (!can(role, 'search.view')) return empty;
 
   const supabase = await createClient();
+  const scoped = await scopedClient();
   const q = query;
   const like = `%${q}%`;
   const isNumeric = /^\d+$/.test(q);
@@ -74,7 +76,7 @@ export async function globalSearch(rawQuery: string): Promise<SearchResult> {
   // 1) Если число — прямой поиск по номеру заказа (текстовый).
   //    Номера бывают двух видов: '42' (рейс) и '42Е' (экспедирование).
   if (isNumeric) {
-    const { data } = await supabase
+    const { data } = await scoped
       .from('trips')
       .select('id, trip_number, start_date, clients(name)')
       .in('trip_number', [q, q + FORWARDING_SUFFIX])
@@ -86,7 +88,7 @@ export async function globalSearch(rawQuery: string): Promise<SearchResult> {
   }
 
   // 2) Поиск trip_id через сегменты (города/страны)
-  const { data: segHits } = await supabase
+  const { data: segHits } = await scoped
     .from('trip_segments')
     .select('trip_id, position, from_city, from_country, to_city, to_country')
     .or(
@@ -103,12 +105,12 @@ export async function globalSearch(rawQuery: string): Promise<SearchResult> {
     const ids = Array.from(tripIdsFromSegments);
 
     const [{ data: tripsData }, { data: allSegments }] = await Promise.all([
-      supabase
+      scoped
         .from('trips')
         .select('id, trip_number, start_date, clients(name)')
         .in('id', ids)
         .limit(LIMIT_PER_DOMAIN),
-      supabase
+      scoped
         .from('trip_segments')
         .select('trip_id, position, from_city, from_country, to_city, to_country')
         .in('trip_id', ids),
@@ -194,7 +196,7 @@ export async function globalSearch(rawQuery: string): Promise<SearchResult> {
   // ============================================================
   const fwdMap = new Map<string, SearchHit>();
 
-  const { data: fwdData } = await supabase
+  const { data: fwdData } = await scoped
     .from('trips')
     .select('id, trip_number, client_request_number, start_date, end_date, clients(name)')
     .eq('profit_mode', 'forwarding')

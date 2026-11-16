@@ -84,3 +84,18 @@ describe('evaluateExpenseAccess', () => {
     expect(result.ok === false && result.reason).toBe('Нет доступа');
   });
 });
+
+describe('менеджер: видимость решает база', () => {
+  const manager = { role: 'manager', driverId: null, managerId: 'm-1' } as ActorState;
+  const managerNoCard = { role: 'manager', driverId: null, managerId: null } as ActorState;
+  it('заказ/расход в периметре — можно, вне — нельзя', () => {
+    expect(evaluateTripAccess(manager, true).ok).toBe(true);
+    expect(evaluateTripAccess(manager, false).ok).toBe(false);
+    expect(evaluateExpenseAccess(manager, true).ok).toBe(true);
+    expect(evaluateExpenseAccess(manager, false).ok).toBe(false);
+  });
+  it('менеджер без карточки не получает полный доступ', () => {
+    expect(evaluateTripAccess(managerNoCard, false).ok).toBe(false);
+    expect(evaluateExpenseAccess(managerNoCard, false).ok).toBe(false);
+  });
+});
