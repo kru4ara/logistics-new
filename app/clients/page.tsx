@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { getSessionContext } from '../../lib/session';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase/admin';
+import { scopedClient } from '../../lib/supabase/scoped';
 import { deleteClient } from '../client-actions';
 import ClientCardActions from './ClientCardActions';
 import { getScope, applyTripScope } from '../../lib/scope';
@@ -28,6 +29,7 @@ export default async function ClientsPage() {
   if (denied) redirect(denied);
 
   const supabase = await createClient();
+  const scoped = await scopedClient();
 
   const { data: clients, error } = await supabase
     .from('clients')
@@ -42,7 +44,7 @@ export default async function ClientsPage() {
   const scope = await getScope();
 
   const { data: trips } = await fetchAll(applyTripScope(
-      supabase
+      scoped
         .from('trips')
         .select('client_id'),
       scope

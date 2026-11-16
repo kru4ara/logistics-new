@@ -3,6 +3,7 @@ import { getScope, applyTripScope } from '../../lib/scope';
 import { can } from '../../lib/roles';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase/admin';
+import { scopedClient } from '../../lib/supabase/scoped';
 import { buildRouteMap, type SegmentRouteRow } from '../../lib/trip-route';
 import DownloadButton, { type RouteCardData } from './DownloadButton';
 import {
@@ -25,20 +26,21 @@ export default async function RoutesPage() {
   if (!can(role, 'trips.viewAll')) redirect('/driver');
 
   const supabase = await createClient();
+  const scoped = await scopedClient();
 
   const scope = await getScope();
 
   const [tripsResult, expensesResult, segmentsResult] = await Promise.all([
     fetchAll(applyTripScope(
-      supabase
+      scoped
         .from('trips')
         .select('id, revenue_eur'),
       scope
     )),
-    fetchAll(supabase
+    fetchAll(scoped
       .from('trip_expenses')
       .select('trip_id, amount_eur')),
-    fetchAll(supabase
+    fetchAll(scoped
       .from('trip_segments')
       .select('trip_id, position, from_city, from_country, to_city, to_country')),
   ]);

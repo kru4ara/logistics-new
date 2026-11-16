@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../../../lib/supabase/admin';
+import { scopedClient } from '../../../../lib/supabase/scoped';
 import { can, deniedRedirect } from '../../../../lib/roles';
 import { getSessionContext } from '../../../../lib/session';
 import EditTripForm from './EditTripForm';
@@ -19,13 +20,14 @@ export default async function EditTripPage({ params }: { params: Promise<{ id: s
   if (!can(role, 'trips.editAny')) redirect('/');
 
   const supabase = await createClient();
+  const scoped = await scopedClient();
 
   // Скоуп (фаза 39): менеджер не должен открыть чужой заказ по прямой
   // ссылке — запрос ограничивается тем же фильтром, что и списки.
   const scope = await getScope();
 
   const { data: trip, error } = await applyTripScope(
-      supabase
+      scoped
         .from('trips')
         .select('*'),
       scope

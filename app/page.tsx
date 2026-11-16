@@ -3,6 +3,7 @@ import { can } from '../lib/roles';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '../lib/supabase/admin';
+import { scopedClient } from '../lib/supabase/scoped';
 import { MonthlyBars, ExpenseDonut } from './components/DashboardCharts';
 import AdminOnboardingCard from './components/AdminOnboardingCard';
 import DashboardMonthStats from './components/dashboard/DashboardMonthStats';
@@ -34,6 +35,7 @@ export default async function Home() {
   if (!can(role, 'trips.viewAll')) redirect('/login');
 
   const supabase = await createClient();
+  const scoped = await scopedClient();
 
   // ============================================================
   // РЕЙСЫ
@@ -45,7 +47,7 @@ export default async function Home() {
   const scope = await getScope();
 
   const { data: trips } = await fetchAll(applyTripScope(
-      supabase
+      scoped
         .from('trips')
         .select(
       'id, client_id, revenue_eur, start_date, end_date, status, profit_mode, is_forwarding'
@@ -53,7 +55,7 @@ export default async function Home() {
       scope
     ));
 
-  const { data: tripExpenses } = await fetchAll(supabase
+  const { data: tripExpenses } = await fetchAll(scoped
     .from('trip_expenses')
     .select('trip_id, amount_eur, category'));
 

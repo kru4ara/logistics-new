@@ -3,6 +3,7 @@ import { getScope, applyTripScope } from '../../../lib/scope';
 import { getSessionContext } from '../../../lib/session';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../../lib/supabase/admin';
+import { scopedClient } from '../../../lib/supabase/scoped';
 import {
   ArrowLeft,
   BarChart3,
@@ -26,6 +27,7 @@ export default async function DriverKpiPage() {
   if (denied) redirect(denied);
 
   const supabase = await createClient();
+  const scoped = await scopedClient();
 
   const { data: drivers, error: driversError } = await supabase
     .from('drivers')
@@ -40,14 +42,14 @@ export default async function DriverKpiPage() {
   const scope = await getScope();
 
   const { data: trips } = await fetchAll(applyTripScope(
-      supabase
+      scoped
         .from('trips')
         .select('id, driver_id, revenue_eur, actual_km, actual_liters, start_date, end_date, status'),
       scope
     ));
 
   // ⬅️ ВСЕ расходы (не только ЗП)
-  const { data: allExpenses } = await fetchAll(supabase
+  const { data: allExpenses } = await fetchAll(scoped
     .from('trip_expenses')
     .select('trip_id, amount_eur, category, expense_date'));
 

@@ -1,6 +1,7 @@
 import { getSessionContext } from '../../lib/session';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase/admin';
+import { scopedClient } from '../../lib/supabase/scoped';
 import { buildRouteMap } from '../../lib/trip-route';
 import MapView from './MapViewWrapper';
 import { getScope, applyTripScope } from '../../lib/scope';
@@ -24,11 +25,12 @@ export default async function MapPage() {
   if (denied) redirect(denied);
 
   const supabase = await createClient();
+  const scoped = await scopedClient();
 
   const scope = await getScope();
 
   const { data: tripsRaw, error } = await fetchAll(applyTripScope(
-      supabase
+      scoped
         .from('trips')
         .select('id, trip_number, status, start_lat, start_lng, end_lat, end_lng, start_date'),
       scope
@@ -43,7 +45,7 @@ export default async function MapPage() {
   // Маршрут и точки — из сегментов
   const tripIds = (tripsRaw || []).map((t: any) => t.id);
   const { data: segs } = tripIds.length > 0
-    ? await fetchAllByIds(tripIds, (chunk) => supabase
+    ? await fetchAllByIds(tripIds, (chunk) => scoped
         .from('trip_segments')
         .select('trip_id, position, from_city, from_country, to_city, to_country')
         .in('trip_id', chunk))
