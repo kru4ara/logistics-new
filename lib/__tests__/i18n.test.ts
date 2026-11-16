@@ -278,6 +278,7 @@ const TRANSLATED_FILES = [
   'app/api/cron/ksef-purchases/route.ts',
   'app/payables/PayablesControls.tsx',
   'app/payables/page.tsx',
+  'app/payables/SortControls.tsx',
   'lib/ksef/rules.ts',
   'lib/payables/match-rules.ts',
   'lib/payables/summary.ts',

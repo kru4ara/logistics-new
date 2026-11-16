@@ -7,6 +7,7 @@ import { parseFa3, MAX_WINDOW_DAYS, dateWindows } from '../ksef/rules';
 import { findDuplicateGroups, planManualMerge } from './duplicate-rules';
 import { suggestSegments, autoMatch, normalizeNip, type SegmentCandidate, type PurchaseForMatch } from './match-rules';
 import { recalcSegmentCost } from './cost';
+import { syncInvoiceOverheadCost } from './overhead-cost';
 
 const STATE_KEY = 'ksef.purchases.hwm';
 /** первый запуск — за 60 дней назад */
@@ -168,6 +169,33 @@ async function mergeManualDuplicates(supabase: Supabase): Promise<void> {
 }
 
 /**
+ * Правила по продавцу (миграция 038): новые счета продавца с правилом «накладные» сразу
+ * уходят в «не относится к рейсам» с категорией — не ждут ручного разбора.
+ */
+async function applySellerRules(supabase: Supabase): Promise<void> {
+  const { data: rules, error } = await supabase.from('purchase_seller_rules').select('seller_nip, assignment, category');
+  if (error || !rules?.length) return;
+  const overhead = new Map(
+    (rules as { seller_nip: string; assignment: string; category: string | null }[])
+      .filter((r) => r.assignment === 'overhead' && r.category)
+      .map((r) => [r.seller_nip, r.category as string]),
+  );
+  if (!overhead.size) return;
+  const { data } = await fetchAll(
+    supabase.from('purchase_invoices').select('id, seller_nip').is('segment_id', null).is('trip_id', null).eq('match_status', 'none').order('id'),
+  );
+  for (const r of (data ?? []) as { id: string; seller_nip: string | null }[]) {
+    const cat = overhead.get(normalizeNip(r.seller_nip) ?? '');
+    if (!cat) continue;
+    await supabase
+      .from('purchase_invoices')
+      .update({ match_status: 'ignored', overhead_category: cat, updated_at: new Date().toISOString() })
+      .eq('id', r.id);
+    await syncInvoiceOverheadCost(supabase, r.id);
+  }
+}
+
+/**
  * Пересчитать стоимость подрядчика у участков со счетами за ~полгода: выравнивает
  * расходы, если счёт привязали/отвязали до появления пересчёта или правили участок.
  */
@@ -261,6 +289,7 @@ export async function runKsefPurchaseSync(opts: { since?: string } = {}): Promis
   }
 
   await mergeManualDuplicates(supabase);
+  await applySellerRules(supabase);
   const matched = await matchUnlinked(supabase);
   await recalcLinkedSegments(supabase);
   if (failed && downloaded === 0) return { ok: false, reason: 'error', message: failed };

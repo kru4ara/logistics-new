@@ -17,6 +17,8 @@ export type PayableRow = {
   match_status: 'none' | 'auto' | 'manual' | 'ignored';
   /** привязан к рейсу целиком как расход (миграция 037) */
   trip_id?: string | null;
+  /** категория накладных у «не относится к рейсам» (миграция 038) */
+  overhead_category?: string | null;
   paid_at: string | null;
 };
 

@@ -15,6 +15,12 @@ const toEurForCost = (supabase: Awaited<ReturnType<typeof createClient>>, amount
 type CostRow = { category: string | null; month_key: string | null; original_amount: number | null; currency: string | null; cost_type: string | null };
 const costLine = (c: CostRow) => `${c.category ?? ''} · ${c.month_key ?? ''} · ${c.original_amount ?? ''} ${c.currency ?? ''}`;
 
+/** Запись из счёта подрядчика правится в «Счетах подрядчиков», не здесь. */
+async function fromInvoice(supabase: Awaited<ReturnType<typeof createClient>>, costId: string): Promise<boolean> {
+  const { data, error } = await supabase.from('fixed_costs').select('purchase_invoice_id').eq('id', costId).maybeSingle();
+  return !error && Boolean(data?.purchase_invoice_id);
+}
+
 export async function createFixedCost(formData: FormData) {
   const { t } = await getT();
   await requireCapability('fixedCosts.edit');
@@ -69,6 +75,7 @@ export async function updateFixedCost(costId: string, formData: FormData) {
   const { t } = await getT();
   await requireCapability('fixedCosts.edit');
   const supabase = await createClient();
+  if (await fromInvoice(supabase, costId)) throw new Error(t('payx3.errFromInvoice'));
 
   const monthKey = formData.get('month_key') as string;
   const category = formData.get('category') as string;
@@ -122,6 +129,7 @@ export async function deleteFixedCost(costId: string) {
   const { t } = await getT();
   await requireCapability('fixedCosts.edit');
   const supabase = await createClient();
+  if (await fromInvoice(supabase, costId)) throw new Error(t('payx3.errFromInvoice'));
 
   const { data: before } = await supabase
     .from('fixed_costs')

@@ -18,6 +18,8 @@ import { suggestTrips, defaultTripCategory, type TripCandidate } from '../../lib
 import { EXPENSE_CATEGORIES, expenseCategoryKey } from '../../lib/i18n/labels';
 import type { MessageKey } from '../../lib/i18n/translate';
 import { findDuplicateGroups } from '../../lib/payables/duplicate-rules';
+import { groupBySeller, guessSeller, OVERHEAD_CATEGORIES } from '../../lib/payables/overhead-rules';
+import { SellerSortForm, InvoiceOverheadSelect } from './SortControls';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,8 +38,9 @@ export default async function PayablesPage() {
   const COLS = 'id, ksef_number, source, invoice_number, issue_date, seller_nip, seller_name, net_amount, gross_amount, currency, payment_due, description, segment_id, match_status, paid_at';
   const load = (cols: string) =>
     fetchAll(supabase.from('purchase_invoices').select(cols).order('issue_date', { ascending: false }).order('id'));
-  let { data, error } = await load(`${COLS}, trip_id`);
-  // Между деплоем и миграцией 037 колонки trip_id ещё нет.
+  let { data, error } = await load(`${COLS}, trip_id, overhead_category`);
+  // Между деплоем и миграциями 037/038 новых колонок ещё нет.
+  if (error && /overhead_category/.test(error.message)) ({ data, error } = await load(`${COLS}, trip_id`));
   if (error && /trip_id/.test(error.message)) ({ data, error } = await load(COLS));
   if (error) {
     return (
@@ -57,6 +60,9 @@ export default async function PayablesPage() {
   const today = new Date().toISOString().slice(0, 10);
   const sum = summarizePayables(rows, today);
   const duplicates = findDuplicateGroups(rows);
+  const sellerGroups = groupBySeller(rows.filter((r) => r.match_status === 'ignored'));
+  const toSort = sellerGroups.filter((g) => g.uncategorized > 0);
+  const sorted = sellerGroups.filter((g) => g.uncategorized === 0);
 
   const linkedIds = rows.map((r) => r.segment_id).filter((x): x is string => Boolean(x));
   const segments: SegmentCandidate[] = sum.unmatched.length || linkedIds.length ? await loadSegmentCandidates(supabase, linkedIds) : [];
@@ -94,6 +100,8 @@ export default async function PayablesPage() {
     value: c.value,
     label: `${c.emoji} ${t(expenseCategoryKey(c.value) as MessageKey)}`,
   }));
+  const ohOptions: CategoryOption[] = OVERHEAD_CATEGORIES.map((c) => ({ value: c.value, label: `${c.emoji} ${t(`ohCat.${c.value}` as MessageKey)}` }));
+  const ohLabel = (cat: string | null | undefined) => ohOptions.find((o) => o.value === cat)?.label ?? null;
   const tripCell = (r: PayableRow) => {
     const x = r.trip_id ? tripById.get(r.trip_id) : null;
     if (!r.trip_id) return null;
@@ -259,7 +267,58 @@ export default async function PayablesPage() {
           </section>
         )}
 
-        {sum.toPay.length > 0 && (
+{sellerGroups.length > 0 && (
+          <section id="sort" className="card p-4 md:p-5 overflow-x-auto">
+            <h2 className="font-bold text-slate-900">{t('payx3.secSort', { n: toSort.length })}</h2>
+            <p className="text-sm text-slate-500 mt-1 mb-3">{t('payx3.sortHint')}</p>
+            {[...toSort, ...sorted].map((g, gi) => {
+              const guess = guessSeller(g.name);
+              const open = gi < 3 && g.uncategorized > 0;
+              return (
+                <details key={g.key} open={open} className={`border-t border-slate-100 py-2 ${g.uncategorized ? '' : 'opacity-80'}`}>
+                  <summary className="cursor-pointer flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                    <span className="font-semibold text-slate-900">{g.name}</span>
+                    <span className="text-xs text-slate-400">{g.nip}</span>
+                    <span className="text-xs text-slate-500">{t('payx3.invoices', { n: g.rows.length })} · {g.totals.map((x) => money(x.amount, x.currency)).join(' · ')}</span>
+                    {g.uncategorized > 0
+                      ? <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">{t('payx3.unsorted', { n: g.uncategorized })}</span>
+                      : g.category && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700">{ohLabel(g.category)}</span>}
+                  </summary>
+                  <div className="pl-2 md:pl-4 pt-2 space-y-2">
+                    {canEdit && (
+                      <SellerSortForm
+                        sellerKey={g.key}
+                        count={g.rows.length}
+                        categories={ohOptions}
+                        initial={guess?.assignment === 'trip' ? 'trip' : guess?.assignment === 'overhead' ? guess.category : g.category ?? ''}
+                        guessed={Boolean(guess)}
+                      />
+                    )}
+                    <table className="w-full text-xs">
+                      <tbody className="divide-y divide-slate-50">
+                        {g.rows.map((r) => (
+                          <tr key={r.id}>
+                            <td className="py-1.5 pr-3 whitespace-nowrap">{r.invoice_number ?? '—'}</td>
+                            <td className="py-1.5 pr-3 whitespace-nowrap text-slate-500">{r.issue_date ? formatDate(r.issue_date, locale) : ''}</td>
+                            <td className="py-1.5 pr-3 text-right tabular-nums whitespace-nowrap">{money(r.gross_amount, r.currency)}</td>
+                            <td className="py-1.5 pr-3 whitespace-nowrap text-slate-500">{r.paid_at ? t('pay.paidOn', { date: formatDate(r.paid_at, locale) }) : ''}</td>
+                            <td className="py-1.5 text-right">
+                              {canEdit
+                                ? <InvoiceOverheadSelect invoiceId={r.id} value={r.overhead_category ?? ''} categories={ohOptions} />
+                                : ohLabel(r.overhead_category) ?? '—'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </details>
+              );
+            })}
+          </section>
+        )}
+
+                {sum.toPay.length > 0 && (
           <section className="card p-4 md:p-5 overflow-x-auto">
             <h2 className="font-bold text-slate-900 mb-3">{t('pay.secToPay')}</h2>
             <table className="w-full text-sm">

@@ -3,7 +3,9 @@ import { getSessionContext } from '../../lib/session';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase/admin';
 import { deleteFixedCost } from '../fixed-cost-actions';
-import { fetchAll } from '../../lib/fetch-all';
+import { fetchAll, fetchAllByIds } from '../../lib/fetch-all';
+import { findManualDuplicates, type InvoiceAmounts } from '../../lib/fixed-costs-dup-rules';
+import { OVERHEAD_CATEGORIES } from '../../lib/payables/overhead-rules';
 import ConfirmSubmit from '../components/ConfirmSubmit';
 import {
   Banknote,
@@ -19,6 +21,9 @@ import {
   CalendarClock,
   Coins,
   Zap,
+  ReceiptText,
+  Copy,
+  AlertTriangle,
   type LucideIcon,
 } from 'lucide-react';
 import { deniedRedirect } from '../../lib/roles';
@@ -71,6 +76,49 @@ export default async function FixedCostsPage() {
   if (error) {
     return <div className="p-8 text-red-500">{t('dir.loadError')}{' '}{error.message}</div>;
   }
+
+  // Записи из счетов подрядчиков («не относится к рейсам» + категория) и ручные дубли к ним.
+  const invoiceIds = (costs ?? []).map((c) => c.purchase_invoice_id).filter((x): x is string => Boolean(x));
+  const { data: invRows } = invoiceIds.length
+    ? await fetchAllByIds(invoiceIds, (chunk) =>
+        supabase.from('purchase_invoices').select('id, gross_amount, net_amount, invoice_number, issue_date, overhead_category').in('id', chunk),
+      )
+    : { data: [] as any[] };
+  const invoiceById = new Map<string, InvoiceAmounts & { category: string | null }>(
+    ((invRows ?? []) as any[]).map((r) => [
+      r.id,
+      {
+        gross: r.gross_amount != null ? Number(r.gross_amount) : null,
+        net: r.net_amount != null ? Number(r.net_amount) : null,
+        number: r.invoice_number,
+        issueDate: r.issue_date,
+        category: r.overhead_category,
+      },
+    ]),
+  );
+  const costById = new Map((costs ?? []).map((c) => [c.id, c]));
+  const dupPairs = findManualDuplicates(
+    (costs ?? []).map((c) => ({ ...c, original_amount: c.original_amount != null ? Number(c.original_amount) : null })),
+    invoiceById,
+  );
+  const dupManualIds = new Set(dupPairs.map((p) => p.manualId));
+  const { count: unsorted } = await supabase
+    .from('purchase_invoices')
+    .select('id', { count: 'exact', head: true })
+    .eq('match_status', 'ignored')
+    .is('overhead_category', null);
+  const ohLabel = (cat: string | null | undefined) => {
+    const c = OVERHEAD_CATEGORIES.find((x) => x.value === cat);
+    return c ? `${c.emoji} ${t(`ohCat.${c.value}` as MessageKey)}` : null;
+  };
+  const fmtCost = (c: any) =>
+    `${c.original_amount ?? c.amount_eur ?? 0} ${c.currency || 'PLN'} · ${c.expense_date ? new Date(c.expense_date).toLocaleDateString(INTL_LOCALE[locale]) : c.month_key}`;
+  const invoiceBadge = (c: any) => (
+    <Link href="/payables" className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-100">
+      <ReceiptText className="w-2.5 h-2.5" strokeWidth={2.5} />
+      {ohLabel(invoiceById.get(c.purchase_invoice_id)?.category) ?? t('payx3.fromInvoice')}
+    </Link>
+  );
 
   const now = new Date();
   const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -196,6 +244,51 @@ export default async function FixedCostsPage() {
           </div>
         </div>
 
+        {(unsorted ?? 0) > 0 && (
+          <Link href="/payables#sort" className="card p-4 flex items-center gap-3 border-amber-300 bg-amber-50/50 hover:bg-amber-50">
+            <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
+            <span className="text-sm text-slate-700">{t('payx3.unsortedBanner', { n: unsorted ?? 0 })}</span>
+          </Link>
+        )}
+
+        {dupPairs.length > 0 && (
+          <section className="card p-4 md:p-5 border-amber-300 bg-amber-50/40">
+            <h2 className="font-bold text-slate-900 flex items-center gap-2"><Copy className="w-4 h-4 text-amber-600" />{t('payx3.dupTitle', { n: dupPairs.length })}</h2>
+            <p className="text-sm text-slate-600 mt-1 mb-3">{t('payx3.dupHint')}</p>
+            <div className="divide-y divide-amber-100">
+              {dupPairs.map((p) => {
+                const m = costById.get(p.manualId);
+                const k = costById.get(p.invoiceCostId);
+                if (!m || !k) return null;
+                return (
+                  <div key={p.manualId} className="py-2.5 flex flex-col md:flex-row md:items-center gap-2 md:gap-4 text-sm">
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-slate-900 break-words">{m.category || t('fc.noCategory')}</div>
+                      <div className="text-xs text-slate-500">{t('payx3.manual')} · {fmtCost(m)}</div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-slate-700 break-words">{k.category}</div>
+                      <div className="text-xs text-slate-500">{t('payx3.fromInvoice')} · {fmtCost(k)}{p.byNumber ? ` · ${t('payx3.sameNumber')}` : ''}</div>
+                    </div>
+                    <form action={async () => {
+                      'use server';
+                      await deleteFixedCost(p.manualId);
+                    }}>
+                      <ConfirmSubmit
+                        message={t('payx.confirmFcDelete', { name: m.category ?? '' })}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-red-600 border border-red-200 bg-white hover:bg-red-50 whitespace-nowrap"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        {t('payx3.deleteManual')}
+                      </ConfirmSubmit>
+                    </form>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
         {months.length === 0 ? (
           <div className="card p-10 md:p-16 text-center">
             <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-slate-50 flex items-center justify-center">
@@ -245,6 +338,7 @@ export default async function FixedCostsPage() {
                             <div className="flex items-center gap-2 flex-wrap mb-0.5">
                               <div className="font-semibold text-slate-800 break-words">
                                 {c.category || t('fc.noCategory')}
+                                {dupManualIds.has(c.id) && <span className="ml-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">{t('payx3.dupBadge')}</span>}
                               </div>
                               {isCapex && (
                                 <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 border border-amber-200">
@@ -279,6 +373,9 @@ export default async function FixedCostsPage() {
                           </div>
                         )}
 
+                        {c.purchase_invoice_id ? (
+                          <div className="pt-2 border-t border-slate-100">{invoiceBadge(c)}</div>
+                        ) : (
                         <div className="flex gap-2 pt-2 border-t border-slate-100">
                           <Link
                             href={`/fixed-costs/${c.id}/edit`}
@@ -300,6 +397,7 @@ export default async function FixedCostsPage() {
                             </ConfirmSubmit>
                           </form>
                         </div>
+                        )}
                       </div>
                     );
                   })}
@@ -332,6 +430,7 @@ export default async function FixedCostsPage() {
                             <td className="px-6 py-4 font-medium text-slate-800">
                               <div className="flex items-center gap-2 flex-wrap">
                                 {c.category || t('fc.noCategory')}
+                                {dupManualIds.has(c.id) && <span className="ml-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">{t('payx3.dupBadge')}</span>}
                                 {isCapex && (
                                   <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 border border-amber-200">
                                     <Briefcase className="w-2.5 h-2.5" strokeWidth={2.5} />
@@ -357,6 +456,7 @@ export default async function FixedCostsPage() {
                               {c.amount_eur ? `${Number(c.amount_eur).toFixed(0)} €` : '—'}
                             </td>
                             <td className="px-6 py-4 text-right whitespace-nowrap">
+                              {c.purchase_invoice_id ? invoiceBadge(c) : (<>
                               <Link
                                 href={`/fixed-costs/${c.id}/edit`}
                                 className="text-brand-600 hover:text-brand-800 text-xs font-medium px-2 py-1 inline-flex"
@@ -376,6 +476,7 @@ export default async function FixedCostsPage() {
                                   <Trash2 className="w-3.5 h-3.5" strokeWidth={2} />
                                 </ConfirmSubmit>
                               </form>
+                              </>)}
                             </td>
                           </tr>
                         );
