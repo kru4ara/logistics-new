@@ -9,8 +9,27 @@ import { runKsefPurchaseSync } from '../../lib/payables/sync';
 import { recalcSegmentCost } from '../../lib/payables/cost';
 import { parseManualInvoice } from '../../lib/payables/cost-rules';
 import { invoiceKey, isValidPaidDate } from '../../lib/payables/duplicate-rules';
+import { syncInvoiceTripExpense } from '../../lib/payables/trip-expense';
+import { isMonthClosed, tripMonth } from '../../lib/closed-months';
+import { EXPENSE_CATEGORIES } from '../../lib/i18n/labels';
 
 type Result = { ok: boolean; message?: string };
+
+type Supabase = Awaited<ReturnType<typeof createClient>>;
+
+/** Рейс, к которому счёт привязан как расход (до миграции 037 колонки нет — null). */
+async function invoiceTripId(supabase: Supabase, invoiceId: string): Promise<string | null> {
+  const { data, error } = await supabase.from('purchase_invoices').select('trip_id').eq('id', invoiceId).maybeSingle();
+  return error ? null : ((data?.trip_id as string | null) ?? null);
+}
+
+/** Снять привязку счёта к рейсу-расходу (перед привязкой к участку, «не относится», отвязкой). */
+async function detachFromTrip(supabase: Supabase, invoiceId: string, tripId: string | null): Promise<void> {
+  if (!tripId) return;
+  await supabase.from('purchase_invoices').update({ trip_id: null }).eq('id', invoiceId);
+  await syncInvoiceTripExpense(supabase, invoiceId);
+  revalidatePath(`/trips/${tripId}`);
+}
 
 /** Загрузить входящие фактуры из KSeF сейчас (то же делает cron ночью). */
 export async function syncPurchasesNow(since?: string): Promise<Result> {
@@ -65,6 +84,7 @@ export async function linkPurchase(invoiceId: string, segmentId: string | null):
     })
     .eq('id', invoiceId);
   if (error) return { ok: false, message: t('dir.updateError', { msg: error.message }) };
+  await detachFromTrip(supabase, invoiceId, await invoiceTripId(supabase, invoiceId));
 
   // Факт стоимости — по счетам: пересчитать и прежний участок, и новый.
   if (previousSegment && previousSegment !== seg?.id) await recalcSegmentCost(supabase, previousSegment);
@@ -95,11 +115,63 @@ export async function unlinkPurchase(invoiceId: string): Promise<Result> {
     .update({ segment_id: null, match_status: 'none', updated_at: new Date().toISOString() })
     .eq('id', invoiceId);
   if (error) return { ok: false, message: t('dir.updateError', { msg: error.message }) };
+  await detachFromTrip(supabase, invoiceId, await invoiceTripId(supabase, invoiceId));
   if (before?.segment_id) {
     await recalcSegmentCost(supabase, before.segment_id as string);
     const tripId = (Array.isArray(before.trip_segments) ? before.trip_segments[0] : before.trip_segments as any)?.trip_id;
     if (tripId) revalidatePath(`/trips/${tripId}`);
   }
+  revalidatePath('/payables');
+  return { ok: true };
+}
+
+const TRIP_CATEGORIES = new Set<string>(EXPENSE_CATEGORIES.map((c) => c.value));
+
+/**
+ * Привязать счёт к рейсу целиком как расход (перегруз, EX-1, EPI, склад), а не к участку
+ * перевозчика. Расход появляется в рейсе обычной строкой с выбранной категорией.
+ */
+export async function linkPurchaseToTrip(invoiceId: string, tripId: string, category: string): Promise<Result> {
+  await requireCapability('payables.edit');
+  const { t } = await getT();
+  if (!TRIP_CATEGORIES.has(category)) return { ok: false, message: t('payx2.errCategory') };
+  const supabase = await createClient();
+  const { data: inv } = await supabase
+    .from('purchase_invoices')
+    .select('id, invoice_number, ksef_number, seller_name, segment_id')
+    .eq('id', invoiceId)
+    .maybeSingle();
+  if (!inv) return { ok: false, message: t('pay.notFound') };
+  const { data: trip } = await supabase.from('trips').select('id, trip_number, start_date, end_date').eq('id', tripId).maybeSingle();
+  if (!trip) return { ok: false, message: t('payx2.errTrip') };
+  const previousTrip = await invoiceTripId(supabase, invoiceId);
+  for (const id of [tripId, previousTrip]) {
+    if (!id) continue;
+    const { data: tr } = id === tripId ? { data: trip } : await supabase.from('trips').select('start_date, end_date').eq('id', id).maybeSingle();
+    if (await isMonthClosed(supabase, tripMonth(tr as { start_date: string | null; end_date: string | null } | null))) {
+      return { ok: false, message: t('payx2.errClosed') };
+    }
+  }
+
+  const { error } = await supabase
+    .from('purchase_invoices')
+    .update({ trip_id: tripId, segment_id: null, match_status: 'manual', updated_at: new Date().toISOString() })
+    .eq('id', invoiceId);
+  if (error) {
+    return { ok: false, message: /trip_id/.test(error.message) ? t('pay.needMigration') : t('dir.updateError', { msg: error.message }) };
+  }
+  if (inv.segment_id) await recalcSegmentCost(supabase, inv.segment_id as string);
+  await syncInvoiceTripExpense(supabase, invoiceId, category);
+
+  await logAudit({
+    entity_type: 'trip',
+    entity_id: tripId,
+    action: 'update',
+    changes: { purchase_invoice: { before: null, after: inv.invoice_number }, category: { before: null, after: category } },
+    summary: `Счёт ${inv.invoice_number ?? inv.ksef_number ?? ''} (${inv.seller_name ?? ''}) привязан к рейсу ${trip.trip_number ?? ''} как расход`,
+  });
+  if (previousTrip && previousTrip !== tripId) revalidatePath(`/trips/${previousTrip}`);
+  revalidatePath(`/trips/${tripId}`);
   revalidatePath('/payables');
   return { ok: true };
 }

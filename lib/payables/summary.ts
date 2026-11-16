@@ -15,6 +15,8 @@ export type PayableRow = {
   description: string | null;
   segment_id: string | null;
   match_status: 'none' | 'auto' | 'manual' | 'ignored';
+  /** привязан к рейсу целиком как расход (миграция 037) */
+  trip_id?: string | null;
   paid_at: string | null;
 };
 
@@ -35,7 +37,7 @@ export function summarizePayables(rows: PayableRow[], today: string) {
   const unpaid = rows.filter((r) => !r.paid_at);
   // Без привязки — и оплаченные тоже: иначе счёт, отмеченный оплаченным раньше привязки,
   // навсегда пропадает из «требуют привязки», и расход не доходит до рейса.
-  const unmatched = rows.filter((r) => r.match_status === 'none' && !r.segment_id);
+  const unmatched = rows.filter((r) => r.match_status === 'none' && !r.segment_id && !r.trip_id);
   const toPay = unpaid
     .filter((r) => !unmatched.includes(r))
     .sort((a, b) => (a.payment_due ?? '9999').localeCompare(b.payment_due ?? '9999'));
