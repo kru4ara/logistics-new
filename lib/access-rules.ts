@@ -53,7 +53,8 @@ export function evaluateTripAccess(
   if (actor.role === 'office') return { ok: true };
 
   if (actor.role === 'manager') {
-    if (!actor.managerId) return { ok: true };
+    // Видимость считает база (RLS): свои + неназначенные. Менеджер без карточки
+    // видит только общий пул — как и в БД (current_manager_id() = null).
     if (!tripVisible) {
       return { ok: false, reason: 'Заказ не принадлежит вам' };
     }
@@ -86,7 +87,8 @@ export function evaluateExpenseAccess(
   if (actor.role === 'office') return { ok: true };
 
   if (actor.role === 'manager') {
-    if (!actor.managerId) return { ok: true };
+    // Видимость считает база (RLS): свои + неназначенные. Менеджер без карточки
+    // видит только общий пул — как и в БД (current_manager_id() = null).
     if (!expenseVisible) {
       return { ok: false, reason: 'Расход не принадлежит вам' };
     }

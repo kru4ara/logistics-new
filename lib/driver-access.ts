@@ -101,7 +101,7 @@ export type AccessResult =
  * admin-клиент (service_role, RLS обходится). Без этой проверки водитель
  * мог подсунуть чужой tripId и изменить чужой рейс.
  *
- * Офис (office / admin / manager) имеет доступ ко всем рейсам.
+ * Офис имеет доступ ко всем рейсам; менеджеру и водителю видимость считает база (RLS).
  */
 export async function requireTripAccess(tripId: string): Promise<AccessResult> {
   const actor = await getActorContext();
@@ -112,7 +112,7 @@ export async function requireTripAccess(tripId: string): Promise<AccessResult> {
   if (state.role === 'manager') {
     // Менеджер: заказ виден, если он его ведёт ИЛИ если менеджер
     // у заказа не назначен (общий пул офиса).
-    const visible = await managerTripVisible(tripId, state.managerId);
+    const visible = await managerTripVisible(tripId);
     return evaluateTripAccess(state, visible);
   }
 
@@ -125,36 +125,20 @@ export async function requireTripAccess(tripId: string): Promise<AccessResult> {
 }
 
 /**
- * Виден ли заказ менеджеру.
- *
- * Заказ без назначенного менеджера виден всем менеджерам (общий пул),
- * заказ на другого менеджера — нет.
+ * Виден ли заказ менеджеру — решает БАЗА (RLS-клиент от имени менеджера):
+ * политика trips_select_own_or_office → manager_owns_trip() — свой заказ или
+ * заказ без менеджера (общий пул). Правило не дублируется в коде (AGENTS.md):
+ * при расхождении кода и БД менеджер получил бы доступ, которого база не даёт.
  */
-export async function managerTripVisible(
-  tripId: string,
-  managerId: string | null
-): Promise<boolean> {
+export async function managerTripVisible(tripId: string): Promise<boolean> {
   if (!tripId) return false;
-  if (!managerId) return true;
-
-  const admin = await createAdminClient();
-  const { data, error } = await admin
-    .from('trips')
-    .select('id, manager_id')
-    .eq('id', tripId)
-    .maybeSingle();
-
+  const rls = await createRlsClient();
+  const { data, error } = await rls.from('trips').select('id').eq('id', tripId).maybeSingle();
   if (error) {
-    console.error(
-      '[driver-access] чтение trips (менеджер) не удалось:',
-      error.message
-    );
+    console.error('[driver-access] чтение trips (менеджер) через RLS не удалось:', error.message);
     return false;
   }
-
-  if (!data) return false;
-  if (!data.manager_id) return true;
-  return data.manager_id === managerId;
+  return Boolean(data);
 }
 
 /**
@@ -168,7 +152,9 @@ export async function requireExpenseAccess(
 
   if (state.role === 'office') return { ok: true };
 
-  if (state.role !== 'driver' || !state.driverId) {
+  // Менеджер и водитель: расход виден через RLS-клиент — значит, его заказ
+  // в периметре (manager_owns_trip / driver_owns_trip решает база).
+  if (state.role !== 'manager' && (state.role !== 'driver' || !state.driverId)) {
     return { ok: false, reason: 'Нет доступа' };
   }
 

@@ -267,8 +267,9 @@ export async function updateTrip(tripId: string, formData: FormData) {
 
   // Фаза 39: менеджер не может править чужой заказ, даже если знает его id.
   // Проверяем по скоупу — тем же правилом, что и списки.
+  // Второй замок: видимость заказа менеджеру решает база (RLS).
   const scope = await getScope();
-  if (!tripVisibleToScope(scope, before)) {
+  if (!tripVisibleToScope(scope, before) || !(await requireTripAccess(tripId)).ok) {
     throw new Error(t('tripErr.notEditable'));
   }
 
