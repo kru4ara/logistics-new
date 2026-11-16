@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { getSessionContext } from '../../lib/session';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase/admin';
+import { scopedClient } from '../../lib/supabase/scoped';
 import { fetchFuelLevels } from '../../lib/fuel-server';
 import { formatLiters } from '../../lib/fuel';
 import {
@@ -84,6 +85,7 @@ export default async function TrucksPage() {
   if (denied) redirect(denied);
 
   const supabase = await createClient();
+  const scoped = await scopedClient();
 
   const { data: trucks, error } = await supabase
     .from('trucks')
@@ -98,7 +100,7 @@ export default async function TrucksPage() {
   const fuelLevels = await fetchFuelLevels(supabase);
 
   // Считаем количество рейсов для каждой машины — и как тягач, и как прицеп
-  const { data: allTrips } = await fetchAll(supabase
+  const { data: allTrips } = await fetchAll(scoped
     .from('trips')
     .select('truck_id, trailer_id'));
 

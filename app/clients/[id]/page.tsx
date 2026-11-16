@@ -10,6 +10,7 @@ import {
   Handshake,
 } from 'lucide-react';
 import { createClient } from '../../../lib/supabase/admin';
+import { scopedClient } from '../../../lib/supabase/scoped';
 import { buildRouteMap, type SegmentRouteRow } from '../../../lib/trip-route';
 import { fetchAllByIds } from '../../../lib/fetch-all';
 import { getT } from '../../../lib/i18n/server';
@@ -23,6 +24,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
   if (!clientId) return <div className="p-8">{tr('cli.noId')}</div>;
 
   const supabase = await createClient();
+  const scoped = await scopedClient();
 
   const { data: client, error } = await supabase
     .from('clients')
@@ -33,7 +35,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
   if (error) return <div className="p-8 text-red-500">{tr('dir.error')}{' '} {error.message}</div>;
 
   // Без legacy route — маршруты берём из trip_segments ниже
-  const { data: trips, error: tripsError } = await supabase
+  const { data: trips, error: tripsError } = await scoped
     .from('trips')
     .select('*, drivers!driver_id(first_name, last_name, phone_by, phone_pl), trucks!truck_id(registration_number)')
     .eq('client_id', clientId);
@@ -58,7 +60,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
   const tripIds = trips?.map((t) => t.id) || [];
   const routeByTrip = new Map<string, string>();
   if (tripIds.length > 0) {
-    const { data: segRows } = await fetchAllByIds(tripIds, (chunk) => supabase
+    const { data: segRows } = await fetchAllByIds(tripIds, (chunk) => scoped
       .from('trip_segments')
       .select('trip_id, position, from_city, from_country, to_city, to_country')
       .in('trip_id', chunk));
@@ -71,7 +73,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
 
   // Расходы только по заказам этого клиента (раньше читалась вся таблица
   // и обрезалась на 1000 строк — суммы клиента могли быть неполными).
-  const { data: expenses } = await fetchAllByIds(tripIds, (chunk) => supabase
+  const { data: expenses } = await fetchAllByIds(tripIds, (chunk) => scoped
     .from('trip_expenses')
     .select('trip_id, amount_eur')
     .in('trip_id', chunk));

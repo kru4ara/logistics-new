@@ -1,4 +1,5 @@
 import { createClient } from '../../../lib/supabase/admin';
+import { scopedClient } from '../../../lib/supabase/scoped';
 import CountryFlag from '../../../app/components/CountryFlag';
 import { getT } from '../../../lib/i18n/server';
 import { tPlural } from '../../../lib/i18n/translate';
@@ -48,6 +49,7 @@ function fmtEurExact(n: number): string {
 export default async function ContractorsStatsPage() {
   const { t, locale } = await getT();
   const supabase = await createClient();
+  const scoped = await scopedClient();
 
   // 1. Все подрядчики
   const { data: contractors, error: cErr } = await supabase
@@ -61,14 +63,14 @@ export default async function ContractorsStatsPage() {
 
   // 2. Данные экспедирования — сегменты-подрядчики заказов
   //    в режиме forwarding (trips.profit_mode='forwarding').
-  const { data: fwdRows } = await supabase
+  const { data: fwdRows } = await scoped
     .from('trip_segments')
     .select('contractor_id, price, contractor_payment_days, trips!inner(profit_mode)')
     .eq('executor_type', 'contractor')
     .eq('trips.profit_mode', 'forwarding');
 
   // 3. Данные комбинированных перевозок — участки-подрядчики в рейсах
-  const { data: tripRows } = await supabase
+  const { data: tripRows } = await scoped
     .from('trip_segments')
     .select('contractor_id, price, currency')
     .eq('executor_type', 'contractor')
