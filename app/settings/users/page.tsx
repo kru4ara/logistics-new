@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { ArrowLeft, Users, UserPlus, CheckCircle2, AlertCircle, KeyRound, UserX } from 'lucide-react';
+import { ArrowLeft, Users, UserPlus, CheckCircle2, AlertCircle, KeyRound, UserX, ShieldCheck, ShieldOff } from 'lucide-react';
 import { createClient } from '../../../lib/supabase/admin';
 import { getSessionContext } from '../../../lib/session';
 import { deniedRedirect, isOfficeRole } from '../../../lib/roles';
@@ -8,7 +8,7 @@ import { getT } from '../../../lib/i18n/server';
 import { formatDateTime } from '../../../lib/i18n/format';
 import type { MessageKey } from '../../../lib/i18n/translate';
 import { isStaffProfile, STAFF_ROLES } from '../../../lib/staff-rules';
-import { addStaff, setStaffRole, setStaffPassword, revokeStaff } from './actions';
+import { addStaff, setStaffRole, setStaffPassword, revokeStaff, resetStaffMfa, setRequireStaff2fa } from './actions';
 import ConfirmSubmit from './ConfirmSubmit';
 
 export const dynamic = 'force-dynamic';
@@ -27,6 +27,8 @@ const ERR_KEY: Record<string, MessageKey> = {
   lastOffice: 'staff.errLastOffice',
   taken: 'staff.errTaken',
   migration: 'staff.needMigration',
+  mfaSelfFirst: 'mfa.requireSelfFirst',
+  mfaMigration: 'mfa.requireNeedMigration',
 };
 
 export default async function StaffPage({
@@ -49,14 +51,19 @@ export default async function StaffPage({
   const accounts = await Promise.all(
     staff.map(async (p) => {
       const { data } = await supabase.auth.admin.getUserById(p.id as string);
-      return { ...p, email: data.user?.email ?? '—', lastSignIn: data.user?.last_sign_in_at ?? null };
+      const { data: f } = await supabase.auth.admin.mfa.listFactors({ userId: p.id as string });
+      const mfa = (f?.factors ?? []).some((x) => x.status === 'verified');
+      return { ...p, email: data.user?.email ?? '—', lastSignIn: data.user?.last_sign_in_at ?? null, mfa };
     }),
   );
   accounts.sort((a, b) => String(a.full_name ?? a.email).localeCompare(String(b.full_name ?? b.email)));
 
+  const { data: cs } = await supabase.from('company_settings').select('require_staff_2fa').eq('id', 1).maybeSingle();
+  const require2fa = Boolean((cs as { require_staff_2fa?: boolean } | null)?.require_staff_2fa);
+
   const errText = err ? (err === 'auth' ? t('staff.errAuth', { msg: msg ?? '' }) : ERR_KEY[err] ? t(ERR_KEY[err]) : err) : null;
   const okText =
-    ok === 'added' ? t('staff.added', { email: okEmail ?? '' }) : ok === 'revoked' ? t('staff.revoked', { email: okEmail ?? '' }) : ok ? t('staff.saved') : null;
+    ok === 'added' ? t('staff.added', { email: okEmail ?? '' }) : ok === 'revoked' ? t('staff.revoked', { email: okEmail ?? '' }) : ok === 'mfaReset' ? t('mfa.resetDone', { email: okEmail ?? '' }) : ok ? t('staff.saved') : null;
 
   return (
     <main className="min-h-screen bg-slate-50">
@@ -99,7 +106,12 @@ export default async function StaffPage({
                     </div>
                     <div className="text-sm text-slate-500">{a.email}</div>
                   </div>
-                  <div className="text-xs text-slate-400">
+                  <div className="text-xs text-slate-400 flex items-center gap-2">
+                    <span className={`inline-flex items-center gap-1 font-semibold ${a.mfa ? 'text-emerald-700' : 'text-slate-400'}`}>
+                      {a.mfa ? <ShieldCheck className="w-3.5 h-3.5" /> : <ShieldOff className="w-3.5 h-3.5" />}
+                      {a.mfa ? t('mfa.on') : t('mfa.off')}
+                    </span>
+                    ·
                     {a.lastSignIn ? t('staff.lastSignIn', { date: formatDateTime(a.lastSignIn, locale) }) : t('staff.never')}
                   </div>
                 </div>
@@ -126,6 +138,15 @@ export default async function StaffPage({
                         {t('staff.setPassword')}
                       </button>
                     </form>
+                    {a.mfa && (
+                      <form action={resetStaffMfa}>
+                        <input type="hidden" name="user_id" value={a.id as string} />
+                        <ConfirmSubmit message={t('mfa.resetConfirm', { email: a.email })} className="btn btn-secondary text-sm">
+                          <ShieldOff className="w-4 h-4" strokeWidth={2} />
+                          {t('mfa.reset')}
+                        </ConfirmSubmit>
+                      </form>
+                    )}
                     <form action={revokeStaff}>
                       <input type="hidden" name="user_id" value={a.id as string} />
                       <ConfirmSubmit message={t('staff.revokeConfirm', { email: a.email })} className="btn btn-danger text-sm">
@@ -139,6 +160,17 @@ export default async function StaffPage({
             );
           })}
         </div>
+
+        <form action={setRequireStaff2fa} className="card p-5 md:p-6 flex flex-wrap items-center justify-between gap-3">
+          <label className="flex items-start gap-3 text-sm text-slate-700">
+            <input type="checkbox" name="require" defaultChecked={require2fa} className="mt-1" />
+            <span>
+              <span className="font-semibold text-slate-900">{t('mfa.requireLabel')}</span>
+              <span className="block text-xs text-slate-500 mt-0.5">{t('mfa.requireHint')}</span>
+            </span>
+          </label>
+          <button type="submit" className="btn btn-secondary text-sm">{t('mfa.save')}</button>
+        </form>
 
         <form action={addStaff} className="card p-5 md:p-6 space-y-3">
           <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">

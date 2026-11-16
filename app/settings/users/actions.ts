@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { requireCapability } from '../../../lib/require-office';
 import { createClient } from '../../../lib/supabase/admin';
+import { createClient as createRlsClient } from '../../../lib/supabase/server';
 import { getSessionContext } from '../../../lib/session';
 import { logAudit } from '../../../lib/audit';
 import { roleLabel, isOfficeRole, normalizeRole } from '../../../lib/roles';
@@ -156,4 +157,46 @@ export async function revokeStaff(formData: FormData): Promise<void> {
   await logAudit({ entity_type: 'user', entity_id: userId, action: 'update', summary: `Отключён доступ сотрудника ${u.user?.email ?? userId}` });
   revalidatePath(BACK);
   back({ ok: 'revoked', email: u.user?.email ?? '' });
+}
+
+/** Сбросить 2FA сотрудника (потерян телефон). Себе — через «Безопасность входа». */
+export async function resetStaffMfa(formData: FormData): Promise<void> {
+  await requireCapability('settings.edit');
+  const userId = String(formData.get('user_id') ?? '');
+  const supabase = await createClient();
+  const target = await staffProfile(supabase, userId);
+  if (!target) back({ err: 'auth', msg: 'not found' });
+  const { data: factors, error } = await supabase.auth.admin.mfa.listFactors({ userId });
+  if (error) back({ err: 'auth', msg: error.message });
+  for (const f of factors?.factors ?? []) {
+    const { error: delErr } = await supabase.auth.admin.mfa.deleteFactor({ id: f.id, userId });
+    if (delErr) back({ err: 'auth', msg: delErr.message });
+  }
+  const { data: u } = await supabase.auth.admin.getUserById(userId);
+  await logAudit({ entity_type: 'user', entity_id: userId, action: 'update', summary: `Сброшена 2FA сотрудника ${u.user?.email ?? userId}` });
+  revalidatePath(BACK);
+  back({ ok: 'mfaReset', email: u.user?.email ?? '' });
+}
+
+/** Требовать 2FA от сотрудников (company_settings.require_staff_2fa, миграция 036). */
+export async function setRequireStaff2fa(formData: FormData): Promise<void> {
+  await requireCapability('settings.edit');
+  const on = formData.get('require') === 'on';
+  if (on) {
+    // Сначала себе: иначе proxy сразу отправит на подключение.
+    const rls = await createRlsClient();
+    const { data: list } = await rls.auth.mfa.listFactors();
+    if (!(list?.totp ?? []).some((f) => f.status === 'verified')) back({ err: 'mfaSelfFirst' });
+  }
+  const supabase = await createClient();
+  const { error } = await supabase.from('company_settings').update({ require_staff_2fa: on }).eq('id', 1);
+  if (error) back(/require_staff_2fa/.test(error.message) ? { err: 'mfaMigration' } : { err: 'auth', msg: error.message });
+  await logAudit({
+    entity_type: 'company',
+    entity_id: '00000000-0000-0000-0000-000000000001',
+    action: 'update',
+    summary: on ? 'Включено обязательное 2FA для сотрудников офиса' : 'Выключено обязательное 2FA для сотрудников офиса',
+  });
+  revalidatePath(BACK);
+  back({ ok: 'saved' });
 }

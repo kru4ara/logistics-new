@@ -314,6 +314,12 @@ const TRANSLATED_FILES = [
   'app/settings/users/ConfirmSubmit.tsx',
   'app/settings/users/page.tsx',
   'lib/staff-rules.ts',
+  // 2FA
+  'app/account/security/SecurityPanel.tsx',
+  'app/account/security/page.tsx',
+  'app/login/mfa/MfaVerifyForm.tsx',
+  'app/login/mfa/actions.ts',
+  'app/login/mfa/page.tsx',
 ];
 
 function cyrillicLiterals(file: string): string[] {
