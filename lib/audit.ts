@@ -19,6 +19,7 @@ export type AuditEntityType =
   | 'manager'
   | 'company'
   | 'purchase_invoice'
+  | 'fixed_cost'
   | 'user';
 
 type LogInput = {

@@ -1,44 +1,19 @@
 'use server';
 
-import { requireOffice, requireCapability } from '../lib/require-office';
+import { requireCapability } from '../lib/require-office';
 import { createClient } from '../lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { classifyCapex } from '../lib/capex';
 import { getT } from '../lib/i18n/server';
+import { toEur } from '../lib/fx';
+import { logAudit } from '../lib/audit';
 
-async function convertToEur(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  amount: number,
-  currency: string,
-  dateStr: string
-) {
-  if (currency === 'EUR') return amount;
+const toEurForCost = (supabase: Awaited<ReturnType<typeof createClient>>, amount: number, currency: string, date: string) =>
+  toEur(supabase, amount, currency, date);
 
-  if (currency === 'PLN') {
-    const { data: rate } = await supabase
-      .from('rates')
-      .select('pln_to_eur')
-      .lte('rate_date', dateStr)
-      .order('rate_date', { ascending: false })
-      .limit(1)
-      .single();
-    return amount * (rate?.pln_to_eur ?? 0.23);
-  }
-
-  if (currency === 'BYN') {
-    const { data: rate } = await supabase
-      .from('rates')
-      .select('byn_to_eur')
-      .lte('rate_date', dateStr)
-      .order('rate_date', { ascending: false })
-      .limit(1)
-      .single();
-    return amount * (rate?.byn_to_eur ?? 0.30);
-  }
-
-  return amount;
-}
+type CostRow = { category: string | null; month_key: string | null; original_amount: number | null; currency: string | null; cost_type: string | null };
+const costLine = (c: CostRow) => `${c.category ?? ''} · ${c.month_key ?? ''} · ${c.original_amount ?? ''} ${c.currency ?? ''}`;
 
 export async function createFixedCost(formData: FormData) {
   const { t } = await getT();
@@ -54,12 +29,12 @@ export async function createFixedCost(formData: FormData) {
 
   // Если дата не указана — используем 1-е число месяца
   const dateForRate = expenseDate || `${monthKey}-01`;
-  const amountEur = await convertToEur(supabase, originalAmount, currency, dateForRate);
+  const amountEur = await toEurForCost(supabase, originalAmount, currency, dateForRate);
 
   // Инвестиция определяется автоматически по категории и сумме.
   const capex = classifyCapex(category, amountEur);
 
-  const { error } = await supabase
+  const { data: created, error } = await supabase
     .from('fixed_costs')
     .insert([
       {
@@ -74,9 +49,18 @@ export async function createFixedCost(formData: FormData) {
         is_capex: capex.isCapex,
         capex_rule: capex.rule
       }
-    ]);
+    ])
+    .select('id')
+    .single();
 
   if (error) throw new Error(t('dir.addError', { msg: error.message }));
+  await logAudit({
+    entity_type: 'fixed_cost',
+    entity_id: created.id,
+    action: 'create',
+    changes: {},
+    summary: `Общий расход: ${costLine({ category, month_key: monthKey, original_amount: originalAmount, currency, cost_type: costType })}`,
+  });
   revalidatePath('/fixed-costs');
   redirect('/fixed-costs');
 }
@@ -94,10 +78,16 @@ export async function updateFixedCost(costId: string, formData: FormData) {
   const currency = (formData.get('currency') as string) || 'EUR';
 
   const dateForRate = expenseDate || `${monthKey}-01`;
-  const amountEur = await convertToEur(supabase, originalAmount, currency, dateForRate);
+  const amountEur = await toEurForCost(supabase, originalAmount, currency, dateForRate);
 
   // Инвестиция определяется автоматически по категории и сумме.
   const capex = classifyCapex(category, amountEur);
+
+  const { data: before } = await supabase
+    .from('fixed_costs')
+    .select('category, month_key, original_amount, currency, cost_type')
+    .eq('id', costId)
+    .maybeSingle();
 
   const { error } = await supabase
     .from('fixed_costs')
@@ -116,6 +106,14 @@ export async function updateFixedCost(costId: string, formData: FormData) {
     .eq('id', costId);
 
   if (error) throw new Error(t('dir.updateError', { msg: error.message }));
+  const after: CostRow = { category, month_key: monthKey, original_amount: originalAmount, currency, cost_type: costType };
+  await logAudit({
+    entity_type: 'fixed_cost',
+    entity_id: costId,
+    action: 'update',
+    changes: { cost: { before: before ? costLine(before as CostRow) : null, after: costLine(after) } },
+    summary: `Общий расход изменён: ${costLine(after)}`,
+  });
   revalidatePath('/fixed-costs');
   redirect('/fixed-costs');
 }
@@ -125,10 +123,24 @@ export async function deleteFixedCost(costId: string) {
   await requireCapability('fixedCosts.edit');
   const supabase = await createClient();
 
+  const { data: before } = await supabase
+    .from('fixed_costs')
+    .select('category, month_key, original_amount, currency, cost_type')
+    .eq('id', costId)
+    .maybeSingle();
   const { error } = await supabase
     .from('fixed_costs')
     .delete()
     .eq('id', costId);
   if (error) throw new Error(t('dir.deleteError', { msg: error.message }));
+  if (before) {
+    await logAudit({
+      entity_type: 'fixed_cost',
+      entity_id: costId,
+      action: 'delete',
+      changes: { cost: { before: costLine(before as CostRow), after: null } },
+      summary: `Общий расход удалён: ${costLine(before as CostRow)}`,
+    });
+  }
   revalidatePath('/fixed-costs');
 }

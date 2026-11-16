@@ -311,7 +311,7 @@ const TRANSLATED_FILES = [
   'app/receivables/ToInvoiceSection.tsx',
   'lib/to-invoice.ts',
   // Сотрудники офиса
-  'app/settings/users/ConfirmSubmit.tsx',
+  'app/components/ConfirmSubmit.tsx',
   'app/settings/users/page.tsx',
   'lib/staff-rules.ts',
   // 2FA
@@ -333,6 +333,8 @@ function cyrillicLiterals(file: string): string[] {
   const found: string[] = [];
   const visit = (n: ts.Node) => {
     if (ts.isCallExpression(n) && /^console\./.test(n.expression.getText(sf))) return;
+    // Журнал аудита не переводится (AGENTS.md, i18n п.4).
+    if (ts.isCallExpression(n) && n.expression.getText(sf) === 'logAudit') return;
     const text =
       ts.isStringLiteral(n) || ts.isNoSubstitutionTemplateLiteral(n) || ts.isJsxText(n)
         ? n.text

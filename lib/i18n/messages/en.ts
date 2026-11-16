@@ -2249,4 +2249,16 @@ export const en: Messages = {
   drvLock: {
     note: 'Trip closed: the client has already been invoiced. Status, expenses and file deletion — only via the office. You can still upload documents.',
   },
+  payx: {
+    paidDate: 'Payment date',
+    paidLabel: 'paid',
+    errPaidDate: 'Payment date must not be in the future (YYYY-MM-DD)',
+    errKsefExists: 'This invoice already came from KSeF — link it in “Contractor invoices” instead of adding it again',
+    secDupes: 'Possible duplicates ({n})',
+    dupesHint: 'The same invoice (seller + number) appears more than once, so the cost is counted twice. Keep one: delete the manual entry or unlink the KSeF one.',
+    deleteManual: 'Delete manual',
+    confirmDelete: 'Delete this manually added invoice? The segment cost will be recalculated.',
+    confirmFcDelete: 'Delete expense “{name}”? This cannot be undone.',
+    eFixedCost: 'Overhead cost',
+  },
 };

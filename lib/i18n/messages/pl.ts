@@ -2249,4 +2249,16 @@ export const pl: Messages = {
   drvLock: {
     note: 'Kurs zamknięty: faktura dla klienta już wystawiona. Status, koszty i usuwanie plików — tylko przez biuro. Dokumenty można dograć.',
   },
+  payx: {
+    paidDate: 'Data płatności',
+    paidLabel: 'zapłacono',
+    errPaidDate: 'Data płatności nie może być w przyszłości (RRRR-MM-DD)',
+    errKsefExists: 'Ta faktura jest już w KSeF — przypisz ją w „Faktury przewoźników”, zamiast dodawać ponownie',
+    secDupes: 'Możliwe duplikaty ({n})',
+    dupesHint: 'Ta sama faktura (sprzedawca + numer) występuje kilka razy — koszt liczony podwójnie. Zostaw jeden wpis: ręczny można usunąć, z KSeF — odpiąć.',
+    deleteManual: 'Usuń ręczną',
+    confirmDelete: 'Usunąć ręcznie dodaną fakturę? Koszt odcinka zostanie przeliczony.',
+    confirmFcDelete: 'Usunąć koszt „{name}”? Tego nie można cofnąć.',
+    eFixedCost: 'Koszt ogólny',
+  },
 };

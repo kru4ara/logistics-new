@@ -3,6 +3,8 @@ import { getSessionContext } from '../../lib/session';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase/admin';
 import { deleteFixedCost } from '../fixed-cost-actions';
+import { fetchAll } from '../../lib/fetch-all';
+import ConfirmSubmit from '../components/ConfirmSubmit';
 import {
   Banknote,
   Plus,
@@ -56,11 +58,15 @@ export default async function FixedCostsPage() {
 
   const supabase = await createClient();
 
-  const { data: costs, error } = await supabase
-    .from('fixed_costs')
-    .select('*')
-    .order('month_key', { ascending: false })
-    .order('expense_date', { ascending: false });
+  const { data: costsRaw, error } = await fetchAll(
+    supabase
+      .from('fixed_costs')
+      .select('*')
+      .order('month_key', { ascending: false })
+      .order('expense_date', { ascending: false })
+      .order('id'),
+  );
+  const costs = costsRaw as any[] | null;
 
   if (error) {
     return <div className="p-8 text-red-500">{t('dir.loadError')}{' '}{error.message}</div>;
@@ -285,13 +291,13 @@ export default async function FixedCostsPage() {
                             'use server';
                             await deleteFixedCost(c.id);
                           }} className="flex-1">
-                            <button
-                              type="submit"
+                            <ConfirmSubmit
+                              message={t('payx.confirmFcDelete', { name: c.category ?? '' })}
                               className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-red-500/10 text-red-600 border border-red-500/30 text-xs font-medium hover:bg-red-500 hover:text-white transition-all"
                             >
                               <Trash2 className="w-3.5 h-3.5" strokeWidth={2} />
                               {t('trips.delete')}
-                            </button>
+                            </ConfirmSubmit>
                           </form>
                         </div>
                       </div>
@@ -362,13 +368,13 @@ export default async function FixedCostsPage() {
                                 'use server';
                                 await deleteFixedCost(c.id);
                               }} className="inline">
-                                <button
-                                  type="submit"
+                                <ConfirmSubmit
+                                  message={t('payx.confirmFcDelete', { name: c.category ?? '' })}
                                   className="text-red-500 hover:text-red-700 text-xs font-medium px-2 py-1"
                                   title={t('trips.delete')}
                                 >
                                   <Trash2 className="w-3.5 h-3.5" strokeWidth={2} />
-                                </button>
+                                </ConfirmSubmit>
                               </form>
                             </td>
                           </tr>

@@ -78,7 +78,8 @@ describe('сводка кредиторки', () => {
       row({ id: 'd', paid_at: '2026-11-05', segment_id: 's2', match_status: 'manual' }),
       row({ id: 'e', paid_at: '2026-01-05' }),
     ], '2026-11-15');
-    expect(s.unmatched.map((r) => r.id)).toEqual(['c']);
+    // e оплачен, но не привязан — всё равно требует привязки (расход рейса)
+    expect(s.unmatched.map((r) => r.id)).toEqual(['c', 'e']);
     expect(s.toPay.map((r) => r.id)).toEqual(['a', 'b']);
     expect(s.paidRecent.map((r) => r.id)).toEqual(['d']);
     expect(s.unpaidByCurrency).toEqual([{ currency: 'PLN', amount: 1230 }, { currency: 'EUR', amount: 400 }]);

@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { ReceiptText, AlertTriangle, Link2Off, Inbox, KeyRound } from 'lucide-react';
+import { ReceiptText, AlertTriangle, Link2Off, Inbox, KeyRound, Copy } from 'lucide-react';
 import { createClient } from '../../lib/supabase/admin';
 import { fetchAll } from '../../lib/fetch-all';
 import { getSessionContext } from '../../lib/session';
@@ -12,7 +12,8 @@ import { isKsefConfigured } from '../../lib/ksef/client';
 import { loadSegmentCandidates } from '../../lib/payables/sync';
 import { suggestSegments, carrierOrderNumber, type SegmentCandidate } from '../../lib/payables/match-rules';
 import { summarizePayables, type PayableRow } from '../../lib/payables/summary';
-import { SyncPurchasesButton, LinkPurchaseForm, UnlinkButton, PurchasePaidButton, type SegmentOption } from './PayablesControls';
+import { SyncPurchasesButton, LinkPurchaseForm, UnlinkButton, PurchasePaidButton, PaidDateInput, DeleteManualButton, type SegmentOption } from './PayablesControls';
+import { findDuplicateGroups } from '../../lib/payables/duplicate-rules';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,6 +52,7 @@ export default async function PayablesPage() {
   );
   const today = new Date().toISOString().slice(0, 10);
   const sum = summarizePayables(rows, today);
+  const duplicates = findDuplicateGroups(rows);
 
   const linkedIds = rows.map((r) => r.segment_id).filter((x): x is string => Boolean(x));
   const segments: SegmentCandidate[] = sum.unmatched.length || linkedIds.length ? await loadSegmentCandidates(supabase, linkedIds) : [];
@@ -78,7 +80,10 @@ export default async function PayablesPage() {
   };
 
   const dueCell = (r: PayableRow) => {
-    if (r.paid_at) return <span className="text-emerald-700">{t('pay.paidOn', { date: formatDate(r.paid_at, locale) })}</span>;
+    if (r.paid_at)
+      return canEdit
+        ? <PaidDateInput key={r.paid_at} invoiceId={r.id} value={r.paid_at} />
+        : <span className="text-emerald-700">{t('pay.paidOn', { date: formatDate(r.paid_at, locale) })}</span>;
     if (!r.payment_due) return <span className="text-slate-400">{t('recv.noDue')}</span>;
     const d = Math.round((Date.parse(today) - Date.parse(r.payment_due)) / 86_400_000);
     const cls = d > 0 ? 'text-red-600 font-semibold' : d >= -7 ? 'text-amber-600' : 'text-slate-600';
@@ -171,6 +176,32 @@ export default async function PayablesPage() {
           </div>
         )}
 
+        {duplicates.length > 0 && (
+          <section className="card p-4 md:p-5 overflow-x-auto border-amber-300 bg-amber-50/40">
+            <h2 className="font-bold text-slate-900 flex items-center gap-2"><Copy className="w-4 h-4 text-amber-600" />{t('payx.secDupes', { n: duplicates.length })}</h2>
+            <p className="text-sm text-slate-600 mt-1 mb-3">{t('payx.dupesHint')}</p>
+            <table className="w-full text-sm">
+              <thead>{head}</thead>
+              {duplicates.map((g, gi) => (
+                <tbody key={gi} className="divide-y divide-slate-100 border-b-2 border-amber-200">
+                  {g.map((r) => {
+                    const seg = r.segment_id ? segById.get(r.segment_id) : null;
+                    return (
+                      <tr key={r.id} className="align-top">
+                        {invoiceCells(r)}
+                        <td className="py-2.5 pr-3">
+                          {seg ? <Link href={`/trips/${seg.tripId}`} className="text-brand-600 hover:underline">№{carrierOrderNumber(seg)}</Link> : '—'}
+                        </td>
+                        <td className="py-2.5 text-right">{canEdit && r.source === 'manual' && <DeleteManualButton invoiceId={r.id} />}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              ))}
+            </table>
+          </section>
+        )}
+
         {sum.unmatched.length > 0 && (
           <section className="card p-4 md:p-5 overflow-x-auto">
             <h2 className="font-bold text-slate-900 mb-1">{t('pay.secUnmatched')}</h2>
@@ -234,7 +265,14 @@ export default async function PayablesPage() {
                     <tr key={r.id} className="align-top">
                       {invoiceCells(r)}
                       <td className="py-2.5 pr-3">
-                        {seg ? <Link href={`/trips/${seg.tripId}`} className="text-brand-600 hover:underline">№{carrierOrderNumber(seg)}</Link> : '—'}
+                        {seg ? (
+                          <span className="inline-flex items-center gap-1.5">
+                            <Link href={`/trips/${seg.tripId}`} className="text-brand-600 hover:underline">№{carrierOrderNumber(seg)}</Link>
+                            {canEdit && <UnlinkButton invoiceId={r.id} />}
+                          </span>
+                        ) : r.match_status === 'ignored' ? (
+                          <span className="inline-flex items-center gap-1.5 text-slate-400">{t('pay.notTrip')}{canEdit && <UnlinkButton invoiceId={r.id} />}</span>
+                        ) : '—'}
                       </td>
                       <td className="py-2.5 text-right">{canEdit && <PurchasePaidButton invoiceId={r.id} paid />}</td>
                     </tr>
