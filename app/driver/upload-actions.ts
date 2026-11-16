@@ -5,6 +5,10 @@ import { revalidatePath } from 'next/cache';
 import { logAudit } from '../../lib/audit';
 import { requireTripAccess } from '../../lib/driver-access';
 import { getT } from '../../lib/i18n/server';
+import { createT } from '../../lib/i18n/translate';
+import { MESSAGES } from '../../lib/i18n/messages';
+import { DEFAULT_LOCALE } from '../../lib/i18n/config';
+import { NOT_INVOICED_STATUSES } from '../../lib/to-invoice';
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
@@ -87,15 +91,24 @@ export async function uploadDocument(
       };
     }
 
-    // Получим номер рейса для красивого summary
+    // Номер рейса, клиент и статус — для summary и сообщения офису
     let tripLabel = tripId;
+    let tripNumber: string | null = null;
+    let clientName = '';
+    let tripStatus: string | null = null;
     try {
       const { data: trip } = await supabase
         .from('trips')
-        .select('trip_number')
+        .select('trip_number, status, clients(name)')
         .eq('id', tripId)
         .maybeSingle();
-      if (trip?.trip_number) tripLabel = `№${trip.trip_number}`;
+      if (trip?.trip_number) {
+        tripNumber = String(trip.trip_number);
+        tripLabel = `№${trip.trip_number}`;
+      }
+      tripStatus = (trip?.status as string | null) ?? null;
+      const c = trip?.clients as { name?: string } | { name?: string }[] | null | undefined;
+      clientName = (Array.isArray(c) ? c[0]?.name : c?.name) ?? '';
     } catch {
       // не критично
     }
@@ -111,10 +124,23 @@ export async function uploadDocument(
 
     if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID) {
       try {
+        // CMR по заказу без счёта — сигнал офису «можно выставлять» со ссылкой.
+        // Офисный чат — на языке офиса по умолчанию, как остальные его сообщения.
+        const readyToInvoice = documentType === 'cmr' && (NOT_INVOICED_STATUSES as readonly string[]).includes(tripStatus ?? '');
+        const officeT = createT(MESSAGES[DEFAULT_LOCALE]);
+        const appUrl = (process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || '').replace(/\/$/, '');
+        const text = readyToInvoice
+          ? [
+              officeT('toinv.tgCmr', { trip: tripNumber ?? tripLabel, client: clientName ? ` · ${clientName}` : '' }),
+              appUrl ? `${appUrl}/trips/${tripId}#invoice` : null,
+            ]
+              .filter(Boolean)
+              .join('\n')
+          : `📄 Документ загружен\n\nРейс: ${tripLabel}${clientName ? ` · ${clientName}` : ''}\nТип: ${documentType}\nФайл: ${fileName}`;
         const payload = {
           chat_id: TELEGRAM_CHAT_ID,
-          text: `📄 *Документ загружен!*\n\nРейс: \`${tripId}\`\nТип: ${documentType}\nФайл: ${fileName}`,
-          parse_mode: 'Markdown',
+          text,
+          disable_web_page_preview: true,
         };
 
         const tgRes = await fetch(
