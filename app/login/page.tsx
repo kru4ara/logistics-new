@@ -1,5 +1,7 @@
 import { RadioTower, Lock } from 'lucide-react';
 import LoginForm from './LoginForm';
+import DemoLoginPanel from './DemoLoginPanel';
+import { isDemoMode, demoPassword } from '../../lib/demo/mode';
 import { getCompanyBranding } from '../../lib/company';
 import { getT } from '../../lib/i18n/server';
 import LanguageSwitcher from '../components/LanguageSwitcher';
@@ -119,6 +121,7 @@ export default async function LoginPage() {
               </p>
             </div>
 
+            {isDemoMode() && <DemoLoginPanel password={demoPassword()} />}
             <LoginForm />
           </div>
 

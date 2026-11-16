@@ -8,6 +8,7 @@ import { createClient as createRlsClient } from '../../../lib/supabase/server';
 import { getSessionContext } from '../../../lib/session';
 import { logAudit } from '../../../lib/audit';
 import { roleLabel, isOfficeRole, normalizeRole } from '../../../lib/roles';
+import { isDemoMode } from '../../../lib/demo/mode';
 import { isStaffRole, isStaffProfile, parseStaffForm, staffChangeBlock, type StaffRole } from '../../../lib/staff-rules';
 
 type Admin = Awaited<ReturnType<typeof createClient>>;
@@ -44,6 +45,7 @@ function back(params: Record<string, string>): never {
 /** Новый сотрудник офиса (или возврат отключённого — по тому же e-mail). */
 export async function addStaff(formData: FormData): Promise<void> {
   await requireCapability('settings.edit');
+  if (isDemoMode()) back({ err: 'demo' });
   const parsed = parseStaffForm({
     full_name: formData.get('full_name'),
     email: formData.get('email'),
@@ -93,6 +95,7 @@ export async function addStaff(formData: FormData): Promise<void> {
 
 export async function setStaffRole(formData: FormData): Promise<void> {
   await requireCapability('settings.edit');
+  if (isDemoMode()) back({ err: 'demo' });
   const userId = String(formData.get('user_id') ?? '');
   const role = formData.get('role');
   if (!isStaffRole(role)) back({ err: 'role' });
@@ -122,6 +125,7 @@ export async function setStaffRole(formData: FormData): Promise<void> {
 
 export async function setStaffPassword(formData: FormData): Promise<void> {
   await requireCapability('settings.edit');
+  if (isDemoMode()) back({ err: 'demo' });
   const userId = String(formData.get('user_id') ?? '');
   const password = String(formData.get('password') ?? '');
   if (password.length < 8) back({ err: 'password' });
@@ -137,6 +141,7 @@ export async function setStaffPassword(formData: FormData): Promise<void> {
 /** Отключить доступ: роль снимается, учётная запись блокируется (сессии гаснут). */
 export async function revokeStaff(formData: FormData): Promise<void> {
   await requireCapability('settings.edit');
+  if (isDemoMode()) back({ err: 'demo' });
   const userId = String(formData.get('user_id') ?? '');
   const supabase = await createClient();
   const target = await staffProfile(supabase, userId);
@@ -162,6 +167,7 @@ export async function revokeStaff(formData: FormData): Promise<void> {
 /** Сбросить 2FA сотрудника (потерян телефон). Себе — через «Безопасность входа». */
 export async function resetStaffMfa(formData: FormData): Promise<void> {
   await requireCapability('settings.edit');
+  if (isDemoMode()) back({ err: 'demo' });
   const userId = String(formData.get('user_id') ?? '');
   const supabase = await createClient();
   const target = await staffProfile(supabase, userId);
@@ -181,6 +187,7 @@ export async function resetStaffMfa(formData: FormData): Promise<void> {
 /** Требовать 2FA от сотрудников (company_settings.require_staff_2fa, миграция 036). */
 export async function setRequireStaff2fa(formData: FormData): Promise<void> {
   await requireCapability('settings.edit');
+  if (isDemoMode()) back({ err: 'demo' });
   const on = formData.get('require') === 'on';
   if (on) {
     // Сначала себе: иначе proxy сразу отправит на подключение.

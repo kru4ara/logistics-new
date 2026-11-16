@@ -18,6 +18,7 @@ import { join, relative, resolve } from 'node:path';
 const PUBLIC_ACTIONS: Record<string, string> = {
   'app/login/actions.ts:login': 'вход — до авторизации',
   'app/login/actions.ts:logout': 'выход — только свою сессию',
+  'app/login/demo-actions.ts:resetDemoNow': 'только DEMO_MODE=1 и демо-база с меткой, не чаще раза в 10 минут (lib/demo/reset.ts)',
   'app/admin-onboarding-actions.ts:completeAdminOnboarding': 'ставит cookie подсказки, данных не трогает',
 };
 

@@ -8,12 +8,15 @@ import { getT } from '../../../lib/i18n/server';
 import { parseTotpCode } from '../../../lib/mfa-rules';
 import { logAudit } from '../../../lib/audit';
 import { isDriverRole } from '../../../lib/roles';
+import { isDemoMode } from '../../../lib/demo/mode';
 
 export type EnrollStart = { ok: boolean; factorId?: string; qr?: string; secret?: string; message?: string };
 
 /** Начать подключение: новый TOTP-фактор (старые неподтверждённые — убираем). */
 export async function startTotpEnroll(): Promise<EnrollStart> {
   const { t } = await getT();
+  // Демо-учётки общие: 2FA одного посетителя закрыла бы вход всем остальным.
+  if (isDemoMode()) return { ok: false, message: t('demo.blocked') };
   const { userId } = await getSessionContext();
   if (!userId) return { ok: false, message: t('mfa.error', { msg: 'auth' }) };
   const supabase = await createClient();
