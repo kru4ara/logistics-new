@@ -2157,4 +2157,8 @@ export const uk: Messages = {
     afterEnd: '{n} дн. після завершення',
     tgCmr: '📄 CMR до замовлення №{trip}{client} — можна виставляти рахунок',
   },
+  cmrGate: {
+    need: 'Спершу завантажте фото CMR — без нього рейс не завершити.',
+    toUpload: 'Завантажити CMR',
+  },
 };

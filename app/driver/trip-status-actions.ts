@@ -1,5 +1,9 @@
 'use server';
 
+import { completionBlock } from '../../lib/to-invoice';
+import { getSessionContext } from '../../lib/session';
+import { isDriverRole } from '../../lib/roles';
+
 import { createClient } from '../../lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
 import { logAudit } from '../../lib/audit';
@@ -77,6 +81,19 @@ export async function changeTripStatus(
   }
 
   const supabase = await createClient();
+
+  // Водитель не завершает рейс без CMR (lib/to-invoice.ts → completionBlock).
+  if (status === 'completed') {
+    const { role } = await getSessionContext();
+    const { count } = await supabase
+      .from('trip_documents')
+      .select('id', { count: 'exact', head: true })
+      .eq('trip_id', tripId)
+      .eq('document_type', 'cmr');
+    if (completionBlock({ status, isDriver: isDriverRole(role), cmrCount: count ?? 0 })) {
+      throw new Error(t('cmrGate.need'));
+    }
+  }
 
   // Забираем рейс + relations.
   // Явные FK-алиасы (!driver_id, !truck_id) обязательны — у trips

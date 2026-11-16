@@ -2157,4 +2157,8 @@ export const en: Messages = {
     afterEnd: '{n} d after completion',
     tgCmr: '📄 CMR for order #{trip}{client} — ready to invoice',
   },
+  cmrGate: {
+    need: 'Upload a photo of the CMR first — the trip cannot be completed without it.',
+    toUpload: 'Upload CMR',
+  },
 };

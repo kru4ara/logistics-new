@@ -324,7 +324,12 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
             <Settings2 className="w-4 h-4 text-slate-500" strokeWidth={2} />
             {t('drvApp.actions')}
           </h2>
-          <TripStatusButtons tripId={tripId} currentStatus={trip.status} showAdminStatuses={false} />
+          <TripStatusButtons
+            tripId={tripId}
+            currentStatus={trip.status}
+            showAdminStatuses={false}
+            needCmr={!(documentRows ?? []).some((d) => d.document_type === 'cmr')}
+          />
         </div>
 
         {/* Остаток топлива */}
@@ -488,7 +493,7 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
         </div>
 
         {/* Загрузка документов */}
-        <div className="card p-5">
+        <div id="upload-docs" className="card p-5 scroll-mt-20 transition-shadow">
           <h2 className="text-lg font-bold text-slate-900 mb-3 flex items-center gap-2">
             <Paperclip className="w-5 h-5 text-brand-600" strokeWidth={2} />
             {t('trip.uploadDocs')}
