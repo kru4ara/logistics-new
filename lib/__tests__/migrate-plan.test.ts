@@ -67,6 +67,7 @@ describe('строка подключения: понятная причина �
     expect(explainDbUrl('postgresql://postgres.abc:[YOUR-PASSWORD]@h:5432/postgres')).toMatch(/квадратные/);
     expect(explainDbUrl('postgresql://postgres.abc:<pass>@h:5432/postgres')).toMatch(/угловые/);
     expect(explainDbUrl(` ${ok}`)).toMatch(/пробел/);
+    expect(explainDbUrl('postgresql://postgres.abc:Secret123@aws-…pooler.supabase.com:5432/postgres')).toMatch(/многоточие/);
     expect(explainDbUrl('postgresql://postgres.abc:p@ss@h:5432/postgres')).toMatch(/«@»/);
     expect(explainDbUrl('postgresql://postgres.abc:p#ss@h:5432/postgres')).toMatch(/\/ \? #/);
     for (const u of ['postgresql://postgres.abc:p#ss@h:5432/postgres']) expect(explainDbUrl(u)).not.toContain('p#ss');

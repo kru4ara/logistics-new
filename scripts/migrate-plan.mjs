@@ -63,6 +63,7 @@ export function explainDbUrl(url) {
   if (s !== s.trim() || /\s/.test(s)) return 'в строке пробел или перенос строки — уберите их';
   if (!/^postgres(ql)?:\/\//.test(s)) return 'строка должна начинаться с postgresql://';
   if (/[<>]/.test(s)) return 'остались угловые скобки <…> из шаблона — вставьте настоящую строку';
+  if (/…|\.\.\./.test(s)) return 'в строке осталось многоточие «…» из примера — скопируйте адрес сервера целиком из Supabase → Connect → Session pooler';
   if (/\[|\]/.test(s)) return 'остались квадратные скобки, например [YOUR-PASSWORD] — подставьте пароль без скобок';
   const rest = s.replace(/^postgres(ql)?:\/\//, '');
   const at = rest.lastIndexOf('@');
