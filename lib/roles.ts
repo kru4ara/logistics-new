@@ -340,7 +340,8 @@ const OPEN_EXACT_PATHS = [
   // отчёт об ошибке в браузере (app/api/client-error): нужен и водителю
   '/api/client-error',
 ];
-const OPEN_PATH_PREFIXES = ['/driver', '/login'];
+// /account — свой вход и 2FA: нужен любой роли (бухгалтеру тоже, у него нет «путей без правила»).
+const OPEN_PATH_PREFIXES = ['/driver', '/login', '/account'];
 
 export function isOpenToAllRoles(pathname: string): boolean {
   if (OPEN_EXACT_PATHS.includes(pathname)) return true;

@@ -1,5 +1,7 @@
 'use server';
 
+import { MFA_VERIFY_PATH, needsMfaCode } from '../../lib/mfa-rules';
+
 import { createClient } from '../../lib/supabase/server';
 import { createClient as createAdminClient } from '../../lib/supabase/admin';
 import { getCompany } from '../../lib/company';
@@ -138,7 +140,7 @@ export async function login(
   // Фаза 39: 'manager' — теперь отдельная роль менеджера по логистике,
   // а не синоним офиса. 'office' добавляем в список явно: офисные
   // профили после миграции 012 имеют role='office'.
-  const KNOWN_ROLES = ['admin', 'office', 'manager', 'driver'];
+  const KNOWN_ROLES = ['admin', 'office', 'manager', 'accountant', 'driver'];
   const rawRole = String(resolvedProfile?.role || '').trim().toLowerCase();
   const role = KNOWN_ROLES.includes(rawRole) ? rawRole : 'driver';
   const driverId = resolvedProfile?.driver_id || '';
@@ -204,6 +206,12 @@ export async function login(
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 365,
     });
+  }
+
+  // Включена 2FA — сначала код из приложения (lib/mfa-rules.ts).
+  const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+  if (needsMfaCode(aal?.currentLevel, aal?.nextLevel)) {
+    redirect(MFA_VERIFY_PATH);
   }
 
   if (isDriverRole(role)) {

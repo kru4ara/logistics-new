@@ -31,8 +31,7 @@ import {
   RadioTower,
   HandCoins, ReceiptText,
   type LucideIcon,
-  Settings,
-} from 'lucide-react';
+  Settings, ShieldCheck } from 'lucide-react';
 import { logout } from '../login/actions';
 
 // Подписи — ключи перевода (lib/i18n/messages), не текст.
@@ -283,6 +282,16 @@ function SidebarContent({
             <LanguageSwitcher tone="dark" />
           </div>
         )}
+
+        <Link
+          href="/account/security"
+          title={t('mfa.link')}
+          className={`w-full flex items-center gap-3 rounded-lg py-2 text-sm font-medium transition-all text-slate-400 hover:bg-white/5 hover:text-white
+            ${expanded ? 'px-3' : 'justify-center px-0'}`}
+        >
+          <ShieldCheck className="w-[18px] h-[18px] shrink-0" strokeWidth={2} />
+          {expanded && <span className="whitespace-nowrap">{t('mfa.link')}</span>}
+        </Link>
 
         {!mobile && (
           <button

@@ -7,6 +7,7 @@ import {
   isOpenToAllRoles,
   canUseUnlistedPath,
 } from './lib/roles'
+import { MFA_SETUP_PATH, MFA_VERIFY_PATH, needsMfaCode, needsMfaSetup } from './lib/mfa-rules'
 
 // Исключения: эти пути не требуют сессии (cron, вебхуки, публичные API)
 const PUBLIC_API_PATHS = [
@@ -79,6 +80,51 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
+  // Роль из profiles — один раз на запрос (нужна и 2FA, и правам ниже).
+  let cachedRole: string | null | undefined
+  const getRole = async (): Promise<string> => {
+    if (cachedRole === undefined) {
+      const { data: profile } = await supabase.from('profiles').select('role').eq('id', user!.id).single()
+      cachedRole = (profile?.role as string | null) ?? null
+    }
+    return cachedRole || 'driver'
+  }
+
+  // 2FA (lib/mfa-rules.ts). Код ещё не введён — только страница кода (и выход
+  // с неё). Компания требует 2FA, а у сотрудника её нет — на подключение.
+  if (user) {
+    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+    const onVerify = pathname === MFA_VERIFY_PATH
+    if (needsMfaCode(aal?.currentLevel, aal?.nextLevel)) {
+      if (onVerify) return response
+      if (pathname.startsWith('/api/')) {
+        return NextResponse.json({ error: 'MFA required' }, { status: 401 })
+      }
+      const url = request.nextUrl.clone()
+      url.pathname = MFA_VERIFY_PATH
+      return NextResponse.redirect(url)
+    }
+    if (onVerify) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/'
+      return NextResponse.redirect(url)
+    }
+    const isPageView = request.method === 'GET' && !pathname.startsWith('/api/') && !pathname.startsWith(MFA_SETUP_PATH)
+    if (isPageView && aal?.nextLevel !== 'aal2') {
+      const role = await getRole()
+      const isStaff = !isDriverRole(role) && Boolean(cachedRole)
+      if (isStaff) {
+        const { data: required } = await supabase.rpc('staff_2fa_required')
+        if (needsMfaSetup({ required: required === true, isStaff, hasFactor: false })) {
+          const url = request.nextUrl.clone()
+          url.pathname = MFA_SETUP_PATH
+          url.search = '?required=1'
+          return NextResponse.redirect(url)
+        }
+      }
+    }
+  }
+
   // Залогинен и на /login — редирект на главную
   if (user && pathname.startsWith('/login')) {
     const url = request.nextUrl.clone()
@@ -104,14 +150,7 @@ export async function proxy(request: NextRequest) {
     const capability = capabilityForRequest(pathname, isServerAction ? 'GET' : request.method)
 
     if (capability) {
-      // Получаем роль из таблицы profiles
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-
-      const role = profile?.role || 'driver';
+      const role = await getRole();
 
       // Нет права — редирект (или 403 для API)
       if (!can(role, capability)) {
@@ -126,13 +165,7 @@ export async function proxy(request: NextRequest) {
     } else if (!isOpenToAllRoles(pathname)) {
       // Пути без правила в PATH_CAPABILITIES: только офис и менеджер.
       // Иначе новая страница, забытая в матрице, открыта водителю.
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-
-      const role = profile?.role || 'driver';
+      const role = await getRole();
 
       if (!canUseUnlistedPath(role)) {
         if (pathname.startsWith('/api/')) {
