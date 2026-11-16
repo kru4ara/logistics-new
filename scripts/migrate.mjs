@@ -27,7 +27,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import pg from 'pg';
-import { versionOf, checksum, planMigrations } from './migrate-plan.mjs';
+import { versionOf, checksum, planMigrations, explainDbUrl } from './migrate-plan.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const MIGRATIONS_DIR = join(ROOT, 'supabase', 'migrations');
@@ -155,12 +155,17 @@ async function main() {
     ? JSON.parse(readFileSync(resolve(opts.all), 'utf8'))
     : [{ name: 'база', url: process.env.DATABASE_URL }];
   if (targets.some((t) => !t.url)) throw new Error('Нет строки подключения: DATABASE_URL=… или --all tenants.json');
+  for (const t of targets) {
+    const why = explainDbUrl(t.url);
+    if (why) t.badUrl = why;
+  }
   if (opts.all && opts.adoptThrough) throw new Error('--adopt-through — только для одной базы');
 
   console.log(`Миграций в репозитории: ${files.length} (последняя ${files.at(-1).version})${opts.dryRun ? ' — пробный прогон' : ''}`);
   let failed = 0;
   for (const t of targets) {
     try {
+      if (t.badUrl) throw new Error(`строка подключения: ${t.badUrl}`);
       await migrateOne(t.name, t.url, opts, files);
     } catch (e) {
       failed++;

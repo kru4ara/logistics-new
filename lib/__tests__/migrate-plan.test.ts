@@ -56,3 +56,19 @@ describe('versionOf / checksum', () => {
     expect(checksum('a')).not.toBe(checksum('b'));
   });
 });
+
+import { explainDbUrl } from '../../scripts/migrate-plan.mjs';
+
+describe('строка подключения: понятная причина без пароля', () => {
+  const ok = 'postgresql://postgres.abc:Secret123@aws-0-eu-west-1.pooler.supabase.com:5432/postgres';
+  it('правильная', () => expect(explainDbUrl(ok)).toBeNull());
+  it('частые ошибки', () => {
+    expect(explainDbUrl('<Session_pooler>')).toMatch(/postgresql/);
+    expect(explainDbUrl('postgresql://postgres.abc:[YOUR-PASSWORD]@h:5432/postgres')).toMatch(/квадратные/);
+    expect(explainDbUrl('postgresql://postgres.abc:<pass>@h:5432/postgres')).toMatch(/угловые/);
+    expect(explainDbUrl(` ${ok}`)).toMatch(/пробел/);
+    expect(explainDbUrl('postgresql://postgres.abc:p@ss@h:5432/postgres')).toMatch(/«@»/);
+    expect(explainDbUrl('postgresql://postgres.abc:p#ss@h:5432/postgres')).toMatch(/\/ \? #/);
+    for (const u of ['postgresql://postgres.abc:p#ss@h:5432/postgres']) expect(explainDbUrl(u)).not.toContain('p#ss');
+  });
+});
