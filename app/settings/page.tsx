@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { FileSpreadsheet, Building2, Landmark, ScrollText, Send, Stamp, CheckCircle2, AlertCircle } from 'lucide-react';
+import { FileSpreadsheet, Building2, Landmark, ScrollText, Send, Stamp, CheckCircle2, AlertCircle, Users } from 'lucide-react';
 import { getSessionContext } from '../../lib/session';
 import { deniedRedirect } from '../../lib/roles';
 import { createClient } from '../../lib/supabase/admin';
@@ -58,10 +58,16 @@ export default async function CompanySettingsPage({
           <p className="text-slate-500 mt-1 text-sm md:text-base">
             {t('settings.subtitle')}
           </p>
-          <Link href="/settings/import" className="inline-flex items-center gap-1.5 mt-3 text-sm font-semibold text-brand-700 hover:text-brand-800">
-            <FileSpreadsheet className="w-4 h-4" strokeWidth={2.2} />
-            {t('imp.title')}
-          </Link>
+          <div className="flex flex-wrap gap-x-5 gap-y-1 mt-3">
+            <Link href="/settings/users" className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-700 hover:text-brand-800">
+              <Users className="w-4 h-4" strokeWidth={2.2} />
+              {t('staff.link')}
+            </Link>
+            <Link href="/settings/import" className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-700 hover:text-brand-800">
+              <FileSpreadsheet className="w-4 h-4" strokeWidth={2.2} />
+              {t('imp.title')}
+            </Link>
+          </div>
         </div>
 
         {saved && (

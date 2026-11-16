@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { can, isDriverRole, isManagerRole, capabilityForPath } from '../../lib/roles';
+import { can, isDriverRole, isManagerRole, isOfficeRole, capabilityForPath } from '../../lib/roles';
 import type { MessageKey } from '../../lib/i18n/translate';
 import { useT } from './I18nProvider';
 import LanguageSwitcher from './LanguageSwitcher';
@@ -124,7 +124,9 @@ function SidebarContent({
     ? t('nav.roleDriver')
     : isManagerRole(role)
       ? t('nav.roleManager')
-      : t('nav.roleOffice');
+      : isOfficeRole(role)
+        ? t('nav.roleOffice')
+        : t('nav.roleAccountant');
   const displayName = userName || roleText;
   const initials = displayName
     .split(' ')

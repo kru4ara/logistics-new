@@ -96,7 +96,12 @@ export async function proxy(request: NextRequest) {
       return response;
     }
 
-    const capability = capabilityForRequest(pathname, request.method)
+    // Server action — POST на адрес страницы (заголовок Next-Action). Его право
+    // проверяет сам экшен (AGENTS.md, «Права», п. 9; сторож server-actions-guard),
+    // а здесь — право ЧТЕНИЯ страницы. Иначе бухгалтер не выставил бы счёт со
+    // страницы заказа: запись /trips требует trips.editAny, а счёт — receivables.edit.
+    const isServerAction = request.method === 'POST' && request.headers.has('next-action')
+    const capability = capabilityForRequest(pathname, isServerAction ? 'GET' : request.method)
 
     if (capability) {
       // Получаем роль из таблицы profiles

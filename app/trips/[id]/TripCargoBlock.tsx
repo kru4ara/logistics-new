@@ -88,7 +88,10 @@ export default function TripCargoBlock({
   unloadingLocations,
   customsLocations,
   defaultClientId,
+  readOnly = false,
 }: {
+  /** только просмотр (бухгалтер): без добавления, правки и удаления */
+  readOnly?: boolean;
   tripId: string;
   cargoList: CargoCard[];
   clients: ClientOption[];
@@ -178,7 +181,8 @@ export default function TripCargoBlock({
             </span>
           )}
         </h2>
-        <button
+        {!readOnly && (
+<button
           type="button"
           onClick={handleAdd}
           className="btn-primary inline-flex items-center gap-2 text-sm"
@@ -186,6 +190,7 @@ export default function TripCargoBlock({
           <Plus className="w-4 h-4" strokeWidth={2.5} />
           {t('trip.addCargo')}
         </button>
+)}
       </div>
 
       <p className="text-xs text-slate-500 mb-4">
@@ -226,7 +231,9 @@ export default function TripCargoBlock({
                       </div>
                       
                       <div className="flex items-center gap-1.5 ml-auto">
-                        <button
+                        {!readOnly && (
+<>
+<button
                           type="button"
                           onClick={() => handleEdit(c.id)}
                           disabled={isPending}
@@ -250,6 +257,8 @@ export default function TripCargoBlock({
                           )}
                           {t('trip.delete')}
                         </button>
+</>
+)}
                       </div>
                     </div>
 

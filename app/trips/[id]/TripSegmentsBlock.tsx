@@ -173,7 +173,10 @@ export default function TripSegmentsBlock({
   unloadingLocations,
   customsLocations,
   cargoList,
+  readOnly = false,
 }: {
+  /** только просмотр (бухгалтер): без добавления, правки и удаления */
+  readOnly?: boolean;
   tripId: string;
   segments: Segment[];
   contractors: Option[];
@@ -269,7 +272,8 @@ export default function TripSegmentsBlock({
             </span>
           )}
         </h2>
-        <button
+        {!readOnly && (
+<button
           type="button"
           onClick={handleAdd}
           className="btn-primary inline-flex items-center gap-2 text-sm"
@@ -277,6 +281,7 @@ export default function TripSegmentsBlock({
           <Plus className="w-4 h-4" strokeWidth={2.5} />
           {t('seg.add')}
         </button>
+)}
       </div>
 
       <p className="text-xs text-slate-500 mb-4">
@@ -431,7 +436,9 @@ export default function TripSegmentsBlock({
                           />
                         </>
                       )}
-                      <button
+                      {!readOnly && (
+<>
+<button
                         type="button"
                         onClick={() => handleEdit(s.id)}
                         disabled={isPending}
@@ -457,6 +464,8 @@ export default function TripSegmentsBlock({
                         )}
                         {t('trip.delete')}
                       </button>
+</>
+)}
                     </div>
                   </div>
                 </div>

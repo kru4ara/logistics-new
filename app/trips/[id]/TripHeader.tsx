@@ -19,6 +19,7 @@ export default function TripHeader({
   statusLabels,
   statusColors,
   invoiceForm = false,
+  readOnly = false,
 }: {
   tripId: string;
   trip: any;
@@ -31,6 +32,8 @@ export default function TripHeader({
   statusColors: Record<string, string>;
   /** в заказе есть форма фактуры — «Выставить счёт» ведёт к ней */
   invoiceForm?: boolean;
+  /** только просмотр (бухгалтер): без смены статуса, правки, удаления и телеметрии */
+  readOnly?: boolean;
 }) {
   const { t, locale } = useT();
   return (
@@ -68,6 +71,8 @@ export default function TripHeader({
           </span>
         </div>
 
+        {!readOnly && (
+        <>
         {/* ДЕЙСТВИЯ ПО РЕЙСУ (сжатые) */}
         <div className="mb-4 pb-4 border-b border-slate-100">
           <TripStatusButtons tripId={tripId} currentStatus={trip.status} showAdminStatuses={true} invoiceForm={invoiceForm} />
@@ -122,6 +127,8 @@ export default function TripHeader({
             </div>
           )}
         </div>
+        </>
+        )}
       </div>
     </div>
   );

@@ -18,7 +18,8 @@ export type AuditEntityType =
   | 'driver_transaction'
   | 'manager'
   | 'company'
-  | 'purchase_invoice';
+  | 'purchase_invoice'
+  | 'user';
 
 type LogInput = {
   entity_type: AuditEntityType;

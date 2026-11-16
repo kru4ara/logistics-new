@@ -29,6 +29,7 @@ const ENTITY_LABELS: Record<string, string> = {
   document: 'aud.eDoc',
   reminder: 'aud.eReminder',
   purchase_invoice: 'aud.ePurchase',
+  user: 'aud.eUser',
 };
 
 const ACTION_META: Record<string, { text: string; badge: string; strip: string; Icon: LucideIcon }> = {

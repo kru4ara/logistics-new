@@ -1,6 +1,6 @@
 'use server';
 
-import { requireOffice } from '../lib/require-office';
+import { requireOffice, requireCapability } from '../lib/require-office';
 import { createClient } from '../lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
@@ -42,7 +42,7 @@ async function convertToEur(
 
 export async function createFixedCost(formData: FormData) {
   const { t } = await getT();
-  await requireOffice();
+  await requireCapability('fixedCosts.edit');
   const supabase = await createClient();
 
   const monthKey = formData.get('month_key') as string;
@@ -83,7 +83,7 @@ export async function createFixedCost(formData: FormData) {
 
 export async function updateFixedCost(costId: string, formData: FormData) {
   const { t } = await getT();
-  await requireOffice();
+  await requireCapability('fixedCosts.edit');
   const supabase = await createClient();
 
   const monthKey = formData.get('month_key') as string;
@@ -122,7 +122,7 @@ export async function updateFixedCost(costId: string, formData: FormData) {
 
 export async function deleteFixedCost(costId: string) {
   const { t } = await getT();
-  await requireOffice();
+  await requireCapability('fixedCosts.edit');
   const supabase = await createClient();
 
   const { error } = await supabase

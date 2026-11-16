@@ -1,6 +1,6 @@
 'use server';
 
-import { requireOffice } from '../lib/require-office';
+import { requireOffice, requireCapability } from '../lib/require-office';
 import { createClient } from '../lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
@@ -19,7 +19,7 @@ function parsePaymentDays(v: FormDataEntryValue | null): number | null | 'bad' {
 
 export async function updateClient(clientId: string, formData: FormData) {
   const { t } = await getT();
-  await requireOffice();
+  await requireCapability('clients.edit');
   const supabase = await createClient();
 
   const name = formData.get('name') as string;

@@ -3,10 +3,16 @@ import { createClient } from '../../../lib/supabase/admin';
 import NewTripForm from './NewTripForm';
 import { ArrowLeft, Package } from 'lucide-react';
 import { getT } from '../../../lib/i18n/server';
+import { redirect } from 'next/navigation';
+import { deniedRedirect } from '../../../lib/roles';
+import { getSessionContext } from '../../../lib/session';
 
 export const dynamic = 'force-dynamic';
 
 export default async function NewTripPage() {
+  const { role } = await getSessionContext();
+  const denied = deniedRedirect(role, 'trips.create');
+  if (denied) redirect(denied);
   const { t } = await getT();
   const supabase = await createClient();
 
