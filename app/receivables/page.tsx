@@ -13,6 +13,7 @@ import { summarize, toReceivable, type Bucket, type Receivable, type ReceivableT
 import MarkPaidButton from './MarkPaidButton';
 import SyncInvoicesButton from './SyncInvoicesButton';
 import RemindButton from './RemindButton';
+import ToInvoiceSection from './ToInvoiceSection';
 import UnmatchedInvoices, { type UnmatchedRow } from './UnmatchedInvoices';
 import { readUnmatched } from '../../lib/invoicing/sync';
 import { rankTripsForInvoice, type TripOption } from '../../lib/invoicing/sync-rules';
@@ -136,6 +137,14 @@ export default async function ReceivablesPage() {
         </div>
         {canEdit && invoiceProvider?.listInvoices && <SyncInvoicesButton provider={invoiceProvider.name} />}
         </div>
+
+        <ToInvoiceSection
+          supabase={supabase}
+          clientName={(id) => (id ? clientById.get(id)?.name ?? '—' : '—')}
+          t={t}
+          locale={locale}
+          eur={eur}
+        />
 
         {unmatched && (
           <UnmatchedInvoices rows={unmatchedRows} canEdit={canEdit} provider={invoiceProvider?.name ?? ''} at={formatDateTime(unmatched.at, locale)} />
