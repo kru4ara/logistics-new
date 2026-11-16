@@ -1,4 +1,5 @@
 import { createClient } from '../../../lib/supabase/admin';
+import { scopedClient } from '../../../lib/supabase/scoped';
 import AddExpenseForm from '../AddExpenseForm';
 import FileUpload from '../../driver/FileUpload';
 import DocumentList from '../../driver/DocumentList';
@@ -60,12 +61,13 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
   if (!tripId) return <div className="p-8">{t('trip.noId')}</div>;
 
   const supabase = await createClient();
+  const scoped = await scopedClient();
 
   // Скоуп (фаза 39): менеджер не открывает чужой заказ по прямой ссылке.
   const scope = await getScope();
 
   const { data: trip, error: tripError } = await applyTripScope(
-      supabase
+      scoped
         .from('trips')
         .select('*, clients(name, email, tax_id, street, post_code, city, country, payment_days), drivers!driver_id(first_name, last_name, phone_by, phone_pl, telegram_chat_id), trucks!truck_id(registration_number)'),
       scope
@@ -98,12 +100,12 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
     trailerNumber = trailer?.registration_number || null;
   }
 
-  const { data: expenses } = await supabase
+  const { data: expenses } = await scoped
     .from('trip_expenses')
     .select('*')
     .eq('trip_id', tripId);
 
-  const { data: documentRows } = await supabase
+  const { data: documentRows } = await scoped
     .from('trip_documents')
     .select('*')
     .eq('trip_id', tripId)
@@ -158,7 +160,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
     .order('last_name');
 
   // ГРУЗЫ
-  const { data: cargoRaw } = await supabase
+  const { data: cargoRaw } = await scoped
     .from('trip_cargo')
     .select('*, clients(name)')
     .eq('trip_id', tripId)
@@ -196,7 +198,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
   }));
 
   // УЧАСТКИ
-  const { data: segmentsRaw } = await supabase
+  const { data: segmentsRaw } = await scoped
     .from('trip_segments')
     .select('*, contractors(name), trucks!truck_id(registration_number), trailers:trucks!trailer_id(registration_number), drivers!driver_id(first_name, last_name)')
     .eq('trip_id', tripId)
@@ -204,7 +206,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
 
   const segmentIds = (segmentsRaw || []).map((s: any) => s.id);
   const segmentCargoRes = segmentIds.length > 0
-    ? await supabase
+    ? await scoped
         .from('trip_segment_cargo')
         .select('segment_id, cargo_id, trip_cargo(position, label)')
         .in('segment_id', segmentIds)
@@ -370,7 +372,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
           ksef_number: snap.ksefNumber,
           ksef_error: snap.ksefError,
         };
-        await supabase.from('trips').update(fields).eq('id', tripId);
+        await scoped.from('trips').update(fields).eq('id', tripId);
         issued = {
           invoiceNumber: snap.number ?? issued.invoiceNumber,
           ksefStatus: fields.ksef_status,

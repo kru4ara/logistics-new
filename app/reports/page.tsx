@@ -3,6 +3,7 @@ import { getScope, applyTripScope } from '../../lib/scope';
 import { getSessionContext } from '../../lib/session';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase/admin';
+import { scopedClient } from '../../lib/supabase/scoped';
 import { buildRouteMap, type SegmentRouteRow } from '../../lib/trip-route';
 import DownloadButton, { type ReportRow } from './DownloadButton';
 import { Scale,
@@ -117,6 +118,7 @@ export default async function ReportsPage({
 
   const resolvedParams = await searchParams;
   const supabase = await createClient();
+  const scoped = await scopedClient();
 
   // Параметры фильтров
   const from = resolvedParams.from || '';
@@ -131,7 +133,7 @@ export default async function ReportsPage({
   const scope = await getScope();
 
   let tripsQuery = applyTripScope(
-      supabase
+      scoped
         .from('trips')
         .select('*, clients(name)'),
       scope
@@ -152,7 +154,7 @@ export default async function ReportsPage({
   //
   // Фаза 39: сегменты читаем по всем заказам, но маршрут строим только
   // по заказам в периметре пользователя.
-  const { data: segmentsData } = await fetchAll(supabase
+  const { data: segmentsData } = await fetchAll(scoped
     .from('trip_segments')
     .select('trip_id, position, from_city, from_country, to_city, to_country'));
 
@@ -167,7 +169,7 @@ export default async function ReportsPage({
 
   let expenses: { trip_id: string | null; amount_eur: number | null }[] = [];
   if (tripIds.length > 0) {
-    const { data, error } = await fetchAllByIds(tripIds, (chunk) => supabase
+    const { data, error } = await fetchAllByIds(tripIds, (chunk) => scoped
       .from('trip_expenses')
       .select('trip_id, amount_eur')
       .in('trip_id', chunk));

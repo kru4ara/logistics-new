@@ -3,6 +3,7 @@ import { getSessionContext } from '../../lib/session';
 import { can } from '../../lib/roles';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase/admin';
+import { scopedClient } from '../../lib/supabase/scoped';
 import { buildRouteMap, type SegmentRouteRow, type TripRouteInfo } from '../../lib/trip-route';
 import { getOrderMonthKey, getOrderUnloadDate, compareOrderNumbers, hasUnloadDate } from '../../lib/orders-core';
 import DownloadButton from './DownloadButton';
@@ -60,6 +61,7 @@ export default async function TripsPage({
   if (!can(role, 'trips.viewAll')) redirect('/driver');
 
   const supabase = await createClient();
+  const scoped = await scopedClient();
 
   const resolvedParams = await searchParams;
 
@@ -94,14 +96,14 @@ export default async function TripsPage({
     // Заказы, расходы и сегменты — все строки, а не первые 1000 (lib/fetch-all.ts).
     fetchAll(
       applyTripScope(
-        supabase
+        scoped
           .from('trips')
           .select('*, clients(name), drivers!driver_id(first_name, last_name)'),
         scope
       )
     ),
     fetchAll(
-      supabase
+      scoped
         .from('trip_expenses')
         .select('trip_id, amount_eur')
     ),
@@ -119,7 +121,7 @@ export default async function TripsPage({
       .select('id, name')
       .order('name'),
     fetchAll(
-      supabase
+      scoped
         .from('trip_segments')
         .select('trip_id, position, from_city, from_country, to_city, to_country')
     ),

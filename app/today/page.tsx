@@ -11,6 +11,7 @@ import {
   Fuel,
 } from 'lucide-react';
 import { createClient } from '../../lib/supabase/admin';
+import { scopedClient } from '../../lib/supabase/scoped';
 import { buildRouteMap } from '../../lib/trip-route';
 import EventCard from './components/EventCard';
 import EmptyBlock from './components/EmptyBlock';
@@ -40,6 +41,7 @@ export default async function TodayPage() {
   if (!can(role, 'today.view')) redirect('/login');
 
   const supabase = await createClient();
+  const scoped = await scopedClient();
   const today = todayIso();
 
   // Скоуп: менеджер видит только свои заказы и неназначенные (фаза 39).
@@ -47,7 +49,7 @@ export default async function TodayPage() {
 
   // 1. РЕЙСЫ
   const { data: tripsRaw, error: tripsError } = await fetchAll(applyTripScope(
-      supabase
+      scoped
         .from('trips')
         .select(`
       id, trip_number, status, start_date, end_date,
@@ -73,7 +75,7 @@ export default async function TodayPage() {
 
   // Сегменты — вычисляем route и from/to
   const { data: routeSegs } = tripIds.length > 0
-    ? await fetchAllByIds(tripIds, (chunk) => supabase
+    ? await fetchAllByIds(tripIds, (chunk) => scoped
         .from('trip_segments')
         .select('trip_id, position, from_city, from_country, to_city, to_country')
         .in('trip_id', chunk))
@@ -112,7 +114,7 @@ export default async function TodayPage() {
   // Фаза 39: сегменты читаем по всем заказам (индекс по trip_id быстрее),
   // поэтому фильтруем по периметру менеджера — иначе в ленту попадали бы
   // подрядчики с чужих заказов.
-  const { data: subsRaw } = await fetchAll(supabase
+  const { data: subsRaw } = await fetchAll(scoped
     .from('trip_segments')
     .select(`
       id, trip_id, position,
@@ -182,7 +184,7 @@ export default async function TodayPage() {
   //    Точки маршрута лежат в trip_segments.stops (jsonb) в общем
   //    с рейсами формате: type 'load' | 'reload' | 'unload' | 'customs'.
   const { data: fwdOrders } = await fetchAll(applyTripScope(
-      supabase
+      scoped
         .from('trips')
         .select(`
       id, trip_number,
@@ -195,7 +197,7 @@ export default async function TodayPage() {
   const fwdOrderIds = (fwdOrders || []).map((o: any) => o.id).filter(Boolean) as string[];
 
   const { data: fwdSegs } = fwdOrderIds.length > 0
-    ? await fetchAllByIds(fwdOrderIds, (chunk) => supabase
+    ? await fetchAllByIds(fwdOrderIds, (chunk) => scoped
         .from('trip_segments')
         .select('id, trip_id, executor_type, stops, contractors(name)')
         .in('trip_id', chunk))
@@ -277,7 +279,7 @@ export default async function TodayPage() {
   
   // 3.5. ЗАВЕРШЁННЫЕ РЕЙСЫ БЕЗ ЗП
   const { data: completedTrips } = await fetchAll(applyTripScope(
-      supabase
+      scoped
         .from('trips')
         .select(`
       id, trip_number, end_date,
@@ -292,7 +294,7 @@ export default async function TodayPage() {
   const completedTripIds = (completedTrips || []).map((t: any) => t.id);
 
   const { data: salaryExpenses } = completedTripIds.length > 0
-    ? await fetchAllByIds(completedTripIds, (chunk) => supabase
+    ? await fetchAllByIds(completedTripIds, (chunk) => scoped
         .from('trip_expenses')
         .select('trip_id')
         .eq('category', 'salary')

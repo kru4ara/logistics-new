@@ -463,6 +463,13 @@ select public.assert_count(
   'менеджер А: своя карточка менеджера видна', 1,
   $q$select count(*) from public.managers where id = 'aaaa1111-1111-1111-1111-111111111111'$q$);
 
+-- Справочники (миграция 034): менеджер читает всех водителей, точки и менеджеров —
+-- без них заказ из RLS-клиента пришёл бы без имён. Офисные данные (реквизиты,
+-- аудит) по-прежнему закрыты — см. проверки company_settings ниже.
+select public.assert_count('менеджер А: видит всех водителей', 2, 'select count(*) from public.drivers');
+select public.assert_count('менеджер А: видит всех менеджеров', 2, 'select count(*) from public.managers');
+select public.assert_count('менеджер А: не видит журнал аудита', 0, 'select count(*) from public.audit_log');
+
 -- --- Менеджер Б: симметрично ---
 select set_config('request.jwt.claim.sub', '55555555-5555-5555-5555-555555555555', false);
 

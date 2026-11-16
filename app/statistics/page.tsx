@@ -1,6 +1,7 @@
 import { getSessionContext } from '../../lib/session';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase/admin';
+import { scopedClient } from '../../lib/supabase/scoped';
 import { calculateStatistics } from '../../lib/statistics';
 import StatisticsHeader from './StatisticsHeader';
 import StatisticsSummary from './StatisticsSummary';
@@ -21,6 +22,7 @@ export default async function StatisticsPage({ searchParams }: { searchParams: P
 
   const resolvedParams = await searchParams;
   const supabase = await createClient();
+  const scoped = await scopedClient();
 
   const currentYear = new Date().getFullYear();
   const year = parseInt(resolvedParams?.year || String(currentYear));
@@ -34,7 +36,7 @@ export default async function StatisticsPage({ searchParams }: { searchParams: P
   const scope = await getScope();
 
   const { data: orders } = await fetchAll(applyTripScope(
-      supabase
+      scoped
         .from('trips')
         .select(
       'id, revenue_eur, start_date, end_date, status, profit_mode, is_forwarding'
@@ -51,7 +53,7 @@ export default async function StatisticsPage({ searchParams }: { searchParams: P
   const expensesByOrder: Record<string, number> = {};
   const contractorByOrder: Record<string, number> = {};
   if (orderIds.length > 0) {
-    const { data: allExpenses } = await fetchAll(supabase
+    const { data: allExpenses } = await fetchAll(scoped
       .from('trip_expenses')
       .select('amount_eur, trip_id, category'));
     allExpenses?.forEach((e) => {

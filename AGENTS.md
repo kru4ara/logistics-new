@@ -25,7 +25,8 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 2. **`lib/supabase/admin.ts` — только когда действительно нужны права админа** (миграции, фоновые задачи, выборки по чужому `driver_id`). Файл содержит `import 'server-only'` — в клиентский бандл не попадёт.
 3. **RLS в базе ВКЛЮЧЁН** — миграции `20261029_001`–`004` применены, политики живут в `supabase/migrations/`. Выборка через `admin.ts` **не ограничена ничем**: `service_role` обходит RLS, поэтому через admin-клиент водитель видит столько же, сколько офис. RLS работает **только там, где используется `server.ts`**.
 4. `lib/supabase/client.ts` удалён — браузерных запросов к Supabase в проекте нет, всё идёт через server components / server actions.
-5. **Уже переведено на RLS-клиент** (RLS реально ограничивает выборку): драйверские страницы `app/driver/*` (фаза 33), `lib/session.ts` и `lib/driver-access.ts` (фаза 38). Остальные ~88 файлов всё ещё идут через `service_role` — это следующая очередь.
+5. **Уже переведено на RLS-клиент** (RLS реально ограничивает выборку): драйверские страницы `app/driver/*` (фаза 33), `lib/session.ts` и `lib/driver-access.ts` (фаза 38).
+6. **Менеджер — `scopedClient()`** (`lib/supabase/scoped.ts`): заказы и их содержимое (`trips`, `trip_segments`, `trip_expenses`, `trip_cargo`, `trip_documents`, `trip_segment_cargo`) менеджеру отдаёт RLS-клиент, офису — admin. Справочники — admin, как раньше. Этап 1 — чтение на страницах из `lib/__tests__/scoped-client-guard.test.ts` (сторож); новая страница, которую открывает менеджер, — туда же. Этап 2 (дальше) — запись менеджера через RLS.
 
 ## Права доступа (capabilities)
 
