@@ -2157,4 +2157,8 @@ export const pl: Messages = {
     afterEnd: '{n} dni po zakończeniu',
     tgCmr: '📄 CMR do zlecenia nr {trip}{client} — można wystawić fakturę',
   },
+  cmrGate: {
+    need: 'Najpierw wgraj zdjęcie CMR — bez niego nie można zakończyć kursu.',
+    toUpload: 'Wgraj CMR',
+  },
 };

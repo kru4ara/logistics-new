@@ -2159,4 +2159,8 @@ export const ru = {
     afterEnd: '{n} дн. после окончания',
     tgCmr: '📄 CMR по заказу №{trip}{client} — можно выставлять счёт',
   },
+  cmrGate: {
+    need: 'Сначала загрузите фото CMR — без него рейс не завершить.',
+    toUpload: 'Загрузить CMR',
+  },
 } as const;

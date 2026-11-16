@@ -24,21 +24,40 @@ export default function TripStatusButtons({
   currentStatus,
   showAdminStatuses = false,
   invoiceForm = false,
+  needCmr = false,
 }: {
   tripId: string;
   currentStatus: string;
   showAdminStatuses?: boolean;
   /** «Выставить счёт» ведёт к форме фактуры (#invoice), статус ставит сама фактура */
   invoiceForm?: boolean;
+  /** водитель без CMR: «Завершить» ведёт к загрузке CMR (сервер тоже не даст) */
+  needCmr?: boolean;
 }) {
   const { t } = useT();
   const [isPending, startTransition] = useTransition();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  function goToUpload() {
+    const el = document.getElementById('upload-docs');
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    el.classList.add('ring-2', 'ring-amber-500');
+    window.setTimeout(() => el.classList.remove('ring-2', 'ring-amber-500'), 2500);
+  }
 
   function handleStatusChange(status: string) {
     if (status === currentStatus || isPending) return;
+
+    // Без CMR водитель рейс не завершает — ведём к загрузке.
+    if (status === 'completed' && needCmr) {
+      setNotice(t('cmrGate.need'));
+      goToUpload();
+      return;
+    }
 
     // Для «Завершён» — открываем модалку
     if (status === 'completed') {
@@ -71,8 +90,12 @@ export default function TripStatusButtons({
     }
 
     startTransition(async () => {
-      await changeTripStatus(tripId, 'completed', endDate);
-      setIsModalOpen(false);
+      try {
+        await changeTripStatus(tripId, 'completed', endDate);
+        setIsModalOpen(false);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+      }
     });
   }
 
@@ -120,6 +143,15 @@ export default function TripStatusButtons({
           );
         })}
       </div>
+
+      {notice && (
+        <div className="mt-3 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2.5 text-sm text-amber-900 flex flex-wrap items-center justify-between gap-2">
+          <span>{notice}</span>
+          <button type="button" onClick={goToUpload} className="font-semibold text-amber-800 underline underline-offset-2">
+            {t('cmrGate.toUpload')}
+          </button>
+        </div>
+      )}
 
       {/* МОДАЛЬНОЕ ОКНО ЗАВЕРШЕНИЯ РЕЙСА */}
       {isModalOpen && (

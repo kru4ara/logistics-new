@@ -46,3 +46,14 @@ describe('к выставлению', () => {
     expect(list.noCmr[0].waitingDays).toBe(10);
   });
 });
+
+import { completionBlock } from '../to-invoice';
+
+describe('завершение рейса без CMR', () => {
+  it('водителю — нельзя, офису — можно, другие статусы — можно', () => {
+    expect(completionBlock({ status: 'completed', isDriver: true, cmrCount: 0 })).toBe('needCmr');
+    expect(completionBlock({ status: 'completed', isDriver: true, cmrCount: 1 })).toBeNull();
+    expect(completionBlock({ status: 'completed', isDriver: false, cmrCount: 0 })).toBeNull();
+    expect(completionBlock({ status: 'active', isDriver: true, cmrCount: 0 })).toBeNull();
+  });
+});

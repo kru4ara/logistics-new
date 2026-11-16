@@ -62,3 +62,11 @@ export function buildToInvoice(
   const readyTotal = Math.round(ready.reduce((s, r) => s + (Number(r.revenue_eur) || 0), 0) * 100) / 100;
   return { ready, noCmr, readyTotal };
 }
+
+/**
+ * Водитель не завершает рейс без CMR: иначе заказ «завершён», а выставить счёт
+ * не по чему. Офис может (CMR придёт позже — заказ попадёт в «нет CMR»).
+ */
+export function completionBlock(p: { status: string; isDriver: boolean; cmrCount: number }): 'needCmr' | null {
+  return p.status === 'completed' && p.isDriver && p.cmrCount === 0 ? 'needCmr' : null;
+}
