@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { getSessionContext } from '../../../lib/session';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../../lib/supabase/admin';
+import { scopedClient } from '../../../lib/supabase/scoped';
 import CountryFlag from '../../components/CountryFlag';
 import {
   ArrowLeft,
@@ -89,6 +90,7 @@ export default async function ContractorCardPage({
   if (denied) redirect(denied);
 
   const supabase = await createClient();
+  const scoped = await scopedClient();
 
   // 1. Сам подрядчик
   const { data: contractor, error } = await supabase
@@ -126,7 +128,7 @@ export default async function ContractorCardPage({
 
   // 2. Работы: комбинированные перевозки (trip_segments, executor_type='contractor')
   //    Здесь route НЕ тянем из trips — маршрут участка берём из самого сегмента (from_*/to_*).
-  const { data: tripSubs } = await supabase
+  const { data: tripSubs } = await scoped
     .from('trip_segments')
     .select(`
       id,
@@ -148,7 +150,7 @@ export default async function ContractorCardPage({
   //    где этот подрядчик выполняет сегмент.
   //    Маршрут берём из stops сегмента (загрузка → выгрузка),
   //    НЕ из route_from/route_to.
-  const { data: fwdSubs } = await supabase
+  const { data: fwdSubs } = await scoped
     .from('trip_segments')
     .select(`
       id,

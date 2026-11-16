@@ -3,6 +3,7 @@ import Image from 'next/image';
 import { getSessionContext } from '../../lib/session';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase/admin';
+import { scopedClient } from '../../lib/supabase/scoped';
 import {
   UserCircle,
   UserPlus,
@@ -27,6 +28,7 @@ export default async function DriversPage() {
   if (denied) redirect(denied);
 
   const supabase = await createClient();
+  const scoped = await scopedClient();
 
   const { data: drivers, error } = await supabase
     .from('drivers')
@@ -38,7 +40,7 @@ export default async function DriversPage() {
   }
 
   // Считаем количество рейсов у каждого водителя
-  const { data: allTrips } = await fetchAll(supabase
+  const { data: allTrips } = await fetchAll(scoped
     .from('trips')
     .select('driver_id'));
 

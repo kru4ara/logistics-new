@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { createClient } from '../../../lib/supabase/admin';
+import { scopedClient } from '../../../lib/supabase/scoped';
 import { buildRouteMap, type SegmentRouteRow } from '../../../lib/trip-route';
 import { fetchFuelLevels } from '../../../lib/fuel-server';
 import { formatLiters } from '../../../lib/fuel';
@@ -65,6 +66,7 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ id
   if (!truckId) return <div className="p-8">{tr('trk.noId')}</div>;
 
   const supabase = await createClient();
+  const scoped = await scopedClient();
 
   const { data: truck, error: truckError } = await supabase
     .from('trucks')
@@ -75,7 +77,7 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ id
   if (truckError) return <div className="p-8 text-red-500">{tr('dir.loadError')}{' '}{truckError.message}</div>;
 
   // Рейсы машины — и как тягач, и как прицеп. Без legacy route — маршрут из сегментов ниже ⬅️ ИЗМЕНЕНО
-  const { data: trips } = await supabase
+  const { data: trips } = await scoped
     .from('trips')
     .select('id, trip_number, status, revenue_eur, actual_km, actual_liters, start_date, end_date, truck_id, trailer_id, clients(name), drivers!driver_id(first_name, last_name)')
     .or(`truck_id.eq.${truckId},trailer_id.eq.${truckId}`);
@@ -84,7 +86,7 @@ export default async function TruckDetailPage({ params }: { params: Promise<{ id
   const tripIds = (trips || []).map((t) => t.id);
   const routeByTrip = new Map<string, string>();
   if (tripIds.length > 0) {
-    const { data: segRows } = await fetchAllByIds(tripIds, (chunk) => supabase
+    const { data: segRows } = await fetchAllByIds(tripIds, (chunk) => scoped
       .from('trip_segments')
       .select('trip_id, position, from_city, from_country, to_city, to_country')
       .in('trip_id', chunk));

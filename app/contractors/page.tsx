@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { getSessionContext } from '../../lib/session';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase/admin';
+import { scopedClient } from '../../lib/supabase/scoped';
 import { deleteContractor } from './actions';
 import ContractorCardActions from './ContractorCardActions';
 import CountryFlag from '../components/CountryFlag';
@@ -32,6 +33,7 @@ export default async function ContractorsPage() {
   if (denied) redirect(denied);
 
   const supabase = await createClient();
+  const scoped = await scopedClient();
 
   const { data: contractors, error } = await supabase
     .from('contractors')
@@ -44,7 +46,7 @@ export default async function ContractorsPage() {
 
   // Считаем сколько заявок экспедирования у каждого подрядчика:
   // сегменты-подрядчики заказов в режиме forwarding.
-  const { data: allFc } = await supabase
+  const { data: allFc } = await scoped
     .from('trip_segments')
     .select('contractor_id, trips!inner(profit_mode)')
     .eq('executor_type', 'contractor')
@@ -59,7 +61,7 @@ export default async function ContractorsPage() {
   });
 
   // Считаем сколько комбинированных рейсов у каждого подрядчика (участки рейсов)
-  const { data: allTs } = await supabase
+  const { data: allTs } = await scoped
     .from('trip_segments')
     .select('contractor_id')
     .eq('executor_type', 'contractor')

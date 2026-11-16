@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { createClient } from '../../../lib/supabase/admin';
+import { scopedClient } from '../../../lib/supabase/scoped';
 import { buildRouteMap, type SegmentRouteRow } from '../../../lib/trip-route';
 import TelegramLinkCard from './TelegramLinkCard';
 import DriverHeader from './DriverHeader';
@@ -56,6 +57,7 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
   if (!driverId) return <div className="p-8">{t('drvCard.noId')}</div>;
 
   const supabase = await createClient();
+  const scoped = await scopedClient();
 
   const { data: driver, error: driverError } = await supabase
     .from('drivers')
@@ -80,7 +82,7 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
     ? (await signDocumentPaths([passportPhotoDoc.file_path]))[passportPhotoDoc.file_path] ?? null
     : null;
 
-  const { data: currentTripRaw } = await supabase
+  const { data: currentTripRaw } = await scoped
     .from('trips')
     .select('id, trip_number, truck_id, trailer_id, trucks!truck_id(registration_number), trailers:trucks!trailer_id(registration_number)')
     .eq('driver_id', driverId)
@@ -106,7 +108,7 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
   }
   const balance = accruedTotal - paidOutTotal;
 
-  const { data: trips } = await supabase
+  const { data: trips } = await scoped
     .from('trips')
     .select('id, trip_number, status, revenue_eur, actual_km, actual_liters, start_date, end_date, clients(name)')
     .eq('driver_id', driverId);
@@ -114,7 +116,7 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
   const tripIds = (trips || []).map((t) => t.id);
   const routeByTrip = new Map<string, string>();
   if (tripIds.length > 0) {
-    const { data: segRows } = await fetchAllByIds(tripIds, (chunk) => supabase
+    const { data: segRows } = await fetchAllByIds(tripIds, (chunk) => scoped
       .from('trip_segments')
       .select('trip_id, position, from_city, from_country, to_city, to_country')
       .in('trip_id', chunk));

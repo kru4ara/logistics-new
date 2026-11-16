@@ -23,6 +23,15 @@ const SCOPED_PAGES = [
   'app/search/actions.ts',
   'app/api/trips/[id]/segment/[segId]/docx/route.ts',
   'app/api/trips/[id]/segment/[segId]/driver-docx/route.ts',
+  'app/clients/[id]/page.tsx',
+  'app/contractors/page.tsx',
+  'app/contractors/[id]/page.tsx',
+  'app/drivers/page.tsx',
+  'app/drivers/[id]/page.tsx',
+  'app/reports/contractors/page.tsx',
+  'app/routes/export/page.tsx',
+  'app/trucks/page.tsx',
+  'app/trucks/[id]/page.tsx',
 ];
 
 const TRIP_TABLES = /\bsupabase\s*\.from\('(trips|trip_segments|trip_expenses|trip_cargo|trip_documents|trip_segment_cargo)'\)/g;
