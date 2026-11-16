@@ -12,7 +12,11 @@ import { isKsefConfigured } from '../../lib/ksef/client';
 import { loadSegmentCandidates } from '../../lib/payables/sync';
 import { suggestSegments, carrierOrderNumber, type SegmentCandidate } from '../../lib/payables/match-rules';
 import { summarizePayables, type PayableRow } from '../../lib/payables/summary';
-import { SyncPurchasesButton, LinkPurchaseForm, UnlinkButton, PurchasePaidButton, PaidDateInput, DeleteManualButton, type SegmentOption } from './PayablesControls';
+import { SyncPurchasesButton, LinkPurchaseForm, UnlinkButton, PurchasePaidButton, PaidDateInput, DeleteManualButton, type PickOption, type CategoryOption } from './PayablesControls';
+import { loadTripCandidates, lastTripCategoryByNip } from '../../lib/payables/trip-expense';
+import { suggestTrips, defaultTripCategory, type TripCandidate } from '../../lib/payables/trip-rules';
+import { EXPENSE_CATEGORIES, expenseCategoryKey } from '../../lib/i18n/labels';
+import type { MessageKey } from '../../lib/i18n/translate';
 import { findDuplicateGroups } from '../../lib/payables/duplicate-rules';
 
 export const dynamic = 'force-dynamic';
@@ -29,12 +33,12 @@ export default async function PayablesPage() {
       : new Intl.NumberFormat(INTL_LOCALE[locale], { style: 'currency', currency: cur || 'PLN', maximumFractionDigits: 2 }).format(n);
 
   const supabase = await createClient();
-  const { data, error } = await fetchAll(
-    supabase
-      .from('purchase_invoices')
-      .select('id, ksef_number, source, invoice_number, issue_date, seller_nip, seller_name, net_amount, gross_amount, currency, payment_due, description, segment_id, match_status, paid_at')
-      .order('issue_date', { ascending: false }),
-  );
+  const COLS = 'id, ksef_number, source, invoice_number, issue_date, seller_nip, seller_name, net_amount, gross_amount, currency, payment_due, description, segment_id, match_status, paid_at';
+  const load = (cols: string) =>
+    fetchAll(supabase.from('purchase_invoices').select(cols).order('issue_date', { ascending: false }).order('id'));
+  let { data, error } = await load(`${COLS}, trip_id`);
+  // Между деплоем и миграцией 037 колонки trip_id ещё нет.
+  if (error && /trip_id/.test(error.message)) ({ data, error } = await load(COLS));
   if (error) {
     return (
       <div className="p-8 text-red-600">
@@ -65,18 +69,41 @@ export default async function PayablesPage() {
       s.dateTo ? formatDate(s.dateTo, locale) : null,
     ].filter(Boolean).join(' · ');
 
-  const options = (r: PayableRow): SegmentOption[] => {
-    const sug = suggestSegments(
+  // Участки с уже привязанным счётом тоже доступны: доплата, korekta. Список — один на страницу.
+  const segmentOptions: PickOption[] = segments.map((s) => ({ id: s.id, label: segLabel(s) }));
+  const suggestedSegmentIds = (r: PayableRow) =>
+    suggestSegments(
       { sellerNip: r.seller_nip, invoiceNumber: r.invoice_number, issueDate: r.issue_date, net: r.net_amount, gross: r.gross_amount, currency: r.currency, description: r.description },
       segments,
-    ).slice(0, 5);
-    const sugIds = new Set(sug.map((x) => x.segmentId));
-    // Участки с уже привязанным счётом тоже доступны: доплата, korekta.
-    const free = segments.filter((s) => !sugIds.has(s.id)).slice(0, 200);
-    return [
-      ...sug.map((x) => ({ id: x.segmentId, label: segLabel(segById.get(x.segmentId)!), suggested: true })),
-      ...free.map((s) => ({ id: s.id, label: segLabel(s), suggested: false })),
-    ];
+    ).slice(0, 5).map((x) => x.segmentId);
+
+  // Рейсы — для счетов-расходов рейса (перегруз, EX-1, EPI): подсказка по датам рейса.
+  const linkedTripIds = rows.map((r) => r.trip_id).filter((x): x is string => Boolean(x));
+  const trips: TripCandidate[] = sum.unmatched.length || linkedTripIds.length ? await loadTripCandidates(supabase, linkedTripIds) : [];
+  const tripById = new Map(trips.map((x) => [x.id, x]));
+  const tripLabel = (x: TripCandidate) =>
+    [
+      `№${x.number ?? '?'}`,
+      x.clientName,
+      x.truck,
+      x.start ? `${formatDate(x.start, locale)}${x.end && x.end !== x.start ? `–${formatDate(x.end, locale)}` : ''}` : null,
+    ].filter(Boolean).join(' · ');
+  const tripOptions: PickOption[] = trips.map((x) => ({ id: x.id, label: tripLabel(x) }));
+  const lastByNip = sum.unmatched.length ? await lastTripCategoryByNip(supabase) : new Map<string, string>();
+  const categoryOptions: CategoryOption[] = EXPENSE_CATEGORIES.map((c) => ({
+    value: c.value,
+    label: `${c.emoji} ${t(expenseCategoryKey(c.value) as MessageKey)}`,
+  }));
+  const tripCell = (r: PayableRow) => {
+    const x = r.trip_id ? tripById.get(r.trip_id) : null;
+    if (!r.trip_id) return null;
+    return (
+      <span className="inline-flex items-center gap-1.5">
+        <Link href={`/trips/${r.trip_id}`} className="text-brand-600 hover:underline">{t('payx2.tripRef', { n: x?.number ?? '?' })}</Link>
+        <span className="text-[10px] uppercase text-slate-400">{t('payx2.asExpense')}</span>
+        {canEdit && <UnlinkButton invoiceId={r.id} />}
+      </span>
+    );
   };
 
   const dueCell = (r: PayableRow) => {
@@ -213,7 +240,17 @@ export default async function PayablesPage() {
                   <tr key={r.id} className="align-top">
                     {invoiceCells(r)}
                     <td className="py-2.5 pr-3" colSpan={2}>
-                      {canEdit ? <LinkPurchaseForm invoiceId={r.id} options={options(r)} /> : '—'}
+                      {canEdit ? (
+                        <LinkPurchaseForm
+                          invoiceId={r.id}
+                          segments={segmentOptions}
+                          suggestedSegments={suggestedSegmentIds(r)}
+                          trips={tripOptions}
+                          suggestedTrips={suggestTrips(r.issue_date, trips).map((x) => x.id)}
+                          categories={categoryOptions}
+                          defaultCategory={defaultTripCategory({ nip: r.seller_nip, name: r.seller_name }, lastByNip)}
+                        />
+                      ) : '—'}
                     </td>
                   </tr>
                 ))}
@@ -234,7 +271,7 @@ export default async function PayablesPage() {
                     <tr key={r.id} className="align-top">
                       {invoiceCells(r)}
                       <td className="py-2.5 pr-3">
-                        {seg ? (
+                        {r.trip_id ? tripCell(r) : seg ? (
                           <span className="inline-flex items-center gap-1.5">
                             <Link href={`/trips/${seg.tripId}`} className="text-brand-600 hover:underline">№{carrierOrderNumber(seg)}</Link>
                             {r.match_status === 'auto' && <span className="text-[10px] uppercase text-slate-400">{t('pay.auto')}</span>}
@@ -265,7 +302,7 @@ export default async function PayablesPage() {
                     <tr key={r.id} className="align-top">
                       {invoiceCells(r)}
                       <td className="py-2.5 pr-3">
-                        {seg ? (
+                        {r.trip_id ? tripCell(r) : seg ? (
                           <span className="inline-flex items-center gap-1.5">
                             <Link href={`/trips/${seg.tripId}`} className="text-brand-600 hover:underline">№{carrierOrderNumber(seg)}</Link>
                             {canEdit && <UnlinkButton invoiceId={r.id} />}
