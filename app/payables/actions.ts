@@ -10,8 +10,11 @@ import { recalcSegmentCost } from '../../lib/payables/cost';
 import { parseManualInvoice } from '../../lib/payables/cost-rules';
 import { invoiceKey, isValidPaidDate } from '../../lib/payables/duplicate-rules';
 import { syncInvoiceTripExpense } from '../../lib/payables/trip-expense';
+import { syncInvoiceOverheadCost } from '../../lib/payables/overhead-cost';
 import { isMonthClosed, tripMonth } from '../../lib/closed-months';
 import { EXPENSE_CATEGORIES } from '../../lib/i18n/labels';
+import { isOverheadCategory, sellerKey } from '../../lib/payables/overhead-rules';
+import { fetchAll } from '../../lib/fetch-all';
 
 type Result = { ok: boolean; message?: string };
 
@@ -85,6 +88,8 @@ export async function linkPurchase(invoiceId: string, segmentId: string | null):
     .eq('id', invoiceId);
   if (error) return { ok: false, message: t('dir.updateError', { msg: error.message }) };
   await detachFromTrip(supabase, invoiceId, await invoiceTripId(supabase, invoiceId));
+  await syncInvoiceOverheadCost(supabase, invoiceId);
+  revalidatePath('/fixed-costs');
 
   // Факт стоимости — по счетам: пересчитать и прежний участок, и новый.
   if (previousSegment && previousSegment !== seg?.id) await recalcSegmentCost(supabase, previousSegment);
@@ -116,6 +121,8 @@ export async function unlinkPurchase(invoiceId: string): Promise<Result> {
     .eq('id', invoiceId);
   if (error) return { ok: false, message: t('dir.updateError', { msg: error.message }) };
   await detachFromTrip(supabase, invoiceId, await invoiceTripId(supabase, invoiceId));
+  await syncInvoiceOverheadCost(supabase, invoiceId);
+  revalidatePath('/fixed-costs');
   if (before?.segment_id) {
     await recalcSegmentCost(supabase, before.segment_id as string);
     const tripId = (Array.isArray(before.trip_segments) ? before.trip_segments[0] : before.trip_segments as any)?.trip_id;
@@ -162,6 +169,8 @@ export async function linkPurchaseToTrip(invoiceId: string, tripId: string, cate
   }
   if (inv.segment_id) await recalcSegmentCost(supabase, inv.segment_id as string);
   await syncInvoiceTripExpense(supabase, invoiceId, category);
+  await syncInvoiceOverheadCost(supabase, invoiceId);
+  revalidatePath('/fixed-costs');
 
   await logAudit({
     entity_type: 'trip',
@@ -172,6 +181,82 @@ export async function linkPurchaseToTrip(invoiceId: string, tripId: string, cate
   });
   if (previousTrip && previousTrip !== tripId) revalidatePath(`/trips/${previousTrip}`);
   revalidatePath(`/trips/${tripId}`);
+  revalidatePath('/payables');
+  return { ok: true };
+}
+
+/**
+ * Разобрать счета одного продавца из «не относится к рейсам»:
+ * 'trip' — вернуть все в «требуют привязки» (это расходы рейсов: EX-1, EPI…);
+ * 'overhead' — категория накладных всем его счетам. С NIP запоминаем правило: новые
+ * счета этого продавца при загрузке из KSeF разнесутся так же.
+ */
+export async function classifySeller(key: string, assignment: 'trip' | 'overhead', category?: string): Promise<Result> {
+  await requireCapability('payables.edit');
+  const { t } = await getT();
+  if (assignment === 'overhead' && !isOverheadCategory(category)) return { ok: false, message: t('payx3.errCategory') };
+  if (assignment !== 'trip' && assignment !== 'overhead') return { ok: false, message: t('payx3.errCategory') };
+  const supabase = await createClient();
+  const { data, error: readErr } = await fetchAll(
+    supabase.from('purchase_invoices').select('id, seller_nip, seller_name').eq('match_status', 'ignored').order('id'),
+  );
+  if (readErr) return { ok: false, message: t('dir.updateError', { msg: readErr.message }) };
+  const ids = ((data ?? []) as { id: string; seller_nip: string | null; seller_name: string | null }[])
+    .filter((r) => sellerKey(r) === key)
+    .map((r) => r.id);
+  if (!ids.length) return { ok: false, message: t('pay.notFound') };
+
+  const patch =
+    assignment === 'trip'
+      ? { match_status: 'none', overhead_category: null, updated_at: new Date().toISOString() }
+      : { overhead_category: category, updated_at: new Date().toISOString() };
+  for (let i = 0; i < ids.length; i += 200) {
+    const { error } = await supabase.from('purchase_invoices').update(patch).in('id', ids.slice(i, i + 200));
+    if (error) {
+      return { ok: false, message: /overhead_category/.test(error.message) ? t('pay.needMigration') : t('dir.updateError', { msg: error.message }) };
+    }
+  }
+  for (const id of ids) await syncInvoiceOverheadCost(supabase, id);
+  revalidatePath('/fixed-costs');
+  if (!key.startsWith('name:')) {
+    await supabase
+      .from('purchase_seller_rules')
+      .upsert({ seller_nip: key, assignment, category: assignment === 'overhead' ? category : null, updated_at: new Date().toISOString() });
+  }
+  const name = ((data ?? []) as { id: string; seller_name: string | null }[]).find((r) => r.id === ids[0])?.seller_name ?? key;
+  await logAudit({
+    entity_type: 'purchase_invoice',
+    entity_id: ids[0],
+    action: 'update',
+    changes: { assignment: { before: 'ignored', after: assignment === 'trip' ? 'trip' : category ?? null }, count: { before: null, after: ids.length } },
+    summary: assignment === 'trip'
+      ? `Счета ${name} (${ids.length}) возвращены в привязку к рейсам`
+      : `Счета ${name} (${ids.length}) — накладные: ${category}`,
+  });
+  revalidatePath('/payables');
+  return { ok: true, message: assignment === 'trip' ? t('payx3.movedToTrips', { n: ids.length }) : undefined };
+}
+
+/** Категория накладных одного счёта (уточнить внутри группы: например, e-TOLL у Logisat). */
+export async function setInvoiceOverhead(invoiceId: string, category: string): Promise<Result> {
+  await requireCapability('payables.edit');
+  const { t } = await getT();
+  if (!isOverheadCategory(category)) return { ok: false, message: t('payx3.errCategory') };
+  const supabase = await createClient();
+  const { data: before } = await supabase.from('purchase_invoices').select('overhead_category, invoice_number, match_status').eq('id', invoiceId).maybeSingle();
+  if (!before) return { ok: false, message: t('pay.notFound') };
+  if (before.match_status !== 'ignored') return { ok: false, message: t('payx3.errNotOverhead') };
+  const { error } = await supabase.from('purchase_invoices').update({ overhead_category: category, updated_at: new Date().toISOString() }).eq('id', invoiceId);
+  if (error) return { ok: false, message: t('dir.updateError', { msg: error.message }) };
+  await syncInvoiceOverheadCost(supabase, invoiceId);
+  revalidatePath('/fixed-costs');
+  await logAudit({
+    entity_type: 'purchase_invoice',
+    entity_id: invoiceId,
+    action: 'update',
+    changes: { overhead_category: { before: before.overhead_category ?? null, after: category } },
+    summary: `Счёт ${before.invoice_number ?? ''} — накладные: ${category}`,
+  });
   revalidatePath('/payables');
   return { ok: true };
 }

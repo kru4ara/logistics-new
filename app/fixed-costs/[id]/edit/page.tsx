@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation';
 import { createClient } from '../../../../lib/supabase/admin';
 import { updateFixedCost } from '../../../fixed-cost-actions';
 import SubmitButton from '../../../components/SubmitButton';
@@ -27,6 +28,8 @@ export default async function EditFixedCostPage({ params }: { params: Promise<{ 
     .single();
 
   if (error) return <div className="p-8 text-red-500">{t('dir.error')}{' '}{error.message}</div>;
+  // Запись из счёта подрядчика правится в «Счетах подрядчиков».
+  if (cost.purchase_invoice_id) redirect('/payables');
 
   const currentAmount = cost.original_amount ?? cost.amount_pln ?? cost.amount_eur ?? 0;
   const capex = classifyCapex(cost.category, cost.amount_eur);
