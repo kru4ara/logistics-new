@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import { Landmark, KeyRound } from 'lucide-react';
 import { createClient } from '../../lib/supabase/admin';
 import { fetchAll, fetchAllByIds } from '../../lib/fetch-all';
-import { outstanding } from '../../lib/bank/match-rules';
+import { outstanding, type TripRef } from '../../lib/bank/match-rules';
 import { getSessionContext } from '../../lib/session';
 import { can, deniedRedirect } from '../../lib/roles';
 import { getT } from '../../lib/i18n/server';
@@ -111,7 +111,7 @@ async function BankView({ searchParams, role }: { searchParams: Promise<{ show?:
     if (!x) return id.slice(0, 8);
     const due = outstanding(x);
     const tail = !x.invoiced ? ` (${t('pay2.noInvoiceYet')})` : due != null && due > 0 && (x.allocated ?? 0) > 0 ? ` (${t('pay2.left', { sum: money(due, x.currency) })})` : '';
-    const ref = x.requestNumber ? `№${x.requestNumber}` : `№${x.tripNumber ?? '?'}`;
+    const ref = x.requestNumber ? `№${x.requestNumber}${x.tripNumber ? ` (${x.tripNumber})` : ''}` : `№${x.tripNumber ?? '?'}`;
     return `${ref}${x.invoiceNumber ? ` · ${x.invoiceNumber}` : ''} · ${x.clientName ?? ''} · ${money(x.amount, x.currency)}${tail}`;
   };
   const shareLabel = (a: { tripId: string; amount: number }, cur: string) => {
@@ -146,12 +146,14 @@ async function BankView({ searchParams, role }: { searchParams: Promise<{ show?:
         .slice(0, 40)
         .map((p) => ({ id: p.id, label: invLabel(p.id) }));
     }
-    // Заказы с остатком к оплате (и без счёта — аванс): найденные в подсказке — первыми.
+    // Все заказы в валюте прихода (поиск — в редакторе): найденные в подсказке, затем с
+    // остатком к оплате, затем остальные — «оплачен» вручную без денег по выписке тоже здесь.
     const first = new Set<string>(tx.suggestion?.type === 'trips' ? tx.suggestion.ids : []);
+    const rank = (x: TripRef) => (first.has(x.id) ? 0 : (outstanding(x) ?? 0) > 0 ? 1 : 2);
     return trips
-      .filter((x) => (x.currency || 'EUR').toUpperCase() === cur && (first.has(x.id) || ((outstanding(x) ?? 0) > 0 && !x.paid)))
-      .sort((a, b) => Number(first.has(b.id)) - Number(first.has(a.id)) || Math.abs((outstanding(a) ?? 0) - amount) - Math.abs((outstanding(b) ?? 0) - amount))
-      .slice(0, 80)
+      .filter((x) => (x.currency || 'EUR').toUpperCase() === cur)
+      .sort((a, b) => rank(a) - rank(b) || Math.abs((outstanding(a) ?? 0) - amount) - Math.abs((outstanding(b) ?? 0) - amount))
+      .slice(0, 400)
       .map((x) => ({ id: x.id, label: tripLabel(x.id), due: outstanding(x) ?? 0 }));
   };
 
@@ -159,7 +161,12 @@ async function BankView({ searchParams, role }: { searchParams: Promise<{ show?:
     if (!s) return null;
     if (s.type === 'purchases') return `${t(s.exact ? 'bank.sugExact' : 'bank.sugProbable')} ${s.ids.map(invLabel).join('; ')}`;
     if (s.type === 'trips') {
-      const parts = s.allocations?.length ? s.allocations.map((a: any) => shareLabel(a, cur)) : s.ids.map(tripLabel);
+      // Найденные заказы, на которые ничего не легло (сумма неизвестна или уже закрыт), — тоже видны.
+      const shared = new Set((s.allocations ?? []).map((a: any) => a.tripId));
+      const parts = [
+        ...(s.allocations ?? []).map((a: any) => shareLabel(a, cur)),
+        ...s.ids.filter((id: string) => !shared.has(id)).map((id: string) => `${tripLabel(id)} → 0`),
+      ];
       const rest = Number(s.remainder ?? 0) > 0.005 ? ` · ${t('pay2.remainder', { sum: money(Number(s.remainder), cur) })}` : '';
       return `${t(s.exact ? 'bank.sugExact' : 'bank.sugProbable')} ${parts.join('; ')}${rest}`;
     }

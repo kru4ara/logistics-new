@@ -178,6 +178,8 @@ describe('приход → заказы с распределением', () => 
     ]);
     expect(r).toMatchObject({ ids: ['a', 'b', 'c'], exact: true, remainder: 0 });
     expect(matchTrips(inc({ amount: 100, title: 'CONTR.886' }), [trip('e', { requestNumber: null, tripNumber: '886Е', amount: 100 })])).toMatchObject({ ids: ['e'] });
+    // номер заявки с лишними знаками; заказ уже «оплачен» вручную — всё равно находится
+    expect(matchTrips(inc({ amount: 5500, title: '886DD 04.08.26' }), [trip('g', { requestNumber: '№ 886', tripNumber: '10Е', amount: 5500, paid: true })])).toMatchObject({ ids: ['g'], exact: true });
     // короткие номера заказов (63) — не числа из назначения
     expect(matchTrips(inc({ amount: 100, title: 'CONTR 63' }), [trip('f', { requestNumber: null, tripNumber: '63', amount: 999 })])).toBeNull();
   });
