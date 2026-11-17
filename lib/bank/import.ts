@@ -4,7 +4,7 @@ import { parsePkoStatement, type ParseError } from './pko-rules';
 import { classifyTx, defaultOverhead, matchPurchases, matchTrips, type TxKind, type PurchaseRef, type TripRef } from './match-rules';
 import { fetchAll } from '../fetch-all';
 import { loadPurchaseRefs, loadTripRefs } from './refs';
-import { applyDecision, type Decision } from './apply';
+import { applyDecision, insertCashCost, type Decision } from './apply';
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
 
@@ -43,6 +43,17 @@ const autoDecision = (sg: Suggestion | null): Decision | null =>
  * новые счета из KSeF) и применить однозначные. Возвращает, сколько применено.
  */
 export async function rematchPending(supabase: Supabase, userId: string | null): Promise<{ checked: number; auto: number }> {
+  // Наличные, решённые до миграции 043, — строка «снятие наличных» вне P&L, если её ещё нет.
+  const { data: cash } = await supabase
+    .from('bank_transactions')
+    .select('id, amount, currency, booking_date, counterparty, title, op_type')
+    .eq('status', 'matched')
+    .eq('overhead_category', 'cash');
+  for (const c of (cash ?? []) as any[]) {
+    const { data: has, error } = await supabase.from('fixed_costs').select('id').eq('bank_transaction_id', c.id).maybeSingle();
+    if (!error && !has) await insertCashCost(supabase, c);
+  }
+
   const { data } = await fetchAll(
     supabase
       .from('bank_transactions')

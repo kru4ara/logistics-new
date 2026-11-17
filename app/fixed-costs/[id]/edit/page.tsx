@@ -97,6 +97,15 @@ export default async function EditFixedCostPage({ params }: { params: Promise<{ 
                 </select>
               </div>
               <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{t('cclass.label')}</label>
+                <select name="cost_class" className="input" defaultValue={cost.cost_class || 'operating'}>
+                  <option value="operating">{t('cclass.operating')}</option>
+                  <option value="dividends">{t('cclass.dividends')}</option>
+                  <option value="cash">{t('cclass.cash')}</option>
+                </select>
+                <p className="text-xs text-slate-400 mt-1">{t('cclass.hint')}</p>
+              </div>
+              <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">{t('fc.category')}</label>
                 <input
                   type="text"

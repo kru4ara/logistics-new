@@ -1,4 +1,5 @@
 import { getSessionContext } from '../lib/session';
+import { isOperatingCost } from '../lib/cost-class';
 import { can } from '../lib/roles';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
@@ -79,9 +80,10 @@ export default async function Home() {
   // ============================================================
   // ОБЩИЕ РАСХОДЫ — с флагом is_capex
   // ============================================================
-  const { data: fixedCosts } = await supabase
-    .from('fixed_costs')
-    .select('amount_eur, month_key, cost_type, expense_date, is_capex, category');
+  const FC_COLS = 'amount_eur, month_key, cost_type, expense_date, is_capex, category';
+  const fcFull = await supabase.from('fixed_costs').select(`${FC_COLS}, cost_class`);
+  // До миграции 043 колонки cost_class нет — все расходы операционные.
+  const { data: fixedCosts } = fcFull.error ? await supabase.from('fixed_costs').select(FC_COLS) : fcFull;
 
   // ============================================================
   // НАПОМИНАНИЯ — для блока «Требует внимания»
@@ -158,7 +160,7 @@ export default async function Home() {
     if (fc.is_capex === true) {
       totalCapex += amount;
       totalCapexCount += 1;
-    } else {
+    } else if (isOperatingCost(fc)) {
       totalOperationalFixedCosts += amount;
     }
   });
@@ -205,7 +207,7 @@ export default async function Home() {
   fixedCosts?.forEach((fc) => {
     const amount = fc.amount_eur || 0;
     if (amount === 0) return;
-    if (fc.is_capex === true) return;
+    if (!isOperatingCost(fc)) return; // инвестиции, дивиденды, наличные — вне P&L
 
     if (fc.cost_type === 'yearly') {
       let startDate: Date | null = null;
@@ -271,7 +273,7 @@ export default async function Home() {
     fixedCosts?.forEach((fc) => {
       const amount = fc.amount_eur || 0;
       if (amount === 0) return;
-      if (fc.is_capex === true) return;
+      if (!isOperatingCost(fc)) return; // инвестиции, дивиденды, наличные — вне P&L
 
       if (fc.cost_type === 'yearly') {
         let startDate: Date | null = null;

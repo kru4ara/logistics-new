@@ -68,9 +68,10 @@ export default async function StatisticsPage({ searchParams }: { searchParams: P
   }
 
   // 4. Фикс-косты
-  const { data: fixedCosts } = await supabase
-    .from('fixed_costs')
-    .select('id, amount_eur, month_key, cost_type, expense_date, category, currency, is_capex');
+  const FC_COLS = 'id, amount_eur, month_key, cost_type, expense_date, category, currency, is_capex';
+  const fcFull = await supabase.from('fixed_costs').select(`${FC_COLS}, cost_class`);
+  // До миграции 043 колонки cost_class нет — все расходы операционные.
+  const { data: fixedCosts } = fcFull.error ? await supabase.from('fixed_costs').select(FC_COLS) : fcFull;
 
   // ============================================================
   // РАСЧЁТЫ (вынесены в lib/statistics.ts)

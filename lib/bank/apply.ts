@@ -69,6 +69,8 @@ export async function applyDecision(
 
   if (d.type === 'cash') {
     if (amount >= 0) return { ok: false, error: 'direction' };
+    // Видно в «Общих расходах» отдельной строкой «снятие наличных», вне P&L (миграция 043).
+    await insertCashCost(supabase, { id: txId, amount, currency: tx.currency, booking_date: date, counterparty: tx.counterparty, title: tx.title, op_type: tx.op_type });
     const { error } = await done({ status: 'matched', overhead_category: 'cash' });
     return error ? { ok: false, error: 'db', message: error.message } : { ok: true };
   }
@@ -142,6 +144,33 @@ export async function applyDecision(
   return e2 ? { ok: false, error: 'db', message: e2.message } : { ok: true };
 }
 
+/**
+ * Строка «снятие наличных» в «Общих расходах» (cost_class = 'cash', вне P&L). До миграции
+ * 043 колонки нет — строку не создаём: иначе она посчиталась бы расходом.
+ */
+export async function insertCashCost(
+  supabase: Supabase,
+  tx: { id: string; amount: number; currency: string; booking_date: string; counterparty: string | null; title: string | null; op_type: string | null },
+): Promise<void> {
+  const value = -Number(tx.amount);
+  const date = String(tx.booking_date).slice(0, 10);
+  const label = [tx.counterparty || tx.op_type, tx.title].filter(Boolean).join(' · ').slice(0, 300);
+  await supabase.from('fixed_costs').insert({
+    month_key: date.slice(0, 7),
+    category: label || 'Cash',
+    cost_type: 'one_time',
+    expense_date: date,
+    currency: tx.currency,
+    original_amount: value,
+    amount_eur: await toEur(supabase, value, tx.currency, date),
+    amount_pln: tx.currency === 'PLN' ? value : null,
+    is_capex: false,
+    capex_rule: 'none',
+    cost_class: 'cash',
+    bank_transaction_id: tx.id,
+  });
+}
+
 /** Отменить решение: вернуть прежние даты оплаты и статусы, удалить общий расход. */
 export async function undoDecision(supabase: Supabase, txId: string): Promise<{ ok: true } | { ok: false; error: ApplyError; message?: string }> {
   const { data } = await supabase
@@ -151,8 +180,11 @@ export async function undoDecision(supabase: Supabase, txId: string): Promise<{ 
     .maybeSingle();
   if (!data) return { ok: false, error: 'notFound' };
   const undo = (data.undo ?? {}) as Undo;
-  if (data.overhead_category && data.overhead_category !== 'cash') {
-    if (await isMonthClosed(supabase, String(data.booking_date).slice(0, 7))) return { ok: false, error: 'closed' };
+  if (data.overhead_category) {
+    // Наличные вне P&L — закрытый месяц не мешает.
+    if (data.overhead_category !== 'cash' && (await isMonthClosed(supabase, String(data.booking_date).slice(0, 7)))) {
+      return { ok: false, error: 'closed' };
+    }
     await supabase.from('fixed_costs').delete().eq('bank_transaction_id', txId);
   }
   for (const p of undo.purchases ?? []) {

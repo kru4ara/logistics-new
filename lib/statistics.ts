@@ -1,3 +1,4 @@
+import { isOperatingCost } from './cost-class';
 import {
   COMPLETED_STATUSES,
   getOrderMonthKey,
@@ -114,6 +115,7 @@ export function buildFixedCostsByMonth(
       });
       return;
     }
+    if (!isOperatingCost(fc)) return; // дивиденды, наличные — вне P&L
 
     if (fc.cost_type === 'yearly') {
       // Годовая стоимость целиком в месяц оплаты.
