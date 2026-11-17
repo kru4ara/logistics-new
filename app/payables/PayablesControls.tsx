@@ -4,8 +4,8 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, Link2, CheckCircle2, Undo2, DownloadCloud, Trash2 } from 'lucide-react';
 import { useT } from '../components/I18nProvider';
-import { syncPurchasesNow, linkPurchase, linkPurchaseToTrip, unlinkPurchase, setPurchasePaid, deleteManualPurchase } from './actions';
-import { matchesQuery } from '../../lib/payables/trip-rules';
+import { syncPurchasesNow, linkPurchase, linkPurchaseToTrip, linkPurchaseToTrips, unlinkPurchase, setPurchasePaid, deleteManualPurchase } from './actions';
+import { matchesQuery, splitEvenly, validateAllocations, type Allocation } from '../../lib/payables/trip-rules';
 
 type Res = { ok: boolean; message?: string };
 
@@ -85,12 +85,82 @@ function SearchSelect({ options, suggestedIds, value, onChange, placeholder, sug
   );
 }
 
+/** Несколько рейсов с долями счёта: галочки (поиск, рейсы периода сверху) и суммы. */
+function TripSplitPicker({ options, suggestedIds, total, currency, value, onChange }: {
+  options: PickOption[];
+  suggestedIds: string[];
+  total: number;
+  currency: string;
+  value: Allocation[];
+  onChange: (v: Allocation[]) => void;
+}) {
+  const { t } = useT();
+  const [q, setQ] = useState('');
+  const chosen = new Set(value.map((a) => a.tripId));
+  const byId = new Map(options.map((o) => [o.id, o]));
+  const found = q.trim() ? options.filter((o) => matchesQuery(o.label, q)) : options;
+  const sugSet = new Set(suggestedIds);
+  const list = [
+    ...suggestedIds.map((id) => byId.get(id)).filter((o): o is PickOption => Boolean(o) && found.includes(o!)),
+    ...found.filter((o) => !sugSet.has(o.id)).slice(0, MAX_SHOWN),
+  ];
+  const even = (ids: string[]) => {
+    const parts = splitEvenly(total, ids.length);
+    return ids.map((id, i) => ({ tripId: id, amount: parts[i] }));
+  };
+  const toggle = (id: string) => {
+    const ids = chosen.has(id) ? value.map((a) => a.tripId).filter((x) => x !== id) : [...value.map((a) => a.tripId), id];
+    onChange(even(ids));
+  };
+  const sum = Math.round(value.reduce((x, a) => x + (Number.isFinite(a.amount) ? a.amount : 0), 0) * 100) / 100;
+  const off = Math.abs(sum - total) > 0.01;
+  return (
+    <div className="flex flex-col gap-1.5">
+      <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('payx2.searchTrip')} className="input text-sm py-1.5" />
+      <div className="max-h-44 overflow-y-auto border border-slate-200 rounded-lg divide-y divide-slate-50 bg-white">
+        {list.length === 0 && <p className="p-2 text-xs text-slate-400">{t('payx2.nothingFound')}</p>}
+        {list.map((o) => (
+          <label key={o.id} className="flex items-start gap-2 px-2 py-1 text-xs cursor-pointer hover:bg-slate-50">
+            <input type="checkbox" checked={chosen.has(o.id)} onChange={() => toggle(o.id)} className="mt-0.5" />
+            <span className={sugSet.has(o.id) ? 'font-medium text-slate-900' : 'text-slate-600'}>{o.label}</span>
+          </label>
+        ))}
+      </div>
+      {suggestedIds.length > 0 && <p className="text-[11px] text-slate-400">{t('payx4.periodHint', { n: suggestedIds.length })}</p>}
+      {value.length > 0 && (
+        <div className="border border-slate-200 rounded-lg p-2 space-y-1 bg-slate-50/50">
+          {value.map((a, i) => (
+            <div key={a.tripId} className="flex items-center gap-2 text-xs">
+              <span className="flex-1 min-w-0 truncate">{byId.get(a.tripId)?.label ?? a.tripId}</span>
+              <input type="number" step="0.01" min="0.01" value={Number.isFinite(a.amount) ? a.amount : ''} aria-label={t('payx4.share')}
+                onChange={(e) => onChange(value.map((x, j) => (j === i ? { ...x, amount: e.target.value === '' ? NaN : Number(e.target.value) } : x)))}
+                className="input text-xs py-0.5 px-1.5 w-24 text-right tabular-nums" />
+              <span className="text-slate-400 w-8">{currency}</span>
+            </div>
+          ))}
+          <div className="flex items-center justify-between gap-2 pt-1 text-xs">
+            <button type="button" onClick={() => onChange(even(value.map((a) => a.tripId)))} className="text-brand-600 hover:underline">{t('payx4.evenly')}</button>
+            <span className={off ? 'text-red-600 font-semibold' : 'text-slate-500'}>
+              {t('payx4.sum', { sum: sum.toFixed(2), total: total.toFixed(2), cur: currency })}
+            </span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /**
  * Привязка счёта: к участку перевозчика (оплата перевозки), к рейсу целиком как расход
  * (перегруз, EX-1, EPI, склад) или «не относится к рейсам».
  */
-export function LinkPurchaseForm({ invoiceId, segments, suggestedSegments, trips, suggestedTrips, categories, defaultCategory }: {
+export function LinkPurchaseForm({ invoiceId, segments, suggestedSegments, trips, suggestedTrips, periodTrips, total, currency, categories, defaultCategory }: {
   invoiceId: string;
+  /** рейсы периода месячного счёта — подсказка для разделения */
+  periodTrips: string[];
+  /** нетто счёта — делится между рейсами */
+  total: number;
+  currency: string;
   segments: PickOption[];
   suggestedSegments: string[];
   trips: PickOption[];
@@ -106,10 +176,18 @@ export function LinkPurchaseForm({ invoiceId, segments, suggestedSegments, trips
   const [segment, setSegment] = useState(sugSeg);
   const [trip, setTrip] = useState(sugTrip);
   const [category, setCategory] = useState(defaultCategory);
-  const ready = mode === 'none' || (mode === 'segment' ? Boolean(segment) : Boolean(trip && category));
+  const [split, setSplit] = useState(false);
+  const [allocs, setAllocs] = useState<Allocation[]>([]);
+  const splitOk = allocs.length >= 2 && validateAllocations(total, allocs) === null;
+  const ready =
+    mode === 'none' || (mode === 'segment' ? Boolean(segment) : Boolean(category) && (split ? splitOk : Boolean(trip)));
   const submit = () =>
     run(() =>
-      mode === 'trip' ? linkPurchaseToTrip(invoiceId, trip, category) : linkPurchase(invoiceId, mode === 'segment' ? segment : null),
+      mode === 'trip'
+        ? split
+          ? linkPurchaseToTrips(invoiceId, allocs, category)
+          : linkPurchaseToTrip(invoiceId, trip, category)
+        : linkPurchase(invoiceId, mode === 'segment' ? segment : null),
     );
   const tab = (m: Mode, label: string) => (
     <button type="button" onClick={() => setMode(m)}
@@ -130,8 +208,16 @@ export function LinkPurchaseForm({ invoiceId, segments, suggestedSegments, trips
       )}
       {mode === 'trip' && (
         <>
-          <SearchSelect options={trips} suggestedIds={suggestedTrips} value={trip} onChange={setTrip} placeholder={t('payx2.searchTrip')}
-            suggestedLabel={t('payx2.suggestedByDate')} otherLabel={t('payx2.otherTrips')} />
+          <label className="inline-flex items-center gap-1.5 text-xs text-slate-600">
+            <input type="checkbox" checked={split} onChange={(e) => setSplit(e.target.checked)} />
+            {t('payx4.splitToggle')}
+          </label>
+          {split ? (
+            <TripSplitPicker options={trips} suggestedIds={periodTrips} total={total} currency={currency} value={allocs} onChange={setAllocs} />
+          ) : (
+            <SearchSelect options={trips} suggestedIds={suggestedTrips} value={trip} onChange={setTrip} placeholder={t('payx2.searchTrip')}
+              suggestedLabel={t('payx2.suggestedByDate')} otherLabel={t('payx2.otherTrips')} />
+          )}
           <select value={category} onChange={(e) => setCategory(e.target.value)} aria-label={t('payx2.category')}
             className={`input text-sm py-1.5 ${category ? '' : 'border-amber-400 bg-amber-50'}`}>
             <option value="">{t('payx2.chooseCategory')}</option>
@@ -143,7 +229,7 @@ export function LinkPurchaseForm({ invoiceId, segments, suggestedSegments, trips
       <div>
         <button type="button" disabled={isPending || !ready} onClick={submit} className="btn btn-primary text-xs px-2.5 py-1.5 disabled:opacity-50">
           {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Link2 className="w-3.5 h-3.5" />}
-          {mode === 'none' ? t('payx2.markNotTrip') : t('pay.link')}
+          {mode === 'none' ? t('payx2.markNotTrip') : mode === 'trip' && split ? t('payx4.splitSubmit', { n: allocs.length }) : t('pay.link')}
         </button>
       </div>
       {msg && !msg.ok && <p className="text-xs text-red-600">{msg.text}</p>}

@@ -2315,4 +2315,18 @@ export const pl: Messages = {
     dupBadge: 'duplikat faktury?',
     unsortedBanner: '{n} faktur „nie dotyczy kursów” bez kategorii — nie trafiły do kosztów ogólnych. Rozdziel →',
   },
+  payx4: {
+    splitToggle: 'Podziel na kilka kursów (faktura miesięczna)',
+    splitSubmit: 'Podziel na {n}',
+    periodHint: 'Na górze — {n} kursów z okresu faktury (miesiąc przed datą)',
+    share: 'Udział faktury',
+    evenly: 'Po równo',
+    sum: '{sum} z {total} {cur}',
+    plusTrips: '+ jeszcze {n}',
+    err_empty: 'Wybierz kursy',
+    err_tooMany: 'Za dużo kursów dla jednej faktury',
+    err_duplicate: 'Kurs wybrany dwa razy',
+    err_amount: 'Każdy kurs musi mieć udział większy od zera',
+    err_sum: 'Udziały muszą sumować się do kwoty faktury ({total})',
+  },
 };

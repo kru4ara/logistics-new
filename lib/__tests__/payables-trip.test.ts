@@ -56,3 +56,41 @@ describe('сводка: счёт-расход рейса', () => {
     expect(s.toPay.map((r) => r.id)).toEqual(['x']);
   });
 });
+
+import { splitEvenly, scaleAllocations, validateAllocations, tripsForPeriodInvoice } from '../payables/trip-rules';
+describe('один счёт на несколько рейсов', () => {
+  it('поровну по копейкам, сумма сходится', () => {
+    expect(splitEvenly(440, 3)).toEqual([146.67, 146.67, 146.66]);
+    expect(splitEvenly(100, 4)).toEqual([25, 25, 25, 25]);
+    expect(splitEvenly(0.01, 2)).toEqual([0.01, 0]);
+    expect(splitEvenly(10, 0)).toEqual([]);
+  });
+
+  it('пропорционально новой сумме (korekta)', () => {
+    const s = scaleAllocations([{ tripId: 'a', amount: 300 }, { tripId: 'b', amount: 100 }], 440);
+    expect(s).toEqual([{ tripId: 'a', amount: 330 }, { tripId: 'b', amount: 110 }]);
+    const r = scaleAllocations([{ tripId: 'a', amount: 1 }, { tripId: 'b', amount: 1 }, { tripId: 'c', amount: 1 }], 100);
+    expect(r.reduce((x, a) => x + a.amount, 0)).toBeCloseTo(100, 5);
+  });
+
+  it('проверка долей', () => {
+    const ok = [{ tripId: 'a', amount: 220 }, { tripId: 'b', amount: 220 }];
+    expect(validateAllocations(440, ok)).toBeNull();
+    expect(validateAllocations(440, [])).toBe('empty');
+    expect(validateAllocations(440, [{ tripId: 'a', amount: 220 }, { tripId: 'a', amount: 220 }])).toBe('duplicate');
+    expect(validateAllocations(440, [{ tripId: 'a', amount: 440 }, { tripId: 'b', amount: 0 }])).toBe('amount');
+    expect(validateAllocations(440, [{ tripId: 'a', amount: 200 }, { tripId: 'b', amount: 220 }])).toBe('sum');
+    expect(validateAllocations(440, [{ tripId: 'a', amount: 220.005 }, { tripId: 'b', amount: 220 }])).toBeNull();
+  });
+
+  it('рейсы месяца для счёта Polbalt от 31.10', () => {
+    const t = (id: string, s: string, e: string) => ({ id, number: id, clientName: null, start: s, end: e, truck: null, label: id });
+    const r = tripsForPeriodInvoice('2026-10-31', [
+      t('sep', '2026-09-10', '2026-09-20'),
+      t('edge', '2026-09-28', '2026-10-02'),
+      t('oct', '2026-10-15', '2026-10-20'),
+      t('nov', '2026-11-05', '2026-11-08'),
+    ]);
+    expect(r.map((x) => x.id)).toEqual(['edge', 'oct']);
+  });
+});

@@ -7,12 +7,14 @@ import { logAudit } from '../../lib/audit';
 import { getT } from '../../lib/i18n/server';
 import { runKsefPurchaseSync } from '../../lib/payables/sync';
 import { recalcSegmentCost } from '../../lib/payables/cost';
-import { parseManualInvoice } from '../../lib/payables/cost-rules';
+import { parseManualInvoice, costAmount } from '../../lib/payables/cost-rules';
 import { invoiceKey, isValidPaidDate } from '../../lib/payables/duplicate-rules';
 import { syncInvoiceTripExpense } from '../../lib/payables/trip-expense';
 import { syncInvoiceOverheadCost } from '../../lib/payables/overhead-cost';
 import { isMonthClosed, tripMonth } from '../../lib/closed-months';
 import { EXPENSE_CATEGORIES } from '../../lib/i18n/labels';
+import { validateAllocations, type Allocation } from '../../lib/payables/trip-rules';
+import type { MessageKey } from '../../lib/i18n/translate';
 import { isOverheadCategory, sellerKey } from '../../lib/payables/overhead-rules';
 import { fetchAll } from '../../lib/fetch-all';
 
@@ -139,49 +141,76 @@ const TRIP_CATEGORIES = new Set<string>(EXPENSE_CATEGORIES.map((c) => c.value));
  * перевозчика. Расход появляется в рейсе обычной строкой с выбранной категорией.
  */
 export async function linkPurchaseToTrip(invoiceId: string, tripId: string, category: string): Promise<Result> {
+  return linkPurchaseToTrips(invoiceId, [{ tripId, amount: NaN }], category);
+}
+
+/**
+ * Один счёт на несколько рейсов (месячный счёт агентства): доли по рейсам, в сумме —
+ * нетто счёта. Одна доля с amount NaN — весь счёт на один рейс.
+ */
+export async function linkPurchaseToTrips(invoiceId: string, allocations: Allocation[], category: string): Promise<Result> {
   await requireCapability('payables.edit');
   const { t } = await getT();
   if (!TRIP_CATEGORIES.has(category)) return { ok: false, message: t('payx2.errCategory') };
   const supabase = await createClient();
   const { data: inv } = await supabase
     .from('purchase_invoices')
-    .select('id, invoice_number, ksef_number, seller_name, segment_id')
+    .select('id, invoice_number, ksef_number, seller_name, segment_id, net_amount, gross_amount')
     .eq('id', invoiceId)
     .maybeSingle();
   if (!inv) return { ok: false, message: t('pay.notFound') };
-  const { data: trip } = await supabase.from('trips').select('id, trip_number, start_date, end_date').eq('id', tripId).maybeSingle();
-  if (!trip) return { ok: false, message: t('payx2.errTrip') };
-  const previousTrip = await invoiceTripId(supabase, invoiceId);
-  for (const id of [tripId, previousTrip]) {
-    if (!id) continue;
-    const { data: tr } = id === tripId ? { data: trip } : await supabase.from('trips').select('start_date, end_date').eq('id', id).maybeSingle();
-    if (await isMonthClosed(supabase, tripMonth(tr as { start_date: string | null; end_date: string | null } | null))) {
-      return { ok: false, message: t('payx2.errClosed') };
-    }
+  const total = costAmount({
+    net: inv.net_amount != null ? Number(inv.net_amount) : null,
+    gross: inv.gross_amount != null ? Number(inv.gross_amount) : null,
+  }) ?? 0;
+  const single = allocations.length === 1 && Number.isNaN(allocations[0].amount);
+  const allocs: Allocation[] = single ? [{ tripId: allocations[0].tripId, amount: total }] : allocations.map((a) => ({ tripId: String(a.tripId), amount: Number(a.amount) }));
+  const bad = single ? null : validateAllocations(total, allocs);
+  if (bad) return { ok: false, message: t(`payx4.err_${bad}` as MessageKey, { total: String(total) }) };
+
+  const tripIds = allocs.map((a) => a.tripId);
+  const { data: trips } = await supabase.from('trips').select('id, trip_number, start_date, end_date').in('id', tripIds);
+  if ((trips ?? []).length !== tripIds.length) return { ok: false, message: t('payx2.errTrip') };
+  // Закрытые месяцы — и новых рейсов, и тех, от которых счёт уходит.
+  const { data: prevRows } = await supabase.from('trip_expenses').select('trip_id').eq('purchase_invoice_id', invoiceId);
+  const prevIds = [...new Set(((prevRows ?? []) as { trip_id: string }[]).map((r) => r.trip_id))];
+  const legacy = await invoiceTripId(supabase, invoiceId);
+  const leaving = [...new Set([...prevIds, ...(legacy ? [legacy] : [])])].filter((id) => !tripIds.includes(id));
+  const { data: leavingTrips } = leaving.length ? await supabase.from('trips').select('start_date, end_date').in('id', leaving) : { data: [] };
+  for (const tr of [...(trips ?? []), ...(leavingTrips ?? [])] as { start_date: string | null; end_date: string | null }[]) {
+    if (await isMonthClosed(supabase, tripMonth(tr))) return { ok: false, message: t('payx2.errClosed') };
   }
 
   const { error } = await supabase
     .from('purchase_invoices')
-    .update({ trip_id: tripId, segment_id: null, match_status: 'manual', updated_at: new Date().toISOString() })
+    .update({ trip_id: tripIds[0], segment_id: null, match_status: 'manual', updated_at: new Date().toISOString() })
     .eq('id', invoiceId);
   if (error) {
     return { ok: false, message: /trip_id/.test(error.message) ? t('pay.needMigration') : t('dir.updateError', { msg: error.message }) };
   }
   if (inv.segment_id) await recalcSegmentCost(supabase, inv.segment_id as string);
-  await syncInvoiceTripExpense(supabase, invoiceId, category);
+  const synced = await syncInvoiceTripExpense(supabase, invoiceId, category, allocs);
+  if (!synced.ok) {
+    return { ok: false, message: synced.error === 'migration' ? t('pay.needMigration') : t('dir.updateError', { msg: synced.error ?? '' }) };
+  }
   await syncInvoiceOverheadCost(supabase, invoiceId);
-  revalidatePath('/fixed-costs');
 
+  const numbers = (trips ?? []).map((x) => x.trip_number ?? '').join(', ');
   await logAudit({
-    entity_type: 'trip',
-    entity_id: tripId,
+    entity_type: 'purchase_invoice',
+    entity_id: invoiceId,
     action: 'update',
-    changes: { purchase_invoice: { before: null, after: inv.invoice_number }, category: { before: null, after: category } },
-    summary: `Счёт ${inv.invoice_number ?? inv.ksef_number ?? ''} (${inv.seller_name ?? ''}) привязан к рейсу ${trip.trip_number ?? ''} как расход`,
+    changes: {
+      trips: { before: prevIds.length ? prevIds.join(', ') : null, after: tripIds.join(', ') },
+      category: { before: null, after: category },
+    },
+    summary: allocs.length > 1
+      ? `Счёт ${inv.invoice_number ?? inv.ksef_number ?? ''} (${inv.seller_name ?? ''}) разделён на ${allocs.length} рейсов: ${numbers}`
+      : `Счёт ${inv.invoice_number ?? inv.ksef_number ?? ''} (${inv.seller_name ?? ''}) привязан к рейсу ${numbers} как расход`,
   });
-  if (previousTrip && previousTrip !== tripId) revalidatePath(`/trips/${previousTrip}`);
-  revalidatePath(`/trips/${tripId}`);
+  for (const id of new Set([...tripIds, ...leaving])) revalidatePath(`/trips/${id}`);
   revalidatePath('/payables');
+  revalidatePath('/fixed-costs');
   return { ok: true };
 }
 

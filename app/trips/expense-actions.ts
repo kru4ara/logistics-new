@@ -13,9 +13,12 @@ export async function deleteExpenseAction(id: string, tripId: string) {
   const { error } = await supabase.from('trip_expenses').delete().eq('id', id);
   if (error) throw new Error(error.message);
   if (invoiceId) {
+    // Счёт разделён на несколько рейсов — остаётся на других; последняя доля — счёт свободен.
+    const { data: left } = await supabase.from('trip_expenses').select('trip_id').eq('purchase_invoice_id', invoiceId).limit(1);
+    const next = (left?.[0]?.trip_id as string | undefined) ?? null;
     await supabase
       .from('purchase_invoices')
-      .update({ trip_id: null, match_status: 'none', updated_at: new Date().toISOString() })
+      .update(next ? { trip_id: next, updated_at: new Date().toISOString() } : { trip_id: null, match_status: 'none', updated_at: new Date().toISOString() })
       .eq('id', invoiceId);
     revalidatePath('/payables');
   }
