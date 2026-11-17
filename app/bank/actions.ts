@@ -78,7 +78,9 @@ export async function decideTransaction(txId: string, decision: Decision): Promi
       ? { type: decision.type, ids: [...new Set((decision.ids ?? []).map(String))].slice(0, 100) }
       : decision.type === 'overhead'
         ? { type: 'overhead', category: String(decision.category ?? '') }
-        : { type: 'ignore' };
+        : decision.type === 'cash'
+          ? { type: 'cash' }
+          : { type: 'ignore' };
   const r = await applyDecision(supabase, txId, d, userId ?? null);
   if (!r.ok) return { ok: false, message: await errText(r.error, r.message) };
   await logAudit({
@@ -86,7 +88,7 @@ export async function decideTransaction(txId: string, decision: Decision): Promi
     entity_id: txId,
     action: 'update',
     changes: { decision: { before: 'new', after: d.type } },
-    summary: `Операция выписки: ${d.type}${d.type === 'overhead' ? ` (${d.category})` : d.type === 'ignore' ? '' : ` ×${d.ids.length}`}`,
+    summary: `Операция выписки: ${d.type}${d.type === 'overhead' ? ` (${d.category})` : d.type === 'purchases' || d.type === 'trips' ? ` ×${d.ids.length}` : ''}`,
   });
   refresh();
   return { ok: true };
@@ -106,7 +108,7 @@ export async function acceptSuggestions(statementId: string | null): Promise<Res
   for (const r of (data ?? []) as { id: string; suggestion: any }[]) {
     const s = r.suggestion;
     const d: Decision | null =
-      s?.type === 'purchases' || s?.type === 'trips' ? { type: s.type, ids: s.ids } : s?.type === 'overhead' ? { type: 'overhead', category: s.category } : s?.type === 'ignore' ? { type: 'ignore' } : null;
+      s?.type === 'purchases' || s?.type === 'trips' ? { type: s.type, ids: s.ids } : s?.type === 'overhead' ? { type: 'overhead', category: s.category } : s?.type === 'cash' ? { type: 'cash' } : s?.type === 'ignore' ? { type: 'ignore' } : null;
     if (!d) continue;
     const res = await applyDecision(supabase, r.id, d, userId ?? null);
     if (res.ok) done++;

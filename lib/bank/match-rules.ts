@@ -35,7 +35,6 @@ export function classifyTx(tx: TxLike, ownAccounts: string[]): TxKind {
 export function defaultOverhead(kind: TxKind, tx: TxLike): string | null {
   if (kind === 'fee') return 'bank_fees';
   if (kind === 'tax') return 'taxes';
-  if (kind === 'cash') return 'cash';
   if (kind === 'card' && has(tx.counterparty, /STACJA|PALIW|ORLEN|BP |SHELL|CIRCLE|MOYA|AMIC/i)) return 'fuel';
   if (has(tx.title, /WYNAGRODZ|UMOWA O DZIEŁO|PENSJA/i)) return 'salary';
   if (has(tx.counterparty, /MINISTERSTWO FINANS/i) || has(tx.title, /E-?TOLL/i)) return 'tolls';

@@ -2336,6 +2336,10 @@ export const pl: Messages = {
     err_sum: 'Udziały muszą sumować się do kwoty faktury ({total})',
   },
   bank: {
+    cashBtn: 'Gotówka',
+    cashHint: 'Wypłata gotówki: to nie koszt — koszt pojawi się, gdy pieniądze zostaną wydane (koszty kursu)',
+    sugCash: 'Gotówka — nie koszt (pójdzie na koszty kursów)',
+    cashDecided: 'gotówka, nie koszt',
     rematch: 'Przelicz podpowiedzi',
     rematched: 'Sprawdzono operacji: {checked}, dopasowano od razu: {auto}',
     nav: 'Bank',

@@ -21,6 +21,14 @@ describe('ручная запись = счёт из KSeF', () => {
     expect(pairs).toEqual([{ manualId: 'm', invoiceCostId: 'k', byNumber: true }]);
   });
 
+  it('совпадение с нетто — не дубль («Збышеку на топливо 300» ≠ Logisat 369/300)', () => {
+    const pairs = findManualDuplicates(
+      [c('m', { category: 'Збышеку на топливо', original_amount: 300 }), c('k', { purchase_invoice_id: 'i1', original_amount: 369 })],
+      new Map([['i1', inv({ gross: 369, net: 300, number: 'FSENT/6/2026/10' })]]),
+    );
+    expect(pairs).toEqual([]);
+  });
+
   it('другая валюта, сумма или далёкая дата — не дубль; одна пара на запись', () => {
     const invs = new Map([['i1', inv()]]);
     expect(findManualDuplicates([c('m', { currency: 'EUR' }), c('k', { purchase_invoice_id: 'i1' })], invs)).toEqual([]);

@@ -10,6 +10,7 @@ export type PickOpt = { id: string; label: string };
 type Cat = { value: string; label: string };
 type Suggestion =
   | { type: 'purchases' | 'trips'; ids: string[]; exact: boolean }
+  | { type: 'cash' }
   | { type: 'overhead'; category: string }
   | { type: 'ignore' }
   | null;
@@ -96,7 +97,9 @@ export function TxActions({ txId, status, outgoing, suggestion, picks, categorie
           ? { type: suggestion.type, ids: suggestion.ids }
           : suggestion.type === 'overhead'
             ? { type: 'overhead', category: suggestion.category }
-            : { type: 'ignore' },
+            : suggestion.type === 'cash'
+              ? { type: 'cash' }
+              : { type: 'ignore' },
       ),
     );
   };
@@ -106,6 +109,11 @@ export function TxActions({ txId, status, outgoing, suggestion, picks, categorie
         {suggestion && (
           <button type="button" disabled={isPending} onClick={accept} className={`${btn} text-white bg-brand-600 border-brand-600 hover:bg-brand-700`}>
             {isPending ? spin : <Check className="w-3.5 h-3.5" />}{t('bank.accept')}
+          </button>
+        )}
+        {outgoing && suggestion?.type !== 'cash' && (
+          <button type="button" disabled={isPending} onClick={() => run(() => decideTransaction(txId, { type: 'cash' }))} title={t('bank.cashHint')} className={`${btn} text-slate-600 bg-white border-slate-200 hover:bg-slate-50`}>
+            💵 {t('bank.cashBtn')}
           </button>
         )}
         <button type="button" disabled={isPending} onClick={() => run(() => decideTransaction(txId, { type: 'ignore' }))} className={`${btn} text-slate-600 bg-white border-slate-200 hover:bg-slate-50`}>
