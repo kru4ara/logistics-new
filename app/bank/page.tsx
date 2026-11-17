@@ -138,10 +138,12 @@ async function BankView({ searchParams, role }: { searchParams: Promise<{ show?:
     if (s.type === 'purchases') return `${t(s.exact ? 'bank.sugExact' : 'bank.sugProbable')} ${s.ids.map(invLabel).join('; ')}`;
     if (s.type === 'trips') return `${t(s.exact ? 'bank.sugExact' : 'bank.sugProbable')} ${s.ids.map(tripLabel).join('; ')}`;
     if (s.type === 'overhead') return `${t('bank.sugOverhead')} ${ohLabel(s.category)}`;
+    if (s.type === 'cash') return t('bank.sugCash');
     return t('bank.sugIgnore');
   };
   const decided = (x: any): string => {
     if (x.status === 'ignored') return t('bank.skipped');
+    if (x.overhead_category === 'cash') return t('bank.cashDecided');
     if (x.overhead_category) return `${t('bank.toOverhead')}: ${ohLabel(x.overhead_category)}`;
     if (x.purchase_invoice_ids?.length) return `${t('bank.paidInvoices')}: ${x.purchase_invoice_ids.map(invLabel).join('; ')}`;
     if (x.trip_ids?.length) return `${t('bank.paidTrips')}: ${x.trip_ids.map(tripLabel).join('; ')}`;

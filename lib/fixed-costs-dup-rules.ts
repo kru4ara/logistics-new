@@ -13,8 +13,8 @@ export type CostForDup = {
 
 export type InvoiceAmounts = { gross: number | null; net: number | null; number: string | null; issueDate: string | null };
 
-/** Ручная запись и счёт — один расход: та же валюта и сумма (брутто или нетто), даты рядом. */
-export const DUP_DAYS = 20;
+/** Ручная запись и счёт — один расход: та же валюта и сумма брутто, даты рядом. */
+export const DUP_DAYS = 10;
 
 const day = (d: string) => Math.round(Date.parse(`${d.slice(0, 10)}T00:00:00Z`) / 86_400_000);
 const near = (a: number | null, b: number | null) => a != null && b != null && Math.abs(a - b) < 0.01;
@@ -42,7 +42,8 @@ export function findManualDuplicates(
       const inv = invoices.get(c.purchase_invoice_id!);
       if (!inv) continue;
       if ((m.currency || 'EUR').toUpperCase() !== (c.currency || 'EUR').toUpperCase()) continue;
-      if (!near(m.original_amount, inv.gross) && !near(m.original_amount, inv.net)) continue;
+      // Только брутто: расходы ведутся с НДС; совпадение с нетто давало ложные пары (300 ↔ Logisat 369/300).
+      if (!near(m.original_amount, inv.gross ?? inv.net)) continue;
       const num = compact(inv.number);
       const byNumber = num.length >= 4 && compact(m.category).includes(num);
       const mDate = m.expense_date ?? null;

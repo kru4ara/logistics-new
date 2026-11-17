@@ -2336,6 +2336,10 @@ export const en: Messages = {
     err_sum: 'Shares must add up to the invoice amount ({total})',
   },
   bank: {
+    cashBtn: 'Cash',
+    cashHint: 'A cash withdrawal isn’t a cost — the cost appears when the money is spent (trip expenses)',
+    sugCash: 'Cash — not a cost (it funds trip expenses)',
+    cashDecided: 'cash, not a cost',
     rematch: 'Recalculate suggestions',
     rematched: 'Checked {checked} transactions, matched straight away: {auto}',
     nav: 'Bank',

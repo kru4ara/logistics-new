@@ -12,6 +12,7 @@ export type Decision =
   | { type: 'purchases'; ids: string[] } // оплата счетов подрядчиков
   | { type: 'trips'; ids: string[] } // оплата заказов клиентом
   | { type: 'overhead'; category: string } // общий расход без счёта (ZUS, наличные, комиссии…)
+  | { type: 'cash' } // наличные: снятие / выдача людям — не расход, в «Общие расходы» не идёт
   | { type: 'ignore' };
 
 export type ApplyError = 'notFound' | 'decided' | 'direction' | 'category' | 'closed' | 'empty' | 'db';
@@ -63,6 +64,12 @@ export async function applyDecision(
 
   if (d.type === 'ignore') {
     const { error } = await done({ status: 'ignored' });
+    return error ? { ok: false, error: 'db', message: error.message } : { ok: true };
+  }
+
+  if (d.type === 'cash') {
+    if (amount >= 0) return { ok: false, error: 'direction' };
+    const { error } = await done({ status: 'matched', overhead_category: 'cash' });
     return error ? { ok: false, error: 'db', message: error.message } : { ok: true };
   }
 
@@ -144,7 +151,7 @@ export async function undoDecision(supabase: Supabase, txId: string): Promise<{ 
     .maybeSingle();
   if (!data) return { ok: false, error: 'notFound' };
   const undo = (data.undo ?? {}) as Undo;
-  if (data.overhead_category) {
+  if (data.overhead_category && data.overhead_category !== 'cash') {
     if (await isMonthClosed(supabase, String(data.booking_date).slice(0, 7))) return { ok: false, error: 'closed' };
     await supabase.from('fixed_costs').delete().eq('bank_transaction_id', txId);
   }

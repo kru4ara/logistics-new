@@ -9,6 +9,7 @@ import { applyDecision, type Decision } from './apply';
 type Supabase = Awaited<ReturnType<typeof createClient>>;
 
 export type Suggestion =
+  | { type: 'cash' }
   | { type: 'purchases'; ids: string[]; exact: boolean }
   | { type: 'trips'; ids: string[]; exact: boolean }
   | { type: 'overhead'; category: string }
@@ -22,6 +23,8 @@ export function suggestFor(
   trips: TripRef[],
 ): Suggestion | null {
   if (kind === 'internal') return { type: 'ignore' };
+  // Наличные — не расход: деньги переходят в кассу/водителю, расход — когда их потратят (расходы рейса).
+  if (kind === 'cash' && t.amount < 0) return { type: 'cash' };
   if (t.amount > 0) {
     const m = kind === 'client' ? matchTrips(t, trips) : null;
     return m ? { type: 'trips', ...m } : null;
