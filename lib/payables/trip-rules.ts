@@ -65,3 +65,61 @@ export function defaultTripCategory(
   if (/agencja\s+celna|celn[ay]/i.test(seller.name ?? '')) return 'ex1';
   return '';
 }
+
+// ── Один счёт на несколько рейсов (месячные счета агентств: Polbalt, IMEX) ──
+
+export type Allocation = { tripId: string; amount: number };
+export const MAX_SPLIT_TRIPS = 60;
+
+const cents = (n: number) => Math.round(n * 100);
+
+/** Поровну по копейкам: остаток — первым рейсам (сумма сходится точно). */
+export function splitEvenly(total: number, n: number): number[] {
+  if (n <= 0) return [];
+  const all = cents(total);
+  const base = Math.trunc(all / n);
+  const rest = all - base * n;
+  return Array.from({ length: n }, (_, i) => (base + (i < Math.abs(rest) ? Math.sign(rest) : 0)) / 100);
+}
+
+/** Прежние доли под новую сумму счёта (korekta): пропорционально, сумма сходится точно. */
+export function scaleAllocations(prev: Allocation[], total: number): Allocation[] {
+  const sum = prev.reduce((s, a) => s + a.amount, 0);
+  if (!prev.length) return [];
+  if (sum === 0) return prev.map((a, i) => ({ tripId: a.tripId, amount: splitEvenly(total, prev.length)[i] }));
+  const out = prev.map((a) => ({ tripId: a.tripId, amount: Math.round((a.amount / sum) * total * 100) / 100 }));
+  const diff = Math.round((total - out.reduce((s, a) => s + a.amount, 0)) * 100) / 100;
+  out[0].amount = Math.round((out[0].amount + diff) * 100) / 100;
+  return out;
+}
+
+export type SplitError = 'empty' | 'tooMany' | 'duplicate' | 'amount' | 'sum';
+
+/** Доли корректны: рейсы разные, суммы > 0, в сумме — сумма счёта (±0.01). */
+export function validateAllocations(total: number, allocs: Allocation[]): SplitError | null {
+  if (!allocs.length) return 'empty';
+  if (allocs.length > MAX_SPLIT_TRIPS) return 'tooMany';
+  if (new Set(allocs.map((a) => a.tripId)).size !== allocs.length) return 'duplicate';
+  if (allocs.some((a) => !Number.isFinite(a.amount) || a.amount <= 0)) return 'amount';
+  if (Math.abs(cents(allocs.reduce((s, a) => s + a.amount, 0)) - cents(total)) > 1) return 'sum';
+  return null;
+}
+
+/**
+ * Рейсы за период месячного счёта: пересекаются с [дата − 31 дн., дата + 3 дн.] —
+ * агентство выставляет счёт в конце месяца или в начале следующего.
+ */
+export function tripsForPeriodInvoice(date: string | null, trips: TripCandidate[]): TripCandidate[] {
+  if (!date) return [];
+  const d = day(date);
+  const from = d - 31;
+  const to = d + 3;
+  return trips
+    .filter((t) => {
+      if (!t.start && !t.end) return false;
+      const s = day(t.start ?? t.end!);
+      const e = day(t.end ?? t.start!);
+      return s <= to && e >= from;
+    })
+    .sort((a, b) => (a.start ?? '').localeCompare(b.start ?? ''));
+}

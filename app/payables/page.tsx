@@ -13,8 +13,9 @@ import { loadSegmentCandidates } from '../../lib/payables/sync';
 import { suggestSegments, carrierOrderNumber, type SegmentCandidate } from '../../lib/payables/match-rules';
 import { summarizePayables, type PayableRow } from '../../lib/payables/summary';
 import { SyncPurchasesButton, LinkPurchaseForm, UnlinkButton, PurchasePaidButton, PaidDateInput, DeleteManualButton, type PickOption, type CategoryOption } from './PayablesControls';
-import { loadTripCandidates, lastTripCategoryByNip } from '../../lib/payables/trip-expense';
-import { suggestTrips, defaultTripCategory, type TripCandidate } from '../../lib/payables/trip-rules';
+import { loadTripCandidates, lastTripCategoryByNip, loadInvoiceTrips } from '../../lib/payables/trip-expense';
+import { suggestTrips, defaultTripCategory, tripsForPeriodInvoice, type TripCandidate } from '../../lib/payables/trip-rules';
+import { costAmount } from '../../lib/payables/cost-rules';
 import { EXPENSE_CATEGORIES, expenseCategoryKey } from '../../lib/i18n/labels';
 import type { MessageKey } from '../../lib/i18n/translate';
 import { findDuplicateGroups } from '../../lib/payables/duplicate-rules';
@@ -84,7 +85,10 @@ export default async function PayablesPage() {
     ).slice(0, 5).map((x) => x.segmentId);
 
   // Рейсы — для счетов-расходов рейса (перегруз, EX-1, EPI): подсказка по датам рейса.
-  const linkedTripIds = rows.map((r) => r.trip_id).filter((x): x is string => Boolean(x));
+  const invoiceTrips = await loadInvoiceTrips(supabase, rows.filter((r) => r.trip_id).map((r) => r.id));
+  const linkedTripIds = [
+    ...new Set([...rows.map((r) => r.trip_id).filter((x): x is string => Boolean(x)), ...[...invoiceTrips.values()].flat()]),
+  ];
   const trips: TripCandidate[] = sum.unmatched.length || linkedTripIds.length ? await loadTripCandidates(supabase, linkedTripIds) : [];
   const tripById = new Map(trips.map((x) => [x.id, x]));
   const tripLabel = (x: TripCandidate) =>
@@ -105,9 +109,15 @@ export default async function PayablesPage() {
   const tripCell = (r: PayableRow) => {
     const x = r.trip_id ? tripById.get(r.trip_id) : null;
     if (!r.trip_id) return null;
+    const shares = invoiceTrips.get(r.id) ?? [];
     return (
-      <span className="inline-flex items-center gap-1.5">
+      <span className="inline-flex flex-wrap items-center gap-1.5">
         <Link href={`/trips/${r.trip_id}`} className="text-brand-600 hover:underline">{t('payx2.tripRef', { n: x?.number ?? '?' })}</Link>
+        {shares.length > 1 && (
+          <span className="text-xs text-slate-500" title={shares.map((id) => tripById.get(id)?.number ?? '?').join(', ')}>
+            {t('payx4.plusTrips', { n: shares.length - 1 })}
+          </span>
+        )}
         <span className="text-[10px] uppercase text-slate-400">{t('payx2.asExpense')}</span>
         {canEdit && <UnlinkButton invoiceId={r.id} />}
       </span>
@@ -255,6 +265,9 @@ export default async function PayablesPage() {
                           suggestedSegments={suggestedSegmentIds(r)}
                           trips={tripOptions}
                           suggestedTrips={suggestTrips(r.issue_date, trips).map((x) => x.id)}
+                          periodTrips={tripsForPeriodInvoice(r.issue_date, trips).map((x) => x.id)}
+                          total={costAmount({ net: r.net_amount, gross: r.gross_amount }) ?? 0}
+                          currency={r.currency || 'PLN'}
                           categories={categoryOptions}
                           defaultCategory={defaultTripCategory({ nip: r.seller_nip, name: r.seller_name }, lastByNip)}
                         />

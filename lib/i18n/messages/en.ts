@@ -2315,4 +2315,18 @@ export const en: Messages = {
     dupBadge: 'invoice duplicate?',
     unsortedBanner: '{n} “not trip-related” invoices have no category yet, so they aren’t in overhead. Sort them →',
   },
+  payx4: {
+    splitToggle: 'Split across several trips (monthly invoice)',
+    splitSubmit: 'Split across {n}',
+    periodHint: 'On top: {n} trips from the invoice period (the month before its date)',
+    share: 'Invoice share',
+    evenly: 'Split evenly',
+    sum: '{sum} of {total} {cur}',
+    plusTrips: '+ {n} more',
+    err_empty: 'Pick the trips',
+    err_tooMany: 'Too many trips for one invoice',
+    err_duplicate: 'A trip is selected twice',
+    err_amount: 'Each trip needs a share above zero',
+    err_sum: 'Shares must add up to the invoice amount ({total})',
+  },
 };
