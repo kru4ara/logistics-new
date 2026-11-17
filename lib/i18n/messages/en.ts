@@ -2425,6 +2425,7 @@ export const en: Messages = {
     cashTotal: 'Cash withdrawn (total)',
   },
   pay2: {
+    searchTrip: 'Find an order: number, invoice, client…',
     partPaid: '{paid} of {total} paid',
     advancesTitle: 'Advances and unallocated payments',
     advancesHint: 'Client money from statements that hasn’t closed an invoice yet: the rest of a payment, or an advance on an order without an invoice. Once the invoice is issued, the advance is applied automatically.',

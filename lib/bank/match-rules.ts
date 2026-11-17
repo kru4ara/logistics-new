@@ -205,7 +205,8 @@ export function matchTrips(tx: TxLike & { currency: string }, trips: TripRef[]):
       if (!req) continue;
       const rc = compact(req);
       if (/[-/.]/.test(req) && rc.length >= 5 && title.includes(rc)) return title.indexOf(rc);
-      const digits = req.replace(/[ЕE]$/i, '');
+      // «№ 886», «886Е», «886.» — ядро из цифр.
+      const digits = req.replace(/^\D+/, '').replace(/\D+$/, '');
       if (/^\d{3,6}$/.test(digits) && tokens.includes(digits)) return raw.search(new RegExp(`(?<!\\d)${digits}(?!\\d)`));
     }
     return -1;

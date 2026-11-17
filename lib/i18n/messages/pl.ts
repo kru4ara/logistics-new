@@ -2425,6 +2425,7 @@ export const pl: Messages = {
     cashTotal: 'Wypłacono gotówką (razem)',
   },
   pay2: {
+    searchTrip: 'Szukaj zlecenia: numer, faktura, klient…',
     partPaid: 'zapłacono {paid} z {total}',
     advancesTitle: 'Zaliczki i nierozliczone wpływy',
     advancesHint: 'Pieniądze klientów z wyciągu, które nie zamknęły jeszcze żadnej faktury: reszta wpływu lub zaliczka na zlecenie bez faktury. Po wystawieniu faktury zaliczka rozliczy się sama.',

@@ -226,7 +226,13 @@ function AllocationEditor({ picks, amount, currency, initial, busy, onSubmit }: 
   const { t } = useT();
   const [rows, setRows] = useState(initial.map((a) => ({ tripId: a.tripId, amount: String(a.amount) })));
   const [add, setAdd] = useState('');
+  const [q, setQ] = useState('');
   const byId = new Map(picks.map((p) => [p.id, p]));
+  const words = q.toLowerCase().split(/\s+/).filter(Boolean);
+  const shown = picks
+    .filter((p) => !rows.some((r) => r.tripId === p.id))
+    .filter((p) => words.every((w) => p.label.toLowerCase().includes(w)))
+    .slice(0, 60);
   const cents = (v: string) => Math.round((Number(v.replace(',', '.')) || 0) * 100);
   const used = rows.reduce((s, r) => s + cents(r.amount), 0);
   const left = Math.round(amount * 100) - used;
@@ -250,10 +256,11 @@ function AllocationEditor({ picks, amount, currency, initial, busy, onSubmit }: 
           <button type="button" onClick={() => setRows(rows.filter((_, j) => j !== i))} aria-label={t('pay2.removeShare')} className="text-slate-400 hover:text-red-600">✕</button>
         </div>
       ))}
+      <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('pay2.searchTrip')} className="input text-xs py-1 w-full" />
       <div className="flex gap-1">
         <select value={add} onChange={(e) => setAdd(e.target.value)} aria-label={t('bank.pickTrip')} className="input text-xs py-1 min-w-0 flex-1">
-          <option value="">{t('bank.pickTrip')}</option>
-          {picks.filter((p) => !rows.some((r) => r.tripId === p.id)).map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+          <option value="">{shown.length ? t('bank.pickTrip') : t('payx2.nothingFound')}</option>
+          {shown.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
         </select>
         <button type="button" disabled={!add} onClick={addTrip} className="px-2 py-1 rounded-lg text-xs font-semibold border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50">+</button>
       </div>
