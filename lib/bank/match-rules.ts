@@ -121,14 +121,38 @@ export function matchPurchases(
 export type TripRef = {
   id: string;
   tripNumber: string | null;
+  /** номер заказа (заявки) — его клиент пишет в назначении: CONTR.905, ORDER 908-07/069 */
   requestNumber: string | null;
   invoiceNumber: string | null;
-  /** сумма фактуры клиенту и её валюта */
+  /** сумма к оплате: брутто фактуры клиенту, без фактуры — фрахт заказа */
   amount: number | null;
   currency: string | null;
   clientName: string | null;
   paid: boolean;
+  /** счёт выставлен (или уже оплачен); без счёта приход — аванс */
+  invoiced?: boolean;
+  /** уже распределено на заказ из других приходов, в его валюте */
+  allocated?: number;
 };
+
+export type Allocation = { tripId: string; amount: number };
+export type TripMatch = Match & {
+  /** как разложить платёж по заказам: на каждый — его остаток к оплате */
+  allocations: Allocation[];
+  /** не легло ни на один заказ — аванс / переплата */
+  remainder: number;
+};
+
+/** Погрешность «оплачен полностью»: копейки и округления банка. */
+export const SETTLE_TOLERANCE = 0.5;
+
+/** Остаток к оплате по заказу (не меньше нуля); сумма неизвестна — null. */
+export const outstanding = (t: Pick<TripRef, 'amount' | 'allocated'>) =>
+  t.amount == null ? null : Math.max(0, Math.round((t.amount - (t.allocated ?? 0)) * 100) / 100);
+
+/** Заказ оплачен полностью: распределено не меньше суммы к оплате. */
+export const isSettled = (amount: number | null, allocated: number) =>
+  amount != null && allocated >= amount - SETTLE_TOLERANCE;
 
 /** Числа и номера из назначения: «CONTR.907, 902, 903,6776» → 907, 902, 903, 6776. */
 export function numberTokens(title: string | null | undefined): string[] {
@@ -139,26 +163,63 @@ export function numberTokens(title: string | null | undefined): string[] {
   return [...new Set(clean.match(/(?<!\d)\d{3,6}(?!\d)/g) ?? [])];
 }
 
+/** Разложить платёж по заказам по порядку: каждому — его остаток, сколько хватит. */
+export function allocatePayment(amount: number, cur: string, trips: TripRef[]): { allocations: Allocation[]; remainder: number; covered: boolean } {
+  let left = Math.round(amount * 100);
+  const allocations: Allocation[] = [];
+  let covered = true;
+  for (const t of trips) {
+    const due = (t.currency || 'EUR').toUpperCase() === cur ? outstanding(t) : null;
+    if (due == null || due <= 0) {
+      if (due == null) covered = false;
+      continue;
+    }
+    const share = Math.min(left, Math.round(due * 100));
+    if (share < Math.round(due * 100)) covered = false;
+    if (share > 0) allocations.push({ tripId: t.id, amount: share / 100 });
+    left -= share;
+  }
+  return { allocations, remainder: left / 100, covered };
+}
+
 /**
- * Заказы для прихода от клиента: номер счёта клиенту в назначении или номера заказов /
- * заявок (CONTR.885, 886…). Сумма счетов сходится с платежом — точно; иначе вероятно.
- * Без номеров — один неоплаченный заказ клиента с той же суммой (вероятно).
+ * Заказы для прихода от клиента — в порядке упоминания: номер счёта клиенту в назначении
+ * или номер заказа (CONTR.885, 886…, ORDER 908-07/069). Платёж раскладывается по их
+ * остаткам; точно — если лёг без остатка и закрыл все найденные. Без номеров — один
+ * неоплаченный заказ клиента с той же суммой (вероятно).
  */
-export function matchTrips(tx: TxLike & { currency: string }, trips: TripRef[]): Match | null {
+export function matchTrips(tx: TxLike & { currency: string }, trips: TripRef[]): TripMatch | null {
   const amount = tx.amount;
   if (amount <= 0) return null;
-  const title = compact(tx.title);
-  const tokens = new Set(numberTokens(tx.title));
-  const found = trips.filter((t) => {
-    const inv = compact(t.invoiceNumber);
-    if (inv.length >= 4 && title.includes(inv)) return true;
-    return [t.tripNumber, t.requestNumber].some((n) => n && tokens.has(String(n).replace(/\D/g, '')));
-  });
   const cur = tx.currency.toUpperCase();
-  const sumOf = (xs: TripRef[]) => xs.reduce((s, t) => s + ((t.currency || 'EUR').toUpperCase() === cur ? t.amount ?? 0 : 0), 0);
-  if (found.length) return { ids: found.map((t) => t.id), exact: cents(sumOf(found)) === cents(amount) };
-  const same = trips.filter(
-    (t) => !t.paid && t.amount != null && (t.currency || 'EUR').toUpperCase() === cur && cents(t.amount) === cents(amount) && sameParty(tx.counterparty, t.clientName),
-  );
-  return same.length === 1 ? { ids: [same[0].id], exact: false } : null;
+  const title = compact(tx.title);
+  const raw = tx.title ?? '';
+  const tokens = numberTokens(raw);
+  const pos = (t: TripRef): number => {
+    const inv = compact(t.invoiceNumber);
+    if (inv.length >= 4 && title.includes(inv)) return title.indexOf(inv);
+    const req = (t.requestNumber ?? '').trim();
+    if (!req) return -1;
+    // «908-07/069» целиком; «905» — отдельным числом.
+    const rc = compact(req);
+    if (/\D/.test(req.replace(/\s/g, '')) && rc.length >= 5 && title.includes(rc)) return title.indexOf(rc);
+    const digits = req.replace(/\D/g, '');
+    if (digits && digits === req.replace(/\s/g, '') && tokens.includes(digits)) return raw.search(new RegExp(`(?<!\\d)${digits}(?!\\d)`));
+    return -1;
+  };
+  const found = trips
+    .map((t) => ({ t, p: pos(t) }))
+    .filter((x) => x.p >= 0)
+    .sort((a, b) => a.p - b.p)
+    .map((x) => x.t);
+  if (found.length) {
+    const { allocations, remainder, covered } = allocatePayment(amount, cur, found);
+    return { ids: found.map((t) => t.id), exact: covered && Math.abs(remainder) < 0.005, allocations, remainder };
+  }
+  const same = trips.filter((t) => {
+    const due = outstanding(t);
+    return !t.paid && due != null && due > 0 && (t.currency || 'EUR').toUpperCase() === cur && cents(due) === cents(amount) && sameParty(tx.counterparty, t.clientName);
+  });
+  if (same.length !== 1) return null;
+  return { ids: [same[0].id], exact: false, allocations: [{ tripId: same[0].id, amount }], remainder: 0 };
 }

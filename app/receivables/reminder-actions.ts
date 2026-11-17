@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { loadAllocatedByTrip } from '../../lib/bank/refs';
 import { requireCapability } from '../../lib/require-office';
 import { createClient } from '../../lib/supabase/admin';
 import { logAudit } from '../../lib/audit';
@@ -49,8 +50,13 @@ async function draftFor(supabase: Supabase, clientId: string) {
   if (!client) return null;
   const { data: trips } = await loadInvoicedTrips(supabase);
   const today = new Date().toISOString().slice(0, 10);
+  // Долг — за вычетом уже пришедшего по выписке.
+  const paid = await loadAllocatedByTrip(supabase);
   const items = overdueItems(
-    ((trips ?? []) as ReceivableTrip[]).filter((tr) => tr.client_id === clientId).map((tr) => toReceivable(tr, client.payment_days, today)),
+    ((trips ?? []) as ReceivableTrip[])
+      .filter((tr) => tr.client_id === clientId)
+      .map((tr) => toReceivable({ ...tr, paid_part: paid.get(tr.id) ?? 0 }, client.payment_days, today))
+      .filter((r) => r.amount > 0.5),
   );
   const locale: MailLocale = mailLocaleOf(client.mail_locale);
   const company = await getCompany();

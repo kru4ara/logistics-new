@@ -20,6 +20,8 @@ import { rankTripsForInvoice, type TripOption } from '../../lib/invoicing/sync-r
 import { formatDateTime } from '../../lib/i18n/format';
 import { getInvoiceProvider } from '../../lib/invoicing';
 import { loadInvoicedTrips } from '../../lib/receivables-load';
+import { loadAllocatedByTrip } from '../../lib/bank/refs';
+import { loadAdvances } from '../../lib/bank/advances';
 
 export const dynamic = 'force-dynamic';
 
@@ -59,9 +61,12 @@ export default async function ReceivablesPage() {
 
   const clientById = new Map((clients || []).map((c) => [c.id as string, c as { id: string; name: string; payment_days: number | null }]));
   const today = new Date().toISOString().slice(0, 10);
-  const items = ((trips || []) as ReceivableTrip[]).map((tr) =>
-    toReceivable(tr, tr.client_id ? clientById.get(tr.client_id)?.payment_days : null, today),
-  );
+  // Уже пришедшие части (выписка, миграция 044): долг — остаток; закрытые полностью — не долг.
+  const allocated = await loadAllocatedByTrip(supabase);
+  const items = ((trips || []) as ReceivableTrip[])
+    .map((tr) => toReceivable({ ...tr, paid_part: allocated.get(tr.id) ?? 0 }, tr.client_id ? clientById.get(tr.client_id)?.payment_days : null, today))
+    .filter((r) => r.amount > 0.5);
+  const advances = await loadAdvances(supabase);
   const s = summarize(items);
 
   // Фактуры сервиса без заказа (из последней сверки) — с подсказками заказов.
@@ -148,6 +153,35 @@ export default async function ReceivablesPage() {
 
         {unmatched && (
           <UnmatchedInvoices rows={unmatchedRows} canEdit={canEdit} provider={invoiceProvider?.name ?? ''} at={formatDateTime(unmatched.at, locale)} />
+        )}
+
+        {(advances.items.length > 0 || advances.pendingCount > 0) && (
+          <section className="card p-4 md:p-5">
+            <h2 className="font-bold text-slate-900">{t('pay2.advancesTitle')}</h2>
+            <p className="text-sm text-slate-500 mt-1 mb-3">{t('pay2.advancesHint')}</p>
+            {advances.pendingCount > 0 && (
+              <Link href="/bank" className="block mb-3 text-sm text-amber-700 hover:underline">
+                {t('pay2.pendingIncoming', { n: advances.pendingCount })}
+              </Link>
+            )}
+            {advances.items.length > 0 && (
+              <div className="divide-y divide-slate-100 text-sm">
+                {advances.items.map((a) => (
+                  <div key={a.txId} className="py-2 flex flex-col md:flex-row md:items-center gap-1 md:gap-4">
+                    <span className="text-xs text-slate-500 md:w-24 shrink-0 tabular-nums">{formatDate(a.date, locale)}</span>
+                    <span className="flex-1 min-w-0 truncate">{a.counterparty ?? '—'}</span>
+                    <span className="text-xs text-slate-600">
+                      {[
+                        a.unallocated > 0 ? t('pay2.unallocated', { sum: `${a.unallocated.toFixed(2)} ${a.currency}` }) : null,
+                        ...a.onTrips.map((x) => t('pay2.onTrip', { n: x.label, sum: `${x.amount.toFixed(2)} ${a.currency}` })),
+                      ].filter(Boolean).join(' · ')}
+                    </span>
+                    <Link href="/bank?show=matched" className="text-xs text-brand-600 hover:underline shrink-0">{t('pay2.toBank')}</Link>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
         )}
 
         {s.count === 0 ? (
@@ -250,6 +284,11 @@ export default async function ReceivablesPage() {
                             <td className="px-4 py-2.5 text-slate-600">{r.invoice_number || '—'}</td>
                             <td className="px-4 py-2.5 text-right font-semibold tabular-nums">
                               {eur(r.amount)}
+                              {(r.paid_part ?? 0) > 0 && (
+                                <div className="text-[11px] font-normal text-emerald-700">
+                                  {t('pay2.partPaid', { paid: eur(Number(r.paid_part)), total: eur(r.invoiceTotal) })}
+                                </div>
+                              )}
                               {r.amountDiff != null && (
                                 <div className="text-[11px] font-normal text-amber-600" title={t('recv.amountDiffHint')}>
                                   {t('recv.freight', { amount: eur(Number(r.revenue_eur) || 0) })}

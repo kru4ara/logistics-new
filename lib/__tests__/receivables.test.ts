@@ -51,3 +51,14 @@ describe('сумма долга — по фактуре', () => {
     expect(toReceivable({ ...base, invoice_amount: 17000, invoice_currency: 'PLN' }, 30, '2026-11-15')).toMatchObject({ amount: 3900, amountDiff: null });
   });
 });
+
+describe('дебиторка с частичными оплатами из выписки', () => {
+  it('долг — остаток после пришедшего; полностью оплаченный — 0', () => {
+    const base = { id: 't', trip_number: '63', invoice_number: '51/09/2026', client_id: 'c', revenue_eur: 6000, invoice_amount: 6000, invoice_currency: 'EUR', invoiced_at: '2026-09-30', payment_due: '2026-10-30', end_date: null };
+    const r = toReceivable({ ...base, paid_part: 5000 }, 30, '2026-11-17');
+    expect(r.amount).toBe(1000);
+    expect(r.invoiceTotal).toBe(6000);
+    expect(toReceivable({ ...base, paid_part: 7000 }, 30, '2026-11-17').amount).toBe(0);
+    expect(toReceivable(base, 30, '2026-11-17').amount).toBe(6000);
+  });
+});

@@ -8,7 +8,7 @@ import { logAudit } from '../../lib/audit';
 import { getT } from '../../lib/i18n/server';
 import type { MessageKey } from '../../lib/i18n/translate';
 import { pdfLines } from '../../lib/bank/pdf-text';
-import { importStatement, rematchPending } from '../../lib/bank/import';
+import { importStatement, rematchPending, autoDecision } from '../../lib/bank/import';
 import { applyDecision, undoDecision, type Decision } from '../../lib/bank/apply';
 
 type Result = { ok: boolean; message?: string };
@@ -74,7 +74,15 @@ export async function decideTransaction(txId: string, decision: Decision): Promi
   const supabase = await createClient();
   const { userId } = await getSessionContext();
   const d: Decision =
-    decision.type === 'purchases' || decision.type === 'trips'
+    decision.type === 'trips'
+      ? {
+          type: 'trips',
+          ids: [...new Set((decision.ids ?? []).map(String))].slice(0, 100),
+          allocations: Array.isArray(decision.allocations)
+            ? decision.allocations.slice(0, 100).map((a) => ({ tripId: String(a.tripId), amount: Number(a.amount) }))
+            : undefined,
+        }
+      : decision.type === 'purchases'
       ? { type: decision.type, ids: [...new Set((decision.ids ?? []).map(String))].slice(0, 100) }
       : decision.type === 'overhead'
         ? { type: 'overhead', category: String(decision.category ?? '') }
@@ -108,7 +116,10 @@ export async function acceptSuggestions(statementId: string | null): Promise<Res
   for (const r of (data ?? []) as { id: string; suggestion: any }[]) {
     const s = r.suggestion;
     const d: Decision | null =
-      s?.type === 'purchases' || s?.type === 'trips' ? { type: s.type, ids: s.ids } : s?.type === 'overhead' ? { type: 'overhead', category: s.category } : s?.type === 'cash' ? { type: 'cash' } : s?.type === 'ignore' ? { type: 'ignore' } : null;
+      // Счета и заказы — только точные совпадения: «похоже на» решается вручную, с суммами.
+      s?.type === 'purchases' || s?.type === 'trips'
+        ? autoDecision(s)
+        : s?.type === 'overhead' ? { type: 'overhead', category: s.category } : s?.type === 'cash' ? { type: 'cash' } : s?.type === 'ignore' ? { type: 'ignore' } : null;
     if (!d) continue;
     const res = await applyDecision(supabase, r.id, d, userId ?? null);
     if (res.ok) done++;

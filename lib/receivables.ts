@@ -18,12 +18,17 @@ export type ReceivableTrip = {
   invoiced_at: string | null;
   payment_due: string | null;
   end_date: string | null;
+  /** уже пришло по выписке (распределено на заказ), в EUR */
+  paid_part?: number | null;
 };
 
 export type Bucket = 'current' | 'soon' | 'overdue' | 'overdue30' | 'overdue60';
 
 export type Receivable = ReceivableTrip & {
+  /** остаток к оплате: сумма счёта минус уже пришедшее */
   amount: number;
+  /** сумма счёта целиком */
+  invoiceTotal: number;
   /** фактура ≠ фрахт заказа: разница (фактура − фрахт), иначе null */
   amountDiff: number | null;
   due: string | null;
@@ -51,7 +56,8 @@ export function toReceivable(t: ReceivableTrip, clientDays: number | null | unde
   const revenue = Number(t.revenue_eur) || 0;
   const inv = t.invoice_amount != null && t.invoice_amount !== '' ? Number(t.invoice_amount) : null;
   const invInEur = inv != null && Number.isFinite(inv) && (!t.invoice_currency || t.invoice_currency.toUpperCase() === 'EUR');
-  const amount = invInEur ? (inv as number) : revenue;
+  const invoiceTotal = invInEur ? (inv as number) : revenue;
+  const amount = Math.max(0, Math.round((invoiceTotal - (Number(t.paid_part) || 0)) * 100) / 100);
   const amountDiff = invInEur && Math.abs((inv as number) - revenue) >= 0.5 ? Math.round(((inv as number) - revenue) * 100) / 100 : null;
   let due = t.payment_due;
   let estimated = false;
@@ -63,7 +69,7 @@ export function toReceivable(t: ReceivableTrip, clientDays: number | null | unde
     }
   }
   const daysOverdue = due ? diffDays(today, due) : null;
-  return { ...t, amount, amountDiff, due, estimated, daysOverdue, bucket: daysOverdue === null ? null : bucketOf(daysOverdue) };
+  return { ...t, amount, invoiceTotal, amountDiff, due, estimated, daysOverdue, bucket: daysOverdue === null ? null : bucketOf(daysOverdue) };
 }
 
 export type ClientDebt = {

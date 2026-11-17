@@ -4,18 +4,20 @@ import { toEur } from '../fx';
 import { isMonthClosed } from '../closed-months';
 import { providerById } from '../invoicing';
 import { isOverheadCategory } from '../payables/overhead-rules';
+import { allocatePayment, isSettled, type Allocation, type TripRef } from './match-rules';
+import { loadTripRefs } from './refs';
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
 
 /** Решение по операции выписки. */
 export type Decision =
   | { type: 'purchases'; ids: string[] } // оплата счетов подрядчиков
-  | { type: 'trips'; ids: string[] } // оплата заказов клиентом
+  | { type: 'trips'; ids: string[]; allocations?: Allocation[] } // оплата заказов клиентом: доли по заказам
   | { type: 'overhead'; category: string } // общий расход без счёта (ZUS, наличные, комиссии…)
   | { type: 'cash' } // наличные: снятие / выдача людям — не расход, в «Общие расходы» не идёт
   | { type: 'ignore' };
 
-export type ApplyError = 'notFound' | 'decided' | 'direction' | 'category' | 'closed' | 'empty' | 'db';
+export type ApplyError = 'notFound' | 'decided' | 'direction' | 'category' | 'closed' | 'empty' | 'db' | 'overAllocated' | 'badShare';
 
 type Tx = {
   id: string;
@@ -92,30 +94,34 @@ export async function applyDecision(
 
   if (d.type === 'trips') {
     if (amount <= 0) return { ok: false, error: 'direction' };
-    if (!d.ids.length) return { ok: false, error: 'empty' };
+    const ids = [...new Set(d.ids)];
+    if (!ids.length) return { ok: false, error: 'empty' };
     const { data: trips } = await supabase
       .from('trips')
       .select('id, status, paid_at, invoice_provider, invoice_external_id')
-      .in('id', d.ids);
-    if ((trips ?? []).length !== d.ids.length) return { ok: false, error: 'notFound' };
-    const { error } = await supabase
-      .from('trips')
-      .update({ status: 'paid', paid_at: date })
-      .in('id', d.ids)
-      .in('status', ['invoiced', 'paid']);
-    if (error) return { ok: false, error: 'db', message: error.message };
-    // Оплату отмечаем и в сервисе фактур (как кнопка в дебиторке); сбой там не отменяет оплату.
-    for (const t of (trips ?? []) as any[]) {
-      if (t.status === 'paid') continue;
-      const provider = providerById(t.invoice_provider);
-      if (provider && t.invoice_external_id) {
-        await provider.markPaid(t.invoice_external_id).catch((e: unknown) =>
-          console.error('[bank] invoice paid', provider.id, e instanceof Error ? e.message : e),
-        );
-      }
+      .in('id', ids);
+    if ((trips ?? []).length !== ids.length) return { ok: false, error: 'notFound' };
+
+    // Доли: присланные или — по остаткам заказов (подсказка без долей).
+    let allocs: Allocation[] = d.allocations ?? [];
+    if (!d.allocations) {
+      const refs = (await loadTripRefs(supabase)).filter((r) => ids.includes(r.id));
+      const ordered = ids.map((id) => refs.find((r) => r.id === id)).filter((r): r is TripRef => Boolean(r));
+      allocs = allocatePayment(amount, String(tx.currency).toUpperCase(), ordered).allocations;
+    }
+    allocs = allocs.map((x) => ({ tripId: String(x.tripId), amount: Math.round(Number(x.amount) * 100) / 100 }));
+    const bad = validateTripAllocations(amount, ids, allocs);
+    if (bad) return { ok: false, error: bad };
+
+    if (allocs.length) {
+      const { error } = await supabase.from('payment_allocations').insert(
+        allocs.map((x) => ({ bank_transaction_id: txId, trip_id: x.tripId, amount: x.amount, currency: tx.currency, created_by: userId })),
+      );
+      if (error) return { ok: false, error: 'db', message: error.message };
     }
     const undo: Undo = { trips: ((trips ?? []) as any[]).map((t) => ({ id: t.id, status: t.status, paid_at: t.paid_at ?? null })) };
-    const { error: e2 } = await done({ status: 'matched', trip_ids: d.ids, undo });
+    await settleTrips(supabase, ids);
+    const { error: e2 } = await done({ status: 'matched', trip_ids: ids, undo });
     return e2 ? { ok: false, error: 'db', message: e2.message } : { ok: true };
   }
 
@@ -142,6 +148,51 @@ export async function applyDecision(
   if (error) return { ok: false, error: 'db', message: error.message };
   const { error: e2 } = await done({ status: 'matched', overhead_category: d.category });
   return e2 ? { ok: false, error: 'db', message: e2.message } : { ok: true };
+}
+
+/** Доли прихода по заказам: заказы из решения, суммы > 0, в сумме не больше прихода. */
+export function validateTripAllocations(amount: number, ids: string[], allocs: Allocation[]): 'overAllocated' | 'badShare' | null {
+  if (allocs.some((x) => !ids.includes(x.tripId) || !Number.isFinite(x.amount) || x.amount <= 0)) return 'badShare';
+  if (new Set(allocs.map((x) => x.tripId)).size !== allocs.length) return 'badShare';
+  const sum = allocs.reduce((t, x) => t + Math.round(x.amount * 100), 0);
+  return sum > Math.round(amount * 100) + 1 ? 'overAllocated' : null;
+}
+
+/**
+ * Заказы, оплаченные полностью по распределённым приходам, — «оплачен» с датой последнего
+ * прихода (и отметка в сервисе фактур). Только выставленные: аванс до счёта ждёт счёта
+ * (вызывается и при выставлении). Уже оплаченным — дата оплаты по выписке.
+ */
+export async function settleTrips(supabase: Supabase, tripIds: string[]): Promise<void> {
+  if (!tripIds.length) return;
+  const refs = (await loadTripRefs(supabase)).filter((r) => tripIds.includes(r.id));
+  const { data: rows, error } = await supabase
+    .from('payment_allocations')
+    .select('trip_id, bank_transactions(booking_date)')
+    .in('trip_id', tripIds);
+  if (error) return;
+  const lastDate = new Map<string, string>();
+  for (const r of (rows ?? []) as any[]) {
+    const bt = Array.isArray(r.bank_transactions) ? r.bank_transactions[0] : r.bank_transactions;
+    const dt = bt?.booking_date ? String(bt.booking_date).slice(0, 10) : null;
+    if (dt && (!lastDate.has(r.trip_id) || dt > lastDate.get(r.trip_id)!)) lastDate.set(r.trip_id, dt);
+  }
+  const { data: trips } = await supabase.from('trips').select('id, status, invoice_provider, invoice_external_id').in('id', tripIds);
+  for (const t of (trips ?? []) as any[]) {
+    const ref = refs.find((r) => r.id === t.id);
+    const when = lastDate.get(t.id);
+    if (!ref || !when || !isSettled(ref.amount, ref.allocated ?? 0)) continue;
+    if (t.status !== 'invoiced' && t.status !== 'paid') continue;
+    await supabase.from('trips').update({ status: 'paid', paid_at: when }).eq('id', t.id);
+    if (t.status === 'invoiced') {
+      const provider = providerById(t.invoice_provider);
+      if (provider && t.invoice_external_id) {
+        await provider.markPaid(t.invoice_external_id).catch((e: unknown) =>
+          console.error('[bank] invoice paid', provider.id, e instanceof Error ? e.message : e),
+        );
+      }
+    }
+  }
 }
 
 /**
@@ -190,6 +241,8 @@ export async function undoDecision(supabase: Supabase, txId: string): Promise<{ 
   for (const p of undo.purchases ?? []) {
     await supabase.from('purchase_invoices').update({ paid_at: p.paid_at, bank_transaction_id: null, updated_at: now() }).eq('id', p.id).eq('bank_transaction_id', txId);
   }
+  // Доли этого прихода — прочь; заказам — прежние статус и дата оплаты.
+  await supabase.from('payment_allocations').delete().eq('bank_transaction_id', txId);
   for (const t of undo.trips ?? []) {
     await supabase.from('trips').update({ status: t.status, paid_at: t.paid_at }).eq('id', t.id);
   }

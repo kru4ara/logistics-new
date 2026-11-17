@@ -1,7 +1,7 @@
 import 'server-only';
 import type { createClient } from '../supabase/admin';
 import { parsePkoStatement, type ParseError } from './pko-rules';
-import { classifyTx, defaultOverhead, matchPurchases, matchTrips, type TxKind, type PurchaseRef, type TripRef } from './match-rules';
+import { classifyTx, defaultOverhead, matchPurchases, matchTrips, allocatePayment, type TxKind, type PurchaseRef, type TripRef, type Allocation } from './match-rules';
 import { fetchAll } from '../fetch-all';
 import { loadPurchaseRefs, loadTripRefs } from './refs';
 import { applyDecision, insertCashCost, type Decision } from './apply';
@@ -11,7 +11,7 @@ type Supabase = Awaited<ReturnType<typeof createClient>>;
 export type Suggestion =
   | { type: 'cash' }
   | { type: 'purchases'; ids: string[]; exact: boolean }
-  | { type: 'trips'; ids: string[]; exact: boolean }
+  | { type: 'trips'; ids: string[]; exact: boolean; allocations?: Allocation[]; remainder?: number }
   | { type: 'overhead'; category: string }
   | { type: 'ignore' };
 
@@ -35,14 +35,53 @@ export function suggestFor(
 }
 
 /** Однозначное решение по подсказке — применяется без человека. */
-const autoDecision = (sg: Suggestion | null): Decision | null =>
-  sg?.type === 'ignore' ? { type: 'ignore' } : (sg?.type === 'purchases' || sg?.type === 'trips') && sg.exact ? { type: sg.type, ids: sg.ids } : null;
+export const autoDecision = (sg: Suggestion | null): Decision | null => {
+  if (sg?.type === 'ignore') return { type: 'ignore' };
+  if (sg?.type === 'purchases' && sg.exact) return { type: 'purchases', ids: sg.ids };
+  if (sg?.type === 'trips' && sg.exact) return { type: 'trips', ids: sg.ids, allocations: sg.allocations };
+  return null;
+};
+
+/** Точная подсказка по заказам займёт их остаток — учесть для следующих операций той же загрузки. */
+function reserve(sg: Suggestion | null, trips: TripRef[]) {
+  if (sg?.type !== 'trips' || !sg.exact) return;
+  for (const a of sg.allocations ?? []) {
+    const t = trips.find((x) => x.id === a.tripId);
+    if (t) t.allocated = (t.allocated ?? 0) + a.amount;
+  }
+}
 
 /**
  * Пересчитать подсказки для операций без решения (после правки данных: валюта счетов,
  * новые счета из KSeF) и применить однозначные. Возвращает, сколько применено.
  */
 export async function rematchPending(supabase: Supabase, userId: string | null): Promise<{ checked: number; auto: number }> {
+  // Приходы, разнесённые до миграции 044 (без долей), — доли по остаткам заказов, по порядку.
+  const { data: oldTrips, error: allocErr } = await supabase
+    .from('bank_transactions')
+    .select('id, amount, currency, trip_ids')
+    .eq('status', 'matched')
+    .gt('amount', 0);
+  if (!allocErr) {
+    const { data: have } = await fetchAll(supabase.from('payment_allocations').select('bank_transaction_id').order('id'));
+    const done = new Set(((have ?? []) as { bank_transaction_id: string }[]).map((r) => r.bank_transaction_id));
+    const pending = ((oldTrips ?? []) as any[]).filter((r) => (r.trip_ids ?? []).length && !done.has(r.id));
+    if (pending.length) {
+      const refs = await loadTripRefs(supabase);
+      for (const r of pending) {
+        const ordered = (r.trip_ids as string[]).map((id) => refs.find((x) => x.id === id)).filter((x): x is TripRef => Boolean(x));
+        const { allocations } = allocatePayment(Number(r.amount), String(r.currency).toUpperCase(), ordered);
+        if (!allocations.length) continue;
+        const { error } = await supabase
+          .from('payment_allocations')
+          .insert(allocations.map((a) => ({ bank_transaction_id: r.id, trip_id: a.tripId, amount: a.amount, currency: r.currency, created_by: userId })));
+        if (!error) for (const a of allocations) {
+          const t = refs.find((x) => x.id === a.tripId);
+          if (t) t.allocated = (t.allocated ?? 0) + a.amount;
+        }
+      }
+    }
+  }
   // Наличные, решённые до миграции 043, — строка «снятие наличных» вне P&L, если её ещё нет.
   const { data: cash } = await supabase
     .from('bank_transactions')
@@ -81,6 +120,7 @@ export async function rematchPending(supabase: Supabase, userId: string | null):
       purchases,
       trips,
     );
+    reserve(sg, trips);
     await supabase.from('bank_transactions').update({ suggestion: sg }).eq('id', r.id).eq('status', 'new');
     const d = autoDecision(sg);
     if (d && (await applyDecision(supabase, r.id, d, userId)).ok) auto++;
@@ -128,6 +168,7 @@ export async function importStatement(
   const rows = s.transactions.map((t) => {
     const kind = classifyTx(t, own);
     const suggestion = suggestFor({ ...t, currency: s.currency }, kind, purchases, trips);
+    reserve(suggestion, trips);
     return {
       statement_id: st.id,
       account: s.account,
