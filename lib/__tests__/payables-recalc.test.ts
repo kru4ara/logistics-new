@@ -65,9 +65,9 @@ describe('пересчёт расхода «Подрядчик» участка'
     await recalcSegmentCost(db, 's1');
     const contractorRows = tables.trip_expenses.filter((e) => e.category === 'contractor');
     expect(contractorRows).toHaveLength(1);
-    expect(contractorRows[0]).toMatchObject({ id: 'e1', amount_eur: 3135, currency: 'EUR' }); // 2900 + 1000 × 0,235
+    expect(contractorRows[0]).toMatchObject({ id: 'e1', amount_eur: 3189.05, currency: 'EUR' }); // 2900 + 1230 (брутто) × 0,235
     expect(contractorRows[0].description).toContain('по счетам: FV 15/11/2026, FV 16/11/2026');
-    expect(totalEur(db, tables)).toBe(3635);
+    expect(totalEur(db, tables)).toBe(3689.05);
 
     tables.purchase_invoices = [];
     await recalcSegmentCost(db, 's1');
@@ -125,6 +125,7 @@ describe('закрытый месяц', () => {
     // месяц открыт — пересчёт как обычно
     tables.closed_months = [];
     tables.purchase_invoices[0].net_amount = 3200;
+    tables.purchase_invoices[0].gross_amount = 3200;
     expect(await recalcSegmentCost(db, 's1')).toBe('updated');
     expect(tables.trip_expenses[0].amount_eur).toBe(3200);
   });

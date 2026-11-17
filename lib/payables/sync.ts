@@ -7,7 +7,9 @@ import { parseFa3, MAX_WINDOW_DAYS, dateWindows } from '../ksef/rules';
 import { findDuplicateGroups, planManualMerge } from './duplicate-rules';
 import { suggestSegments, autoMatch, normalizeNip, type SegmentCandidate, type PurchaseForMatch } from './match-rules';
 import { recalcSegmentCost } from './cost';
+import { isMonthClosed, tripMonth } from '../closed-months';
 import { syncInvoiceOverheadCost } from './overhead-cost';
+import { syncInvoiceTripExpense } from './trip-expense';
 
 const STATE_KEY = 'ksef.purchases.hwm';
 /** первый запуск — за 60 дней назад */
@@ -208,6 +210,54 @@ async function recalcLinkedSegments(supabase: Supabase): Promise<void> {
   for (const id of ids) await recalcSegmentCost(supabase, id);
 }
 
+const COST_BASIS_KEY = 'payables_cost_basis';
+const COST_BASIS = 'gross';
+
+/**
+ * Разовый пересчёт после перехода себестоимости с нетто на брутто: участки по счетам,
+ * расходы рейса и общие расходы из счетов. Закрытые месяцы не трогаем. Отметка в
+ * integration_state — второй раз не запускается.
+ */
+async function refreshCostBasis(supabase: Supabase): Promise<void> {
+  const { data: state } = await supabase.from('integration_state').select('value').eq('key', COST_BASIS_KEY).maybeSingle();
+  if (state?.value === COST_BASIS) return;
+
+  const { data: segRows } = await fetchAll(
+    supabase.from('purchase_invoices').select('segment_id').not('segment_id', 'is', null).order('id'),
+  );
+  for (const id of new Set(((segRows ?? []) as { segment_id: string }[]).map((r) => r.segment_id))) {
+    await recalcSegmentCost(supabase, id);
+  }
+
+  const { data: tripInv, error: tripErr } = await fetchAll(
+    supabase.from('purchase_invoices').select('id').not('trip_id', 'is', null).order('id'),
+  );
+  if (tripErr) return; // до миграций 037–039 — попробуем при следующей загрузке
+  for (const { id } of (tripInv ?? []) as { id: string }[]) {
+    const { data: rows } = await supabase
+      .from('trip_expenses')
+      .select('trips(start_date, end_date)')
+      .eq('purchase_invoice_id', id);
+    let closed = false;
+    for (const r of (rows ?? []) as any[]) {
+      const tr = Array.isArray(r.trips) ? r.trips[0] : r.trips;
+      if (await isMonthClosed(supabase, tripMonth(tr ?? null))) closed = true;
+    }
+    if (!closed) await syncInvoiceTripExpense(supabase, id);
+  }
+
+  const { data: ohInv, error: ohErr } = await fetchAll(
+    supabase.from('purchase_invoices').select('id, issue_date').eq('match_status', 'ignored').not('overhead_category', 'is', null).order('id'),
+  );
+  if (ohErr) return;
+  for (const r of (ohInv ?? []) as { id: string; issue_date: string | null }[]) {
+    if (await isMonthClosed(supabase, r.issue_date ? String(r.issue_date).slice(0, 7) : null)) continue;
+    await syncInvoiceOverheadCost(supabase, r.id);
+  }
+
+  await supabase.from('integration_state').upsert({ key: COST_BASIS_KEY, value: COST_BASIS, updated_at: new Date().toISOString() });
+}
+
 /**
  * Скачать новые входящие фактуры из KSeF и сопоставить с участками подрядчиков.
  * since (YYYY-MM-DD) — догрузить прошлый период: окна по ≤ 90 дней от since до отметки
@@ -292,6 +342,7 @@ export async function runKsefPurchaseSync(opts: { since?: string } = {}): Promis
   await applySellerRules(supabase);
   const matched = await matchUnlinked(supabase);
   await recalcLinkedSegments(supabase);
+  await refreshCostBasis(supabase);
   if (failed && downloaded === 0) return { ok: false, reason: 'error', message: failed };
   return { ok: true, found: fresh.length, downloaded, matched, remaining };
 }

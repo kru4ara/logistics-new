@@ -1991,7 +1991,7 @@ export const pl: Messages = {
     errUpload: 'Nie udało się wgrać pliku: {msg}',
     errKsefDelete: 'Faktury z KSeF nie można usunąć — można ją tylko odłączyć',
     block: 'Faktury podwykonawców',
-    blockHint: 'Rzeczywisty koszt odcinka — według faktur (netto), bez faktury — według ceny ze zlecenia. Faktury polskie przychodzą z KSeF same, zagraniczne — wprowadź ręcznie.',
+    blockHint: 'Rzeczywisty koszt odcinka — według faktur (brutto), bez faktury — według ceny ze zlecenia. Faktury polskie przychodzą z KSeF same, zagraniczne — wprowadź ręcznie.',
     plan: 'Plan',
     fact: 'Według faktur',
     noInvoices: 'Brak faktur — w marży cena ze zlecenia',
