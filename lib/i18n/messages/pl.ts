@@ -2412,4 +2412,14 @@ export const pl: Messages = {
     eTransaction: 'Operacja z wyciągu',
     fromBank: 'z wyciągu',
   },
+  cclass: {
+    label: 'Rodzaj wydatku',
+    operating: 'Operacyjny (w wyniku)',
+    dividends: 'Dywidendy',
+    cash: 'Wypłata gotówki',
+    hint: 'Dywidendy i wypłaty gotówki są widoczne osobno i nie zmniejszają wyniku',
+    notPl: 'poza wynikiem',
+    dividendsTotal: 'Dywidendy (razem)',
+    cashTotal: 'Wypłacono gotówką (razem)',
+  },
 };

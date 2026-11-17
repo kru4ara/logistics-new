@@ -8,6 +8,7 @@ import { classifyCapex } from '../lib/capex';
 import { getT } from '../lib/i18n/server';
 import { toEur } from '../lib/fx';
 import { logAudit } from '../lib/audit';
+import { isCostClass, guessCostClass } from '../lib/cost-class';
 
 const toEurForCost = (supabase: Awaited<ReturnType<typeof createClient>>, amount: number, currency: string, date: string) =>
   toEur(supabase, amount, currency, date);
@@ -34,6 +35,8 @@ export async function createFixedCost(formData: FormData) {
   const expenseDate = formData.get('expense_date') as string;
   const originalAmount = parseFloat(formData.get('amount') as string) || 0;
   const currency = (formData.get('currency') as string) || 'EUR';
+  const rawClass = formData.get('cost_class');
+  const costClass = isCostClass(rawClass) ? rawClass : guessCostClass(category);
 
   // Если дата не указана — используем 1-е число месяца
   const dateForRate = expenseDate || `${monthKey}-01`;
@@ -42,29 +45,30 @@ export async function createFixedCost(formData: FormData) {
   // Инвестиция определяется автоматически по категории и сумме.
   const capex = classifyCapex(category, amountEur);
 
-  const { data: created, error } = await supabase
-    .from('fixed_costs')
-    .insert([
-      {
-        month_key: monthKey,
-        category: category,
-        cost_type: costType,
-        expense_date: expenseDate || null,
-        currency: currency,
-        original_amount: originalAmount,
-        amount_eur: amountEur,
-        amount_pln: currency === 'PLN' ? originalAmount : null,
-        is_capex: capex.isCapex,
-        capex_rule: capex.rule
-      }
-    ])
-    .select('id')
-    .single();
+  const row = {
+    month_key: monthKey,
+    category: category,
+    cost_type: costType,
+    expense_date: expenseDate || null,
+    currency: currency,
+    original_amount: originalAmount,
+    amount_eur: amountEur,
+    amount_pln: currency === 'PLN' ? originalAmount : null,
+    is_capex: capex.isCapex,
+    capex_rule: capex.rule,
+    cost_class: costClass
+  };
+  let { data: created, error } = await supabase.from('fixed_costs').insert([row]).select('id').single();
+  // До миграции 043 колонки cost_class нет — сохраняем без неё.
+  if (error && /cost_class/.test(error.message)) {
+    const { cost_class: _c, ...rest } = row;
+    ({ data: created, error } = await supabase.from('fixed_costs').insert([rest]).select('id').single());
+  }
 
   if (error) throw new Error(t('dir.addError', { msg: error.message }));
   await logAudit({
     entity_type: 'fixed_cost',
-    entity_id: created.id,
+    entity_id: created?.id ?? '',
     action: 'create',
     changes: {},
     summary: `Общий расход: ${costLine({ category, month_key: monthKey, original_amount: originalAmount, currency, cost_type: costType })}`,
@@ -85,6 +89,8 @@ export async function updateFixedCost(costId: string, formData: FormData) {
   const expenseDate = formData.get('expense_date') as string;
   const originalAmount = parseFloat(formData.get('amount') as string) || 0;
   const currency = (formData.get('currency') as string) || 'EUR';
+  const rawClass = formData.get('cost_class');
+  const costClass = isCostClass(rawClass) ? rawClass : guessCostClass(category);
 
   const dateForRate = expenseDate || `${monthKey}-01`;
   const amountEur = await toEurForCost(supabase, originalAmount, currency, dateForRate);
@@ -98,9 +104,7 @@ export async function updateFixedCost(costId: string, formData: FormData) {
     .eq('id', costId)
     .maybeSingle();
 
-  const { error } = await supabase
-    .from('fixed_costs')
-    .update({
+  const patch = {
       month_key: monthKey,
       category: category,
       cost_type: costType,
@@ -108,11 +112,16 @@ export async function updateFixedCost(costId: string, formData: FormData) {
       currency: currency,
       is_capex: capex.isCapex,
       capex_rule: capex.rule,
+      cost_class: costClass,
       original_amount: originalAmount,
       amount_eur: amountEur,
       amount_pln: currency === 'PLN' ? originalAmount : null
-    })
-    .eq('id', costId);
+  };
+  let { error } = await supabase.from('fixed_costs').update(patch).eq('id', costId);
+  if (error && /cost_class/.test(error.message)) {
+    const { cost_class: _c, ...rest } = patch;
+    ({ error } = await supabase.from('fixed_costs').update(rest).eq('id', costId));
+  }
 
   if (error) throw new Error(t('dir.updateError', { msg: error.message }));
   const after: CostRow = { category, month_key: monthKey, original_amount: originalAmount, currency, cost_type: costType };

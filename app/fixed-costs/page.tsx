@@ -6,6 +6,7 @@ import { deleteFixedCost } from '../fixed-cost-actions';
 import { fetchAll, fetchAllByIds } from '../../lib/fetch-all';
 import { findManualDuplicates, type InvoiceAmounts } from '../../lib/fixed-costs-dup-rules';
 import { OVERHEAD_CATEGORIES } from '../../lib/payables/overhead-rules';
+import { costClassOf, isOperatingCost } from '../../lib/cost-class';
 import ConfirmSubmit from '../components/ConfirmSubmit';
 import {
   Banknote,
@@ -41,6 +42,9 @@ type MonthGroup = {
   total: number;
   capexTotal: number;
   operationalTotal: number;
+  /** вне P&L: дивиденды и снятые наличные */
+  dividendsTotal: number;
+  cashTotal: number;
 };
 
 const costTypeMeta: Record<string, { label: MessageKey; Icon: LucideIcon; badge: string }> = {
@@ -142,12 +146,26 @@ export default async function FixedCostsPage() {
     </Link>
   );
 
+  const classBadge = (c: any) => {
+    const cls = costClassOf(c);
+    if (cls === 'operating') return null;
+    return (
+      <span className={`inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded border ${cls === 'dividends' ? 'bg-violet-50 text-violet-700 border-violet-200' : 'bg-slate-100 text-slate-600 border-slate-300'}`}>
+        {t(`cclass.${cls}` as MessageKey)} · {t('cclass.notPl')}
+      </span>
+    );
+  };
+
   const now = new Date();
   const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
   // Операционные vs инвестиции
-  const operationalCosts = costs?.filter((c) => !c.is_capex) || [];
+  const operationalCosts = costs?.filter((c) => isOperatingCost(c)) || [];
   const capexCosts = costs?.filter((c) => c.is_capex) || [];
+  // Вне P&L, но на виду: вывод собственникам и снятые наличные.
+  const dividendCosts = costs?.filter((c) => !c.is_capex && costClassOf(c) === 'dividends') || [];
+  const cashCosts = costs?.filter((c) => !c.is_capex && costClassOf(c) === 'cash') || [];
+  const sumEur = (xs: any[]) => xs.reduce((s, c) => s + (c.amount_eur || 0), 0);
 
   const yearlyTotal = operationalCosts
     .filter((c) => c.cost_type === 'yearly')
@@ -173,13 +191,20 @@ export default async function FixedCostsPage() {
         total: 0,
         capexTotal: 0,
         operationalTotal: 0,
+        dividendsTotal: 0,
+        cashTotal: 0,
       };
     }
     const amount = c.amount_eur || 0;
     costsByMonth[c.month_key].items.push(c);
     costsByMonth[c.month_key].total += amount;
+    const cls = costClassOf(c);
     if (c.is_capex) {
       costsByMonth[c.month_key].capexTotal += amount;
+    } else if (cls === 'dividends') {
+      costsByMonth[c.month_key].dividendsTotal += amount;
+    } else if (cls === 'cash') {
+      costsByMonth[c.month_key].cashTotal += amount;
     } else {
       costsByMonth[c.month_key].operationalTotal += amount;
     }
@@ -266,6 +291,25 @@ export default async function FixedCostsPage() {
           </div>
         </div>
 
+        {(dividendCosts.length > 0 || cashCosts.length > 0) && (
+          <div className="grid gap-3 md:gap-4 grid-cols-1 sm:grid-cols-2">
+            <div className="card p-4 md:p-5 border-violet-200">
+              <span className="text-xs md:text-sm font-medium text-violet-700">{t('cclass.dividendsTotal')}</span>
+              <div className="text-2xl md:text-3xl font-bold text-violet-600 tabular-nums mt-1">
+                {dividendCosts.length ? `${sumEur(dividendCosts).toFixed(0)} €` : '—'}
+              </div>
+              <div className="text-xs text-violet-600/70 mt-1">{t('fc.outsidePl', { ops: tPlural(t, locale, 'count2.op', dividendCosts.length) })}</div>
+            </div>
+            <div className="card p-4 md:p-5 border-slate-300">
+              <span className="text-xs md:text-sm font-medium text-slate-600">{t('cclass.cashTotal')}</span>
+              <div className="text-2xl md:text-3xl font-bold text-slate-700 tabular-nums mt-1">
+                {cashCosts.length ? `${sumEur(cashCosts).toFixed(0)} €` : '—'}
+              </div>
+              <div className="text-xs text-slate-500 mt-1">{t('fc.outsidePl', { ops: tPlural(t, locale, 'count2.op', cashCosts.length) })}</div>
+            </div>
+          </div>
+        )}
+
         {(unsorted ?? 0) > 0 && (
           <Link href="/payables#sort" className="card p-4 flex items-center gap-3 border-amber-300 bg-amber-50/50 hover:bg-amber-50">
             <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
@@ -333,6 +377,18 @@ export default async function FixedCostsPage() {
                     </h2>
                   </div>
                   <div className="flex items-baseline gap-4">
+                    {m.dividendsTotal > 0 && (
+                      <div className="text-right">
+                        <div className="text-[10px] md:text-xs uppercase tracking-wide text-violet-600 font-medium">{t('cclass.dividends')}</div>
+                        <div className="text-sm md:text-base font-bold text-violet-600 tabular-nums">{m.dividendsTotal.toFixed(0)} €</div>
+                      </div>
+                    )}
+                    {m.cashTotal > 0 && (
+                      <div className="text-right">
+                        <div className="text-[10px] md:text-xs uppercase tracking-wide text-slate-500 font-medium">{t('cclass.cash')}</div>
+                        <div className="text-sm md:text-base font-bold text-slate-600 tabular-nums">{m.cashTotal.toFixed(0)} €</div>
+                      </div>
+                    )}
                     {m.capexTotal > 0 && (
                       <div className="text-right">
                         <div className="text-[10px] md:text-xs uppercase tracking-wide text-amber-600 font-medium">{t('fc.capex')}</div>
@@ -362,6 +418,7 @@ export default async function FixedCostsPage() {
                                 {c.category || t('fc.noCategory')}
                                 {dupManualIds.has(c.id) && <span className="ml-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">{t('payx3.dupBadge')}</span>}
                               </div>
+                              {classBadge(c)}
                               {isCapex && (
                                 <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 border border-amber-200">
                                   <Briefcase className="w-2.5 h-2.5" strokeWidth={2.5} />
@@ -453,6 +510,7 @@ export default async function FixedCostsPage() {
                               <div className="flex items-center gap-2 flex-wrap">
                                 {c.category || t('fc.noCategory')}
                                 {dupManualIds.has(c.id) && <span className="ml-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">{t('payx3.dupBadge')}</span>}
+                                {classBadge(c)}
                                 {isCapex && (
                                   <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 border border-amber-200">
                                     <Briefcase className="w-2.5 h-2.5" strokeWidth={2.5} />

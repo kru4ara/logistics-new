@@ -2412,4 +2412,14 @@ export const en: Messages = {
     eTransaction: 'Statement transaction',
     fromBank: 'from statement',
   },
+  cclass: {
+    label: 'Expense kind',
+    operating: 'Operating (in profit)',
+    dividends: 'Dividends',
+    cash: 'Cash withdrawal',
+    hint: 'Dividends and cash withdrawals are shown separately and don’t reduce profit',
+    notPl: 'outside P&L',
+    dividendsTotal: 'Dividends (total)',
+    cashTotal: 'Cash withdrawn (total)',
+  },
 };
