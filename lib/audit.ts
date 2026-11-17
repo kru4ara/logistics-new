@@ -20,6 +20,8 @@ export type AuditEntityType =
   | 'company'
   | 'purchase_invoice'
   | 'fixed_cost'
+  | 'bank_statement'
+  | 'bank_transaction'
   | 'user';
 
 type LogInput = {

@@ -10,6 +10,12 @@ export const OVERHEAD_CATEGORIES = [
   { value: 'tolls', emoji: '🛣' },
   { value: 'office', emoji: '📮' },
   { value: 'insurance', emoji: '🛡' },
+  { value: 'fuel', emoji: '⛽' },
+  { value: 'taxes', emoji: '🏛' },
+  { value: 'salary', emoji: '👷' },
+  { value: 'rent', emoji: '🏢' },
+  { value: 'bank_fees', emoji: '🏦' },
+  { value: 'cash', emoji: '💵' },
   { value: 'capex', emoji: '🏗' },
   { value: 'other', emoji: '📌' },
 ] as const;

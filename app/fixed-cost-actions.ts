@@ -15,10 +15,12 @@ const toEurForCost = (supabase: Awaited<ReturnType<typeof createClient>>, amount
 type CostRow = { category: string | null; month_key: string | null; original_amount: number | null; currency: string | null; cost_type: string | null };
 const costLine = (c: CostRow) => `${c.category ?? ''} · ${c.month_key ?? ''} · ${c.original_amount ?? ''} ${c.currency ?? ''}`;
 
-/** Запись из счёта подрядчика правится в «Счетах подрядчиков», не здесь. */
+/** Запись из счёта подрядчика или выписки правится там, откуда пришла, не здесь. */
 async function fromInvoice(supabase: Awaited<ReturnType<typeof createClient>>, costId: string): Promise<boolean> {
-  const { data, error } = await supabase.from('fixed_costs').select('purchase_invoice_id').eq('id', costId).maybeSingle();
-  return !error && Boolean(data?.purchase_invoice_id);
+  const first = await supabase.from('fixed_costs').select('purchase_invoice_id, bank_transaction_id').eq('id', costId).maybeSingle();
+  // до миграции 040 колонки bank_transaction_id нет
+  const { data, error } = first.error ? await supabase.from('fixed_costs').select('purchase_invoice_id').eq('id', costId).maybeSingle() : first;
+  return !error && Boolean((data as any)?.purchase_invoice_id || (data as any)?.bank_transaction_id);
 }
 
 export async function createFixedCost(formData: FormData) {

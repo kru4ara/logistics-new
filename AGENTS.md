@@ -109,6 +109,7 @@ PostgREST отдаёт **не больше 1000 строк** на запрос �
 | GPS | `lib/gps/` — `GpsProvider`, `getGpsProvider()` (`GPS_PROVIDER`); расчёт пробега и топлива — `lib/gps/metrics.ts` | `logisat` |
 | KSeF (входящие) | `lib/ksef/` — напрямую, токен только на чтение | — |
 | Почта (письма клиентам) | `lib/mail/` — `MailProvider`, `getMailProvider()` (`MAIL_PROVIDER`) | `smtp` (ящик компании) |
+| Банковские выписки | `lib/bank/` — PDF → строки (`pdf-text.ts`, unpdf) → разбор банка (`pko-rules.ts`) → вид операции и сопоставление (`match-rules.ts`) → решение (`apply.ts`, с отменой) | `pko` (PKO BP, «Wyciąg» PDF) |
 
 ### Правила
 

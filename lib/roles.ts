@@ -66,6 +66,9 @@ export const CAPABILITIES = [
   'receivables.edit',
   'payables.view',
   'payables.edit',
+  // Банковские выписки: загрузка, сопоставление платежей со счетами и заказами.
+  'bank.view',
+  'bank.edit',
   // Закрытие месяца: цифры закрытого месяца меняются только с подтверждения.
   'months.close',
 ] as const;
@@ -110,6 +113,8 @@ const MANAGER: Capability[] = OFFICE.filter(
     c !== 'receivables.edit' &&
     c !== 'payables.view' &&
     c !== 'payables.edit' &&
+    c !== 'bank.view' &&
+    c !== 'bank.edit' &&
     c !== 'months.close' &&
     // постоянные расходы компании — офис и бухгалтер
     c !== 'fixedCosts.edit'
@@ -144,6 +149,8 @@ const ACCOUNTANT: Capability[] = [
   'receivables.edit',
   'payables.view',
   'payables.edit',
+  'bank.view',
+  'bank.edit',
   'months.close',
 ];
 
@@ -283,6 +290,7 @@ export const PATH_CAPABILITIES: PathRule[] = [
   { prefix: '/map', capability: 'map.view' },
   { prefix: '/receivables', capability: 'receivables.view', writeCapability: 'receivables.edit' },
   { prefix: '/payables', capability: 'payables.view', writeCapability: 'payables.edit' },
+  { prefix: '/bank', capability: 'bank.view', writeCapability: 'bank.edit' },
   { prefix: '/api/invoices', capability: 'receivables.view' },
   { prefix: '/api/export', capability: 'export.view' },
   { prefix: '/api/logisat/query', capability: 'logisat.view' },

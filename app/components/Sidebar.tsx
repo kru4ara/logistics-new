@@ -29,7 +29,7 @@ import {
   Home,
   Calendar,
   RadioTower,
-  HandCoins, ReceiptText,
+  HandCoins, ReceiptText, Landmark,
   type LucideIcon,
   Settings, ShieldCheck } from 'lucide-react';
 import { logout } from '../login/actions';
@@ -73,6 +73,7 @@ const adminSections: NavSection[] = [
       { href: '/reports', labelKey: 'nav.reports', icon: Wallet },
       { href: '/receivables', labelKey: 'nav.receivables', icon: HandCoins },
       { href: '/payables', labelKey: 'nav.payables', icon: ReceiptText },
+      { href: '/bank', labelKey: 'bank.nav', icon: Landmark },
       { href: '/fixed-costs', labelKey: 'nav.fixedCosts', icon: Banknote },
       { href: '/audit', labelKey: 'nav.audit', icon: ScrollText },
       { href: '/settings', labelKey: 'nav.settings', icon: Settings },
