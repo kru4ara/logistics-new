@@ -181,7 +181,9 @@ export async function settleTrips(supabase: Supabase, tripIds: string[]): Promis
   for (const t of (trips ?? []) as any[]) {
     const ref = refs.find((r) => r.id === t.id);
     const when = lastDate.get(t.id);
-    if (!ref || !when || !isSettled(ref.amount, ref.allocated ?? 0)) continue;
+    // Доли — в валюте прихода (EUR); счёт по ошибке в другой валюте — сверяем с фрахтом в EUR.
+    const base = (ref?.currency || 'EUR').toUpperCase() === 'EUR' ? ref?.amount ?? null : ref?.revenueEur ?? ref?.amount ?? null;
+    if (!ref || !when || !isSettled(base, ref.allocated ?? 0)) continue;
     if (t.status !== 'invoiced' && t.status !== 'paid') continue;
     await supabase.from('trips').update({ status: 'paid', paid_at: when }).eq('id', t.id);
     if (t.status === 'invoiced') {
