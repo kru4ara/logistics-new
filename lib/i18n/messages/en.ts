@@ -2325,6 +2325,14 @@ export const en: Messages = {
     dupBadge: 'invoice duplicate?',
     unsortedBanner: '{n} “not trip-related” invoices have no category yet, so they aren’t in overhead. Sort them →',
   },
+  payx5: {
+    tripDupTitle: 'Possible double expenses in trips: {n}',
+    tripDupHint: 'The trip has both an invoice share and a manual entry for the same expense. Open the trip and delete the extra manual entry if they are the same.',
+    manualRow: 'manual',
+    invoiceRow: 'from invoice',
+    replaceManual: 'The trips already have similar expenses entered by hand:\n{list}\n\nReplace them with shares of this invoice? (the manual entries will be deleted)',
+    keepManual: 'Keep the manual entries and link the invoice anyway? If it is the same expense, it will be counted twice.',
+  },
   payx4: {
     splitToggle: 'Split across several trips (monthly invoice)',
     splitSubmit: 'Split across {n}',

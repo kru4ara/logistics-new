@@ -14,7 +14,8 @@ import { suggestSegments, carrierOrderNumber, type SegmentCandidate } from '../.
 import { summarizePayables, type PayableRow } from '../../lib/payables/summary';
 import { SyncPurchasesButton, LinkPurchaseForm, UnlinkButton, PurchasePaidButton, PaidDateInput, DeleteManualButton, type PickOption, type CategoryOption } from './PayablesControls';
 import { loadTripCandidates, lastTripCategoryByNip, loadInvoiceTrips } from '../../lib/payables/trip-expense';
-import { suggestTrips, defaultTripCategory, tripsForPeriodInvoice, type TripCandidate } from '../../lib/payables/trip-rules';
+import { suggestTrips, defaultTripCategory, tripsForPeriodInvoice, findManualOverlaps, type TripCandidate, type ManualExpense } from '../../lib/payables/trip-rules';
+import { fetchAllByIds } from '../../lib/fetch-all';
 import { costAmount } from '../../lib/payables/cost-rules';
 import { EXPENSE_CATEGORIES, expenseCategoryKey } from '../../lib/i18n/labels';
 import type { MessageKey } from '../../lib/i18n/translate';
@@ -85,6 +86,31 @@ export default async function PayablesPage() {
     ).slice(0, 5).map((x) => x.segmentId);
 
   // Рейсы — для счетов-расходов рейса (перегруз, EX-1, EPI): подсказка по датам рейса.
+  // Уже привязанные счета, которые повторяют ручную запись в том же рейсе (внесли до KSeF).
+  const { data: invExp } = await fetchAll(
+    supabase.from('trip_expenses').select('id, trip_id, category, original_amount, currency, purchase_invoice_id').not('purchase_invoice_id', 'is', null).order('id'),
+  );
+  const invExpRows = (invExp ?? []) as { id: string; trip_id: string; category: string | null; original_amount: number | null; currency: string | null; purchase_invoice_id: string }[];
+  const { data: manExp } = invExpRows.length
+    ? await fetchAllByIds([...new Set(invExpRows.map((r) => r.trip_id))], (chunk) =>
+        supabase.from('trip_expenses').select('id, trip_id, category, description, original_amount, currency').in('trip_id', chunk).is('purchase_invoice_id', null),
+      )
+    : { data: [] as any[] };
+  const manualRows = (manExp ?? []) as (ManualExpense & { original_amount: number | null; currency: string | null })[];
+  const rowById = new Map(rows.map((r) => [r.id, r]));
+  const tripDoubles: { key: string; tripId: string; manual: (typeof manualRows)[number]; share: (typeof invExpRows)[number]; invoice: string }[] = [];
+  const seenManual = new Set<string>();
+  for (const e of invExpRows) {
+    const inv = rowById.get(e.purchase_invoice_id);
+    if (!inv || !e.category) continue;
+    for (const m of findManualOverlaps(manualRows, [e.trip_id], e.category, inv.seller_name, inv.invoice_number)) {
+      if (seenManual.has(m.id)) continue;
+      seenManual.add(m.id);
+      const full = manualRows.find((x) => x.id === m.id)!;
+      tripDoubles.push({ key: m.id, tripId: e.trip_id, manual: full, share: e, invoice: [inv.seller_name, inv.invoice_number].filter(Boolean).join(' · ') });
+    }
+  }
+
   const invoiceTrips = await loadInvoiceTrips(supabase, rows.filter((r) => r.trip_id).map((r) => r.id));
   const linkedTripIds = [
     ...new Set([...rows.map((r) => r.trip_id).filter((x): x is string => Boolean(x)), ...[...invoiceTrips.values()].flat()]),
@@ -219,6 +245,28 @@ export default async function PayablesPage() {
             <Inbox className="w-10 h-10 text-slate-300 mx-auto mb-3" strokeWidth={1.8} />
             <div className="font-semibold text-slate-700">{t('pay.empty')}</div>
           </div>
+        )}
+
+        {tripDoubles.length > 0 && (
+          <section className="card p-4 md:p-5 border-amber-300 bg-amber-50/40">
+            <h2 className="font-bold text-slate-900 flex items-center gap-2"><Copy className="w-4 h-4 text-amber-600" />{t('payx5.tripDupTitle', { n: tripDoubles.length })}</h2>
+            <p className="text-sm text-slate-600 mt-1 mb-3">{t('payx5.tripDupHint')}</p>
+            <div className="divide-y divide-amber-100">
+              {tripDoubles.map((d) => (
+                <div key={d.key} className="py-2 flex flex-col md:flex-row md:items-center gap-1 md:gap-4 text-sm">
+                  <Link href={`/trips/${d.tripId}`} className="font-semibold text-brand-700 hover:underline whitespace-nowrap">
+                    №{tripById.get(d.tripId)?.number ?? '—'}
+                  </Link>
+                  <div className="flex-1 min-w-0 text-slate-700 break-words">
+                    {t('payx5.manualRow')}: {d.manual.description || d.manual.category} · {money(d.manual.original_amount, d.manual.currency)}
+                  </div>
+                  <div className="flex-1 min-w-0 text-slate-500 break-words">
+                    {t('payx5.invoiceRow')}: {d.invoice} · {money(d.share.original_amount, d.share.currency)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
         )}
 
         {duplicates.length > 0 && (

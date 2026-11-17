@@ -181,14 +181,19 @@ export function LinkPurchaseForm({ invoiceId, segments, suggestedSegments, trips
   const splitOk = allocs.length >= 2 && validateAllocations(total, allocs) === null;
   const ready =
     mode === 'none' || (mode === 'segment' ? Boolean(segment) : Boolean(category) && (split ? splitOk : Boolean(trip)));
+  const toTrips = (manual?: 'replace' | 'keep') =>
+    split ? linkPurchaseToTrips(invoiceId, allocs, category, manual) : linkPurchaseToTrip(invoiceId, trip, category, manual);
   const submit = () =>
-    run(() =>
-      mode === 'trip'
-        ? split
-          ? linkPurchaseToTrips(invoiceId, allocs, category)
-          : linkPurchaseToTrip(invoiceId, trip, category)
-        : linkPurchase(invoiceId, mode === 'segment' ? segment : null),
-    );
+    run(async () => {
+      if (mode !== 'trip') return linkPurchase(invoiceId, mode === 'segment' ? segment : null);
+      const r = await toTrips();
+      if (!r.conflicts?.length) return r;
+      // В рейсах уже есть ручные записи этого расхода — заменить долями счёта или оставить.
+      const list = r.conflicts.map((c) => `№${c.trip}: ${c.text}`).join('\n');
+      if (window.confirm(t('payx5.replaceManual', { list }))) return toTrips('replace');
+      if (window.confirm(t('payx5.keepManual'))) return toTrips('keep');
+      return { ok: true };
+    });
   const tab = (m: Mode, label: string) => (
     <button type="button" onClick={() => setMode(m)}
       className={`px-2 py-1 text-xs rounded-md border ${mode === m ? 'bg-brand-50 border-brand-300 text-brand-700 font-semibold' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}>

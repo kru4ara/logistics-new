@@ -13,12 +13,14 @@ import { syncInvoiceTripExpense } from '../../lib/payables/trip-expense';
 import { syncInvoiceOverheadCost } from '../../lib/payables/overhead-cost';
 import { isMonthClosed, tripMonth } from '../../lib/closed-months';
 import { EXPENSE_CATEGORIES } from '../../lib/i18n/labels';
-import { validateAllocations, type Allocation } from '../../lib/payables/trip-rules';
+import { validateAllocations, findManualOverlaps, type Allocation, type ManualExpense } from '../../lib/payables/trip-rules';
 import type { MessageKey } from '../../lib/i18n/translate';
 import { isOverheadCategory, sellerKey } from '../../lib/payables/overhead-rules';
 import { fetchAll } from '../../lib/fetch-all';
 
 type Result = { ok: boolean; message?: string };
+/** Ручные расходы рейсов, которые повторяет счёт: спросить, заменить ли их. */
+export type ManualConflict = { id: string; trip: string; text: string };
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
 
@@ -140,15 +142,20 @@ const TRIP_CATEGORIES = new Set<string>(EXPENSE_CATEGORIES.map((c) => c.value));
  * Привязать счёт к рейсу целиком как расход (перегруз, EX-1, EPI, склад), а не к участку
  * перевозчика. Расход появляется в рейсе обычной строкой с выбранной категорией.
  */
-export async function linkPurchaseToTrip(invoiceId: string, tripId: string, category: string): Promise<Result> {
-  return linkPurchaseToTrips(invoiceId, [{ tripId, amount: NaN }], category);
+export async function linkPurchaseToTrip(invoiceId: string, tripId: string, category: string, manual?: 'replace' | 'keep'): Promise<Result & { conflicts?: ManualConflict[] }> {
+  return linkPurchaseToTrips(invoiceId, [{ tripId, amount: NaN }], category, manual);
 }
 
 /**
  * Один счёт на несколько рейсов (месячный счёт агентства): доли по рейсам, в сумме —
  * нетто счёта. Одна доля с amount NaN — весь счёт на один рейс.
  */
-export async function linkPurchaseToTrips(invoiceId: string, allocations: Allocation[], category: string): Promise<Result> {
+export async function linkPurchaseToTrips(
+  invoiceId: string,
+  allocations: Allocation[],
+  category: string,
+  manual?: 'replace' | 'keep',
+): Promise<Result & { conflicts?: ManualConflict[] }> {
   await requireCapability('payables.edit');
   const { t } = await getT();
   if (!TRIP_CATEGORIES.has(category)) return { ok: false, message: t('payx2.errCategory') };
@@ -181,6 +188,25 @@ export async function linkPurchaseToTrips(invoiceId: string, allocations: Alloca
     if (await isMonthClosed(supabase, tripMonth(tr))) return { ok: false, message: t('payx2.errClosed') };
   }
 
+  // Расход могли уже внести в рейс руками (EPI 25 €) — без вопроса получится задвоение.
+  const { data: manualRows } = await supabase
+    .from('trip_expenses')
+    .select('id, trip_id, category, description, original_amount, currency')
+    .in('trip_id', tripIds)
+    .is('purchase_invoice_id', null);
+  const overlaps = findManualOverlaps((manualRows ?? []) as ManualExpense[], tripIds, category, inv.seller_name, inv.invoice_number);
+  if (overlaps.length && manual !== 'replace' && manual !== 'keep') {
+    const num = new Map((trips ?? []).map((x) => [x.id as string, String(x.trip_number ?? '—')]));
+    const rows = (manualRows ?? []) as (ManualExpense & { original_amount: number | null; currency: string | null })[];
+    return {
+      ok: false,
+      conflicts: overlaps.map((o) => {
+        const r = rows.find((x) => x.id === o.id);
+        return { id: o.id, trip: num.get(o.trip_id) ?? '—', text: [o.description || o.category, r?.original_amount != null ? `${r.original_amount} ${r.currency ?? ''}`.trim() : null].filter(Boolean).join(' · ') };
+      }),
+    };
+  }
+
   const { error } = await supabase
     .from('purchase_invoices')
     .update({ trip_id: tripIds[0], segment_id: null, match_status: 'manual', updated_at: new Date().toISOString() })
@@ -194,6 +220,9 @@ export async function linkPurchaseToTrips(invoiceId: string, allocations: Alloca
     return { ok: false, message: synced.error === 'migration' ? t('pay.needMigration') : t('dir.updateError', { msg: synced.error ?? '' }) };
   }
   await syncInvoiceOverheadCost(supabase, invoiceId);
+  if (manual === 'replace' && overlaps.length) {
+    await supabase.from('trip_expenses').delete().in('id', overlaps.map((o) => o.id)).is('purchase_invoice_id', null);
+  }
 
   const numbers = (trips ?? []).map((x) => x.trip_number ?? '').join(', ');
   await logAudit({
@@ -203,6 +232,7 @@ export async function linkPurchaseToTrips(invoiceId: string, allocations: Alloca
     changes: {
       trips: { before: prevIds.length ? prevIds.join(', ') : null, after: tripIds.join(', ') },
       category: { before: null, after: category },
+      ...(manual === 'replace' && overlaps.length ? { manual_replaced: { before: overlaps.map((o) => o.id).join(', '), after: null } } : {}),
     },
     summary: allocs.length > 1
       ? `Счёт ${inv.invoice_number ?? inv.ksef_number ?? ''} (${inv.seller_name ?? ''}) разделён на ${allocs.length} рейсов: ${numbers}`

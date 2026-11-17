@@ -57,7 +57,7 @@ describe('сводка: счёт-расход рейса', () => {
   });
 });
 
-import { splitEvenly, scaleAllocations, validateAllocations, tripsForPeriodInvoice } from '../payables/trip-rules';
+import { splitEvenly, scaleAllocations, validateAllocations, findManualOverlaps, tripsForPeriodInvoice } from '../payables/trip-rules';
 describe('один счёт на несколько рейсов', () => {
   it('поровну по копейкам, сумма сходится', () => {
     expect(splitEvenly(440, 3)).toEqual([146.67, 146.67, 146.66]);
@@ -92,5 +92,24 @@ describe('один счёт на несколько рейсов', () => {
       t('nov', '2026-11-05', '2026-11-08'),
     ]);
     expect(r.map((x) => x.id)).toEqual(['edge', 'oct']);
+  });
+});
+
+describe('ручные записи, которые повторяет счёт', () => {
+  const m = (id: string, trip_id: string, category: string | null, description: string | null = null) => ({ id, trip_id, category, description });
+  const manual = [
+    m('a', '905', 'epi', 'EPI'),
+    m('b', 'arm1', 'ex1', null), // EX-1 ↔ EPI — одно агентство
+    m('c', '905', 'fuel', 'ORLEN'),
+    m('d', '6788', 'epi', 'EPI'), // рейс не выбран
+    m('e', '134638', 'other', 'Polbalt F/0045/KO/10/2026'), // по номеру
+    m('f', '134638', 'contractor', 'POLBALT'), // участок перевозчика — не трогаем
+  ];
+  it('категория, EPI ↔ EX-1, номер или продавец в описании; только выбранные рейсы', () => {
+    const r = findManualOverlaps(manual, ['905', 'arm1', '134638'], 'epi', 'POLBALT SP. Z O.O.', 'F/0045/KO/10/2026');
+    expect(r.map((x) => x.id)).toEqual(['a', 'b', 'e']);
+  });
+  it('по имени продавца без категории', () => {
+    expect(findManualOverlaps([m('x', '1', 'other', 'оплата Polbalt за EX')], ['1'], 'epi', 'POLBALT SP. Z O.O.', null).map((x) => x.id)).toEqual(['x']);
   });
 });

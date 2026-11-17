@@ -2325,6 +2325,14 @@ export const pl: Messages = {
     dupBadge: 'duplikat faktury?',
     unsortedBanner: '{n} faktur „nie dotyczy kursów” bez kategorii — nie trafiły do kosztów ogólnych. Rozdziel →',
   },
+  payx5: {
+    tripDupTitle: 'Możliwe podwójne koszty w kursach: {n}',
+    tripDupHint: 'W kursie jest i część faktury, i ręczny wpis tego samego kosztu. Otwórz kurs i usuń zbędny ręczny wpis, jeśli to to samo.',
+    manualRow: 'ręcznie',
+    invoiceRow: 'z faktury',
+    replaceManual: 'W kursach są już ręcznie wpisane podobne koszty:\n{list}\n\nZastąpić je częściami tej faktury? (ręczne wpisy zostaną usunięte)',
+    keepManual: 'Zostawić ręczne wpisy i mimo to powiązać fakturę? Jeśli to ten sam koszt, zostanie policzony podwójnie.',
+  },
   payx4: {
     splitToggle: 'Podziel na kilka kursów (faktura miesięczna)',
     splitSubmit: 'Podziel na {n}',
