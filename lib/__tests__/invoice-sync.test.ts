@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { planInvoiceSync, normalizeInvoiceNumber, type SyncTrip } from '../invoicing/sync-rules';
-import { parseDocRow, parseDocPage, isoFromDdMmYyyy, daysFromZaplata, paymentCode, fakturowoCurrency } from '../invoicing/fakturowo-rules';
+import { parseDocRow, parseDocPage, isoFromDdMmYyyy, daysFromZaplata, paymentCode, fakturowoCurrency, isFakturowoCorrection } from '../invoicing/fakturowo-rules';
 import type { RemoteInvoice } from '../invoicing/types';
 
 const KSEF = '7011162939-20261114-52D8B6C00001-C4';
@@ -161,5 +161,21 @@ describe('фактуры без заказа', () => {
     ]);
     expect(ranked.map((r) => r.id)).toEqual(['b', 'c', 'a']);
     expect(ranked[0].score).toBeGreaterThanOrEqual(80);
+  });
+});
+
+describe('корректы Fakturowo', () => {
+  it('корректа — не счёт: не сопоставляется и не в «без заказа»; замена — в списке, оплаченная тоже', () => {
+    expect(isFakturowoCorrection('1')).toBe(true);
+    expect(isFakturowoCorrection('102')).toBe(true);
+    expect(isFakturowoCorrection('0')).toBe(false);
+    const base = { issueDate: '2026-10-24', paymentDue: null, ksefNumber: null, currency: 'PLN', buyerName: 'MSB', buyerTaxId: 'BY692203928' };
+    const plan = planInvoiceSync('fakturowo', [
+      { ...base, externalId: 'k', number: 'FK/09/10/2026', payment: 'unpaid', gross: 0, kind: 'correction' },
+      { ...base, externalId: 'n', number: '69/10/2026', payment: 'paid', gross: 5500, currency: 'EUR', issueDate: '2026-10-23', kind: 'invoice' },
+    ], []);
+    expect(plan.unmatched.map((r) => r.externalId)).toEqual(['n']);
+    expect(plan.unpaidUnmatched).toEqual([]);
+    expect(plan.corrections.map((r) => r.externalId)).toEqual(['k']);
   });
 });

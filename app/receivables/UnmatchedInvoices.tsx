@@ -12,7 +12,10 @@ export type UnmatchedRow = {
   issueDate: string;
   amount: string;
   buyer: string;
-  options: { id: string; label: string; suggested: boolean }[];
+  /** оплачена в сервисе фактур */
+  paid?: boolean;
+  /** replaces — номер счёта заказа, который эта фактура заменит */
+  options: { id: string; label: string; suggested: boolean; replaces?: string | null }[];
 };
 
 function Row({ r, canEdit }: { r: UnmatchedRow; canEdit: boolean }) {
@@ -32,7 +35,10 @@ function Row({ r, canEdit }: { r: UnmatchedRow; canEdit: boolean }) {
   const rest = r.options.filter((o) => !o.suggested);
   return (
     <tr className="align-top">
-      <td className="py-2.5 pr-3 font-medium">{r.number}</td>
+      <td className="py-2.5 pr-3 font-medium">
+        {r.number}
+        {r.paid && <span className="ml-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700">{t('recv2.paidThere')}</span>}
+      </td>
       <td className="py-2.5 pr-3 text-slate-600">{r.issueDate}</td>
       <td className="py-2.5 pr-3">{r.buyer}</td>
       <td className="py-2.5 pr-3 text-right tabular-nums whitespace-nowrap">{r.amount}</td>
@@ -53,7 +59,11 @@ function Row({ r, canEdit }: { r: UnmatchedRow; canEdit: boolean }) {
                   </optgroup>
                 )}
               </select>
-              <button type="button" disabled={isPending || !tripId} onClick={() => act(() => linkRemoteInvoice(r.externalId, tripId))}
+              <button type="button" disabled={isPending || !tripId} onClick={() => {
+                  const rep = r.options.find((o) => o.id === tripId)?.replaces;
+                  if (rep && !window.confirm(t('recv2.confirmReplace', { old: rep, new: r.number }))) return;
+                  act(() => linkRemoteInvoice(r.externalId, tripId));
+                }}
                 className="btn btn-primary text-xs px-2.5 py-1.5 disabled:opacity-50">
                 {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Link2 className="w-3.5 h-3.5" />}
                 {t('recv.linkTrip')}
@@ -79,7 +89,7 @@ export default function UnmatchedInvoices({ rows, canEdit, provider, at }: { row
   return (
     <section className="card p-4 md:p-5 overflow-x-auto border border-amber-200">
       <h2 className="font-bold text-slate-900">{t('recv.unmatchedTitle', { provider, n: rows.length })}</h2>
-      <p className="text-xs text-slate-500 mb-3">{t('recv.unmatchedHint', { at })}</p>
+      <p className="text-xs text-slate-500 mb-3">{t('recv2.hint', { at })}</p>
       <table className="w-full text-sm">
         <thead>
           <tr className="text-left text-xs text-slate-500 uppercase tracking-wide">

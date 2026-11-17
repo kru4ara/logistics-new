@@ -43,6 +43,8 @@ export type RemoteInvoice = {
   currency: string | null;
   buyerName: string | null;
   buyerTaxId: string | null;
+  /** корректирующий документ (korekta) — не счёт заказа: не сопоставляется и не в списке «без заказа» */
+  kind?: 'invoice' | 'correction';
 };
 
 export interface InvoiceProvider extends ProviderInfo {

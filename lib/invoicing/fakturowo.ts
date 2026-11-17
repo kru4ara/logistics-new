@@ -1,6 +1,6 @@
 import 'server-only';
 import { addDaysIso, type InvoiceInput } from '../invoice-rules';
-import { buildFakturowoParams, parseReply, parseDocList, parseDocPage, type FakturowoDoc } from './fakturowo-rules';
+import { buildFakturowoParams, parseReply, parseDocList, parseDocPage, isFakturowoCorrection, type FakturowoDoc } from './fakturowo-rules';
 import { InvoicingError, type InvoiceProvider, type InvoiceSnapshot, type RemoteInvoice } from './types';
 
 // Fakturowo.pl. Переменная: FAKTUROWO_API_ID — Konto → API (услуга API платная, разовая активация).
@@ -64,6 +64,7 @@ async function snapshot(apiNumer: string): Promise<InvoiceSnapshot> {
 
 const toRemote = (d: FakturowoDoc): RemoteInvoice => ({
   externalId: d.apiNumer,
+  kind: isFakturowoCorrection(d.kind) ? 'correction' : 'invoice',
   number: d.number,
   issueDate: d.issueDate,
   paymentDue: d.paymentDue,

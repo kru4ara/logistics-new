@@ -111,6 +111,13 @@ export function daysFromZaplata(v: string | null | undefined): number | null {
 
 const addDays = (iso: string, n: number) => new Date(Date.parse(`${iso}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
 
+/**
+ * Коды dokument_rodzaj корректирующих документов Fakturowo: faktura korygująca (1, 61, 63,
+ * 68, 102, 103, 105), nota korygująca (11, 34), rachunek korygujący (67).
+ */
+const CORRECTION_KINDS = new Set(['1', '11', '34', '61', '63', '67', '68', '102', '103', '105']);
+export const isFakturowoCorrection = (kind: string | null | undefined) => CORRECTION_KINDS.has((kind ?? '').trim());
+
 /** Документ из списка Fakturowo (api_zadanie=3). */
 export type FakturowoDoc = {
   apiNumer: string;
