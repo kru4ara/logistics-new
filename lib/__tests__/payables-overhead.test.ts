@@ -39,6 +39,7 @@ describe('группы по продавцу', () => {
   it('ключ без NIP — по названию; категории проверяются', () => {
     expect(sellerKey({ seller_nip: null, seller_name: ' Sklep KAMIL ' })).toBe('name:sklep kamil');
     expect(isOverheadCategory('capex')).toBe(true);
-    expect(isOverheadCategory('fuel')).toBe(false);
+    expect(isOverheadCategory('fuel')).toBe(true);
+    expect(isOverheadCategory('diesel')).toBe(false);
   });
 });

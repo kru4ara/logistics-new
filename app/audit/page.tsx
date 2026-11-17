@@ -31,6 +31,8 @@ const ENTITY_LABELS: Record<string, string> = {
   purchase_invoice: 'aud.ePurchase',
   user: 'aud.eUser',
   fixed_cost: 'payx.eFixedCost',
+  bank_statement: 'bank.eStatement',
+  bank_transaction: 'bank.eTransaction',
 };
 
 const ACTION_META: Record<string, { text: string; badge: string; strip: string; Icon: LucideIcon }> = {

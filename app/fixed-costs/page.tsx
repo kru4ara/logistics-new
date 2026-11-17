@@ -22,6 +22,7 @@ import {
   Coins,
   Zap,
   ReceiptText,
+  Landmark,
   Copy,
   AlertTriangle,
   type LucideIcon,
@@ -97,9 +98,25 @@ export default async function FixedCostsPage() {
     ]),
   );
   const costById = new Map((costs ?? []).map((c) => [c.id, c]));
+  // Строки из выписки — тоже «не ручные»: ручная запись того же платежа — дубль.
+  const dupSources = new Map<string, InvoiceAmounts>(invoiceById);
+  for (const c of costs ?? []) {
+    if (c.bank_transaction_id) {
+      dupSources.set(`bank:${c.bank_transaction_id}`, {
+        gross: c.original_amount != null ? Number(c.original_amount) : null,
+        net: null,
+        number: null,
+        issueDate: c.expense_date,
+      });
+    }
+  }
   const dupPairs = findManualDuplicates(
-    (costs ?? []).map((c) => ({ ...c, original_amount: c.original_amount != null ? Number(c.original_amount) : null })),
-    invoiceById,
+    (costs ?? []).map((c) => ({
+      ...c,
+      original_amount: c.original_amount != null ? Number(c.original_amount) : null,
+      purchase_invoice_id: c.purchase_invoice_id ?? (c.bank_transaction_id ? `bank:${c.bank_transaction_id}` : null),
+    })),
+    dupSources,
   );
   const dupManualIds = new Set(dupPairs.map((p) => p.manualId));
   const { count: unsorted } = await supabase
@@ -113,7 +130,12 @@ export default async function FixedCostsPage() {
   };
   const fmtCost = (c: any) =>
     `${c.original_amount ?? c.amount_eur ?? 0} ${c.currency || 'PLN'} · ${c.expense_date ? new Date(c.expense_date).toLocaleDateString(INTL_LOCALE[locale]) : c.month_key}`;
-  const invoiceBadge = (c: any) => (
+  const invoiceBadge = (c: any) => c.bank_transaction_id ? (
+    <Link href="/bank?show=matched" className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-violet-50 text-violet-700 border border-violet-200 hover:bg-violet-100">
+      <Landmark className="w-2.5 h-2.5" strokeWidth={2.5} />
+      {t('bank.fromBank')}
+    </Link>
+  ) : (
     <Link href="/payables" className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-100">
       <ReceiptText className="w-2.5 h-2.5" strokeWidth={2.5} />
       {ohLabel(invoiceById.get(c.purchase_invoice_id)?.category) ?? t('payx3.fromInvoice')}
@@ -268,7 +290,7 @@ export default async function FixedCostsPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-slate-700 break-words">{k.category}</div>
-                      <div className="text-xs text-slate-500">{t('payx3.fromInvoice')} · {fmtCost(k)}{p.byNumber ? ` · ${t('payx3.sameNumber')}` : ''}</div>
+                      <div className="text-xs text-slate-500">{k.bank_transaction_id ? t('bank.fromBank') : t('payx3.fromInvoice')} · {fmtCost(k)}{p.byNumber ? ` · ${t('payx3.sameNumber')}` : ''}</div>
                     </div>
                     <form action={async () => {
                       'use server';
@@ -373,7 +395,7 @@ export default async function FixedCostsPage() {
                           </div>
                         )}
 
-                        {c.purchase_invoice_id ? (
+                        {c.purchase_invoice_id || c.bank_transaction_id ? (
                           <div className="pt-2 border-t border-slate-100">{invoiceBadge(c)}</div>
                         ) : (
                         <div className="flex gap-2 pt-2 border-t border-slate-100">
@@ -456,7 +478,7 @@ export default async function FixedCostsPage() {
                               {c.amount_eur ? `${Number(c.amount_eur).toFixed(0)} €` : '—'}
                             </td>
                             <td className="px-6 py-4 text-right whitespace-nowrap">
-                              {c.purchase_invoice_id ? invoiceBadge(c) : (<>
+                              {c.purchase_invoice_id || c.bank_transaction_id ? invoiceBadge(c) : (<>
                               <Link
                                 href={`/fixed-costs/${c.id}/edit`}
                                 className="text-brand-600 hover:text-brand-800 text-xs font-medium px-2 py-1 inline-flex"
