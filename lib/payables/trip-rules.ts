@@ -123,3 +123,42 @@ export function tripsForPeriodInvoice(date: string | null, trips: TripCandidate[
     })
     .sort((a, b) => (a.start ?? '').localeCompare(b.start ?? ''));
 }
+
+// ── Ручные записи, которые повторяет счёт ──
+
+export type ManualExpense = {
+  id: string;
+  trip_id: string;
+  category: string | null;
+  description: string | null;
+};
+
+/** Документы агентства (EPI, EX-1) — одно и то же по смыслу: вручную могли записать любой. */
+const AGENCY = new Set(['epi', 'ex1']);
+const norm = (s: string | null | undefined) => (s ?? '').toUpperCase().replace(/[^A-Z0-9А-ЯЁ]/g, '');
+const sellerCore = (s: string | null | undefined) =>
+  norm((s ?? '').replace(/\b(SP\.?\s*Z\s*O\.?\s*O\.?|SPÓŁKA|S\.A\.|LLC|LTD|GMBH)\b/gi, '')).slice(0, 8);
+
+/**
+ * Ручные расходы рейсов (без счёта), которые, похоже, и есть этот счёт: та же категория
+ * (EPI ↔ EX-1 считаем одной), либо в описании — номер счёта или имя продавца. Сумму не
+ * сравниваем: вручную писали нетто, округляли, делили иначе.
+ */
+export function findManualOverlaps(
+  manual: ManualExpense[],
+  tripIds: string[],
+  category: string,
+  sellerName: string | null,
+  invoiceNumber: string | null,
+): ManualExpense[] {
+  const trips = new Set(tripIds);
+  const num = norm(invoiceNumber);
+  const seller = sellerCore(sellerName);
+  return manual.filter((m) => {
+    if (!trips.has(m.trip_id) || m.category === 'contractor') return false;
+    const sameCat = m.category === category || (AGENCY.has(category) && AGENCY.has(m.category ?? ''));
+    const d = norm(m.description);
+    const named = (num.length >= 4 && d.includes(num)) || (seller.length >= 4 && d.includes(seller));
+    return sameCat || named;
+  });
+}
