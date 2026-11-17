@@ -11,7 +11,7 @@ import { formatDate } from '../../lib/i18n/format';
 import type { MessageKey } from '../../lib/i18n/translate';
 import { OVERHEAD_CATEGORIES } from '../../lib/payables/overhead-rules';
 import { loadPurchaseRefs, loadTripRefs } from '../../lib/bank/refs';
-import { UploadStatements, TxActions, AcceptAllButton, DeleteStatementButton, type PickOpt } from './BankControls';
+import { UploadStatements, TxActions, AcceptAllButton, DeleteStatementButton, RematchButton, type PickOpt } from './BankControls';
 
 export const dynamic = 'force-dynamic';
 
@@ -199,7 +199,12 @@ async function BankView({ searchParams, role }: { searchParams: Promise<{ show?:
                 </Link>
               ))}
             </nav>
-            {canEdit && show === 'new' && suggestedCount > 0 && <AcceptAllButton statementId={st} count={suggestedCount} />}
+            {canEdit && show === 'new' && (
+              <div className="flex flex-wrap items-start gap-2">
+                {counts.new > 0 && <RematchButton />}
+                {suggestedCount > 0 && <AcceptAllButton statementId={st} count={suggestedCount} />}
+              </div>
+            )}
           </div>
           {txs.length === 0 ? (
             <p className="text-sm text-slate-500 py-6 text-center">{t('bank.nothing')}</p>

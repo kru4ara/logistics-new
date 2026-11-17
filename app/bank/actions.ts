@@ -8,7 +8,7 @@ import { logAudit } from '../../lib/audit';
 import { getT } from '../../lib/i18n/server';
 import type { MessageKey } from '../../lib/i18n/translate';
 import { pdfLines } from '../../lib/bank/pdf-text';
-import { importStatement } from '../../lib/bank/import';
+import { importStatement, rematchPending } from '../../lib/bank/import';
 import { applyDecision, undoDecision, type Decision } from '../../lib/bank/apply';
 
 type Result = { ok: boolean; message?: string };
@@ -157,4 +157,18 @@ export async function deleteStatement(statementId: string): Promise<Result> {
   });
   refresh();
   return { ok: true };
+}
+
+/** Пересчитать подсказки для операций без решения и применить однозначные. */
+export async function rematchTransactions(): Promise<Result> {
+  await requireCapability('bank.edit');
+  const { t } = await getT();
+  const supabase = await createClient();
+  const { userId } = await getSessionContext();
+  const r = await rematchPending(supabase, userId ?? null);
+  if (r.auto) {
+    await logAudit({ entity_type: 'bank_statement', entity_id: 'all', action: 'update', changes: { rematched: { before: null, after: r.auto } }, summary: `Выписка: подсказки пересчитаны, применено ${r.auto}` });
+  }
+  refresh();
+  return { ok: true, message: t('bank.rematched', { checked: r.checked, auto: r.auto }) };
 }

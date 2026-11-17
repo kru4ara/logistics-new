@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { planInvoiceSync, normalizeInvoiceNumber, type SyncTrip } from '../invoicing/sync-rules';
-import { parseDocRow, parseDocPage, isoFromDdMmYyyy, daysFromZaplata, paymentCode } from '../invoicing/fakturowo-rules';
+import { parseDocRow, parseDocPage, isoFromDdMmYyyy, daysFromZaplata, paymentCode, fakturowoCurrency } from '../invoicing/fakturowo-rules';
 import type { RemoteInvoice } from '../invoicing/types';
 
 const KSEF = '7011162939-20261114-52D8B6C00001-C4';
@@ -11,6 +11,16 @@ const row = (o: Partial<Record<'id' | 'num' | 'status' | 'termin' | 'ksef' | 'ad
     o.status ?? '0', '7', o.termin ?? '23-11-2026', o.ksef ?? ''].join(';');
 
 describe('разбор списка Fakturowo', () => {
+  it('валюта кодом: 1 — EUR, 0 — PLN (иначе «1» ломало суммы и сверку с банком)', () => {
+    expect(fakturowoCurrency('1')).toBe('EUR');
+    expect(fakturowoCurrency('0')).toBe('PLN');
+    expect(fakturowoCurrency('eur')).toBe('EUR');
+    expect(fakturowoCurrency('')).toBeNull();
+    expect(fakturowoCurrency('12')).toBeNull();
+    const r = '818950;0;80/11/2026;13-11-2026;13-11-2026;1;3800,00;0,00;3800,00;R;A;PL1;M;B;BY1;0;7;23-11-2026;';
+    expect(parseDocRow(r)?.currency).toBe('EUR');
+  });
+
   it('строка документа', () => {
     expect(isoFromDdMmYyyy('23-11-2026')).toBe('2026-11-23');
     expect(parseDocRow(row({ ksef: KSEF, status: '1' }))).toEqual({

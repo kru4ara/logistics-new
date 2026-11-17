@@ -1,7 +1,8 @@
 import 'server-only';
 import type { createClient } from '../supabase/admin';
 import { parsePkoStatement, type ParseError } from './pko-rules';
-import { classifyTx, defaultOverhead, matchPurchases, matchTrips } from './match-rules';
+import { classifyTx, defaultOverhead, matchPurchases, matchTrips, type TxKind, type PurchaseRef, type TripRef } from './match-rules';
+import { fetchAll } from '../fetch-all';
 import { loadPurchaseRefs, loadTripRefs } from './refs';
 import { applyDecision, type Decision } from './apply';
 
@@ -12,6 +13,66 @@ export type Suggestion =
   | { type: 'trips'; ids: string[]; exact: boolean }
   | { type: 'overhead'; category: string }
   | { type: 'ignore' };
+
+/** Подсказка для операции: свои переводы — пропустить; приход — заказы; расход — счета или категория. */
+export function suggestFor(
+  t: Parameters<typeof matchPurchases>[0],
+  kind: TxKind,
+  purchases: PurchaseRef[],
+  trips: TripRef[],
+): Suggestion | null {
+  if (kind === 'internal') return { type: 'ignore' };
+  if (t.amount > 0) {
+    const m = kind === 'client' ? matchTrips(t, trips) : null;
+    return m ? { type: 'trips', ...m } : null;
+  }
+  const m = ['supplier', 'other_out', 'card'].includes(kind) ? matchPurchases(t, kind, purchases) : null;
+  const cat = defaultOverhead(kind, t);
+  return m ? { type: 'purchases', ...m } : cat ? { type: 'overhead', category: cat } : null;
+}
+
+/** Однозначное решение по подсказке — применяется без человека. */
+const autoDecision = (sg: Suggestion | null): Decision | null =>
+  sg?.type === 'ignore' ? { type: 'ignore' } : (sg?.type === 'purchases' || sg?.type === 'trips') && sg.exact ? { type: sg.type, ids: sg.ids } : null;
+
+/**
+ * Пересчитать подсказки для операций без решения (после правки данных: валюта счетов,
+ * новые счета из KSeF) и применить однозначные. Возвращает, сколько применено.
+ */
+export async function rematchPending(supabase: Supabase, userId: string | null): Promise<{ checked: number; auto: number }> {
+  const { data } = await fetchAll(
+    supabase
+      .from('bank_transactions')
+      .select('id, kind, amount, currency, booking_date, op_type, counterparty, counterparty_account, title, description')
+      .eq('status', 'new')
+      .order('id'),
+  );
+  const rows = (data ?? []) as any[];
+  if (!rows.length) return { checked: 0, auto: 0 };
+  const [purchases, trips] = await Promise.all([loadPurchaseRefs(supabase), loadTripRefs(supabase)]);
+  let auto = 0;
+  for (const r of rows) {
+    const sg = suggestFor(
+      {
+        type: r.op_type ?? '',
+        amount: Number(r.amount),
+        counterparty: r.counterparty,
+        counterpartyAccount: r.counterparty_account,
+        title: r.title,
+        description: r.description ?? '',
+        bookingDate: String(r.booking_date).slice(0, 10),
+        currency: r.currency,
+      },
+      r.kind as TxKind,
+      purchases,
+      trips,
+    );
+    await supabase.from('bank_transactions').update({ suggestion: sg }).eq('id', r.id).eq('status', 'new');
+    const d = autoDecision(sg);
+    if (d && (await applyDecision(supabase, r.id, d, userId)).ok) auto++;
+  }
+  return { checked: rows.length, auto };
+}
 
 export type ImportResult =
   | { ok: true; statementId: string; total: number; auto: number; toReview: number; period: string; account: string }
@@ -52,17 +113,7 @@ export async function importStatement(
 
   const rows = s.transactions.map((t) => {
     const kind = classifyTx(t, own);
-    const ctx = { ...t, currency: s.currency };
-    let suggestion: Suggestion | null = null;
-    if (kind === 'internal') suggestion = { type: 'ignore' };
-    else if (t.amount > 0) {
-      const m = kind === 'client' ? matchTrips(ctx, trips) : null;
-      suggestion = m ? { type: 'trips', ...m } : null;
-    } else {
-      const m = ['supplier', 'other_out', 'card'].includes(kind) ? matchPurchases(ctx, kind, purchases) : null;
-      const cat = defaultOverhead(kind, t);
-      suggestion = m ? { type: 'purchases', ...m } : cat ? { type: 'overhead', category: cat } : null;
-    }
+    const suggestion = suggestFor({ ...t, currency: s.currency }, kind, purchases, trips);
     return {
       statement_id: st.id,
       account: s.account,
@@ -91,9 +142,7 @@ export async function importStatement(
   // Применяем сразу только однозначное: точное совпадение счетов/заказов и свои переводы.
   let auto = 0;
   for (const r of (inserted ?? []) as { id: string; suggestion: Suggestion | null }[]) {
-    const sg = r.suggestion;
-    const d: Decision | null =
-      sg?.type === 'ignore' ? { type: 'ignore' } : (sg?.type === 'purchases' || sg?.type === 'trips') && sg.exact ? { type: sg.type, ids: sg.ids } : null;
+    const d = autoDecision(r.suggestion);
     if (!d) continue;
     const res = await applyDecision(supabase, r.id, d, userId);
     if (res.ok) auto++;

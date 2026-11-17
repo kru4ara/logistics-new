@@ -2336,6 +2336,8 @@ export const en: Messages = {
     err_sum: 'Shares must add up to the invoice amount ({total})',
   },
   bank: {
+    rematch: 'Recalculate suggestions',
+    rematched: 'Checked {checked} transactions, matched straight away: {auto}',
     nav: 'Bank',
     title: 'Bank statements',
     subtitle: 'A PKO statement (PDF) once a month: the CRM sets real payment dates on contractor invoices and client orders, and books the rest to overhead by category.',
