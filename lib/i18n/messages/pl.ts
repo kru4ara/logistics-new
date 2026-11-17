@@ -2297,6 +2297,10 @@ export const pl: Messages = {
     other: 'Inne',
   },
   payx3: {
+    bankDupTitle: 'Płatność z wyciągu powtarza fakturę: {n}',
+    bankDupHint: 'Firma zwróciła pracownikowi koszt zakupu z faktury — to jeden koszt. Połącz płatność z fakturą: pozycja z wyciągu zniknie, faktura będzie opłacona.',
+    bankDupLink: 'Połącz z fakturą',
+    bankDupConfirm: 'Płatność stanie się zapłatą faktury {num}, osobna pozycja z wyciągu zniknie. Kontynuować?',
     secSort: 'Do rozdzielenia: „nie dotyczy kursów” ({n} sprzedawców bez kategorii)',
     sortHint: 'Według sprzedawcy: koszty kursów (EX-1, EPI) — wróć do przypisania; reszta — kategoria kosztów ogólnych, wtedy faktura sama trafi do „Koszty ogólne”. Wybór zostanie zapamiętany dla nowych faktur.',
     invoices: 'faktur: {n}',

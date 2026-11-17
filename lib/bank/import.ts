@@ -24,7 +24,15 @@ export function suggestFor(
 ): Suggestion | null {
   if (kind === 'internal') return { type: 'ignore' };
   // Наличные — не расход: деньги переходят в кассу/водителю, расход — когда их потратят (расходы рейса).
-  if (kind === 'cash' && t.amount < 0) return { type: 'cash' };
+  if (kind === 'cash' && t.amount < 0) {
+    // «ZWROT KOSZTÓW» — сотрудник заплатил за фирму, ему вернули: это оплата его счёта
+    // (Everprint, принтер), если счёт с той же суммой есть. Иначе — как наличные.
+    if (/ZWROT KOSZT|WZROT/i.test(t.title ?? '')) {
+      const m = matchPurchases(t, 'other_out', purchases);
+      if (m) return { type: 'purchases', ids: m.ids, exact: false };
+    }
+    return { type: 'cash' };
+  }
   if (t.amount > 0) {
     const m = kind === 'client' ? matchTrips(t, trips) : null;
     return m ? { type: 'trips', ...m } : null;

@@ -102,6 +102,32 @@ export async function decideTransaction(txId: string, decision: Decision): Promi
   return { ok: true };
 }
 
+/**
+ * Платёж из выписки, записанный общим расходом, — на самом деле оплата счёта подрядчика
+ * (возврат сотруднику за купленное по счёту). Снимаем решение и связываем со счётом:
+ * расход остаётся один — из счёта.
+ */
+export async function linkBankCostToInvoice(txId: string, invoiceId: string): Promise<Result> {
+  await requireCapability('bank.edit');
+  const supabase = await createClient();
+  const { userId } = await getSessionContext();
+  const { data: inv } = await supabase.from('purchase_invoices').select('id, invoice_number').eq('id', invoiceId).maybeSingle();
+  if (!inv) return { ok: false, message: await errText('notFound') };
+  const u = await undoDecision(supabase, txId);
+  if (!u.ok) return { ok: false, message: await errText(u.error, u.message) };
+  const r = await applyDecision(supabase, txId, { type: 'purchases', ids: [invoiceId] }, userId ?? null);
+  if (!r.ok) return { ok: false, message: await errText(r.error, r.message) };
+  await logAudit({
+    entity_type: 'bank_transaction',
+    entity_id: txId,
+    action: 'update',
+    changes: { decision: { before: 'overhead', after: 'purchases' } },
+    summary: `Операция выписки: общий расход → оплата счёта ${inv.invoice_number ?? invoiceId}`,
+  });
+  refresh();
+  return { ok: true };
+}
+
 /** Принять все подсказки выписки (или всех выписок) разом. */
 export async function acceptSuggestions(statementId: string | null): Promise<Result> {
   await requireCapability('bank.edit');

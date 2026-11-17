@@ -132,6 +132,12 @@ describe('платёж → счета подрядчиков', () => {
     expect(matchPurchases(card, 'card', [inv('p', { number: 'F 5935K2', gross: 280.39, issueDate: '2026-08-20' })])).toBeNull();
   });
 
+  it('возврат сотруднику (ZWROT KOSZTÓW) за 2 дня до счёта — тот счёт, по сумме', () => {
+    const zwrot = out({ amount: -1349, title: 'ZWROT KOSZTÓW ZA DRUKARKĘ', counterparty: 'ZBIGNIEW KOŻUCH', bookingDate: '2026-05-30' });
+    expect(classifyTx(zwrot, [])).toBe('cash');
+    expect(matchPurchases(zwrot, 'other_out', [inv('e', { number: 'FV00147/06/2026', sellerName: 'EVERPRINT', gross: 1349, issueDate: '2026-06-01' })])).toEqual({ ids: ['e'], exact: false });
+  });
+
   it('другая валюта и приход — не сопоставляем', () => {
     expect(matchPurchases(out({ currency: 'EUR' }), 'supplier', [inv('a')])).toBeNull();
     expect(matchPurchases(out({ amount: 1389.9 }), 'supplier', [inv('a')])).toBeNull();
