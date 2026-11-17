@@ -133,6 +133,8 @@ export type TripRef = {
   invoiced?: boolean;
   /** уже распределено на заказ из других приходов, в его валюте */
   allocated?: number;
+  /** фрахт заказа в EUR — когда валюта счёта не совпала с валютой прихода (счёт в PLN по ошибке) */
+  revenueEur?: number | null;
 };
 
 export type Allocation = { tripId: string; amount: number };
@@ -146,9 +148,18 @@ export type TripMatch = Match & {
 /** Погрешность «оплачен полностью»: копейки и округления банка. */
 export const SETTLE_TOLERANCE = 0.5;
 
-/** Остаток к оплате по заказу (не меньше нуля); сумма неизвестна — null. */
-export const outstanding = (t: Pick<TripRef, 'amount' | 'allocated'>) =>
-  t.amount == null ? null : Math.max(0, Math.round((t.amount - (t.allocated ?? 0)) * 100) / 100);
+/**
+ * Остаток к оплате по заказу (не меньше нуля); сумма неизвестна — null. С валютой прихода:
+ * счёт в другой валюте, а приход в EUR — остаток по фрахту заказа в EUR (бывает, что счёт
+ * по ошибке выставлен в PLN); иначе — null (не сопоставляем).
+ */
+export function outstanding(t: Pick<TripRef, 'amount' | 'allocated' | 'currency' | 'revenueEur'>, cur?: string): number | null {
+  let base = t.amount;
+  if (cur && (t.currency || 'EUR').toUpperCase() !== cur.toUpperCase()) {
+    base = cur.toUpperCase() === 'EUR' ? t.revenueEur ?? null : null;
+  }
+  return base == null ? null : Math.max(0, Math.round((base - (t.allocated ?? 0)) * 100) / 100);
+}
 
 /** Заказ оплачен полностью: распределено не меньше суммы к оплате. */
 export const isSettled = (amount: number | null, allocated: number) =>
@@ -169,7 +180,7 @@ export function allocatePayment(amount: number, cur: string, trips: TripRef[]): 
   const allocations: Allocation[] = [];
   let covered = true;
   for (const t of trips) {
-    const due = (t.currency || 'EUR').toUpperCase() === cur ? outstanding(t) : null;
+    const due = outstanding(t, cur);
     if (due == null || due <= 0) {
       if (due == null) covered = false;
       continue;
@@ -221,8 +232,8 @@ export function matchTrips(tx: TxLike & { currency: string }, trips: TripRef[]):
     return { ids: found.map((t) => t.id), exact: covered && Math.abs(remainder) < 0.005, allocations, remainder };
   }
   const same = trips.filter((t) => {
-    const due = outstanding(t);
-    return !t.paid && due != null && due > 0 && (t.currency || 'EUR').toUpperCase() === cur && cents(due) === cents(amount) && sameParty(tx.counterparty, t.clientName);
+    const due = outstanding(t, cur);
+    return !t.paid && due != null && due > 0 && cents(due) === cents(amount) && sameParty(tx.counterparty, t.clientName);
   });
   if (same.length !== 1) return null;
   return { ids: [same[0].id], exact: false, allocations: [{ tripId: same[0].id, amount }], remainder: 0 };

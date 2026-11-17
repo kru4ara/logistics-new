@@ -184,6 +184,16 @@ describe('приход → заказы с распределением', () => 
     expect(matchTrips(inc({ amount: 100, title: 'CONTR 63' }), [trip('f', { requestNumber: null, tripNumber: '63', amount: 999 })])).toBeNull();
   });
 
+  it('счёт в PLN по ошибке, приход в EUR — делим по фрахту в EUR', () => {
+    const r = matchTrips(inc({ amount: 15800, title: 'CONTR.885, 886, 892' }), [
+      trip('a', { requestNumber: '885', amount: 5400 }),
+      trip('b', { requestNumber: '886', amount: 5500, currency: 'PLN', revenueEur: 5200 }),
+      trip('c', { requestNumber: '892', amount: 5200 }),
+    ]);
+    expect(r).toMatchObject({ exact: true, remainder: 0, allocations: [{ tripId: 'a', amount: 5400 }, { tripId: 'b', amount: 5200 }, { tripId: 'c', amount: 5200 }] });
+    expect(outstanding({ amount: 5500, currency: 'PLN', revenueEur: null, allocated: 0 }, 'EUR')).toBeNull();
+  });
+
   it('номер заказа с буквами и дробью: «ORDER 908-07/069»', () => {
     const r = matchTrips(inc({ amount: 1445, title: 'PAYMENT, CONTRACT N/N FROM 28.07.2026, ORDER 908- 07/069', counterparty: 'TU-TELL' }), [trip('t', { requestNumber: '908-07/069', amount: 1445 })]);
     expect(r).toMatchObject({ ids: ['t'], exact: true });

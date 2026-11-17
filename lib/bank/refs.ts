@@ -57,6 +57,7 @@ export async function loadTripRefs(supabase: Supabase): Promise<TripRef[]> {
       paid: r.status === 'paid',
       invoiced: r.status === 'invoiced' || r.status === 'paid',
       allocated: allocated.get(r.id) ?? 0,
+      revenueEur: r.revenue_eur != null ? Number(r.revenue_eur) : null,
     };
   });
 }

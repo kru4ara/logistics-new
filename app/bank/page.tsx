@@ -149,12 +149,12 @@ async function BankView({ searchParams, role }: { searchParams: Promise<{ show?:
     // Все заказы в валюте прихода (поиск — в редакторе): найденные в подсказке, затем с
     // остатком к оплате, затем остальные — «оплачен» вручную без денег по выписке тоже здесь.
     const first = new Set<string>(tx.suggestion?.type === 'trips' ? tx.suggestion.ids : []);
-    const rank = (x: TripRef) => (first.has(x.id) ? 0 : (outstanding(x) ?? 0) > 0 ? 1 : 2);
+    const rank = (x: TripRef) => (first.has(x.id) ? 0 : (outstanding(x, cur) ?? 0) > 0 ? 1 : 2);
     return trips
-      .filter((x) => (x.currency || 'EUR').toUpperCase() === cur)
-      .sort((a, b) => rank(a) - rank(b) || Math.abs((outstanding(a) ?? 0) - amount) - Math.abs((outstanding(b) ?? 0) - amount))
+      .filter((x) => outstanding(x, cur) != null || first.has(x.id))
+      .sort((a, b) => rank(a) - rank(b) || Math.abs((outstanding(a, cur) ?? 0) - amount) - Math.abs((outstanding(b, cur) ?? 0) - amount))
       .slice(0, 400)
-      .map((x) => ({ id: x.id, label: tripLabel(x.id), due: outstanding(x) ?? 0 }));
+      .map((x) => ({ id: x.id, label: tripLabel(x.id), due: outstanding(x, cur) ?? 0 }));
   };
 
   const describe = (s: any, cur: string): string | null => {
