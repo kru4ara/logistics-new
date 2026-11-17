@@ -2,6 +2,7 @@ import 'server-only';
 import type { createClient } from '../supabase/admin';
 import { fetchAll } from '../fetch-all';
 import type { PurchaseRef, TripRef } from './match-rules';
+import { isoCurrency } from '../currency';
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
 
@@ -15,7 +16,7 @@ export async function loadPurchaseRefs(supabase: Supabase): Promise<PurchaseRef[
     number: r.invoice_number,
     sellerName: r.seller_name,
     gross: r.gross_amount != null ? Number(r.gross_amount) : r.net_amount != null ? Number(r.net_amount) : null,
-    currency: r.currency,
+    currency: isoCurrency(r.currency, 'PLN'),
     issueDate: r.issue_date ? String(r.issue_date).slice(0, 10) : null,
   }));
 }
@@ -36,7 +37,7 @@ export async function loadTripRefs(supabase: Supabase): Promise<TripRef[]> {
       requestNumber: r.client_request_number != null ? String(r.client_request_number) : null,
       invoiceNumber: r.invoice_number,
       amount: hasInvoice ? Number(r.invoice_amount) : r.revenue_eur != null ? Number(r.revenue_eur) : null,
-      currency: hasInvoice ? r.invoice_currency || 'EUR' : 'EUR',
+      currency: hasInvoice ? isoCurrency(r.invoice_currency) : 'EUR',
       clientName: client?.name ?? null,
       paid: r.status === 'paid',
     };

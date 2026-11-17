@@ -149,6 +149,17 @@ export function paymentCode(v: string | null | undefined): '0' | '1' | '2' {
   return '0';
 }
 
+/**
+ * Валюта документа Fakturowo: в списке приходит кодом, как при выставлении
+ * (dokument_waluta: '1' — EUR, '0' — PLN), иногда — буквами. Наружу — только ISO-код.
+ */
+export function fakturowoCurrency(v: string | null | undefined): string | null {
+  const s = (v ?? '').trim();
+  if (s === '1') return 'EUR';
+  if (s === '0') return 'PLN';
+  return /^[a-z]{3}$/i.test(s) ? s.toUpperCase() : null;
+}
+
 export function parseDocRow(line: string): FakturowoDoc | null {
   const f = line.split(';').map((x) => x.trim());
   // Строки часто заканчиваются «;» — пустое последнее поле сдвигало бы поля, считанные с конца.
@@ -170,7 +181,7 @@ export function parseDocRow(line: string): FakturowoDoc | null {
     kind: f[1] || null,
     number: f[2] || null,
     issueDate,
-    currency: f[5] || null,
+    currency: fakturowoCurrency(f[5]),
     gross: num(f[8]),
     buyerName: f[12] || null,
     buyerTaxId: buyerTaxId || null,

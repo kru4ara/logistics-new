@@ -2336,6 +2336,8 @@ export const pl: Messages = {
     err_sum: 'Udziały muszą sumować się do kwoty faktury ({total})',
   },
   bank: {
+    rematch: 'Przelicz podpowiedzi',
+    rematched: 'Sprawdzono operacji: {checked}, dopasowano od razu: {auto}',
     nav: 'Bank',
     title: 'Wyciągi bankowe',
     subtitle: 'Wyciąg PKO (PDF) raz w miesiącu: CRM sama ustawia prawdziwe daty płatności fakturom przewoźników i zleceniom klientów, resztę — do kosztów ogólnych według kategorii.',

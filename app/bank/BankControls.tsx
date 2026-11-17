@@ -2,9 +2,9 @@
 
 import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, Upload, Check, Undo2, Ban, Trash2, Link2, CheckCheck } from 'lucide-react';
+import { Loader2, Upload, Check, Undo2, Ban, Trash2, Link2, CheckCheck, RefreshCw } from 'lucide-react';
 import { useT } from '../components/I18nProvider';
-import { uploadStatements, decideTransaction, acceptSuggestions, undoTransaction, deleteStatement } from './actions';
+import { uploadStatements, decideTransaction, acceptSuggestions, undoTransaction, deleteStatement, rematchTransactions } from './actions';
 
 export type PickOpt = { id: string; label: string };
 type Cat = { value: string; label: string };
@@ -169,5 +169,21 @@ export function DeleteStatementButton({ statementId, label }: { statementId: str
       </button>
       {msg && !msg.ok && <span className="text-xs text-red-600">{msg.text}</span>}
     </>
+  );
+}
+
+/** Пересчитать подсказки (после загрузки новых счетов или правки данных). */
+export function RematchButton() {
+  const { t } = useT();
+  const { isPending, msg, run } = useRun();
+  return (
+    <span className="inline-flex flex-col items-end gap-1">
+      <button type="button" disabled={isPending} onClick={() => run(() => rematchTransactions())}
+        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold border text-slate-600 bg-white border-slate-200 hover:bg-slate-50 disabled:opacity-50">
+        {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+        {t('bank.rematch')}
+      </button>
+      {msg && <span className={`text-xs ${msg.ok ? 'text-emerald-700' : 'text-red-600'}`}>{msg.text}</span>}
+    </span>
   );
 }
