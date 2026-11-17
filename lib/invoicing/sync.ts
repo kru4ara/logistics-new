@@ -1,4 +1,5 @@
 import 'server-only';
+import { settleTrips } from '../bank/apply';
 import { createClient } from '../supabase/admin';
 import { fetchAll } from '../fetch-all';
 import { logAudit } from '../audit';
@@ -84,6 +85,7 @@ export async function runInvoiceSync(): Promise<SyncReport> {
 
   const plan = planInvoiceSync(provider.id, remote, trips);
   let updated = 0;
+  const toSettle: string[] = [];
   for (const u of plan.updates) {
     if (!hasAmount) {
       delete u.patch.invoice_amount;
@@ -96,6 +98,8 @@ export async function runInvoiceSync(): Promise<SyncReport> {
       continue;
     }
     updated++;
+    // Счёт выставлен или сумма уточнена — аванс из выписки мог уже закрыть его.
+    if (u.patch.status === 'invoiced' || u.patch.invoice_amount != null) toSettle.push(u.tripId);
     await logAudit({
       entity_type: 'trip',
       entity_id: u.tripId,
@@ -104,6 +108,8 @@ export async function runInvoiceSync(): Promise<SyncReport> {
       summary: `Сверка с ${provider.name}: фактура ${u.number ?? '—'} — ${u.changes.map((c) => CHANGE_RU[c]).join(', ')}`,
     });
   }
+
+  await settleTrips(supabase, toSettle);
 
   // Неоплаченные без заказа — сохраняем для списка в дебиторке.
   await writeJson(supabase, UNMATCHED_KEY, {

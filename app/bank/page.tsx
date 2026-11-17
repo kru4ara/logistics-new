@@ -2,7 +2,8 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Landmark, KeyRound } from 'lucide-react';
 import { createClient } from '../../lib/supabase/admin';
-import { fetchAll } from '../../lib/fetch-all';
+import { fetchAll, fetchAllByIds } from '../../lib/fetch-all';
+import { outstanding } from '../../lib/bank/match-rules';
 import { getSessionContext } from '../../lib/session';
 import { can, deniedRedirect } from '../../lib/roles';
 import { getT } from '../../lib/i18n/server';
@@ -107,8 +108,27 @@ async function BankView({ searchParams, role }: { searchParams: Promise<{ show?:
   };
   const tripLabel = (id: string) => {
     const x = tripById.get(id);
-    return x ? `№${x.tripNumber ?? '?'}${x.invoiceNumber ? ` · ${x.invoiceNumber}` : ''} · ${x.clientName ?? ''} · ${money(x.amount, x.currency)}` : id.slice(0, 8);
+    if (!x) return id.slice(0, 8);
+    const due = outstanding(x);
+    const tail = !x.invoiced ? ` (${t('pay2.noInvoiceYet')})` : due != null && due > 0 && (x.allocated ?? 0) > 0 ? ` (${t('pay2.left', { sum: money(due, x.currency) })})` : '';
+    const ref = x.requestNumber ? `№${x.requestNumber}` : `№${x.tripNumber ?? '?'}`;
+    return `${ref}${x.invoiceNumber ? ` · ${x.invoiceNumber}` : ''} · ${x.clientName ?? ''} · ${money(x.amount, x.currency)}${tail}`;
   };
+  const shareLabel = (a: { tripId: string; amount: number }, cur: string) => {
+    const x = tripById.get(a.tripId);
+    return `${x?.requestNumber ? `№${x.requestNumber}` : `№${x?.tripNumber ?? '?'}`} → ${money(a.amount, cur)}`;
+  };
+  // Доли приходов по заказам — для «сопоставлено» и остатка (аванса).
+  const allocByTx = new Map<string, { tripId: string; amount: number }[]>();
+  const txIds = txs.filter((x) => x.status === 'matched' && Number(x.amount) > 0).map((x) => x.id);
+  if (txIds.length) {
+    const { data: al } = await fetchAllByIds(txIds, (chunk) =>
+      supabase.from('payment_allocations').select('bank_transaction_id, trip_id, amount').in('bank_transaction_id', chunk),
+    );
+    for (const r of (al ?? []) as any[]) {
+      allocByTx.set(r.bank_transaction_id, [...(allocByTx.get(r.bank_transaction_id) ?? []), { tripId: r.trip_id, amount: Number(r.amount) }]);
+    }
+  }
   const ohLabel = (c: string | null | undefined) => {
     const o = OVERHEAD_CATEGORIES.find((x) => x.value === c);
     return o ? `${o.emoji} ${t(`ohCat.${o.value}` as MessageKey)}` : '';
@@ -126,17 +146,23 @@ async function BankView({ searchParams, role }: { searchParams: Promise<{ show?:
         .slice(0, 40)
         .map((p) => ({ id: p.id, label: invLabel(p.id) }));
     }
+    // Заказы с остатком к оплате (и без счёта — аванс): найденные в подсказке — первыми.
+    const first = new Set<string>(tx.suggestion?.type === 'trips' ? tx.suggestion.ids : []);
     return trips
-      .filter((x) => !x.paid && (x.currency || 'EUR').toUpperCase() === cur)
-      .sort((a, b) => Math.abs((a.amount ?? 0) - amount) - Math.abs((b.amount ?? 0) - amount))
-      .slice(0, 40)
-      .map((x) => ({ id: x.id, label: tripLabel(x.id) }));
+      .filter((x) => (x.currency || 'EUR').toUpperCase() === cur && (first.has(x.id) || ((outstanding(x) ?? 0) > 0 && !x.paid)))
+      .sort((a, b) => Number(first.has(b.id)) - Number(first.has(a.id)) || Math.abs((outstanding(a) ?? 0) - amount) - Math.abs((outstanding(b) ?? 0) - amount))
+      .slice(0, 80)
+      .map((x) => ({ id: x.id, label: tripLabel(x.id), due: outstanding(x) ?? 0 }));
   };
 
-  const describe = (s: any): string | null => {
+  const describe = (s: any, cur: string): string | null => {
     if (!s) return null;
     if (s.type === 'purchases') return `${t(s.exact ? 'bank.sugExact' : 'bank.sugProbable')} ${s.ids.map(invLabel).join('; ')}`;
-    if (s.type === 'trips') return `${t(s.exact ? 'bank.sugExact' : 'bank.sugProbable')} ${s.ids.map(tripLabel).join('; ')}`;
+    if (s.type === 'trips') {
+      const parts = s.allocations?.length ? s.allocations.map((a: any) => shareLabel(a, cur)) : s.ids.map(tripLabel);
+      const rest = Number(s.remainder ?? 0) > 0.005 ? ` · ${t('pay2.remainder', { sum: money(Number(s.remainder), cur) })}` : '';
+      return `${t(s.exact ? 'bank.sugExact' : 'bank.sugProbable')} ${parts.join('; ')}${rest}`;
+    }
     if (s.type === 'overhead') return `${t('bank.sugOverhead')} ${ohLabel(s.category)}`;
     if (s.type === 'cash') return t('bank.sugCash');
     return t('bank.sugIgnore');
@@ -146,7 +172,12 @@ async function BankView({ searchParams, role }: { searchParams: Promise<{ show?:
     if (x.overhead_category === 'cash') return t('bank.cashDecided');
     if (x.overhead_category) return `${t('bank.toOverhead')}: ${ohLabel(x.overhead_category)}`;
     if (x.purchase_invoice_ids?.length) return `${t('bank.paidInvoices')}: ${x.purchase_invoice_ids.map(invLabel).join('; ')}`;
-    if (x.trip_ids?.length) return `${t('bank.paidTrips')}: ${x.trip_ids.map(tripLabel).join('; ')}`;
+    if (x.trip_ids?.length) {
+      const al = allocByTx.get(x.id) ?? [];
+      const rest = Math.round((Number(x.amount) - al.reduce((s, a) => s + a.amount, 0)) * 100) / 100;
+      const parts = al.length ? al.map((a) => shareLabel(a, x.currency)) : x.trip_ids.map(tripLabel);
+      return `${t('bank.paidTrips')}: ${parts.join('; ')}${rest > 0.005 ? ` · ${t('pay2.remainder', { sum: money(rest, x.currency) })}` : ''}`;
+    }
     return '';
   };
   const stLabel = (s: any) => `${s.currency} ···${String(s.account).slice(-4)} · ${formatDate(s.period_from, locale)} – ${formatDate(s.period_to, locale)}`;
@@ -159,7 +190,10 @@ async function BankView({ searchParams, role }: { searchParams: Promise<{ show?:
     const qs = p.toString();
     return `/bank${qs ? `?${qs}` : ''}`;
   };
-  const suggestedCount = txs.filter((x) => x.status === 'new' && x.suggestion).length;
+  // «Принять все» берёт только однозначное: счета и заказы — точные совпадения.
+  const suggestedCount = txs.filter(
+    (x) => x.status === 'new' && x.suggestion && (!['purchases', 'trips'].includes(x.suggestion.type) || x.suggestion.exact),
+  ).length;
 
   return (
     <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-5">
@@ -225,7 +259,7 @@ async function BankView({ searchParams, role }: { searchParams: Promise<{ show?:
                       {x.title && <div className="text-xs text-slate-500 break-words">{x.title}</div>}
                       <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
                         <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">{t(`bank.kind_${x.kind}` as MessageKey)}</span>
-                        {x.status === 'new' && describe(x.suggestion) && <span className="text-sky-700">{describe(x.suggestion)}</span>}
+                        {x.status === 'new' && describe(x.suggestion, x.currency) && <span className="text-sky-700">{describe(x.suggestion, x.currency)}</span>}
                         {x.status !== 'new' && <span className="text-emerald-700">{decided(x)}</span>}
                       </div>
                     </div>
@@ -236,6 +270,8 @@ async function BankView({ searchParams, role }: { searchParams: Promise<{ show?:
                           status={x.status}
                           outgoing={amount < 0}
                           suggestion={x.suggestion}
+                          amount={amount}
+                          currency={x.currency}
                           picks={x.status === 'new' && x.kind !== 'internal' ? pickFor(x) : []}
                           categories={ohOptions}
                         />

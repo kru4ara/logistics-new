@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { settleTrips } from '../../lib/bank/apply';
 import { requireCapability } from '../../lib/require-office';
 import { createClient } from '../../lib/supabase/admin';
 import { logAudit } from '../../lib/audit';
@@ -149,6 +150,8 @@ export async function issueInvoice(tripId: string, fd: FormData): Promise<Result
     changes: { invoice_number: { before: null, after: res.number ?? null } },
     summary: `Фактура ${res.number ?? res.externalId} по заказу №${trip.trip_number ?? '—'} (${provider.name}${sendToKsef ? ', KSeF' : ''})`,
   });
+  // Аванс из выписки мог уже закрыть этот счёт.
+  await settleTrips(supabase, [tripId]);
   revalidatePath(`/trips/${tripId}`);
   revalidatePath('/receivables');
   return { ok: true };

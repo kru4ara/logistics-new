@@ -21,13 +21,28 @@ export async function loadPurchaseRefs(supabase: Supabase): Promise<PurchaseRef[
   }));
 }
 
-/** Заказы со счётом клиенту (выставлен / оплачен) — для прихода от клиента. */
+/** Сколько уже распределено на каждый заказ из приходов (до миграции 044 — пусто). */
+export async function loadAllocatedByTrip(supabase: Supabase): Promise<Map<string, number>> {
+  const m = new Map<string, number>();
+  const { data, error } = await fetchAll(supabase.from('payment_allocations').select('trip_id, amount').order('id'));
+  if (error) return m;
+  for (const r of (data ?? []) as { trip_id: string; amount: number }[]) m.set(r.trip_id, (m.get(r.trip_id) ?? 0) + Number(r.amount));
+  return m;
+}
+
+/**
+ * Заказы для приходов от клиентов: со счётом (выставлен / оплачен) и без счёта — в работе
+ * и выполненные (на них приходит аванс). Сумма к оплате — брутто фактуры, без фактуры —
+ * фрахт заказа в EUR; allocated — уже распределено из приходов.
+ */
 export async function loadTripRefs(supabase: Supabase): Promise<TripRef[]> {
   const COLS = 'id, trip_number, client_request_number, invoice_number, status, revenue_eur, clients(name)';
+  const STATUSES = ['active', 'completed', 'invoiced', 'paid'];
   const full = await fetchAll(
-    supabase.from('trips').select(`${COLS}, invoice_amount, invoice_currency`).in('status', ['invoiced', 'paid']).order('id'),
+    supabase.from('trips').select(`${COLS}, invoice_amount, invoice_currency`).in('status', STATUSES).order('id'),
   );
-  const res = full.error ? await fetchAll(supabase.from('trips').select(COLS).in('status', ['invoiced', 'paid']).order('id')) : full;
+  const res = full.error ? await fetchAll(supabase.from('trips').select(COLS).in('status', STATUSES).order('id')) : full;
+  const allocated = await loadAllocatedByTrip(supabase);
   return ((res.data ?? []) as any[]).map((r) => {
     const client = Array.isArray(r.clients) ? r.clients[0] : r.clients;
     const hasInvoice = r.invoice_amount != null;
@@ -40,6 +55,8 @@ export async function loadTripRefs(supabase: Supabase): Promise<TripRef[]> {
       currency: hasInvoice ? isoCurrency(r.invoice_currency) : 'EUR',
       clientName: client?.name ?? null,
       paid: r.status === 'paid',
+      invoiced: r.status === 'invoiced' || r.status === 'paid',
+      allocated: allocated.get(r.id) ?? 0,
     };
   });
 }

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parsePkoStatement, compactAccount } from '../bank/pko-rules';
-import { classifyTx, defaultOverhead, matchPurchases, matchTrips, numberTokens, sameParty, type PurchaseRef, type TripRef } from '../bank/match-rules';
+import { classifyTx, defaultOverhead, matchPurchases, matchTrips, numberTokens, sameParty, isSettled, outstanding, type PurchaseRef, type TripRef } from '../bank/match-rules';
 
 // Вымышленная выписка в формате PKO (строки, как их отдаёт lib/bank/pdf-text.ts).
 const OWN_PLN = '11102032060000000000000001';
@@ -139,29 +139,59 @@ describe('платёж → счета подрядчиков', () => {
 });
 
 const trip = (id: string, o: Partial<TripRef> = {}): TripRef => ({
-  id, tripNumber: id, requestNumber: null, invoiceNumber: null, amount: 3000, currency: 'EUR', clientName: 'LLC ALFA LOGISTIC', paid: false, ...o,
+  id, tripNumber: null, requestNumber: id, invoiceNumber: null, amount: 3000, currency: 'EUR', clientName: 'LLC ALFA LOGISTIC', paid: false, invoiced: true, allocated: 0, ...o,
 });
 const inc = (o: Record<string, unknown> = {}) => ({ ...tx({ amount: 9200, counterparty: 'LLC ALFA LOGISTIC MINSK', title: 'FOR FORWARDING, CONTR.907, 902, 903,6776.' }), currency: 'EUR', ...o });
 
-describe('приход → заказы', () => {
-  it('номера заказов в назначении (один платёж — несколько заказов)', () => {
+describe('приход → заказы с распределением', () => {
+  it('номера заказов в назначении: платёж раскладывается по остаткам, по порядку', () => {
     expect(numberTokens('CONTR.907, 902, 903,6776.')).toEqual(['907', '902', '903', '6776']);
     // даты, годы и номер KSeF — не номера заказов
     expect(numberTokens('CONTR.885 DD 27.07.26, 886DD 04.08.26, FAKTURA 38/08/2026 KSEF 7011162939-20260901-38816D800001-19 2026')).toEqual(['885', '886']);
-    const r = matchTrips(inc(), [trip('907', { amount: 3000 }), trip('902', { amount: 2000 }), trip('903', { amount: 2000 }), trip('6776', { amount: 2200 }), trip('111')]);
-    expect(r).toEqual({ ids: ['907', '902', '903', '6776'], exact: true });
+    const r = matchTrips(inc(), [trip('6776', { amount: 2200 }), trip('907', { amount: 3000 }), trip('902', { amount: 2000 }), trip('903', { amount: 2000 }), trip('111')]);
+    expect(r?.ids).toEqual(['907', '902', '903', '6776']);
+    expect(r?.exact).toBe(true);
+    expect(r?.remainder).toBe(0);
+    expect(r?.allocations).toEqual([
+      { tripId: '907', amount: 3000 }, { tripId: '902', amount: 2000 }, { tripId: '903', amount: 2000 }, { tripId: '6776', amount: 2200 },
+    ]);
+  });
+
+  it('часть суммы не легла (второй заказ без суммы / ещё без счёта) — остаток, не точно', () => {
+    const r = matchTrips(inc({ amount: 11200, title: 'CONTR.905, 6788.' }), [trip('905', { amount: 6000 }), trip('6788', { amount: null, invoiced: false })]);
+    expect(r).toMatchObject({ ids: ['905', '6788'], exact: false, remainder: 5200, allocations: [{ tripId: '905', amount: 6000 }] });
+  });
+
+  it('учитывает уже распределённое: частичная оплата закрывает остаток', () => {
+    const r = matchTrips(inc({ amount: 1000, title: 'CONTR.905' }), [trip('905', { amount: 6000, allocated: 5000 })]);
+    expect(r).toMatchObject({ exact: true, allocations: [{ tripId: '905', amount: 1000 }], remainder: 0 });
+    const less = matchTrips(inc({ amount: 400, title: 'CONTR.905' }), [trip('905', { amount: 6000, allocated: 5000 })]);
+    expect(less).toMatchObject({ exact: false, allocations: [{ tripId: '905', amount: 400 }], remainder: 0 });
+  });
+
+  it('номер заказа с буквами и дробью: «ORDER 908-07/069»', () => {
+    const r = matchTrips(inc({ amount: 1445, title: 'PAYMENT, CONTRACT N/N FROM 28.07.2026, ORDER 908- 07/069', counterparty: 'TU-TELL' }), [trip('t', { requestNumber: '908-07/069', amount: 1445 })]);
+    expect(r).toMatchObject({ ids: ['t'], exact: true });
   });
 
   it('номер счёта клиенту в назначении; сумма не сходится — вероятно', () => {
     const r = matchTrips(inc({ amount: 1650, title: '38/08/2026, NR KSEF: 7011162939-20260901-38816D800001-19', counterparty: 'NCK' }), [trip('a', { invoiceNumber: '38/08/2026', amount: 1650 }), trip('b', { invoiceNumber: '3/08/2026' })]);
-    expect(r).toEqual({ ids: ['a'], exact: true });
-    expect(matchTrips(inc({ amount: 1000, title: 'FAKTURA 38/08/2026' }), [trip('a', { invoiceNumber: '38/08/2026', amount: 1650 })])).toEqual({ ids: ['a'], exact: false });
+    expect(r).toMatchObject({ ids: ['a'], exact: true });
+    expect(matchTrips(inc({ amount: 1000, title: 'FAKTURA 38/08/2026' }), [trip('a', { invoiceNumber: '38/08/2026', amount: 1650 })])).toMatchObject({ ids: ['a'], exact: false });
   });
 
-  it('без номеров — один неоплаченный заказ клиента с той же суммой', () => {
-    expect(matchTrips(inc({ amount: 3000, title: 'PAYMENT' }), [trip('a'), trip('b', { amount: 2000 })])).toEqual({ ids: ['a'], exact: false });
+  it('без номеров — один неоплаченный заказ клиента с тем же остатком', () => {
+    expect(matchTrips(inc({ amount: 3000, title: 'PAYMENT' }), [trip('a'), trip('b', { amount: 2000 })])).toMatchObject({ ids: ['a'], exact: false });
     expect(matchTrips(inc({ amount: 3000, title: 'PAYMENT' }), [trip('a'), trip('b')])).toBeNull();
     expect(sameParty('LLC ALFA LOGISTIC MINSK', 'Alfa Logistic LLC')).toBe(true);
     expect(sameParty('SP. Z O.O.', 'SPÓŁKA Z O.O.')).toBe(false);
+  });
+
+  it('оплачен полностью — с погрешностью в копейки', () => {
+    expect(isSettled(6000, 6000)).toBe(true);
+    expect(isSettled(6000, 5999.6)).toBe(true);
+    expect(isSettled(6000, 5000)).toBe(false);
+    expect(isSettled(null, 100)).toBe(false);
+    expect(outstanding({ amount: 6000, allocated: 7000 })).toBe(0);
   });
 });

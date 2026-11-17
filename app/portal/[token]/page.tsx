@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { loadAllocatedByTrip } from '../../../lib/bank/refs';
 import { headers } from 'next/headers';
 import { Truck, MapPin, FileText, AlertTriangle, CheckCircle2, Clock } from 'lucide-react';
 import { createClient } from '../../../lib/supabase/admin';
@@ -95,9 +96,12 @@ export default async function PortalPage({ params, searchParams }: { params: Pro
   );
 
   const today = new Date().toISOString().slice(0, 10);
+  // Долг — за вычетом уже пришедшего по выписке.
+  const paidParts = await loadAllocatedByTrip(supabase);
   const unpaid = trips
     .filter((tr) => tr.status === 'invoiced')
-    .map((tr) => toReceivable(tr as ReceivableTrip, client?.payment_days ?? null, today))
+    .map((tr) => toReceivable({ ...(tr as ReceivableTrip), paid_part: paidParts.get(tr.id) ?? 0 }, client?.payment_days ?? null, today))
+    .filter((r) => r.amount > 0.5)
     .sort((a, b) => (a.due ?? '').localeCompare(b.due ?? ''));
   const totalDue = unpaid.reduce((s, r) => s + r.amount, 0);
   const overdue = unpaid.filter((r) => (r.daysOverdue ?? 0) > 0).reduce((s, r) => s + r.amount, 0);

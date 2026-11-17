@@ -6,10 +6,11 @@ import { Loader2, Upload, Check, Undo2, Ban, Trash2, Link2, CheckCheck, RefreshC
 import { useT } from '../components/I18nProvider';
 import { uploadStatements, decideTransaction, acceptSuggestions, undoTransaction, deleteStatement, rematchTransactions } from './actions';
 
-export type PickOpt = { id: string; label: string };
+export type PickOpt = { id: string; label: string; /** остаток к оплате заказа */ due?: number };
 type Cat = { value: string; label: string };
 type Suggestion =
-  | { type: 'purchases' | 'trips'; ids: string[]; exact: boolean }
+  | { type: 'purchases'; ids: string[]; exact: boolean }
+  | { type: 'trips'; ids: string[]; exact: boolean; allocations?: { tripId: string; amount: number }[]; remainder?: number }
   | { type: 'cash' }
   | { type: 'overhead'; category: string }
   | { type: 'ignore' }
@@ -63,10 +64,12 @@ export function UploadStatements() {
 }
 
 /** Решение по операции: принять подсказку, связать вручную, в общие расходы, пропустить; или отменить. */
-export function TxActions({ txId, status, outgoing, suggestion, picks, categories }: {
+export function TxActions({ txId, status, outgoing, suggestion, picks, categories, amount, currency }: {
   txId: string;
   status: string;
   outgoing: boolean;
+  amount: number;
+  currency: string;
   suggestion: Suggestion;
   picks: PickOpt[];
   categories: Cat[];
@@ -93,8 +96,10 @@ export function TxActions({ txId, status, outgoing, suggestion, picks, categorie
     run(() =>
       decideTransaction(
         txId,
-        suggestion.type === 'purchases' || suggestion.type === 'trips'
-          ? { type: suggestion.type, ids: suggestion.ids }
+        suggestion.type === 'trips'
+          ? { type: 'trips', ids: suggestion.ids, allocations: suggestion.allocations }
+          : suggestion.type === 'purchases'
+          ? { type: 'purchases', ids: suggestion.ids }
           : suggestion.type === 'overhead'
             ? { type: 'overhead', category: suggestion.category }
             : suggestion.type === 'cash'
@@ -106,7 +111,7 @@ export function TxActions({ txId, status, outgoing, suggestion, picks, categorie
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex flex-wrap gap-1.5">
-        {suggestion && (
+        {suggestion && !(suggestion.type === 'trips' && !suggestion.exact) && (
           <button type="button" disabled={isPending} onClick={accept} className={`${btn} text-white bg-brand-600 border-brand-600 hover:bg-brand-700`}>
             {isPending ? spin : <Check className="w-3.5 h-3.5" />}{t('bank.accept')}
           </button>
@@ -120,13 +125,23 @@ export function TxActions({ txId, status, outgoing, suggestion, picks, categorie
           <Ban className="w-3.5 h-3.5" />{t('bank.skip')}
         </button>
       </div>
-      {picks.length > 0 && (
+      {!outgoing && (
+        <AllocationEditor
+          picks={picks}
+          amount={amount}
+          currency={currency}
+          initial={suggestion?.type === 'trips' ? suggestion.allocations ?? [] : []}
+          busy={isPending}
+          onSubmit={(allocations) => run(() => decideTransaction(txId, { type: 'trips', ids: allocations.map((a) => a.tripId), allocations }))}
+        />
+      )}
+      {outgoing && picks.length > 0 && (
         <div className="flex gap-1">
           <select value={pick} onChange={(e) => setPick(e.target.value)} aria-label={outgoing ? t('bank.pickInvoice') : t('bank.pickTrip')} className="input text-xs py-1 min-w-0 flex-1">
             <option value="">{outgoing ? t('bank.pickInvoice') : t('bank.pickTrip')}</option>
             {picks.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
           </select>
-          <button type="button" disabled={isPending || !pick} onClick={() => run(() => decideTransaction(txId, { type: outgoing ? 'purchases' : 'trips', ids: [pick] }))} className={`${btn} text-brand-700 bg-brand-50 border-brand-200 hover:bg-brand-100`}>
+          <button type="button" disabled={isPending || !pick} onClick={() => run(() => decideTransaction(txId, { type: 'purchases', ids: [pick] }))} className={`${btn} text-brand-700 bg-brand-50 border-brand-200 hover:bg-brand-100`}>
             <Link2 className="w-3.5 h-3.5" />{t('bank.link')}
           </button>
         </div>
@@ -193,5 +208,65 @@ export function RematchButton() {
       </button>
       {msg && <span className={`text-xs ${msg.ok ? 'text-emerald-700' : 'text-red-600'}`}>{msg.text}</span>}
     </span>
+  );
+}
+
+/**
+ * Распределение прихода по заказам: каждому — сумма (по умолчанию его остаток), остаток
+ * прихода без распределения — аванс клиента.
+ */
+function AllocationEditor({ picks, amount, currency, initial, busy, onSubmit }: {
+  picks: PickOpt[];
+  amount: number;
+  currency: string;
+  initial: { tripId: string; amount: number }[];
+  busy: boolean;
+  onSubmit: (a: { tripId: string; amount: number }[]) => void;
+}) {
+  const { t } = useT();
+  const [rows, setRows] = useState(initial.map((a) => ({ tripId: a.tripId, amount: String(a.amount) })));
+  const [add, setAdd] = useState('');
+  const byId = new Map(picks.map((p) => [p.id, p]));
+  const cents = (v: string) => Math.round((Number(v.replace(',', '.')) || 0) * 100);
+  const used = rows.reduce((s, r) => s + cents(r.amount), 0);
+  const left = Math.round(amount * 100) - used;
+  const over = left < 0;
+  const addTrip = () => {
+    if (!add || rows.some((r) => r.tripId === add)) return;
+    const due = Math.round((byId.get(add)?.due ?? 0) * 100);
+    const share = Math.max(0, Math.min(due || left, left));
+    setRows([...rows, { tripId: add, amount: (share / 100).toFixed(2) }]);
+    setAdd('');
+  };
+  const valid = rows.length > 0 && !over && rows.every((r) => cents(r.amount) > 0);
+  return (
+    <div className="border border-slate-200 rounded-lg p-2 space-y-1.5 bg-slate-50/50">
+      {rows.map((r, i) => (
+        <div key={r.tripId} className="flex items-center gap-1.5 text-xs">
+          <span className="flex-1 min-w-0 truncate" title={byId.get(r.tripId)?.label}>{byId.get(r.tripId)?.label ?? r.tripId.slice(0, 8)}</span>
+          <input type="text" inputMode="decimal" value={r.amount} aria-label={t('pay2.share')}
+            onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, amount: e.target.value } : x)))}
+            className="input text-xs py-0.5 px-1.5 w-24 text-right tabular-nums" />
+          <button type="button" onClick={() => setRows(rows.filter((_, j) => j !== i))} aria-label={t('pay2.removeShare')} className="text-slate-400 hover:text-red-600">✕</button>
+        </div>
+      ))}
+      <div className="flex gap-1">
+        <select value={add} onChange={(e) => setAdd(e.target.value)} aria-label={t('bank.pickTrip')} className="input text-xs py-1 min-w-0 flex-1">
+          <option value="">{t('bank.pickTrip')}</option>
+          {picks.filter((p) => !rows.some((r) => r.tripId === p.id)).map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+        </select>
+        <button type="button" disabled={!add} onClick={addTrip} className="px-2 py-1 rounded-lg text-xs font-semibold border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50">+</button>
+      </div>
+      <div className="flex items-center justify-between gap-2 text-xs">
+        <span className={over ? 'text-red-600 font-semibold' : left > 0 ? 'text-amber-700' : 'text-slate-500'}>
+          {over ? t('pay2.over', { sum: (-left / 100).toFixed(2), cur: currency }) : left > 0 ? t('pay2.advance', { sum: (left / 100).toFixed(2), cur: currency }) : t('pay2.allSpread')}
+        </span>
+        <button type="button" disabled={busy || !valid}
+          onClick={() => onSubmit(rows.map((r) => ({ tripId: r.tripId, amount: cents(r.amount) / 100 })))}
+          className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold border text-brand-700 bg-brand-50 border-brand-200 hover:bg-brand-100 disabled:opacity-50">
+          {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Link2 className="w-3.5 h-3.5" />}{t('pay2.spread')}
+        </button>
+      </div>
+    </div>
   );
 }

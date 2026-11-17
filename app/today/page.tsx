@@ -1,4 +1,5 @@
 import { getSessionContext } from '../../lib/session';
+import { loadAllocatedByTrip } from '../../lib/bank/refs';
 import { can } from '../../lib/roles';
 import { toReceivable, type ReceivableTrip } from '../../lib/receivables';
 import { loadInvoicedTrips } from '../../lib/receivables-load';
@@ -360,9 +361,10 @@ export default async function TodayPage() {
       fetchAll(supabase.from('clients').select('id, payment_days')),
     ]);
     const days = new Map((cl || []).map((c: any) => [c.id as string, c.payment_days as number | null]));
+    const paid = await loadAllocatedByTrip(supabase);
     for (const r of (inv || []) as ReceivableTrip[]) {
-      const rec = toReceivable(r, r.client_id ? days.get(r.client_id) : null, today);
-      if ((rec.daysOverdue ?? 0) > 0) {
+      const rec = toReceivable({ ...r, paid_part: paid.get(r.id) ?? 0 }, r.client_id ? days.get(r.client_id) : null, today);
+      if ((rec.daysOverdue ?? 0) > 0 && rec.amount > 0.5) {
         overdueInvoices.count += 1;
         overdueInvoices.amount += rec.amount;
       }
