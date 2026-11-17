@@ -38,7 +38,7 @@ export function normalizeInvoiceNumber(v: string | null | undefined): string | n
 const BEFORE_INVOICE = ['active', 'completed'];
 
 /** Изменения заказа по фактуре сервиса; linked — связь устанавливается сейчас. */
-export function patchFromRemote(provider: ProviderId, r: RemoteInvoice, trip: SyncTrip, linked: boolean) {
+export function patchFromRemote(provider: ProviderId, r: RemoteInvoice, trip: SyncTrip, linked: boolean, extra = 0) {
   const patch: TripPatch = {};
   const changes: SyncUpdate['changes'] = [];
   if (linked) {
@@ -63,8 +63,10 @@ export function patchFromRemote(provider: ProviderId, r: RemoteInvoice, trip: Sy
     changes.push('due');
   }
   // Сумма фактуры — для дебиторки (может отличаться от фрахта заказа).
-  if (r.gross != null && (Number(trip.invoice_amount) !== r.gross || (trip.invoice_currency ?? null) !== (r.currency ?? null))) {
-    patch.invoice_amount = r.gross;
+  // extra — добавленные к счёту корректы (FK…): сумма заказа = счёт + корректы.
+  const gross = r.gross != null ? Math.round((r.gross + extra) * 100) / 100 : null;
+  if (gross != null && (Number(trip.invoice_amount) !== gross || (trip.invoice_currency ?? null) !== (r.currency ?? null))) {
+    patch.invoice_amount = gross;
     patch.invoice_currency = r.currency ?? null;
   }
   // Дата счёта — из сервиса, если в CRM её нет (номер вписан вручную, заказ уже оплачен…).
@@ -110,7 +112,13 @@ export function rankTripsForInvoice(r: RemoteInvoice, trips: TripOption[]): (Tri
     .map((t) => ({ ...t, score: Math.round(t.score) }));
 }
 
-export function planInvoiceSync(provider: ProviderId, remote: RemoteInvoice[], trips: SyncTrip[]) {
+/** Корректа, добавленная к счёту заказа вручную (сумма — разница из корректы). */
+export type AppliedCorrection = { externalId: string; tripId: string; number: string | null; gross: number; currency: string | null; issueDate: string | null };
+
+export function planInvoiceSync(provider: ProviderId, remote: RemoteInvoice[], trips: SyncTrip[], applied: AppliedCorrection[] = []) {
+  const extraByTrip = new Map<string, number>();
+  for (const c of applied) extraByTrip.set(c.tripId, (extraByTrip.get(c.tripId) ?? 0) + c.gross);
+  const appliedIds = new Set(applied.map((c) => c.externalId));
   const byExternal = new Map<string, SyncTrip>();
   const byNumber = new Map<string, SyncTrip[]>();
   for (const t of trips) {
@@ -120,7 +128,7 @@ export function planInvoiceSync(provider: ProviderId, remote: RemoteInvoice[], t
   }
   // Номер, который в сервисе встречается дважды (разные типы документов), не сопоставляем.
   // Корректы (korekta) — не счета заказов: исправленный счёт приходит отдельным документом.
-  const corrections = remote.filter((r) => r.kind === 'correction');
+  const corrections = remote.filter((r) => r.kind === 'correction' && !appliedIds.has(r.externalId));
   remote = remote.filter((r) => r.kind !== 'correction');
   const remoteNumberCount = new Map<string, number>();
   for (const r of remote) {
@@ -147,7 +155,7 @@ export function planInvoiceSync(provider: ProviderId, remote: RemoteInvoice[], t
       continue;
     }
 
-    const { patch, changes } = patchFromRemote(provider, r, trip, linked);
+    const { patch, changes } = patchFromRemote(provider, r, trip, linked, extraByTrip.get(trip.id) ?? 0);
     if (Object.keys(patch).length) updates.push({ tripId: trip.id, number: r.number, patch, changes });
   }
 

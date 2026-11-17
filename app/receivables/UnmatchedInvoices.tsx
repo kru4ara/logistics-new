@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Link2, Loader2, EyeOff } from 'lucide-react';
 import { useT } from '../components/I18nProvider';
-import { linkRemoteInvoice, ignoreRemoteInvoice } from './actions';
+import { linkRemoteInvoice, ignoreRemoteInvoice, linkCorrection } from './actions';
 
 export type UnmatchedRow = {
   externalId: string;
@@ -14,6 +14,8 @@ export type UnmatchedRow = {
   buyer: string;
   /** оплачена в сервисе фактур */
   paid?: boolean;
+  /** корректа (FK…): добавляется к счёту заказа, а не заменяет его */
+  correction?: boolean;
   /** replaces — номер счёта заказа, который эта фактура заменит */
   options: { id: string; label: string; suggested: boolean; replaces?: string | null }[];
 };
@@ -37,6 +39,7 @@ function Row({ r, canEdit }: { r: UnmatchedRow; canEdit: boolean }) {
     <tr className="align-top">
       <td className="py-2.5 pr-3 font-medium">
         {r.number}
+        {r.correction && <span className="ml-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-violet-50 text-violet-700">{t('recv2.correction')}</span>}
         {r.paid && <span className="ml-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700">{t('recv2.paidThere')}</span>}
       </td>
       <td className="py-2.5 pr-3 text-slate-600">{r.issueDate}</td>
@@ -60,13 +63,14 @@ function Row({ r, canEdit }: { r: UnmatchedRow; canEdit: boolean }) {
                 )}
               </select>
               <button type="button" disabled={isPending || !tripId} onClick={() => {
+                  if (r.correction) { act(() => linkCorrection(r.externalId, tripId)); return; }
                   const rep = r.options.find((o) => o.id === tripId)?.replaces;
                   if (rep && !window.confirm(t('recv2.confirmReplace', { old: rep, new: r.number }))) return;
                   act(() => linkRemoteInvoice(r.externalId, tripId));
                 }}
                 className="btn btn-primary text-xs px-2.5 py-1.5 disabled:opacity-50">
                 {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Link2 className="w-3.5 h-3.5" />}
-                {t('recv.linkTrip')}
+                {r.correction ? t('recv2.addCorrection') : t('recv.linkTrip')}
               </button>
               <button type="button" disabled={isPending} onClick={() => act(() => ignoreRemoteInvoice(r.externalId))}
                 title={t('recv.notOrder')} className="btn btn-secondary text-xs px-2.5 py-1.5 disabled:opacity-50">

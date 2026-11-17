@@ -4,7 +4,7 @@ import { createClient } from '../supabase/admin';
 import { fetchAll } from '../fetch-all';
 import { logAudit } from '../audit';
 import { getInvoiceProvider } from './index';
-import { planInvoiceSync, visibleUnmatched, type SyncTrip } from './sync-rules';
+import { planInvoiceSync, type AppliedCorrection, visibleUnmatched, type SyncTrip } from './sync-rules';
 import type { RemoteInvoice } from './types';
 
 export type SyncReport =
@@ -12,6 +12,7 @@ export type SyncReport =
   | { ok: false; reason: 'notConfigured' | 'unsupported' | 'error'; message?: string };
 
 const UNMATCHED_KEY = 'invoicing.unmatched';
+const CORRECTIONS_KEY = 'invoicing.corrections';
 const IGNORED_KEY = 'invoicing.ignored';
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
@@ -30,6 +31,15 @@ async function writeJson(supabase: Supabase, key: string, value: unknown) {
 }
 
 export type UnmatchedState = { at: string; provider: string; items: RemoteInvoice[] };
+
+/** Корректы, добавленные к счетам заказов (сумма заказа = счёт + корректы). */
+export async function readAppliedCorrections(supabase: Supabase): Promise<AppliedCorrection[]> {
+  return readJson<AppliedCorrection[]>(supabase, CORRECTIONS_KEY, []);
+}
+
+export async function writeAppliedCorrections(supabase: Supabase, list: AppliedCorrection[]) {
+  await writeJson(supabase, CORRECTIONS_KEY, list.slice(-5000));
+}
 
 /** Неоплаченные фактуры сервиса без заказа в CRM (после последней сверки), без отмеченных «не к заказу». */
 export async function readUnmatched(supabase: Supabase): Promise<UnmatchedState | null> {
@@ -83,7 +93,8 @@ export async function runInvoiceSync(): Promise<SyncReport> {
   if (error || !data) return { ok: false, reason: 'error', message: error?.message };
   const trips = data as unknown as SyncTrip[];
 
-  const plan = planInvoiceSync(provider.id, remote, trips);
+  const applied = await readAppliedCorrections(supabase);
+  const plan = planInvoiceSync(provider.id, remote, trips, applied);
   let updated = 0;
   const toSettle: string[] = [];
   for (const u of plan.updates) {
@@ -116,7 +127,8 @@ export async function runInvoiceSync(): Promise<SyncReport> {
   await writeJson(supabase, UNMATCHED_KEY, {
     at: new Date().toISOString(),
     provider: provider.id,
-    items: plan.unmatched.slice(0, 300),
+    // Корректы, ещё не добавленные к счёту заказа, — в том же списке, с пометкой.
+    items: [...plan.corrections, ...plan.unmatched].slice(0, 300),
   } satisfies UnmatchedState);
   const ignored = await readJson<string[]>(supabase, IGNORED_KEY, []);
 

@@ -2444,6 +2444,10 @@ export const pl: Messages = {
     spread: 'Rozlicz',
   },
   recv2: {
+    correction: 'korekta',
+    addCorrection: 'Dodaj do faktury',
+    corrNoInvoice: 'Zlecenie nie ma faktury — korektę dodaje się do wystawionej',
+    corrCurrency: 'Waluta korekty ({a}) różni się od faktury zlecenia ({b})',
     hint: 'Faktury, dla których uzgodnienie nie znalazło zlecenia po numerze (uzgodnienie: {at}) — nieopłacone i opłacone. Przypisz do zlecenia — pobiorą się numer, kwota, daty, KSeF i płatność. Jeśli zlecenie ma już fakturę (pierwotna wyzerowana korektą i wystawiona ponownie), nowa ją zastąpi.',
     paidThere: 'opłacona',
     hasInvoice: 'obecnie faktura {n}',

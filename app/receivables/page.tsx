@@ -103,7 +103,9 @@ export default async function ReceivablesPage() {
         amount: money(r.gross, r.currency),
         buyer: r.buyerName ?? '—',
         paid: r.payment === 'paid',
-        options: ranked.map((o) => ({
+        correction: r.kind === 'correction',
+        // Корректа добавляется к счёту заказа — только заказы со счётом.
+        options: (r.kind === 'correction' ? ranked.filter((o) => o.invoice) : ranked).map((o) => ({
           id: o.id,
           suggested: o.score >= 50,
           replaces: o.invoice && o.invoice !== r.number ? o.invoice : null,

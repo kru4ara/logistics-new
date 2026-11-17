@@ -3,6 +3,7 @@ import type { createClient } from '../supabase/admin';
 import { fetchAll } from '../fetch-all';
 import type { PurchaseRef, TripRef } from './match-rules';
 import { isoCurrency } from '../currency';
+import type { AppliedCorrection } from '../invoicing/sync-rules';
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
 
@@ -19,6 +20,17 @@ export async function loadPurchaseRefs(supabase: Supabase): Promise<PurchaseRef[
     currency: isoCurrency(r.currency, 'PLN'),
     issueDate: r.issue_date ? String(r.issue_date).slice(0, 10) : null,
   }));
+}
+
+/** Применённые корректы фактур (lib/invoicing/sync.ts, ключ invoicing.corrections). */
+async function readCorrections(supabase: Supabase): Promise<AppliedCorrection[]> {
+  const { data } = await supabase.from('integration_state').select('value').eq('key', 'invoicing.corrections').maybeSingle();
+  try {
+    const v = data?.value ? JSON.parse(data.value) : [];
+    return Array.isArray(v) ? v : [];
+  } catch {
+    return [];
+  }
 }
 
 /** Сколько уже распределено на каждый заказ из приходов (до миграции 044 — пусто). */
@@ -43,6 +55,10 @@ export async function loadTripRefs(supabase: Supabase): Promise<TripRef[]> {
   );
   const res = full.error ? await fetchAll(supabase.from('trips').select(COLS).in('status', STATUSES).order('id')) : full;
   const allocated = await loadAllocatedByTrip(supabase);
+  const corrections = new Map<string, string[]>();
+  for (const c of await readCorrections(supabase)) {
+    if (c.number) corrections.set(c.tripId, [...(corrections.get(c.tripId) ?? []), c.number]);
+  }
   return ((res.data ?? []) as any[]).map((r) => {
     const client = Array.isArray(r.clients) ? r.clients[0] : r.clients;
     const hasInvoice = r.invoice_amount != null;
@@ -51,6 +67,7 @@ export async function loadTripRefs(supabase: Supabase): Promise<TripRef[]> {
       tripNumber: r.trip_number != null ? String(r.trip_number) : null,
       requestNumber: r.client_request_number != null ? String(r.client_request_number) : null,
       invoiceNumber: r.invoice_number,
+      extraInvoiceNumbers: corrections.get(r.id) ?? [],
       amount: hasInvoice ? Number(r.invoice_amount) : r.revenue_eur != null ? Number(r.revenue_eur) : null,
       currency: hasInvoice ? isoCurrency(r.invoice_currency) : 'EUR',
       clientName: client?.name ?? null,

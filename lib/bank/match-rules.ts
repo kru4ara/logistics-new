@@ -124,6 +124,8 @@ export type TripRef = {
   /** номер заказа (заявки) — его клиент пишет в назначении: CONTR.905, ORDER 908-07/069 */
   requestNumber: string | null;
   invoiceNumber: string | null;
+  /** номера корректов к счёту заказа (FK/05/07/2026): клиент платит и по ним */
+  extraInvoiceNumbers?: string[];
   /** сумма к оплате: брутто фактуры клиенту, без фактуры — фрахт заказа */
   amount: number | null;
   currency: string | null;
@@ -207,8 +209,10 @@ export function matchTrips(tx: TxLike & { currency: string }, trips: TripRef[]):
   const raw = tx.title ?? '';
   const tokens = numberTokens(raw);
   const pos = (t: TripRef): number => {
-    const inv = compact(t.invoiceNumber);
-    if (inv.length >= 4 && title.includes(inv)) return title.indexOf(inv);
+    for (const n of [t.invoiceNumber, ...(t.extraInvoiceNumbers ?? [])]) {
+      const inv = compact(n);
+      if (inv.length >= 4 && title.includes(inv)) return title.indexOf(inv);
+    }
     // «908-07/069» целиком; «905» — отдельным числом. Номер заявки клиента, а если его
     // нет — номер заказа в CRM (у экспедиции — с буквой «Е»: «886Е» ↔ CONTR.886).
     for (const n of [t.requestNumber, t.tripNumber]) {
