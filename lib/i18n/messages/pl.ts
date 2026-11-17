@@ -2443,4 +2443,10 @@ export const pl: Messages = {
     allSpread: 'Wpływ rozliczony w całości',
     spread: 'Rozlicz',
   },
+  recv2: {
+    hint: 'Faktury, dla których uzgodnienie nie znalazło zlecenia po numerze (uzgodnienie: {at}) — nieopłacone i opłacone. Przypisz do zlecenia — pobiorą się numer, kwota, daty, KSeF i płatność. Jeśli zlecenie ma już fakturę (pierwotna wyzerowana korektą i wystawiona ponownie), nowa ją zastąpi.',
+    paidThere: 'opłacona',
+    hasInvoice: 'obecnie faktura {n}',
+    confirmReplace: 'Zastąpić w zleceniu fakturę {old} fakturą {new}? Stara trafi do „nie do zlecenia”.',
+  },
 };

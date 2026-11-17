@@ -76,11 +76,10 @@ export default async function ReceivablesPage() {
     const { data: freeTrips } = await fetchAll(
       supabase
         .from('trips')
-        .select('id, trip_number, revenue_eur, start_date, end_date, status, clients(name, tax_id)')
-        .is('invoice_external_id', null)
+        .select('id, trip_number, client_request_number, invoice_number, revenue_eur, start_date, end_date, status, clients(name, tax_id)')
         .in('status', ['active', 'completed', 'invoiced', 'paid']),
     );
-    const opts: (TripOption & { client: string | null })[] = ((freeTrips ?? []) as any[]).map((tr) => {
+    const opts: (TripOption & { client: string | null; request: string | null; invoice: string | null })[] = ((freeTrips ?? []) as any[]).map((tr) => {
       const c = Array.isArray(tr.clients) ? tr.clients[0] : tr.clients;
       return {
         id: tr.id,
@@ -89,22 +88,32 @@ export default async function ReceivablesPage() {
         client: c?.name ?? null,
         revenue_eur: tr.revenue_eur != null ? Number(tr.revenue_eur) : null,
         date: String(tr.end_date ?? tr.start_date ?? '').slice(0, 10) || null,
+        request: tr.client_request_number ?? null,
+        invoice: tr.invoice_number ?? null,
       };
     });
     const money = (n: number | null, cur: string | null) =>
       n == null ? '—' : new Intl.NumberFormat(INTL_LOCALE[locale], { style: 'currency', currency: cur || 'EUR', maximumFractionDigits: 2 }).format(n);
     unmatchedRows = unmatched.items.map((r) => {
-      const ranked = rankTripsForInvoice(r, opts).slice(0, 40) as (TripOption & { client: string | null; score: number })[];
+      const ranked = rankTripsForInvoice(r, opts).slice(0, 60) as (TripOption & { client: string | null; request: string | null; invoice: string | null; score: number })[];
       return {
         externalId: r.externalId,
         number: r.number ?? r.externalId,
         issueDate: r.issueDate ? formatDate(r.issueDate, locale) : '—',
         amount: money(r.gross, r.currency),
         buyer: r.buyerName ?? '—',
+        paid: r.payment === 'paid',
         options: ranked.map((o) => ({
           id: o.id,
           suggested: o.score >= 50,
-          label: [`№${o.trip_number ?? '—'}`, o.client, o.revenue_eur != null ? eur(o.revenue_eur) : null, o.date ? formatDate(o.date, locale) : null]
+          replaces: o.invoice && o.invoice !== r.number ? o.invoice : null,
+          label: [
+            `№${o.trip_number ?? '—'}${o.request ? ` (${o.request})` : ''}`,
+            o.client,
+            o.revenue_eur != null ? eur(o.revenue_eur) : null,
+            o.date ? formatDate(o.date, locale) : null,
+            o.invoice ? t('recv2.hasInvoice', { n: o.invoice }) : null,
+          ]
             .filter(Boolean)
             .join(' · '),
         })),

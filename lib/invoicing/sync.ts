@@ -111,11 +111,12 @@ export async function runInvoiceSync(): Promise<SyncReport> {
 
   await settleTrips(supabase, toSettle);
 
-  // Неоплаченные без заказа — сохраняем для списка в дебиторке.
+  // Без заказа — сохраняем для списка в дебиторке: и неоплаченные, и оплаченные (замена
+  // счёта после корректы бывает уже оплаченной).
   await writeJson(supabase, UNMATCHED_KEY, {
     at: new Date().toISOString(),
     provider: provider.id,
-    items: plan.unpaidUnmatched.slice(0, 300),
+    items: plan.unmatched.slice(0, 300),
   } satisfies UnmatchedState);
   const ignored = await readJson<string[]>(supabase, IGNORED_KEY, []);
 

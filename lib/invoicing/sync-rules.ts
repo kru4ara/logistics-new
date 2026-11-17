@@ -119,6 +119,9 @@ export function planInvoiceSync(provider: ProviderId, remote: RemoteInvoice[], t
     if (n) byNumber.set(n, [...(byNumber.get(n) ?? []), t]);
   }
   // Номер, который в сервисе встречается дважды (разные типы документов), не сопоставляем.
+  // Корректы (korekta) — не счета заказов: исправленный счёт приходит отдельным документом.
+  const corrections = remote.filter((r) => r.kind === 'correction');
+  remote = remote.filter((r) => r.kind !== 'correction');
   const remoteNumberCount = new Map<string, number>();
   for (const r of remote) {
     const n = normalizeInvoiceNumber(r.number);
@@ -149,5 +152,7 @@ export function planInvoiceSync(provider: ProviderId, remote: RemoteInvoice[], t
   }
 
   const unpaidUnmatched = unmatched.filter((r) => r.payment !== 'paid');
-  return { updates, unmatched, unpaidUnmatched };
+  // Новые первыми: замену счёта (после корректы) ищут среди свежих.
+  unmatched.sort((a, b) => (b.issueDate ?? '').localeCompare(a.issueDate ?? ''));
+  return { updates, unmatched, unpaidUnmatched, corrections };
 }

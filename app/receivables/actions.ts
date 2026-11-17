@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { settleTrips } from '../../lib/bank/apply';
 import { requireCapability } from '../../lib/require-office';
 import { createClient } from '../../lib/supabase/admin';
 import { logAudit } from '../../lib/audit';
@@ -119,20 +120,32 @@ export async function linkRemoteInvoice(externalId: string, tripId: string): Pro
     .eq('id', tripId)
     .maybeSingle();
   if (!trip) return { ok: false, message: t('inv.notFound') };
-  if (trip.invoice_external_id) return { ok: false, message: t('inv.already') };
+  // У заказа уже есть счёт — новый его заменяет (исходный обнулён корректой и выставлен
+  // заново, например в другой валюте). Старый уходит в «не к заказу».
+  const replaced = trip.invoice_external_id && trip.invoice_external_id !== externalId ? (trip.invoice_external_id as string) : null;
 
   const { patch } = patchFromRemote(provider.id, r, trip as SyncTrip, true);
+  if (replaced || trip.invoice_number) {
+    patch.invoice_number = r.number ?? trip.invoice_number ?? null;
+    patch.invoice_amount = r.gross;
+    patch.invoice_currency = r.currency ?? null;
+    if (r.issueDate) patch.invoiced_at = r.issueDate;
+  }
   const { error } = await supabase.from('trips').update(patch).eq('id', tripId);
   if (error) {
     return { ok: false, message: /duplicate key/i.test(error.message) ? t('recv.unmatchedTaken') : t('dir.updateError', { msg: error.message }) };
   }
   await dropUnmatched(supabase, externalId, false);
+  if (replaced) await dropUnmatched(supabase, replaced, true);
+  await settleTrips(supabase, [tripId]);
   await logAudit({
     entity_type: 'trip',
     entity_id: tripId,
     action: 'update',
     changes: { invoice_number: { before: trip.invoice_number ?? null, after: r.number } },
-    summary: `Фактура ${r.number ?? externalId} (${provider.name}) привязана к заказу №${trip.trip_number ?? '—'} вручную`,
+    summary: trip.invoice_number && trip.invoice_number !== r.number
+      ? `Фактура ${trip.invoice_number} заменена на ${r.number ?? externalId} (${provider.name}) в заказе №${trip.trip_number ?? '—'}`
+      : `Фактура ${r.number ?? externalId} (${provider.name}) привязана к заказу №${trip.trip_number ?? '—'} вручную`,
   });
   revalidatePath('/receivables');
   revalidatePath(`/trips/${tripId}`);
