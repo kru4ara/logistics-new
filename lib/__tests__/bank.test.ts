@@ -169,6 +169,19 @@ describe('приход → заказы с распределением', () => 
     expect(less).toMatchObject({ exact: false, allocations: [{ tripId: '905', amount: 400 }], remainder: 0 });
   });
 
+  it('без номера заявки — по номеру заказа в CRM (CONTR.886 → заказ 886, экспедиция 886Е)', () => {
+    const r = matchTrips(inc({ amount: 15800, title: 'CONTR.885 DD 27.07.26, 886DD 04.08.26, 892 DD 03.08.26' }), [
+      trip('a', { requestNumber: '885', amount: 5400 }),
+      trip('b', { requestNumber: null, tripNumber: '886', amount: 5200 }),
+      trip('c', { requestNumber: '892', amount: 5200 }),
+      trip('d', { requestNumber: null, tripNumber: '12Е', amount: 1 }),
+    ]);
+    expect(r).toMatchObject({ ids: ['a', 'b', 'c'], exact: true, remainder: 0 });
+    expect(matchTrips(inc({ amount: 100, title: 'CONTR.886' }), [trip('e', { requestNumber: null, tripNumber: '886Е', amount: 100 })])).toMatchObject({ ids: ['e'] });
+    // короткие номера заказов (63) — не числа из назначения
+    expect(matchTrips(inc({ amount: 100, title: 'CONTR 63' }), [trip('f', { requestNumber: null, tripNumber: '63', amount: 999 })])).toBeNull();
+  });
+
   it('номер заказа с буквами и дробью: «ORDER 908-07/069»', () => {
     const r = matchTrips(inc({ amount: 1445, title: 'PAYMENT, CONTRACT N/N FROM 28.07.2026, ORDER 908- 07/069', counterparty: 'TU-TELL' }), [trip('t', { requestNumber: '908-07/069', amount: 1445 })]);
     expect(r).toMatchObject({ ids: ['t'], exact: true });

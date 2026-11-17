@@ -198,13 +198,16 @@ export function matchTrips(tx: TxLike & { currency: string }, trips: TripRef[]):
   const pos = (t: TripRef): number => {
     const inv = compact(t.invoiceNumber);
     if (inv.length >= 4 && title.includes(inv)) return title.indexOf(inv);
-    const req = (t.requestNumber ?? '').trim();
-    if (!req) return -1;
-    // «908-07/069» целиком; «905» — отдельным числом.
-    const rc = compact(req);
-    if (/\D/.test(req.replace(/\s/g, '')) && rc.length >= 5 && title.includes(rc)) return title.indexOf(rc);
-    const digits = req.replace(/\D/g, '');
-    if (digits && digits === req.replace(/\s/g, '') && tokens.includes(digits)) return raw.search(new RegExp(`(?<!\\d)${digits}(?!\\d)`));
+    // «908-07/069» целиком; «905» — отдельным числом. Номер заявки клиента, а если его
+    // нет — номер заказа в CRM (у экспедиции — с буквой «Е»: «886Е» ↔ CONTR.886).
+    for (const n of [t.requestNumber, t.tripNumber]) {
+      const req = (n ?? '').trim().replace(/\s/g, '');
+      if (!req) continue;
+      const rc = compact(req);
+      if (/[-/.]/.test(req) && rc.length >= 5 && title.includes(rc)) return title.indexOf(rc);
+      const digits = req.replace(/[ЕE]$/i, '');
+      if (/^\d{3,6}$/.test(digits) && tokens.includes(digits)) return raw.search(new RegExp(`(?<!\\d)${digits}(?!\\d)`));
+    }
     return -1;
   };
   const found = trips
