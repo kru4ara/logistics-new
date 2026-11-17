@@ -7,15 +7,15 @@ export type InvoiceForCost = {
   isCorrection?: boolean;
   gross: number | null;
   currency: string | null;
-  /** нетто в EUR (пересчитано по курсу на дату счёта) */
+  /** сумма для себестоимости (costAmount) в EUR — по курсу на дату счёта; имя историческое */
   netEur: number | null;
 };
 
 /**
- * Сумма счета для себестоимости — нетто: НДС фирма возвращает.
- * Нет нетто — брутто (у иностранцев и odwrotne obciążenie они равны).
+ * Сумма счета для себестоимости — брутто, полная стоимость (решение владельца: расходы
+ * ведутся с НДС). Нет брутто — нетто (у иностранцев и odwrotne obciążenie они равны).
  */
-export const costAmount = (i: Pick<InvoiceForCost, 'net' | 'gross'>): number | null => i.net ?? i.gross ?? null;
+export const costAmount = (i: Pick<InvoiceForCost, 'net' | 'gross'>): number | null => i.gross ?? i.net ?? null;
 
 export type SegmentCost = {
   /** есть счета — считаем по ним */

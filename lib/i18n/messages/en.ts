@@ -1991,7 +1991,7 @@ export const en: Messages = {
     errUpload: 'File upload failed: {msg}',
     errKsefDelete: 'A KSeF invoice cannot be deleted — only unlinked',
     block: 'Contractor invoices',
-    blockHint: 'The actual leg cost comes from invoices (net); without an invoice — from the order price. Polish invoices arrive from KSeF automatically; enter foreign ones manually.',
+    blockHint: 'The actual leg cost comes from invoices (gross); without an invoice — from the order price. Polish invoices arrive from KSeF automatically; enter foreign ones manually.',
     plan: 'Plan',
     fact: 'Per invoices',
     noInvoices: 'No invoices yet — the margin uses the order price',

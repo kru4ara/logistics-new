@@ -39,11 +39,12 @@ describe('стоимость участка: план и факт', () => {
     expect(['VAT', 'ZAL', null, ''].map(isCorrectionType)).toEqual([false, false, false, false]);
   });
 
-  it('польский счёт с НДС: в себестоимость — нетто', () => {
-    expect(costAmount({ net: 10000, gross: 12300 })).toBe(10000);
+  it('польский счёт с НДС: в себестоимость — брутто (полная стоимость)', () => {
+    expect(costAmount({ net: 10000, gross: 12300 })).toBe(12300); // брутто — полная стоимость
     expect(costAmount({ net: null, gross: 500 })).toBe(500);
-    const c = segmentCost({ price: 10000, currency: 'PLN', priceEur: 2300 }, [{ net: 10000, gross: 12300, currency: 'PLN', netEur: 2310 }]);
-    expect(c).toEqual({ actual: true, amountEur: 2310, originalAmount: 10000, currency: 'PLN' });
+    expect(costAmount({ net: 400, gross: null })).toBe(400);
+    const c = segmentCost({ price: 10000, currency: 'PLN', priceEur: 2300 }, [{ net: 10000, gross: 12300, currency: 'PLN', netEur: 2841.3 }]);
+    expect(c).toEqual({ actual: true, amountEur: 2841.3, originalAmount: 12300, currency: 'PLN' });
   });
 
   it('счета в разных валютах — итог в EUR', () => {
