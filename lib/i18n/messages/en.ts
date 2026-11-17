@@ -2297,6 +2297,10 @@ export const en: Messages = {
     other: 'Other',
   },
   payx3: {
+    bankDupTitle: 'Bank payment repeats an invoice: {n}',
+    bankDupHint: 'The company reimbursed an employee for a purchase on an invoice — it is one expense. Link the payment to the invoice: the bank row goes away and the invoice becomes paid.',
+    bankDupLink: 'Link to invoice',
+    bankDupConfirm: 'The payment becomes the payment of invoice {num}; the separate bank row will be removed. Continue?',
     secSort: 'To sort: “not trip-related” ({n} sellers without a category)',
     sortHint: 'By seller: trip costs (EX-1, EPI) go back to linking; the rest get an overhead category and land in “Overhead costs” automatically. The choice is remembered for the seller’s new invoices.',
     invoices: 'invoices: {n}',

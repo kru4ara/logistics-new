@@ -59,3 +59,40 @@ export function findManualDuplicates(
   }
   return pairs;
 }
+
+export type BankCostForDup = CostForDup & { bank_transaction_id?: string | null; cost_class?: string | null };
+export type BankDupPair = { bankCostId: string; invoiceCostId: string; txId: string; invoiceId: string };
+
+/**
+ * Строка из выписки, повторяющая счёт подрядчика: чек оплатил сотрудник, а фирма вернула
+ * ему деньги переводом («ZWROT KOSZTÓW ZA DRUKARKĘ» ↔ счёт Everprint). Та же валюта и
+ * брутто, даты в пределах DUP_DAYS. Наличные и дивиденды — не расходы, не сравниваем.
+ */
+export function findBankInvoiceDuplicates(costs: BankCostForDup[], invoices: Map<string, InvoiceAmounts>): BankDupPair[] {
+  const bank = costs.filter((c) => c.bank_transaction_id && !c.purchase_invoice_id && (c.cost_class ?? 'operating') === 'operating');
+  const fromInvoice = costs.filter((c) => c.purchase_invoice_id);
+  const used = new Set<string>();
+  const pairs: BankDupPair[] = [];
+  for (const b of bank) {
+    const bDate = b.expense_date;
+    if (!bDate) continue;
+    let best: { c: BankCostForDup; gap: number } | null = null;
+    for (const c of fromInvoice) {
+      if (used.has(c.id)) continue;
+      const inv = invoices.get(c.purchase_invoice_id!);
+      if (!inv) continue;
+      if ((b.currency || 'EUR').toUpperCase() !== (c.currency || 'EUR').toUpperCase()) continue;
+      if (!near(b.original_amount, inv.gross ?? inv.net)) continue;
+      const cDate = inv.issueDate ?? c.expense_date;
+      if (!cDate) continue;
+      const gap = Math.abs(day(bDate) - day(cDate));
+      if (gap > DUP_DAYS) continue;
+      if (!best || gap < best.gap) best = { c, gap };
+    }
+    if (best) {
+      used.add(best.c.id);
+      pairs.push({ bankCostId: b.id, invoiceCostId: best.c.id, txId: b.bank_transaction_id!, invoiceId: best.c.purchase_invoice_id! });
+    }
+  }
+  return pairs;
+}

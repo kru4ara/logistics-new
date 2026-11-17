@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { findManualDuplicates, type CostForDup, type InvoiceAmounts } from '../fixed-costs-dup-rules';
+import { findManualDuplicates, findBankInvoiceDuplicates, type CostForDup, type InvoiceAmounts } from '../fixed-costs-dup-rules';
 
 const c = (id: string, o: Partial<CostForDup> = {}): CostForDup => ({
   id, month_key: '2026-10', expense_date: '2026-10-05', category: 'Бухгалтерия', currency: 'PLN', original_amount: 1476, purchase_invoice_id: null, ...o,
@@ -38,5 +38,20 @@ describe('ручная запись = счёт из KSeF', () => {
     expect(findManualDuplicates([c('m1'), c('m2'), c('k', { purchase_invoice_id: 'i1' })], invs).map((p) => p.manualId)).toEqual(['m1']);
     // ручная без даты — тот же месяц
     expect(findManualDuplicates([c('m', { expense_date: null }), c('k', { purchase_invoice_id: 'i1' })], invs)).toHaveLength(1);
+  });
+});
+
+describe('строка из выписки = счёт (возврат сотруднику за покупку по счёту)', () => {
+  const everprint = new Map([['i1', inv({ gross: 1349, net: 1096.75, number: 'FV00147/06/2026', issueDate: '2026-06-01' })]]);
+  const bankRow = (o: Record<string, unknown> = {}) => ({ ...c('b', { category: 'ZBIGNIEW KOŻUCH · ZWROT KOSZTÓW ZA DRUKARKĘ', original_amount: 1349, expense_date: '2026-05-30', month_key: '2026-05' }), bank_transaction_id: 'tx1', ...o });
+  const invRow = c('k', { purchase_invoice_id: 'i1', original_amount: 1349, expense_date: '2026-06-01', month_key: '2026-06' });
+
+  it('та же сумма брутто, даты рядом — пара, даже в соседних месяцах', () => {
+    expect(findBankInvoiceDuplicates([bankRow(), invRow], everprint)).toEqual([{ bankCostId: 'b', invoiceCostId: 'k', txId: 'tx1', invoiceId: 'i1' }]);
+  });
+
+  it('наличные и дивиденды не сравниваем; далёкая дата — не пара', () => {
+    expect(findBankInvoiceDuplicates([bankRow({ cost_class: 'cash' }), invRow], everprint)).toEqual([]);
+    expect(findBankInvoiceDuplicates([bankRow({ expense_date: '2026-04-01' }), invRow], everprint)).toEqual([]);
   });
 });
