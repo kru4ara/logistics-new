@@ -157,6 +157,13 @@ describe('приход → заказы с распределением', () => 
     ]);
   });
 
+  it('номер корректы в назначении (FAKTURA FK/05/07/2026) — заказ этой корректы', () => {
+    const t45 = trip('45', { requestNumber: null, tripNumber: '45', invoiceNumber: '16/07/2026', extraInvoiceNumbers: ['FK/05/07/2026'], amount: 3090 });
+    const r = matchTrips(inc({ amount: 3090, counterparty: 'TK SAPSAN', title: 'FAKTURA FK/05/07/2026 DOGOVOR 03769' }), [t45, trip('907')]);
+    expect(r?.ids).toEqual(['45']);
+    expect(r?.exact).toBe(true);
+  });
+
   it('часть суммы не легла (второй заказ без суммы / ещё без счёта) — остаток, не точно', () => {
     const r = matchTrips(inc({ amount: 11200, title: 'CONTR.905, 6788.' }), [trip('905', { amount: 6000 }), trip('6788', { amount: null, invoiced: false })]);
     expect(r).toMatchObject({ ids: ['905', '6788'], exact: false, remainder: 5200, allocations: [{ tripId: '905', amount: 6000 }] });

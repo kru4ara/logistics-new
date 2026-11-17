@@ -7,7 +7,7 @@ import { createClient } from '../../lib/supabase/admin';
 import { logAudit } from '../../lib/audit';
 import { getT } from '../../lib/i18n/server';
 import { providerById } from '../../lib/invoicing';
-import { runInvoiceSync, readUnmatched, dropUnmatched } from '../../lib/invoicing/sync';
+import { runInvoiceSync, readUnmatched, dropUnmatched, readAppliedCorrections, writeAppliedCorrections } from '../../lib/invoicing/sync';
 import { patchFromRemote, type SyncTrip } from '../../lib/invoicing/sync-rules';
 import { getInvoiceProvider } from '../../lib/invoicing';
 
@@ -149,6 +149,57 @@ export async function linkRemoteInvoice(externalId: string, tripId: string): Pro
   });
   revalidatePath('/receivables');
   revalidatePath(`/trips/${tripId}`);
+  return { ok: true };
+}
+
+/**
+ * Добавить корректу (FK…) к счёту заказа: сумма счёта в заказе = счёт + разница из корректы
+ * (например, +290 € за GPS-пломбу). Сверка с сервисом её дальше учитывает; банк узнаёт
+ * номер корректы в назначении платежа.
+ */
+export async function linkCorrection(externalId: string, tripId: string): Promise<{ ok: boolean; message?: string }> {
+  await requireCapability('receivables.edit');
+  const { t } = await getT();
+  const provider = getInvoiceProvider();
+  if (!provider) return { ok: false, message: t('inv.notConfigured') };
+  const supabase = await createClient();
+  const state = await readUnmatched(supabase);
+  const r = state?.items.find((x) => x.externalId === externalId);
+  if (!r || state?.provider !== provider.id || r.kind !== 'correction') return { ok: false, message: t('recv.unmatchedGone') };
+  const { data: trip } = await supabase
+    .from('trips')
+    .select('id, trip_number, invoice_number, invoice_amount, invoice_currency')
+    .eq('id', tripId)
+    .maybeSingle();
+  if (!trip) return { ok: false, message: t('inv.notFound') };
+  if (!trip.invoice_number || trip.invoice_amount == null) return { ok: false, message: t('recv2.corrNoInvoice') };
+  const cur = (r.currency ?? '').toUpperCase();
+  if (cur && trip.invoice_currency && cur !== String(trip.invoice_currency).toUpperCase()) {
+    return { ok: false, message: t('recv2.corrCurrency', { a: cur, b: String(trip.invoice_currency) }) };
+  }
+  const gross = Number(r.gross ?? 0);
+  const applied = await readAppliedCorrections(supabase);
+  if (applied.some((c) => c.externalId === externalId)) return { ok: false, message: t('recv.unmatchedTaken') };
+  const before = Number(trip.invoice_amount);
+  const after = Math.round((before + gross) * 100) / 100;
+  const { error } = await supabase.from('trips').update({ invoice_amount: after }).eq('id', tripId);
+  if (error) return { ok: false, message: t('dir.updateError', { msg: error.message }) };
+  await writeAppliedCorrections(supabase, [
+    ...applied,
+    { externalId, tripId, number: r.number, gross, currency: r.currency ?? null, issueDate: r.issueDate },
+  ]);
+  await dropUnmatched(supabase, externalId, false);
+  await settleTrips(supabase, [tripId]);
+  await logAudit({
+    entity_type: 'trip',
+    entity_id: tripId,
+    action: 'update',
+    changes: { invoice_amount: { before, after } },
+    summary: `Корректа ${r.number ?? externalId} (${gross >= 0 ? '+' : ''}${gross}) добавлена к счёту ${trip.invoice_number} заказа №${trip.trip_number ?? '—'}`,
+  });
+  revalidatePath('/receivables');
+  revalidatePath(`/trips/${tripId}`);
+  revalidatePath('/bank');
   return { ok: true };
 }
 

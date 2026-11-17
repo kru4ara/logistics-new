@@ -2444,6 +2444,10 @@ export const en: Messages = {
     spread: 'Allocate',
   },
   recv2: {
+    correction: 'correction',
+    addCorrection: 'Add to invoice',
+    corrNoInvoice: 'The order has no invoice — a correction is added to an issued one',
+    corrCurrency: 'The correction currency ({a}) differs from the order invoice ({b})',
     hint: 'Invoices the sync couldn’t match to an order by number (sync: {at}), unpaid and paid. Link one to an order to pull its number, amount, dates, KSeF and payment. If the order already has an invoice (the original was zeroed by a correction and reissued), the new one replaces it.',
     paidThere: 'paid',
     hasInvoice: 'current invoice {n}',

@@ -179,3 +179,21 @@ describe('корректы Fakturowo', () => {
     expect(plan.corrections.map((r) => r.externalId)).toEqual(['k']);
   });
 });
+
+describe('добавочные корректы (FK/05/07/2026: +290 € к 16/07/2026)', () => {
+  const fk = remote({ externalId: 'fk', number: 'FK/05/07/2026', kind: 'correction', gross: 290 });
+  const applied = [{ externalId: 'fk', tripId: 't1', number: 'FK/05/07/2026', gross: 290, currency: 'EUR', issueDate: '2026-07-20' }];
+
+  it('применённая корректа: сумма счёта = фактура + корректа, сверка её не сбрасывает', () => {
+    const t = trip({ invoice_amount: 4090 });
+    const plan = planInvoiceSync('fakturowo', [remote(), fk], [t], applied);
+    expect(plan.updates).toEqual([]);
+    expect(plan.corrections).toEqual([]);
+  });
+
+  it('без применения — корректа ждёт решения, сумму счёта не трогаем', () => {
+    const plan = planInvoiceSync('fakturowo', [remote(), fk], [trip()]);
+    expect(plan.updates).toEqual([]);
+    expect(plan.corrections.map((r) => r.externalId)).toEqual(['fk']);
+  });
+});
