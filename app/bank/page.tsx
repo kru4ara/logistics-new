@@ -18,17 +18,40 @@ export const dynamic = 'force-dynamic';
 type Show = 'new' | 'matched' | 'ignored' | 'all';
 const SHOWS: Show[] = ['new', 'matched', 'ignored', 'all'];
 
-export default async function BankPage({ searchParams }: { searchParams: Promise<{ show?: string; st?: string }> }) {
+export default async function BankPage(props: { searchParams: Promise<{ show?: string; st?: string }> }) {
   const { role } = await getSessionContext();
   const denied = deniedRedirect(role, 'bank.view');
   if (denied) redirect(denied);
+  try {
+    return await BankView({ ...props, role });
+  } catch (e) {
+    // Раздел офиса и бухгалтера: показываем причину, а не общую заглушку.
+    const { t } = await getT();
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error('[bank] page', msg);
+    return (
+      <div className="p-4 md:p-8 max-w-3xl mx-auto">
+        <div className="card p-6 text-sm text-red-700 break-words">{t('dir.error')} {msg}</div>
+      </div>
+    );
+  }
+}
+
+async function BankView({ searchParams, role }: { searchParams: Promise<{ show?: string; st?: string }>; role: string | null }) {
   const canEdit = can(role, 'bank.edit');
   const { t, locale } = await getT();
   const sp = await searchParams;
   const show: Show = SHOWS.includes(sp.show as Show) ? (sp.show as Show) : 'new';
   const st = sp.st && /^[0-9a-f-]{36}$/i.test(sp.st) ? sp.st : null;
-  const money = (n: number | null, cur: string | null) =>
-    n == null ? '—' : new Intl.NumberFormat(INTL_LOCALE[locale], { style: 'currency', currency: cur || 'PLN', maximumFractionDigits: 2 }).format(n);
+  // Код валюты из базы бывает нестандартным («EURO», «zł») — Intl тогда бросает RangeError.
+  const money = (n: number | null, cur: string | null) => {
+    if (n == null || !Number.isFinite(Number(n))) return '—';
+    try {
+      return new Intl.NumberFormat(INTL_LOCALE[locale], { style: 'currency', currency: (cur || 'PLN').trim().toUpperCase(), maximumFractionDigits: 2 }).format(Number(n));
+    } catch {
+      return `${Number(n).toFixed(2)} ${cur ?? ''}`.trim();
+    }
+  };
   const supabase = await createClient();
 
   const { data: statements, error } = await supabase
