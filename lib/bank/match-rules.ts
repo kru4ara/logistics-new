@@ -223,17 +223,27 @@ export function matchTrips(tx: TxLike & { currency: string }, trips: TripRef[]):
       if (!req) continue;
       const rc = compact(req);
       if (/[-/.]/.test(req) && rc.length >= 5 && title.includes(rc)) return title.indexOf(rc);
+      // Сборный заказ «882_883_884» ↔ «CONTR. 882,883,884»: все части — отдельными числами.
+      const parts = req.split(/[_,;+&]+/).filter(Boolean);
+      if (parts.length > 1 && parts.every((p) => /^\d{3,6}$/.test(p) && tokens.includes(p))) {
+        return raw.search(new RegExp(`(?<!\\d)${parts[0]}(?!\\d)`));
+      }
       // «№ 886», «886Е», «886.» — ядро из цифр.
       const digits = req.replace(/^\D+/, '').replace(/\D+$/, '');
       if (/^\d{3,6}$/.test(digits) && tokens.includes(digits)) return raw.search(new RegExp(`(?<!\\d)${digits}(?!\\d)`));
     }
     return -1;
   };
-  const found = trips
+  let found = trips
     .map((t) => ({ t, p: pos(t) }))
     .filter((x) => x.p >= 0)
     .sort((a, b) => a.p - b.p)
     .map((x) => x.t);
+  // Номера заявок у разных клиентов совпадают (882 у GRABER и 882_883_884 у MSB): если
+  // среди найденных есть заказы плательщика — только они. Нет ни одного — платит третья
+  // сторона (Airwallex за FR SPEDITION), оставляем все.
+  const own = found.filter((t) => sameParty(tx.counterparty, t.clientName));
+  if (own.length && own.length < found.length) found = own;
   if (found.length) {
     const { allocations, remainder, covered } = allocatePayment(amount, cur, found);
     return { ids: found.map((t) => t.id), exact: covered && Math.abs(remainder) < 0.005, allocations, remainder };
