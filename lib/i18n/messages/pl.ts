@@ -2326,6 +2326,10 @@ export const pl: Messages = {
     unsortedBanner: '{n} faktur „nie dotyczy kursów” bez kategorii — nie trafiły do kosztów ogólnych. Rozdziel →',
   },
   payx5: {
+    fSeller: 'Sprzedawca',
+    fNip: 'NIP / VAT ID',
+    errSeller: 'Podaj sprzedawcę',
+    addStandaloneHint: 'Faktura spoza KSeF (zagraniczny przewoźnik lub agencja — IMEX itp.): po zapisaniu pojawi się w „Wymagają przypisania” — wybierz tam odcinek spedycji lub „Koszt kursu”.',
     deleteManual: 'Usuń ręczny',
     notDouble: 'To nie duplikat',
     deleteManualConfirm: 'Usunąć ręczny wpis z kursu? Zostanie jeden koszt — z faktury.',

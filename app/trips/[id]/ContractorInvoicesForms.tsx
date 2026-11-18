@@ -7,7 +7,7 @@ import { useT } from '../../components/I18nProvider';
 import { addManualPurchase, deleteManualPurchase } from '../../payables/actions';
 
 /** «Внести счёт» подрядчика к участку — для иностранцев (PDF по email) и всего, чего нет в KSeF. */
-export function AddManualInvoice({ segmentId, currency, currencies }: { segmentId: string; currency: string; currencies: string[] }) {
+export function AddManualInvoice({ segmentId, currency, currencies }: { segmentId: string | null; currency: string; currencies: string[] }) {
   const { t } = useT();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -29,7 +29,7 @@ export function AddManualInvoice({ segmentId, currency, currencies }: { segmentI
       action={(fd) =>
         start(async () => {
           setError(null);
-          fd.set('segment_id', segmentId);
+          fd.set('segment_id', segmentId ?? '');
           const r = await addManualPurchase(fd);
           if (!r.ok) setError(r.message ?? null);
           else {
@@ -41,6 +41,18 @@ export function AddManualInvoice({ segmentId, currency, currencies }: { segmentI
     >
       <div className="text-sm font-semibold text-slate-800">{t('pay.addTitle')}</div>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+        {!segmentId && (
+          <>
+            <label className="block col-span-2">
+              <span className="block text-xs text-slate-600 mb-0.5">{t('payx5.fSeller')}</span>
+              <input name="seller_name" required maxLength={200} className="input text-sm" />
+            </label>
+            <label className="block">
+              <span className="block text-xs text-slate-600 mb-0.5">{t('payx5.fNip')}</span>
+              <input name="seller_nip" maxLength={30} className="input text-sm" />
+            </label>
+          </>
+        )}
         <label className="block col-span-2 sm:col-span-1">
           <span className="block text-xs text-slate-600 mb-0.5">{t('pay.fNumber')}</span>
           <input name="invoice_number" required maxLength={100} className="input text-sm" />
