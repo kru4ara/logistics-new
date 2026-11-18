@@ -35,4 +35,15 @@ describe('проверка EPI / EX-1 по рейсам', () => {
     const rows = inspectAgencyExpenses([e('m', '1', 'epi'), e('i', '1', 'epi', { purchase_invoice_id: 'x' }), e('n', '2', 'ex1')], new Set(['m', 'n']));
     expect(rows.map((r) => r.issue)).toEqual(['ok', 'ok']);
   });
+
+  it('«без счёта» — не для EPI в BYN (оплата на границе) и не для рейсов до первого счёта агентства', () => {
+    const start = new Map([['old', '2026-01-10'], ['new', '2026-09-09'], ['inv', '2026-05-21'], ['byn', '2026-09-01']]);
+    const rows = inspectAgencyExpenses(
+      [e('a', 'old', 'epi'), e('b', 'new', 'epi'), e('c', 'inv', 'epi', { purchase_invoice_id: 'x' }), e('d', 'byn', 'epi', { currency: 'BYN' })],
+      new Set(),
+      start,
+    );
+    const by = (t: string) => rows.find((r) => r.tripId === t)!.issue;
+    expect([by('old'), by('new'), by('inv'), by('byn')]).toEqual(['ok', 'noInvoice', 'ok', 'ok']);
+  });
 });

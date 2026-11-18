@@ -2335,7 +2335,7 @@ export const pl: Messages = {
     ok: 'W porządku',
     all: 'Wszystkie',
     doubleHint: 'w kursie jest i ręczny wpis, i część faktury tej samej kategorii: usuń ręczny, jeśli to ten sam dokument, albo oznacz „To nie duplikat”.',
-    noInvoiceHint: 'koszt wpisano ręcznie, a faktury agencji w kursie nie ma: dodaj fakturę („Dodaj fakturę” w „Fakturach przewoźników”) lub przypisz ją do tego kursu; jeśli faktury nie będzie — „To nie duplikat”.',
+    noInvoiceHint: 'koszt wpisano ręcznie, a faktury agencji w kursie nie ma: dodaj fakturę („Dodaj fakturę” w „Fakturach przewoźników”) lub przypisz ją do tego kursu; jeśli faktury nie będzie — „To nie duplikat”. EPI w BYN (płatność na granicy) i kursy sprzed pierwszej faktury agencji w CRM nie są liczone jako „bez faktury”.',
     multiHint: 'w kursie kilka faktur jednej kategorii — sprawdź, czy to nie ten sam dokument wystawiony dwa razy.',
     empty: 'Brak problemów',
     byDriver: 'zapłacił kierowca',

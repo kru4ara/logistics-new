@@ -44,14 +44,14 @@ export default async function AgencyCheckPage({ searchParams }: { searchParams: 
   } catch {
     /* повреждённый список — проверяем всё */
   }
-  const rows = inspectAgencyExpenses(expenses, checked);
-  const sum = agencySummary(rows);
-
-  const tripIds = [...new Set(rows.map((r) => r.tripId))];
+  const tripIds = [...new Set(expenses.map((r) => r.trip_id))];
   const { data: trips } = await fetchAllByIds(tripIds, (chunk) =>
     supabase.from('trips').select('id, trip_number, client_request_number, start_date, end_date, clients(name)').in('id', chunk),
   );
   const tripById = new Map(((trips ?? []) as any[]).map((x) => [x.id as string, x]));
+  const tripStart = new Map(((trips ?? []) as any[]).map((x) => [x.id as string, x.start_date ? String(x.start_date).slice(0, 10) : null]));
+  const rows = inspectAgencyExpenses(expenses, checked, tripStart);
+  const sum = agencySummary(rows);
   const invIds = [...new Set(expenses.map((e) => e.purchase_invoice_id).filter((x): x is string => Boolean(x)))];
   const { data: invs } = await fetchAllByIds(invIds, (chunk) =>
     supabase.from('purchase_invoices').select('id, invoice_number, seller_name').in('id', chunk),

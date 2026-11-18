@@ -2335,7 +2335,7 @@ export const en: Messages = {
     ok: 'OK',
     all: 'All',
     doubleHint: 'the trip has both a manual entry and an invoice share of the same category: delete the manual one if it is the same document, or mark “Not a duplicate”.',
-    noInvoiceHint: 'the expense was entered by hand but there is no agency invoice on the trip: add the invoice (“Add invoice” in “Carrier invoices”) or link it to this trip; if there will be no invoice — “Not a duplicate”.',
+    noInvoiceHint: 'the expense was entered by hand but there is no agency invoice on the trip: add the invoice (“Add invoice” in “Carrier invoices”) or link it to this trip; if there will be no invoice — “Not a duplicate”. EPI in BYN (paid at the border) and trips before the first agency invoice in the CRM are not counted as “no invoice”.',
     multiHint: 'the trip has several invoices of one category — check it is not the same document invoiced twice.',
     empty: 'No issues',
     byDriver: 'paid by driver',
