@@ -9,6 +9,7 @@ import { getT } from '../lib/i18n/server';
 import { toEur } from '../lib/fx';
 import { logAudit } from '../lib/audit';
 import { isCostClass, guessCostClass } from '../lib/cost-class';
+import { FC_NOT_DOUBLE_KEY } from '../lib/fixed-costs-dup-rules';
 
 const toEurForCost = (supabase: Awaited<ReturnType<typeof createClient>>, amount: number, currency: string, date: string) =>
   toEur(supabase, amount, currency, date);
@@ -161,5 +162,22 @@ export async function deleteFixedCost(costId: string) {
       summary: `Общий расход удалён: ${costLine(before as CostRow)}`,
     });
   }
+  revalidatePath('/fixed-costs');
+}
+
+/** «Возможно, введено вручную повторно»: это разные расходы — убрать пару из списка. */
+export async function dismissCostDouble(costId: string) {
+  await requireCapability('fixedCosts.edit');
+  const supabase = await createClient();
+  const { data } = await supabase.from('integration_state').select('value').eq('key', FC_NOT_DOUBLE_KEY).maybeSingle();
+  let ids: string[] = [];
+  try {
+    ids = data?.value ? JSON.parse(data.value) : [];
+  } catch {
+    ids = [];
+  }
+  if (!ids.includes(costId)) ids = [...ids, costId].slice(-2000);
+  const { error } = await supabase.from('integration_state').upsert({ key: FC_NOT_DOUBLE_KEY, value: JSON.stringify(ids), updated_at: new Date().toISOString() });
+  if (error) throw new Error(error.message);
   revalidatePath('/fixed-costs');
 }

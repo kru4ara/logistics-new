@@ -96,3 +96,6 @@ export function findBankInvoiceDuplicates(costs: BankCostForDup[], invoices: Map
   }
   return pairs;
 }
+
+/** integration_state: ручные общие расходы, которые офис признал «не дублем». */
+export const FC_NOT_DOUBLE_KEY = 'fixedCosts.notDouble';

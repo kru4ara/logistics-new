@@ -2,9 +2,9 @@ import Link from 'next/link';
 import { getSessionContext } from '../../lib/session';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../lib/supabase/admin';
-import { deleteFixedCost } from '../fixed-cost-actions';
+import { deleteFixedCost, dismissCostDouble } from '../fixed-cost-actions';
 import { fetchAll, fetchAllByIds } from '../../lib/fetch-all';
-import { findManualDuplicates, findBankInvoiceDuplicates, type InvoiceAmounts } from '../../lib/fixed-costs-dup-rules';
+import { findManualDuplicates, FC_NOT_DOUBLE_KEY, findBankInvoiceDuplicates, type InvoiceAmounts } from '../../lib/fixed-costs-dup-rules';
 import { linkBankCostToInvoice } from '../bank/actions';
 import { OVERHEAD_CATEGORIES } from '../../lib/payables/overhead-rules';
 import { costClassOf, isOperatingCost } from '../../lib/cost-class';
@@ -115,8 +115,15 @@ export default async function FixedCostsPage() {
       });
     }
   }
+  const { data: fcNd } = await supabase.from('integration_state').select('value').eq('key', FC_NOT_DOUBLE_KEY).maybeSingle();
+  let notDouble = new Set<string>();
+  try {
+    notDouble = new Set(JSON.parse(fcNd?.value ?? '[]') as string[]);
+  } catch {
+    /* повреждённый список — показываем все пары */
+  }
   const dupPairs = findManualDuplicates(
-    (costs ?? []).map((c) => ({
+    (costs ?? []).filter((c) => !notDouble.has(c.id)).map((c) => ({
       ...c,
       original_amount: c.original_amount != null ? Number(c.original_amount) : null,
       purchase_invoice_id: c.purchase_invoice_id ?? (c.bank_transaction_id ? `bank:${c.bank_transaction_id}` : null),
@@ -392,6 +399,14 @@ export default async function FixedCostsPage() {
                         <Trash2 className="w-3.5 h-3.5" />
                         {t('payx3.deleteManual')}
                       </ConfirmSubmit>
+                    </form>
+                    <form action={async () => {
+                      'use server';
+                      await dismissCostDouble(p.manualId);
+                    }}>
+                      <button type="submit" className="inline-flex items-center px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 whitespace-nowrap">
+                        {t('payx5.notDouble')}
+                      </button>
                     </form>
                   </div>
                 );
