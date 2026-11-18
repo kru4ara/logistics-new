@@ -121,7 +121,9 @@ export async function linkRemoteInvoice(externalId: string, tripId: string): Pro
     .maybeSingle();
   if (!trip) return { ok: false, message: t('inv.notFound') };
   // У заказа уже есть счёт — новый его заменяет (исходный обнулён корректой и выставлен
-  // заново, например в другой валюте). Старый уходит в «не к заказу».
+  // заново, например в другой валюте) или был привязан к заказу по ошибке. Старый не
+  // скрываем: при следующей сверке он вернётся в «без заказа» — привязать к нужному
+  // заказу или отметить «не к заказу», если обнулён.
   const replaced = trip.invoice_external_id && trip.invoice_external_id !== externalId ? (trip.invoice_external_id as string) : null;
 
   const { patch } = patchFromRemote(provider.id, r, trip as SyncTrip, true);
@@ -136,7 +138,6 @@ export async function linkRemoteInvoice(externalId: string, tripId: string): Pro
     return { ok: false, message: /duplicate key/i.test(error.message) ? t('recv.unmatchedTaken') : t('dir.updateError', { msg: error.message }) };
   }
   await dropUnmatched(supabase, externalId, false);
-  if (replaced) await dropUnmatched(supabase, replaced, true);
   await settleTrips(supabase, [tripId]);
   await logAudit({
     entity_type: 'trip',
