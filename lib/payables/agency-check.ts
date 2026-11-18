@@ -39,8 +39,19 @@ export type AgencyRow = {
 const isAgency = (c: string | null): c is AgencyCategory => (AGENCY_CATEGORIES as readonly string[]).includes(c ?? '');
 const eur = (rows: AgencyExpense[]) => Math.round(rows.reduce((s, r) => s + Number(r.amount_eur ?? 0), 0) * 100) / 100;
 
-/** checked — ручные записи, которые офис уже признал «не дублем» (payables.notDouble). */
-export function inspectAgencyExpenses(expenses: AgencyExpense[], checked: Set<string> = new Set()): AgencyRow[] {
+/** Валюты, в которых документ оплачивают на границе (EPI в BYN) — счёта агентства не будет. */
+const CASH_AT_BORDER = new Set(['BYN', 'RUB']);
+
+/**
+ * checked — ручные записи, которые офис уже признал «не дублем» (payables.notDouble).
+ * tripStart — дата начала рейса: «без счёта» только для рейсов не раньше первого рейса,
+ * по которому счёт агентства вообще есть в CRM (раньше счета не вносили — это не пропуск).
+ */
+export function inspectAgencyExpenses(
+  expenses: AgencyExpense[],
+  checked: Set<string> = new Set(),
+  tripStart: Map<string, string | null> = new Map(),
+): AgencyRow[] {
   const groups = new Map<string, AgencyRow>();
   for (const e of expenses) {
     if (!isAgency(e.category)) continue;
@@ -53,12 +64,18 @@ export function inspectAgencyExpenses(expenses: AgencyExpense[], checked: Set<st
     (e.purchase_invoice_id ? g.fromInvoice : g.manual).push(e);
   }
   const rows = [...groups.values()];
+  const withInvoice = rows.filter((g) => g.fromInvoice.length).map((g) => tripStart.get(g.tripId)).filter((d): d is string => Boolean(d));
+  const since = withInvoice.length ? withInvoice.reduce((a, b) => (a < b ? a : b)) : null;
   for (const g of rows) {
     g.manualEur = eur(g.manual);
     g.invoiceEur = eur(g.fromInvoice);
     const invoices = new Set(g.fromInvoice.map((e) => e.purchase_invoice_id));
     // Оплатил водитель на границе — счёта агентства не будет, это не «без счёта».
-    const manualCompany = g.manual.filter((e) => !e.paid_by_driver && !checked.has(e.id));
+    const start = tripStart.get(g.tripId) ?? null;
+    const beforeInvoices = Boolean(since && start && start < since);
+    const manualCompany = g.manual.filter(
+      (e) => !e.paid_by_driver && !checked.has(e.id) && !CASH_AT_BORDER.has((e.currency ?? '').toUpperCase()) && !beforeInvoices,
+    );
     const unchecked = g.manual.filter((e) => !checked.has(e.id));
     if (unchecked.length && g.fromInvoice.length) g.issue = 'double';
     else if (manualCompany.length) g.issue = 'noInvoice';
