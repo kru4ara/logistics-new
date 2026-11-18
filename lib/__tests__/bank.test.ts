@@ -149,6 +149,23 @@ describe('платёж → счета подрядчиков', () => {
     expect(matchPurchases(t, 'supplier', invs)).toEqual({ ids: ['a', 'b', 'c'], exact: true });
   });
 
+  it('номер заявки у разных клиентов: берём заказы плательщика; сборная заявка 882_883_884', () => {
+    const tx = inc({
+      amount: 8288,
+      counterparty: "LLC MCB LOGISTICS LOGOJSKAYA 5A POM . 205 MINSKAYA O D . VALER'YANOVO B Y BY",
+      title: 'FOR FORWARDING.SERV. TRANSPORT. GOODS, CONTR.6687 DD 24.08.26, 882,883,884,6727 DD 10.09.26.',
+    });
+    const trips = [
+      trip('9E', { requestNumber: '882', clientName: 'GRABER Sp. z O.O.', amount: 2900 }),
+      trip('8E', { requestNumber: '883', clientName: 'GRABER Sp. z O.O.', amount: 2900 }),
+      trip('16E', { requestNumber: '882_883_884', clientName: 'MSB Logistics, LLC', amount: 2800 }),
+      trip('14E', { requestNumber: '6687', clientName: 'MSB Logistics, LLC', amount: 5488 }),
+    ];
+    const r = matchTrips(tx, trips);
+    expect(r?.ids).toEqual(['14E', '16E']);
+    expect(r?.exact).toBe(true);
+  });
+
   it('другая валюта и приход — не сопоставляем', () => {
     expect(matchPurchases(out({ currency: 'EUR' }), 'supplier', [inv('a')])).toBeNull();
     expect(matchPurchases(out({ amount: 1389.9 }), 'supplier', [inv('a')])).toBeNull();
