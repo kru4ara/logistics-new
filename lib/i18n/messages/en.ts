@@ -2437,6 +2437,9 @@ export const en: Messages = {
     cashTotal: 'Cash withdrawn (total)',
   },
   pay2: {
+    redistribute: 'Redistribute',
+    redistributed: 'The payment was redistributed across orders.',
+    redistributePending: 'No matching invoiced orders — the operation awaits a decision in “Bank”.',
     searchTrip: 'Find an order: number, invoice, client…',
     partPaid: '{paid} of {total} paid',
     advancesTitle: 'Advances and unallocated payments',

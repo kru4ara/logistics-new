@@ -8,7 +8,7 @@ import { logAudit } from '../../lib/audit';
 import { getT } from '../../lib/i18n/server';
 import type { MessageKey } from '../../lib/i18n/translate';
 import { pdfLines } from '../../lib/bank/pdf-text';
-import { importStatement, rematchPending, autoDecision } from '../../lib/bank/import';
+import { importStatement, rematchPending, autoDecision, redistributeIncoming } from '../../lib/bank/import';
 import { applyDecision, undoDecision, type Decision } from '../../lib/bank/apply';
 
 type Result = { ok: boolean; message?: string };
@@ -173,6 +173,26 @@ export async function undoTransaction(txId: string): Promise<Result> {
   await logAudit({ entity_type: 'bank_transaction', entity_id: txId, action: 'update', changes: { decision: { before: 'decided', after: 'new' } }, summary: 'Операция выписки: решение отменено' });
   refresh();
   return { ok: true };
+}
+
+/** Разнести приход заново по заказам (из «Авансов и нераспределённых приходов»). */
+export async function redistributeTransaction(txId: string): Promise<Result> {
+  await requireCapability('bank.edit');
+  const { t } = await getT();
+  const supabase = await createClient();
+  const { userId } = await getSessionContext();
+  const r = await redistributeIncoming(supabase, txId, userId ?? null);
+  if (!r.ok) return { ok: false, message: await errText(r.error, r.message) };
+  await logAudit({
+    entity_type: 'bank_transaction',
+    entity_id: txId,
+    action: 'update',
+    changes: { decision: { before: 'trips', after: r.applied ? 'trips' : 'new' } },
+    summary: r.applied ? 'Приход разнесён по заказам заново' : 'Приход: решение снято, ждёт решения в «Банке»',
+  });
+  refresh();
+  revalidatePath('/receivables');
+  return { ok: true, message: r.applied ? t('pay2.redistributed') : t('pay2.redistributePending') };
 }
 
 /** Удалить выписку: сначала отменяются все решения по её операциям. */

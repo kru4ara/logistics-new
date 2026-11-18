@@ -2437,6 +2437,9 @@ export const pl: Messages = {
     cashTotal: 'Wypłacono gotówką (razem)',
   },
   pay2: {
+    redistribute: 'Rozdziel ponownie',
+    redistributed: 'Wpłata rozdzielona ponownie na zlecenia.',
+    redistributePending: 'Brak pasujących zleceń z fakturą — operacja czeka na decyzję w „Banku”.',
     searchTrip: 'Szukaj zlecenia: numer, faktura, klient…',
     partPaid: 'zapłacono {paid} z {total}',
     advancesTitle: 'Zaliczki i nierozliczone wpływy',
