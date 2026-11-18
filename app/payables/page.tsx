@@ -12,9 +12,9 @@ import { isKsefConfigured } from '../../lib/ksef/client';
 import { loadSegmentCandidates } from '../../lib/payables/sync';
 import { suggestSegments, carrierOrderNumber, type SegmentCandidate } from '../../lib/payables/match-rules';
 import { summarizePayables, type PayableRow } from '../../lib/payables/summary';
-import { SyncPurchasesButton, LinkPurchaseForm, UnlinkButton, PurchasePaidButton, PaidDateInput, DeleteManualButton, type PickOption, type CategoryOption } from './PayablesControls';
+import { SyncPurchasesButton, TripDoubleActions, LinkPurchaseForm, UnlinkButton, PurchasePaidButton, PaidDateInput, DeleteManualButton, type PickOption, type CategoryOption } from './PayablesControls';
 import { loadTripCandidates, lastTripCategoryByNip, loadInvoiceTrips } from '../../lib/payables/trip-expense';
-import { suggestTrips, defaultTripCategory, tripsForPeriodInvoice, findManualOverlaps, type TripCandidate, type ManualExpense } from '../../lib/payables/trip-rules';
+import { suggestTrips, defaultTripCategory, tripsForPeriodInvoice, findManualOverlaps, NOT_DOUBLE_KEY, type TripCandidate, type ManualExpense } from '../../lib/payables/trip-rules';
 import { fetchAllByIds } from '../../lib/fetch-all';
 import { costAmount } from '../../lib/payables/cost-rules';
 import { EXPENSE_CATEGORIES, expenseCategoryKey } from '../../lib/i18n/labels';
@@ -99,7 +99,13 @@ export default async function PayablesPage() {
   const manualRows = (manExp ?? []) as (ManualExpense & { original_amount: number | null; currency: string | null })[];
   const rowById = new Map(rows.map((r) => [r.id, r]));
   const tripDoubles: { key: string; tripId: string; manual: (typeof manualRows)[number]; share: (typeof invExpRows)[number]; invoice: string }[] = [];
+  const { data: notDouble } = await supabase.from('integration_state').select('value').eq('key', NOT_DOUBLE_KEY).maybeSingle();
   const seenManual = new Set<string>();
+  try {
+    for (const id of JSON.parse(notDouble?.value ?? '[]') as string[]) seenManual.add(id);
+  } catch {
+    /* повреждённый список — показываем всё */
+  }
   for (const e of invExpRows) {
     const inv = rowById.get(e.purchase_invoice_id);
     if (!inv || !e.category) continue;
@@ -263,6 +269,7 @@ export default async function PayablesPage() {
                   <div className="flex-1 min-w-0 text-slate-500 break-words">
                     {t('payx5.invoiceRow')}: {d.invoice} · {money(d.share.original_amount, d.share.currency)}
                   </div>
+                  {canEdit && <TripDoubleActions manualId={d.manual.id} />}
                 </div>
               ))}
             </div>

@@ -13,7 +13,7 @@ import { syncInvoiceTripExpense } from '../../lib/payables/trip-expense';
 import { syncInvoiceOverheadCost } from '../../lib/payables/overhead-cost';
 import { isMonthClosed, tripMonth } from '../../lib/closed-months';
 import { EXPENSE_CATEGORIES } from '../../lib/i18n/labels';
-import { validateAllocations, findManualOverlaps, type Allocation, type ManualExpense } from '../../lib/payables/trip-rules';
+import { validateAllocations, findManualOverlaps, NOT_DOUBLE_KEY, type Allocation, type ManualExpense } from '../../lib/payables/trip-rules';
 import type { MessageKey } from '../../lib/i18n/translate';
 import { isOverheadCategory, sellerKey } from '../../lib/payables/overhead-rules';
 import { fetchAll } from '../../lib/fetch-all';
@@ -481,5 +481,50 @@ export async function deleteManualPurchase(invoiceId: string): Promise<Result> {
     revalidatePath(`/trips/${tripId}`);
   }
   revalidatePath('/payables');
+  return { ok: true };
+}
+
+/** Возможное задвоение: это не дубль — убрать из списка. */
+export async function dismissTripDouble(manualId: string): Promise<Result> {
+  await requireCapability('payables.edit');
+  const supabase = await createClient();
+  const { data } = await supabase.from('integration_state').select('value').eq('key', NOT_DOUBLE_KEY).maybeSingle();
+  let ids: string[] = [];
+  try {
+    ids = data?.value ? JSON.parse(data.value) : [];
+  } catch {
+    ids = [];
+  }
+  if (!ids.includes(manualId)) ids = [...ids, manualId].slice(-2000);
+  const { error } = await supabase.from('integration_state').upsert({ key: NOT_DOUBLE_KEY, value: JSON.stringify(ids), updated_at: new Date().toISOString() });
+  if (error) return { ok: false, message: error.message };
+  revalidatePath('/payables');
+  return { ok: true };
+}
+
+/** Возможное задвоение: ручная запись — тот же расход, что и счёт; удалить её. */
+export async function deleteManualTripExpense(manualId: string): Promise<Result> {
+  await requireCapability('payables.edit');
+  const { t } = await getT();
+  const supabase = await createClient();
+  const { data: row } = await supabase
+    .from('trip_expenses')
+    .select('id, trip_id, category, description, original_amount, currency, purchase_invoice_id')
+    .eq('id', manualId)
+    .maybeSingle();
+  if (!row || row.purchase_invoice_id) return { ok: false, message: t('payx2.errTrip') };
+  const { data: tr } = await supabase.from('trips').select('id, trip_number, start_date, end_date').eq('id', row.trip_id).maybeSingle();
+  if (tr && (await isMonthClosed(supabase, tripMonth(tr)))) return { ok: false, message: t('payx2.errClosed') };
+  const { error } = await supabase.from('trip_expenses').delete().eq('id', manualId).is('purchase_invoice_id', null);
+  if (error) return { ok: false, message: error.message };
+  await logAudit({
+    entity_type: 'trip',
+    entity_id: row.trip_id,
+    action: 'update',
+    changes: { manual_expense: { before: `${row.category ?? ''} ${row.description ?? ''} ${row.original_amount ?? ''} ${row.currency ?? ''}`.trim(), after: null } },
+    summary: `Рейс №${tr?.trip_number ?? '—'}: удалена ручная запись расхода — дубль счёта`,
+  });
+  revalidatePath('/payables');
+  revalidatePath(`/trips/${row.trip_id}`);
   return { ok: true };
 }

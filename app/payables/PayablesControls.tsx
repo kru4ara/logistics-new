@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, Link2, CheckCircle2, Undo2, DownloadCloud, Trash2 } from 'lucide-react';
 import { useT } from '../components/I18nProvider';
-import { syncPurchasesNow, linkPurchase, linkPurchaseToTrip, linkPurchaseToTrips, unlinkPurchase, setPurchasePaid, deleteManualPurchase } from './actions';
+import { syncPurchasesNow, linkPurchase, linkPurchaseToTrip, linkPurchaseToTrips, unlinkPurchase, setPurchasePaid, deleteManualPurchase, deleteManualTripExpense, dismissTripDouble } from './actions';
 import { matchesQuery, splitEvenly, validateAllocations, type Allocation } from '../../lib/payables/trip-rules';
 
 type Res = { ok: boolean; message?: string };
@@ -314,6 +314,37 @@ export function DeleteManualButton({ invoiceId }: { invoiceId: string }) {
         {t('payx.deleteManual')}
       </button>
       {msg && !msg.ok && <span className="text-xs text-red-600">{msg.text}</span>}
+    </span>
+  );
+}
+
+/** Возможное задвоение в рейсе: удалить ручную запись (дубль счёта) или «не дубль». */
+export function TripDoubleActions({ manualId }: { manualId: string }) {
+  const { t } = useT();
+  const { isPending, run, msg } = useAction();
+  return (
+    <span className="flex flex-col items-start md:items-end gap-0.5 shrink-0">
+      <span className="flex items-center gap-2">
+        <button
+          type="button"
+          disabled={isPending}
+          onClick={() => {
+            if (window.confirm(t('payx5.deleteManualConfirm'))) run(() => deleteManualTripExpense(manualId));
+          }}
+          className="text-xs font-semibold text-red-600 hover:underline disabled:opacity-50 whitespace-nowrap"
+        >
+          {t('payx5.deleteManual')}
+        </button>
+        <button
+          type="button"
+          disabled={isPending}
+          onClick={() => run(() => dismissTripDouble(manualId))}
+          className="text-xs font-semibold text-slate-600 hover:underline disabled:opacity-50 whitespace-nowrap"
+        >
+          {t('payx5.notDouble')}
+        </button>
+      </span>
+      {msg && <span className={`text-[11px] max-w-xs ${msg.ok ? 'text-slate-500' : 'text-red-600'}`}>{msg.text}</span>}
     </span>
   );
 }
