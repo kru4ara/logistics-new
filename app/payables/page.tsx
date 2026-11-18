@@ -345,8 +345,14 @@ export default async function PayablesPage() {
         )}
 
 {sellerGroups.length > 0 && (
-          <section id="sort" className="card p-4 md:p-5 overflow-x-auto">
-            <h2 className="font-bold text-slate-900">{t('payx3.secSort', { n: toSort.length })}</h2>
+          // Всё разобрано — список свёрнут: нужен, только чтобы поменять категорию продавца.
+          <details id="sort" open={toSort.length > 0} className="card p-4 md:p-5 overflow-x-auto group">
+            <summary className="cursor-pointer list-none">
+              <h2 className="font-bold text-slate-900 inline">
+                {toSort.length > 0 ? t('payx3.secSort', { n: toSort.length }) : t('payx5.sortDone', { n: sellerGroups.length })}
+              </h2>
+              <span className="ml-2 text-xs text-brand-600 group-open:hidden">{t('payx5.show')}</span>
+            </summary>
             <p className="text-sm text-slate-500 mt-1 mb-3">{t('payx3.sortHint')}</p>
             {[...toSort, ...sorted].map((g, gi) => {
               const guess = guessSeller(g.name);
@@ -392,7 +398,7 @@ export default async function PayablesPage() {
                 </details>
               );
             })}
-          </section>
+          </details>
         )}
 
                 {sum.toPay.length > 0 && (

@@ -133,7 +133,7 @@ export type ManualExpense = {
   description: string | null;
 };
 
-/** Документы агентства (EPI, EX-1) — одно и то же по смыслу: вручную могли записать любой. */
+/** Документы агентства (EPI, EX-1): по одному на рейс — одна категория уже повод проверить. */
 const AGENCY = new Set(['epi', 'ex1']);
 const norm = (s: string | null | undefined) => (s ?? '').toUpperCase().replace(/[^A-Z0-9А-ЯЁ]/g, '');
 const sellerCore = (s: string | null | undefined) =>
@@ -156,9 +156,10 @@ export function findManualOverlaps(
   const seller = sellerCore(sellerName);
   return manual.filter((m) => {
     if (!trips.has(m.trip_id) || m.category === 'contractor') return false;
-    // Категория сама по себе — только для документов агентства (один такой расход на рейс);
-    // ремонт, «прочее» и т. п. в рейсе бывают разные — там нужен номер или продавец.
-    const sameCat = AGENCY.has(category) && AGENCY.has(m.category ?? '');
+    // Категория сама по себе — только для документов агентства (один такой расход на рейс),
+    // и именно та же: EPI и EX-1 — разные документы. Ремонт, «прочее» и т. п. в рейсе бывают
+    // разные — там нужен номер счёта или продавец в описании.
+    const sameCat = AGENCY.has(category) && m.category === category;
     const d = norm(m.description);
     const named = (num.length >= 4 && d.includes(num)) || (seller.length >= 4 && d.includes(seller));
     return sameCat || named;
