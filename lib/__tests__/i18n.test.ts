@@ -274,6 +274,7 @@ const TRANSLATED_FILES = [
   'app/api/cron/invoices-sync/route.ts',
   'app/receivables/SyncInvoicesButton.tsx',
   'app/receivables/RedistributeButton.tsx',
+  'app/payables/agency/page.tsx',
   'lib/invoicing/sync-rules.ts',
   // payables
   'app/api/cron/ksef-purchases/route.ts',
