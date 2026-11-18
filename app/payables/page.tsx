@@ -219,7 +219,10 @@ export default async function PayablesPage() {
             </h1>
             <p className="text-slate-500 mt-1 text-sm md:text-base">{t('pay.hint')}</p>
           </div>
-          {canEdit && isKsefConfigured() && <SyncPurchasesButton />}
+          <div className="flex flex-col items-start md:items-end gap-2">
+            {canEdit && isKsefConfigured() && <SyncPurchasesButton />}
+            <Link href="/payables/agency" className="text-sm font-semibold text-brand-700 hover:underline">{t('agency.open')} →</Link>
+          </div>
         </div>
 
         {canEdit && (
