@@ -2326,6 +2326,8 @@ export const en: Messages = {
     unsortedBanner: '{n} “not trip-related” invoices have no category yet, so they aren’t in overhead. Sort them →',
   },
   payx5: {
+    sortDone: 'Sellers outside trips: {n} — all categorised',
+    show: 'show',
     fSeller: 'Seller',
     fNip: 'Tax ID',
     errSeller: 'Enter the seller',

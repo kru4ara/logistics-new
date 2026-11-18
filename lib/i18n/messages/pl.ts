@@ -2326,6 +2326,8 @@ export const pl: Messages = {
     unsortedBanner: '{n} faktur „nie dotyczy kursów” bez kategorii — nie trafiły do kosztów ogólnych. Rozdziel →',
   },
   payx5: {
+    sortDone: 'Sprzedawcy poza kursami: {n} — wszyscy z kategorią',
+    show: 'pokaż',
     fSeller: 'Sprzedawca',
     fNip: 'NIP / VAT ID',
     errSeller: 'Podaj sprzedawcę',
