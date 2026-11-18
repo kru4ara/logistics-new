@@ -138,6 +138,17 @@ describe('платёж → счета подрядчиков', () => {
     expect(matchPurchases(zwrot, 'other_out', [inv('e', { number: 'FV00147/06/2026', sellerName: 'EVERPRINT', gross: 1349, issueDate: '2026-06-01' })])).toEqual({ ids: ['e'], exact: false });
   });
 
+  it('номер не ищется внутри чужого: «9/06/2026» ≠ «DEW/99/06/2026/BO»', () => {
+    const t = out({ amount: -104.72, currency: 'EUR', title: 'DEW/91/06/2026/BO,DEW/99/06/2026/BO,DEW/128/06/2026/BO', counterparty: 'AGENCJA CELNA TERMINUS' });
+    const invs = [
+      inv('a', { number: 'DEW/91/06/2026/BO', gross: 37, currency: 'EUR' }),
+      inv('b', { number: 'DEW/99/06/2026/BO', gross: 5, currency: 'EUR' }),
+      inv('c', { number: 'DEW/128/06/2026/BO', gross: 62.72, currency: 'EUR' }),
+      inv('x', { number: '9/06/2026', gross: 1550, currency: 'EUR' }),
+    ];
+    expect(matchPurchases(t, 'supplier', invs)).toEqual({ ids: ['a', 'b', 'c'], exact: true });
+  });
+
   it('другая валюта и приход — не сопоставляем', () => {
     expect(matchPurchases(out({ currency: 'EUR' }), 'supplier', [inv('a')])).toBeNull();
     expect(matchPurchases(out({ amount: 1389.9 }), 'supplier', [inv('a')])).toBeNull();
