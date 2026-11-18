@@ -2326,6 +2326,9 @@ export const pl: Messages = {
     unsortedBanner: '{n} faktur „nie dotyczy kursów” bez kategorii — nie trafiły do kosztów ogólnych. Rozdziel →',
   },
   payx5: {
+    deleteManual: 'Usuń ręczny',
+    notDouble: 'To nie duplikat',
+    deleteManualConfirm: 'Usunąć ręczny wpis z kursu? Zostanie jeden koszt — z faktury.',
     tripDupTitle: 'Możliwe podwójne koszty w kursach: {n}',
     tripDupHint: 'W kursie jest i część faktury, i ręczny wpis tego samego kosztu. Otwórz kurs i usuń zbędny ręczny wpis, jeśli to to samo.',
     manualRow: 'ręcznie',

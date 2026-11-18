@@ -2326,6 +2326,9 @@ export const en: Messages = {
     unsortedBanner: '{n} “not trip-related” invoices have no category yet, so they aren’t in overhead. Sort them →',
   },
   payx5: {
+    deleteManual: 'Delete manual',
+    notDouble: 'Not a duplicate',
+    deleteManualConfirm: 'Delete the manual entry from the trip? One expense remains — from the invoice.',
     tripDupTitle: 'Possible double expenses in trips: {n}',
     tripDupHint: 'The trip has both an invoice share and a manual entry for the same expense. Open the trip and delete the extra manual entry if they are the same.',
     manualRow: 'manual',

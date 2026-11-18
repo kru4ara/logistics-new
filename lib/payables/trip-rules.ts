@@ -164,3 +164,6 @@ export function findManualOverlaps(
     return sameCat || named;
   });
 }
+
+/** integration_state: ручные записи, которые офис признал «не дублем» счёта. */
+export const NOT_DOUBLE_KEY = 'payables.notDouble';
