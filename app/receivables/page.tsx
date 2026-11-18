@@ -22,6 +22,7 @@ import { getInvoiceProvider } from '../../lib/invoicing';
 import { loadInvoicedTrips } from '../../lib/receivables-load';
 import { loadAllocatedByTrip } from '../../lib/bank/refs';
 import { loadAdvances } from '../../lib/bank/advances';
+import RedistributeButton from './RedistributeButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -187,6 +188,7 @@ export default async function ReceivablesPage() {
                         ...a.onTrips.map((x) => t('pay2.onTrip', { n: x.label, sum: `${x.amount.toFixed(2)} ${a.currency}` })),
                       ].filter(Boolean).join(' · ')}
                     </span>
+                    {can(role, 'bank.edit') && <RedistributeButton txId={a.txId} />}
                     <Link href="/bank?show=matched" className="text-xs text-brand-600 hover:underline shrink-0">{t('pay2.toBank')}</Link>
                   </div>
                 ))}

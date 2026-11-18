@@ -4,7 +4,7 @@ import { parsePkoStatement, type ParseError } from './pko-rules';
 import { classifyTx, defaultOverhead, matchPurchases, matchTrips, allocatePayment, type TxKind, type PurchaseRef, type TripRef, type Allocation } from './match-rules';
 import { fetchAll } from '../fetch-all';
 import { loadPurchaseRefs, loadTripRefs } from './refs';
-import { applyDecision, insertCashCost, type Decision } from './apply';
+import { applyDecision, undoDecision, insertCashCost, type Decision, type ApplyError } from './apply';
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
 
@@ -134,6 +134,50 @@ export async function rematchPending(supabase: Supabase, userId: string | null):
     if (d && (await applyDecision(supabase, r.id, d, userId)).ok) auto++;
   }
   return { checked: rows.length, auto };
+}
+
+/**
+ * Разнести приход заново: счета по заказам могли появиться или поменяться после решения
+ * (GRABER 8 700 € за три счёта, третий тогда не был привязан). Снимаем решение и
+ * применяем свежую подсказку по заказам; нет подсказки — операция ждёт решения в «Банке».
+ */
+export async function redistributeIncoming(
+  supabase: Supabase,
+  txId: string,
+  userId: string | null,
+): Promise<{ ok: true; applied: boolean } | { ok: false; error: ApplyError; message?: string }> {
+  const { data: r } = await supabase
+    .from('bank_transactions')
+    .select('id, kind, status, amount, currency, booking_date, op_type, counterparty, counterparty_account, title, description')
+    .eq('id', txId)
+    .maybeSingle();
+  if (!r) return { ok: false, error: 'notFound' };
+  if (Number(r.amount) <= 0) return { ok: false, error: 'direction' };
+  if (r.status !== 'new') {
+    const u = await undoDecision(supabase, txId);
+    if (!u.ok) return u;
+  }
+  const [purchases, trips] = await Promise.all([loadPurchaseRefs(supabase), loadTripRefs(supabase)]);
+  const sg = suggestFor(
+    {
+      type: r.op_type ?? '',
+      amount: Number(r.amount),
+      counterparty: r.counterparty,
+      counterpartyAccount: r.counterparty_account,
+      title: r.title,
+      description: r.description ?? '',
+      bookingDate: String(r.booking_date).slice(0, 10),
+      currency: r.currency,
+    },
+    r.kind as TxKind,
+    purchases,
+    trips,
+  );
+  await supabase.from('bank_transactions').update({ suggestion: sg }).eq('id', txId).eq('status', 'new');
+  // Пользователь сам попросил разнести — применяем и неточную подсказку: остаток останется авансом.
+  if (sg?.type !== 'trips' || !(sg.allocations ?? []).some((a) => a.amount > 0)) return { ok: true, applied: false };
+  const res = await applyDecision(supabase, txId, { type: 'trips', ids: sg.ids, allocations: sg.allocations }, userId);
+  return res.ok ? { ok: true, applied: true } : res;
 }
 
 export type ImportResult =

@@ -2439,6 +2439,9 @@ export const ru = {
     cashTotal: 'Снято наличными (всего)',
   },
   pay2: {
+    redistribute: 'Разнести заново',
+    redistributed: 'Приход разнесён по заказам заново.',
+    redistributePending: 'Подходящих заказов со счётом нет — операция ждёт решения в «Банке».',
     searchTrip: 'Поиск заказа: номер, счёт, клиент…',
     partPaid: 'оплачено {paid} из {total}',
     advancesTitle: 'Авансы и нераспределённые приходы',
