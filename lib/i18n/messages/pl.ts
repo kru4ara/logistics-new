@@ -2343,6 +2343,12 @@ export const pl: Messages = {
     open: 'Kontrola EPI / EX-1',
   },
   payx5: {
+    find: 'Szukaj',
+    findReset: 'wyczyść',
+    findPlaceholder: 'Numer faktury lub sprzedawca — np. F/0020 albo Polbalt',
+    findHint: 'We wszystkich fakturach: odłącz i przypisz ponownie, popraw płatność.',
+    findNone: 'Nic nie znaleziono',
+    findUnlinked: 'czeka na przypisanie — zob. „Wymagają przypisania”',
     sortDone: 'Sprzedawcy poza kursami: {n} — wszyscy z kategorią',
     show: 'pokaż',
     fSeller: 'Sprzedawca',
