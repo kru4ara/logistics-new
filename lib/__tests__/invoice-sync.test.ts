@@ -176,7 +176,8 @@ describe('корректы Fakturowo', () => {
     ], []);
     expect(plan.unmatched.map((r) => r.externalId)).toEqual(['n']);
     expect(plan.unpaidUnmatched).toEqual([]);
-    expect(plan.corrections.map((r) => r.externalId)).toEqual(['k']);
+    // обнуляющая корректа — без суммы, решать по ней нечего
+    expect(plan.corrections).toEqual([]);
   });
 });
 

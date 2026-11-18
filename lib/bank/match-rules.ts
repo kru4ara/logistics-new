@@ -87,12 +87,15 @@ export function matchPurchases(
   const sameCur = invoices.filter((i) => (i.currency || 'PLN').toUpperCase() === cur);
   const title = compact(tx.title);
   // Куски назначения: «FASWA/573/2026, FASWA/572/2026» → два номера; «1601/SR/2026» найдёт «FS 1601/SR/2026».
-  const pieces = (tx.title ?? '').split(/[\s,;]+/).map(compact).filter((x) => x.length >= 5 && /\d/.test(x));
+  const titleWords = (tx.title ?? '').split(/[\s,;]+/).map(compact).filter(Boolean);
+  const pieces = titleWords.filter((x) => x.length >= 5 && /\d/.test(x));
   if (title) {
     const byNumber = sameCur.filter((i) => {
       const n = compact(i.number);
       if (n.length < 4) return false;
-      return title.includes(n) || pieces.some((p) => n.endsWith(p) || n.startsWith(p));
+      // Номер целиком в куске назначения (перед ним — только буквы: «NRF0313…»), а не
+      // внутри чужого номера: «9/06/2026» не должен находиться в «DEW/99/06/2026/BO».
+      return titleWords.some((w) => w === n || (w.endsWith(n) && /^[A-Z]*$/.test(w.slice(0, -n.length)))) || pieces.some((p) => n.endsWith(p) || n.startsWith(p));
     });
     if (byNumber.length) {
       const sum = byNumber.reduce((s, i) => s + (i.gross ?? 0), 0);

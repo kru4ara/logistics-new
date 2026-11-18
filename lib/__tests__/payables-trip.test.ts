@@ -112,4 +112,8 @@ describe('ручные записи, которые повторяет счёт'
   it('по имени продавца без категории', () => {
     expect(findManualOverlaps([m('x', '1', 'other', 'оплата Polbalt за EX')], ['1'], 'epi', 'POLBALT SP. Z O.O.', null).map((x) => x.id)).toEqual(['x']);
   });
+  it('ремонт / прочее: одна категория — ещё не дубль (WEA HOLDING и «ад блю», «фильтр салона»)', () => {
+    const r = findManualOverlaps([m('p', '1', 'repair', 'ад блю'), m('q', '1', 'repair', 'фильтр салона')], ['1'], 'repair', 'WEA HOLDING Polska Sp.z o.o.', '21/26/U-O');
+    expect(r).toEqual([]);
+  });
 });

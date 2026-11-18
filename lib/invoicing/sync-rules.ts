@@ -128,7 +128,8 @@ export function planInvoiceSync(provider: ProviderId, remote: RemoteInvoice[], t
   }
   // Номер, который в сервисе встречается дважды (разные типы документов), не сопоставляем.
   // Корректы (korekta) — не счета заказов: исправленный счёт приходит отдельным документом.
-  const corrections = remote.filter((r) => r.kind === 'correction' && !appliedIds.has(r.externalId));
+  // Корректа на ноль (обнуление ради смены валюты) денег не меняет — решать по ней нечего.
+  const corrections = remote.filter((r) => r.kind === 'correction' && !appliedIds.has(r.externalId) && Math.abs(r.gross ?? 0) >= 0.005);
   remote = remote.filter((r) => r.kind !== 'correction');
   const remoteNumberCount = new Map<string, number>();
   for (const r of remote) {

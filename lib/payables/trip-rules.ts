@@ -156,7 +156,9 @@ export function findManualOverlaps(
   const seller = sellerCore(sellerName);
   return manual.filter((m) => {
     if (!trips.has(m.trip_id) || m.category === 'contractor') return false;
-    const sameCat = m.category === category || (AGENCY.has(category) && AGENCY.has(m.category ?? ''));
+    // Категория сама по себе — только для документов агентства (один такой расход на рейс);
+    // ремонт, «прочее» и т. п. в рейсе бывают разные — там нужен номер или продавец.
+    const sameCat = AGENCY.has(category) && AGENCY.has(m.category ?? '');
     const d = norm(m.description);
     const named = (num.length >= 4 && d.includes(num)) || (seller.length >= 4 && d.includes(seller));
     return sameCat || named;
