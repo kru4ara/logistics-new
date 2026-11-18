@@ -12,6 +12,8 @@ import { isKsefConfigured } from '../../lib/ksef/client';
 import { loadSegmentCandidates } from '../../lib/payables/sync';
 import { suggestSegments, carrierOrderNumber, type SegmentCandidate } from '../../lib/payables/match-rules';
 import { summarizePayables, type PayableRow } from '../../lib/payables/summary';
+import { AddManualInvoice } from '../trips/[id]/ContractorInvoicesForms';
+import { MANUAL_CURRENCIES } from '../../lib/payables/cost-rules';
 import { SyncPurchasesButton, TripDoubleActions, LinkPurchaseForm, UnlinkButton, PurchasePaidButton, PaidDateInput, DeleteManualButton, type PickOption, type CategoryOption } from './PayablesControls';
 import { loadTripCandidates, lastTripCategoryByNip, loadInvoiceTrips } from '../../lib/payables/trip-expense';
 import { suggestTrips, defaultTripCategory, tripsForPeriodInvoice, findManualOverlaps, NOT_DOUBLE_KEY, type TripCandidate, type ManualExpense } from '../../lib/payables/trip-rules';
@@ -219,6 +221,13 @@ export default async function PayablesPage() {
           </div>
           {canEdit && isKsefConfigured() && <SyncPurchasesButton />}
         </div>
+
+        {canEdit && (
+          <div className="flex flex-col gap-1">
+            <AddManualInvoice segmentId={null} currency="EUR" currencies={MANUAL_CURRENCIES} />
+            <p className="text-xs text-slate-500">{t('payx5.addStandaloneHint')}</p>
+          </div>
+        )}
 
         {!isKsefConfigured() && (
           <div className="card p-4 flex gap-3 text-sm text-slate-700">

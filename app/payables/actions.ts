@@ -373,14 +373,24 @@ export async function addManualPurchase(fd: FormData): Promise<Result> {
   if (typeof parsed === 'string') return { ok: false, message: t(MANUAL_ERR[parsed]) };
 
   const supabase = await createClient();
-  const { data: seg } = await supabase
-    .from('trip_segments')
-    .select('id, trip_id, position, contractor_id, contractor_payment_days, contractors(name, tax_id)')
-    .eq('id', segmentId)
-    .eq('executor_type', 'contractor')
-    .maybeSingle();
-  if (!seg) return { ok: false, message: t('pay.segmentNotFound') };
-  const contractor = (Array.isArray(seg.contractors) ? seg.contractors[0] : seg.contractors) as { name: string; tax_id: string | null } | null;
+  // Без участка — счёт не из KSeF (иностранное агентство EX-1, IMEX): попадёт в «Требуют
+  // привязки», где его относят к участку экспедиции или расходам нашего рейса.
+  const standalone = !segmentId;
+  const { data: seg } = standalone
+    ? { data: null }
+    : await supabase
+        .from('trip_segments')
+        .select('id, trip_id, position, contractor_id, contractor_payment_days, contractors(name, tax_id)')
+        .eq('id', segmentId)
+        .eq('executor_type', 'contractor')
+        .maybeSingle();
+  if (!standalone && !seg) return { ok: false, message: t('pay.segmentNotFound') };
+  const sellerName = String(fd.get('seller_name') ?? '').trim().slice(0, 200);
+  const sellerNip = String(fd.get('seller_nip') ?? '').trim().replace(/\s/g, '').slice(0, 30) || null;
+  if (standalone && !sellerName) return { ok: false, message: t('payx5.errSeller') };
+  const contractor = seg
+    ? ((Array.isArray(seg.contractors) ? seg.contractors[0] : seg.contractors) as { name: string; tax_id: string | null } | null)
+    : { name: sellerName, tax_id: sellerNip };
 
   const file = fd.get('file');
   const hasFile = file instanceof File && file.size > 0;
@@ -399,7 +409,7 @@ export async function addManualPurchase(fd: FormData): Promise<Result> {
     }
   }
 
-  const days = Number(seg.contractor_payment_days ?? 30);
+  const days = Number(seg?.contractor_payment_days ?? 30);
   const due = parsed.paymentDue ?? new Date(Date.parse(parsed.issueDate) + (Number.isFinite(days) ? days : 30) * 86_400_000).toISOString().slice(0, 10);
 
   const { data: created, error } = await supabase
@@ -416,9 +426,9 @@ export async function addManualPurchase(fd: FormData): Promise<Result> {
       gross_amount: parsed.gross,
       currency: parsed.currency,
       payment_due: due,
-      contractor_id: seg.contractor_id,
-      segment_id: seg.id,
-      match_status: 'manual',
+      contractor_id: seg?.contractor_id ?? null,
+      segment_id: seg?.id ?? null,
+      match_status: seg ? 'manual' : 'none',
     })
     .select('id')
     .single();
@@ -439,15 +449,25 @@ export async function addManualPurchase(fd: FormData): Promise<Result> {
     await supabase.from('purchase_invoices').update({ file_path: path }).eq('id', created.id);
   }
 
-  await recalcSegmentCost(supabase, seg.id);
-  await logAudit({
-    entity_type: 'trip',
-    entity_id: seg.trip_id,
-    action: 'update',
-    changes: { purchase_invoice: { before: null, after: parsed.invoiceNumber } },
-    summary: `Внесён счёт подрядчика ${parsed.invoiceNumber} (${contractor?.name ?? ''}) к участку ${seg.position}: ${parsed.net} ${parsed.currency} нетто`,
-  });
-  revalidatePath(`/trips/${seg.trip_id}`);
+  if (seg) {
+    await recalcSegmentCost(supabase, seg.id);
+    await logAudit({
+      entity_type: 'trip',
+      entity_id: seg.trip_id,
+      action: 'update',
+      changes: { purchase_invoice: { before: null, after: parsed.invoiceNumber } },
+      summary: `Внесён счёт подрядчика ${parsed.invoiceNumber} (${contractor?.name ?? ''}) к участку ${seg.position}: ${parsed.net} ${parsed.currency} нетто`,
+    });
+    revalidatePath(`/trips/${seg.trip_id}`);
+  } else {
+    await logAudit({
+      entity_type: 'purchase_invoice',
+      entity_id: created.id,
+      action: 'create',
+      changes: { purchase_invoice: { before: null, after: parsed.invoiceNumber } },
+      summary: `Внесён счёт ${parsed.invoiceNumber} (${sellerName}) вручную, без привязки: ${parsed.gross} ${parsed.currency} брутто`,
+    });
+  }
   revalidatePath('/payables');
   return { ok: true };
 }
