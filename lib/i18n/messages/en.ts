@@ -2343,6 +2343,12 @@ export const en: Messages = {
     open: 'EPI / EX-1 check',
   },
   payx5: {
+    find: 'Find',
+    findReset: 'reset',
+    findPlaceholder: 'Invoice number or seller — e.g. F/0020 or Polbalt',
+    findHint: 'Across all invoices: unlink and relink, fix the payment.',
+    findNone: 'Nothing found',
+    findUnlinked: 'awaiting linking — see “Needs linking”',
     sortDone: 'Sellers outside trips: {n} — all categorised',
     show: 'show',
     fSeller: 'Seller',

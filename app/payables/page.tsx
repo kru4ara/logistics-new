@@ -27,7 +27,8 @@ import { SellerSortForm, InvoiceOverheadSelect } from './SortControls';
 
 export const dynamic = 'force-dynamic';
 
-export default async function PayablesPage() {
+export default async function PayablesPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
+  const q = String((await searchParams).q ?? '').trim().slice(0, 100);
   const { role } = await getSessionContext();
   const denied = deniedRedirect(role, 'payables.view');
   if (denied) redirect(denied);
@@ -63,6 +64,10 @@ export default async function PayablesPage() {
   );
   const today = new Date().toISOString().slice(0, 10);
   const sum = summarizePayables(rows, today);
+  // Поиск по всем счетам, не только за 60 дней: номер или продавец (F/0020 → «F0020»).
+  const norm = (s: string | null | undefined) => (s ?? '').toUpperCase().replace(/[^A-Z0-9А-ЯЁĄĆĘŁŃÓŚŹŻ]/g, '');
+  const nq = norm(q);
+  const found = nq.length >= 2 ? rows.filter((r) => norm(r.invoice_number).includes(nq) || norm(r.seller_name).includes(nq)).slice(0, 100) : [];
   const duplicates = findDuplicateGroups(rows);
   const sellerGroups = groupBySeller(rows.filter((r) => r.match_status === 'ignored'));
   const toSort = sellerGroups.filter((g) => g.uncategorized > 0);
@@ -434,6 +439,45 @@ export default async function PayablesPage() {
             </table>
           </section>
         )}
+
+        <section className="card p-4 md:p-5 overflow-x-auto" id="find">
+          <form method="get" action="/payables#find" className="flex flex-wrap items-center gap-2">
+            <input name="q" defaultValue={q} placeholder={t('payx5.findPlaceholder')} className="input text-sm flex-1 min-w-[14rem]" />
+            <button type="submit" className="btn btn-secondary text-sm">{t('payx5.find')}</button>
+            {q && <Link href="/payables" className="text-sm text-slate-500 hover:underline">{t('payx5.findReset')}</Link>}
+          </form>
+          <p className="text-xs text-slate-500 mt-1">{t('payx5.findHint')}</p>
+          {q && (
+            found.length === 0 ? (
+              <p className="text-sm text-slate-500 mt-3">{t('payx5.findNone')}</p>
+            ) : (
+              <table className="w-full text-sm mt-3">
+                <thead>{head}</thead>
+                <tbody className="divide-y divide-slate-100">
+                  {found.map((r) => {
+                    const seg = r.segment_id ? segById.get(r.segment_id) : null;
+                    return (
+                      <tr key={r.id} className="align-top">
+                        {invoiceCells(r)}
+                        <td className="py-2.5 pr-3">
+                          {r.trip_id ? tripCell(r) : seg ? (
+                            <span className="inline-flex items-center gap-1.5">
+                              <Link href={`/trips/${seg.tripId}`} className="text-brand-600 hover:underline">№{carrierOrderNumber(seg)}</Link>
+                              {canEdit && <UnlinkButton invoiceId={r.id} />}
+                            </span>
+                          ) : r.match_status === 'ignored' ? (
+                            <span className="inline-flex items-center gap-1.5 text-slate-400">{t('pay.notTrip')}{canEdit && <UnlinkButton invoiceId={r.id} />}</span>
+                          ) : t('payx5.findUnlinked')}
+                        </td>
+                        <td className="py-2.5 text-right">{canEdit && <PurchasePaidButton invoiceId={r.id} paid={Boolean(r.paid_at)} />}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )
+          )}
+        </section>
 
         {sum.paidRecent.length > 0 && (
           <details className="card p-4 md:p-5 overflow-x-auto">
