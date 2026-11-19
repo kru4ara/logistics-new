@@ -26,6 +26,7 @@ import { getT } from '../../../lib/i18n/server';
 import { tripStatusKey, TRIP_STATUSES } from '../../../lib/i18n/labels';
 import { getDriverT } from '../../../lib/driver-locale';
 import PaymentBlock from './PaymentBlock';
+import TripPayments from './TripPayments';
 import InvoiceBlock from './InvoiceBlock';
 import ContractorInvoices from './ContractorInvoices';
 import { isMonthClosed, tripMonth } from '../../../lib/closed-months';
@@ -577,7 +578,15 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
             invoicedAt={trip.invoiced_at ?? null}
             paymentDue={trip.payment_due ?? null}
             paidAt={trip.paid_at ?? null}
-          />
+          >
+            {can(role, 'bank.view') && (
+              <TripPayments
+                tripId={tripId}
+                invoiceAmount={trip.invoice_amount != null ? Number(trip.invoice_amount) : null}
+                invoiceCurrency={trip.invoice_currency ?? null}
+              />
+            )}
+          </PaymentBlock>
         )}
 
         {!readOnly && (

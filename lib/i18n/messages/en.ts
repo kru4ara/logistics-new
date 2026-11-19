@@ -1806,6 +1806,12 @@ export const en: Messages = {
     fromExcel: 'or import from Excel',
   },
   recv: {
+    payments: 'Payments on the invoice (from statements)',
+    paymentsNone: 'No payments from bank statements yet.',
+    ofPayment: 'of a {sum} payment',
+    paidOf: 'Paid {paid} of {total}',
+    leftToPay: 'Outstanding: {sum}',
+    overpaid: 'Overpaid: {sum}',
     title: 'Receivables',
     hint: 'Invoiced but unpaid: who owes how much and how late.',
     total: 'Outstanding',
