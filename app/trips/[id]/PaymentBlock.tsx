@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, type ReactNode } from 'react';
 import { Receipt, Loader2, Check } from 'lucide-react';
 import { useT } from '../../components/I18nProvider';
 import { updateTripPayment } from '../../receivables/actions';
@@ -11,10 +11,12 @@ type Props = {
   invoicedAt: string | null;
   paymentDue: string | null;
   paidAt: string | null;
+  /** поступления из выписки (серверный блок) */
+  children?: ReactNode;
 };
 
 /** Номер и даты счёта. Даты ставит триггер при смене статуса; здесь — ручная правка. */
-export default function PaymentBlock({ tripId, invoiceNumber, invoicedAt, paymentDue, paidAt }: Props) {
+export default function PaymentBlock({ tripId, invoiceNumber, invoicedAt, paymentDue, paidAt, children }: Props) {
   const { t } = useT();
   const [isPending, startTransition] = useTransition();
   const [saved, setSaved] = useState(false);
@@ -66,6 +68,7 @@ export default function PaymentBlock({ tripId, invoiceNumber, invoicedAt, paymen
         </button>
         {error && <span className="text-sm text-red-600">{error}</span>}
       </div>
+      {children}
     </form>
   );
 }

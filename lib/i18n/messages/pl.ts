@@ -1806,6 +1806,12 @@ export const pl: Messages = {
     fromExcel: 'lub zaimportuj z Excela',
   },
   recv: {
+    payments: 'Wpłaty na fakturę (z wyciągu)',
+    paymentsNone: 'Brak wpłat z wyciągów bankowych.',
+    ofPayment: 'z płatności {sum}',
+    paidOf: 'Zapłacono {paid} z {total}',
+    leftToPay: 'Pozostało: {sum}',
+    overpaid: 'Nadpłata: {sum}',
     title: 'Należności',
     hint: 'Wystawione i nieopłacone faktury: kto ile jest winien i jak długo zalega.',
     total: 'Do zapłaty',
