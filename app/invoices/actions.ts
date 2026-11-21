@@ -131,12 +131,7 @@ export async function issueInvoice(tripId: string, fd: FormData): Promise<Result
       payment_due: res.paymentDue,
       ...(trip.status !== 'invoiced' ? { status: 'invoiced' } : {}),
   };
-  let { error: upErr } = await supabase.from('trips').update(tripPatch).eq('id', tripId);
-  // До миграции 030 колонок суммы нет — сохраняем без них, фактура уже выставлена.
-  if (upErr && /invoice_amount|invoice_currency/.test(upErr.message)) {
-    const { invoice_amount: _a, invoice_currency: _c, ...rest } = tripPatch;
-    ({ error: upErr } = await supabase.from('trips').update(rest).eq('id', tripId));
-  }
+  const { error: upErr } = await supabase.from('trips').update(tripPatch).eq('id', tripId);
   if (upErr) {
     // Фактура в сервисе уже есть — не теряем её id в логах, повторно не выставлять.
     console.error('[invoices] trip update failed after invoice', provider.id, res.externalId, upErr.message);

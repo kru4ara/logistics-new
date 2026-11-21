@@ -24,7 +24,7 @@ export default async function EditClientPage({ params }: { params: Promise<{ id:
 
   if (error) return <div className="p-8 text-red-500">{t('dir.error')}{' '} {error.message}</div>;
 
-  // Портал клиента — действующая ссылка (до миграции 032 таблицы нет — блок без ссылки).
+  // Портал клиента — действующая ссылка.
   const { data: portal } = await supabase
     .from('client_portal_links')
     .select('created_at, last_seen_at')

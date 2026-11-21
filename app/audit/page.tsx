@@ -21,7 +21,7 @@ const ENTITY_LABELS: Record<string, string> = {
   trip: 'aud.eTrip',
   client: 'aud.eClient',
   driver: 'aud.eDriver',
-  contractor: 'rem.catContractor',
+  contractor: 'aud.eContractor',
   location: 'aud.eLocation',
   forwarding_order: 'aud.eForwarding',
   trip_expense: 'aud.eTripExp',
@@ -38,7 +38,7 @@ const ENTITY_LABELS: Record<string, string> = {
 
 const ACTION_META: Record<string, { text: string; badge: string; strip: string; Icon: LucideIcon }> = {
   create: {
-    text: 'toast.created',
+    text: 'aud.aCreated',
     badge: 'bg-emerald-50 text-emerald-700 border-emerald-200',
     strip: 'bg-emerald-500',
     Icon: Plus,
@@ -50,7 +50,7 @@ const ACTION_META: Record<string, { text: string; badge: string; strip: string; 
     Icon: Pencil,
   },
   delete: {
-    text: 'toast.deleted',
+    text: 'aud.aDeleted',
     badge: 'bg-red-50 text-red-700 border-red-200',
     strip: 'bg-red-500',
     Icon: Trash2,

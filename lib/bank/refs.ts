@@ -33,7 +33,7 @@ async function readCorrections(supabase: Supabase): Promise<AppliedCorrection[]>
   }
 }
 
-/** Сколько уже распределено на каждый заказ из приходов (до миграции 044 — пусто). */
+/** Сколько уже распределено на каждый заказ из приходов. */
 export async function loadAllocatedByTrip(supabase: Supabase): Promise<Map<string, number>> {
   const m = new Map<string, number>();
   const { data, error } = await fetchAll(supabase.from('payment_allocations').select('trip_id, amount').order('id'));

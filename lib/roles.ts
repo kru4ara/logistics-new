@@ -161,8 +161,6 @@ export const ROLE_CAPABILITIES: Record<string, Capability[]> = {
   driver: DRIVER,
 };
 
-export const ADMIN_ROLES = ['office'] as const;
-
 /**
  * Старые значения ролей в БД -> актуальные.
  *
@@ -187,13 +185,6 @@ export function normalizeRole(role: string | null | undefined): string {
 export function can(role: string | null | undefined, capability: Capability): boolean {
   const caps = ROLE_CAPABILITIES[normalizeRole(role)];
   return caps ? caps.includes(capability) : false;
-}
-
-export function canAny(
-  role: string | null | undefined,
-  capabilities: Capability[]
-): boolean {
-  return capabilities.some((c) => can(role, c));
 }
 
 export function isDriverRole(role: string | null | undefined): boolean {

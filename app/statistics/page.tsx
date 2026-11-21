@@ -69,11 +69,10 @@ export default async function StatisticsPage({ searchParams }: { searchParams: P
   }
 
   // 4. Фикс-косты
-  const FC_COLS = 'id, amount_eur, month_key, cost_type, expense_date, category, currency, is_capex';
-  const fcFull = await supabase.from('fixed_costs').select(`${FC_COLS}, cost_class`);
-  // До миграции 043 колонки cost_class нет — все расходы операционные.
-  const { data: fixedCosts } = fcFull.error ? await supabase.from('fixed_costs').select(FC_COLS) : fcFull;
-  // Прочие доходы — в доход месяца. До миграции 045 таблицы нет — пусто.
+  const { data: fixedCosts } = await supabase
+    .from('fixed_costs')
+    .select('id, amount_eur, month_key, cost_type, expense_date, category, currency, is_capex, cost_class');
+  // Прочие доходы — в доход месяца.
   const { data: otherIncome } = await supabase.from('other_income').select('month_key, amount_eur');
 
   // ============================================================

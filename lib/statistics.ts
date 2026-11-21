@@ -97,8 +97,7 @@ export function isStatsCompleted(order: any): boolean {
  * CAPEX в прибыль не входит — он собирается отдельно.
  */
 export function buildFixedCostsByMonth(
-  fixedCosts: any[] | null,
-  _year: number
+  fixedCosts: any[] | null | undefined
 ): { byMonth: Record<string, number>; capexAll: CapexItem[] } {
   const byMonth: Record<string, number> = {};
   const capexAll: CapexItem[] = [];
@@ -173,7 +172,7 @@ export function calculateStatistics({
   tripProfit: number;
   avgProfitPerTrip: number;
 } {
-  const { byMonth: fixedByMonth, capexAll } = buildFixedCostsByMonth(fixedCosts, year);
+  const { byMonth: fixedByMonth, capexAll } = buildFixedCostsByMonth(fixedCosts);
   const incomeByMonth = incomeEurByMonth(otherIncome);
 
   const completed = (orders || []).filter(isStatsCompleted);
