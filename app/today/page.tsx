@@ -23,7 +23,7 @@ import TodayAttention from './components/TodayAttention';
 import { getScope, applyTripScope } from '../../lib/scope';
 import { todayIso, currentTimestamp } from './lib/dates';
 import { hasUnloadDate } from '../../lib/orders-core';
-import { pickName, pickOne, getDriverName, getTruckNumber } from './lib/relations';
+import { pickName, getDriverName, getTruckNumber } from './lib/relations';
 import { fetchFuelLevels } from '../../lib/fuel-server';
 import { type EventItem } from './lib/events';
 import { fetchAll, fetchAllByIds } from '../../lib/fetch-all';

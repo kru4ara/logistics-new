@@ -1,6 +1,5 @@
 import { getSessionContext } from '../../lib/session';
 import { redirect } from 'next/navigation';
-import { createClient } from '../../lib/supabase/admin';
 import { scopedClient } from '../../lib/supabase/scoped';
 import { buildRouteMap } from '../../lib/trip-route';
 import MapView from './MapViewWrapper';
@@ -24,7 +23,6 @@ export default async function MapPage() {
   const denied = deniedRedirect(role, 'map.view');
   if (denied) redirect(denied);
 
-  const supabase = await createClient();
   const scoped = await scopedClient();
 
   const scope = await getScope();

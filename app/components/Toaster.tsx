@@ -124,7 +124,7 @@ export default function Toaster() {
   // (react-hooks/set-state-in-effect).
   const visible = useMemo(
     () => buildMessage(toastKey, errorMsg, t),
-    [toastKey, errorMsg]
+    [toastKey, errorMsg, t]
   );
 
   useEffect(() => {

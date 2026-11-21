@@ -8,9 +8,6 @@ import SubmitButton from '../../components/SubmitButton';
 import {
   ArrowLeft,
   Briefcase,
-  Phone,
-  Mail,
-  MessageCircle,
   Package,
   Save,
   Link2,
