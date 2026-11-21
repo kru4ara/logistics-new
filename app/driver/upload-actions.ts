@@ -68,6 +68,29 @@ export async function uploadDocument(
       };
     }
 
+    const done = await finalizeUpload(supabase, tripId, documentType, filePath, fileName);
+    if (!done.ok) return { success: false, message: done.message };
+
+    revalidatePath(`/driver/trips/${tripId}`);
+    revalidatePath(`/trips/${tripId}`);
+    return { success: true, message: t('drvApp.docUploaded') };
+  } catch (error) {
+    console.error('[uploadDocument] Unexpected error:', error);
+    const msg =
+      error instanceof Error
+        ? error.message
+        : typeof error === 'string'
+          ? error
+          : t('shared.unknownError');
+    return { success: false, message: msg };
+  }
+}
+
+type Admin = Awaited<ReturnType<typeof createClient>>;
+
+/** Файл уже в хранилище: запись документа, журнал, сообщение офису. */
+async function finalizeUpload(supabase: Admin, tripId: string, documentType: string, filePath: string, fileName: string) {
+  const { t } = await getT();
     const { data: created, error: insertError } = await supabase
       .from('trip_documents')
       .insert([
@@ -85,10 +108,7 @@ export async function uploadDocument(
     if (insertError) {
       console.error('[uploadDocument] DB error:', insertError);
       await supabase.storage.from('documents').remove([filePath]);
-      return {
-        success: false,
-        message: t('drvApp.saveErr', { msg: insertError.message || t('drvApp.unknownErr') }),
-      };
+      return { ok: false as const, message: t('drvApp.saveErr', { msg: insertError.message || t('drvApp.unknownErr') }) };
     }
 
     // Номер рейса, клиент и статус — для summary и сообщения офису
@@ -160,18 +180,55 @@ export async function uploadDocument(
       }
     }
 
+    return { ok: true as const };
+}
+
+const EXT_OK = new Set(['jpg', 'jpeg', 'png', 'heic', 'heif', 'webp', 'pdf']);
+const DOC_TYPES = new Set(['cmr', 'other', 'invoice', 'photo']);
+
+/**
+ * Прямая загрузка в хранилище, минуя функцию Vercel (её тело — не больше 4,5 МБ, а
+ * фото CMR с телефона в base64 бывает 5–8 МБ). Сервер проверяет доступ к рейсу и выдаёт
+ * одноразовую ссылку на запись одного файла; браузер кладёт файл сам.
+ */
+export async function prepareDocumentUpload(tripId: string, documentType: string, fileName: string) {
+  const { t } = await getT();
+  const access = await requireTripAccess(tripId, { allowLocked: true });
+  if (!access.ok) return { ok: false as const, message: access.reason };
+  const type = DOC_TYPES.has(documentType) ? documentType : 'other';
+  const ext = fileName.split('.').pop()?.toLowerCase() || '';
+  if (!EXT_OK.has(ext)) return { ok: false as const, message: t('shared.badFormat') };
+  const supabase = await createClient();
+  const path = `trips/${tripId}/${type}-${Date.now()}.${ext}`;
+  const { data, error } = await supabase.storage.from('documents').createSignedUploadUrl(path);
+  if (error || !data) return { ok: false as const, message: t('drvApp.uploadErr', { msg: error?.message || t('drvApp.unknownErr') }) };
+  return { ok: true as const, path, url: data.signedUrl };
+}
+
+/** Файл загружен по ссылке из prepareDocumentUpload — записываем документ. */
+export async function finishDocumentUpload(tripId: string, documentType: string, path: string, fileName: string) {
+  const { t } = await getT();
+  try {
+    const access = await requireTripAccess(tripId, { allowLocked: true });
+    if (!access.ok) return { success: false, message: access.reason };
+    const type = DOC_TYPES.has(documentType) ? documentType : 'other';
+    // Путь — только тот, что выдан для этого рейса и типа: чужой файл не привязать.
+    if (!new RegExp(`^trips/${tripId}/${type}-\\d+\\.[a-z]+$`).test(path)) {
+      return { success: false, message: t('drvApp.badFile') };
+    }
+    const supabase = await createClient();
+    const dir = path.slice(0, path.lastIndexOf('/'));
+    const name = path.slice(path.lastIndexOf('/') + 1);
+    const { data: found } = await supabase.storage.from('documents').list(dir, { search: name, limit: 1 });
+    if (!found?.some((f) => f.name === name)) return { success: false, message: t('drvApp.uploadErr', { msg: t('drvApp.unknownErr') }) };
+    const done = await finalizeUpload(supabase, tripId, type, path, fileName.slice(0, 200));
+    if (!done.ok) return { success: false, message: done.message };
     revalidatePath(`/driver/trips/${tripId}`);
     revalidatePath(`/trips/${tripId}`);
     return { success: true, message: t('drvApp.docUploaded') };
   } catch (error) {
-    console.error('[uploadDocument] Unexpected error:', error);
-    const msg =
-      error instanceof Error
-        ? error.message
-        : typeof error === 'string'
-          ? error
-          : t('shared.unknownError');
-    return { success: false, message: msg };
+    console.error('[finishDocumentUpload] Unexpected error:', error);
+    return { success: false, message: error instanceof Error ? error.message : t('shared.unknownError') };
   }
 }
 

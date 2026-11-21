@@ -9,22 +9,45 @@ import {
   CheckCircle2,
   XCircle,
 } from 'lucide-react';
-import { uploadDocument } from './upload-actions';
+import { prepareDocumentUpload, finishDocumentUpload } from './upload-actions';
 import { useT } from '../components/I18nProvider';
 
-// Максимальный размер файла (из-за лимитов Vercel Serverless = 4.5 MB)
-const MAX_FILE_SIZE_MB = 4;
+// Файл идёт прямо в хранилище (не через функцию Vercel с её 4,5 МБ), фото ещё и сжимаются.
+const MAX_FILE_SIZE_MB = 20;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 // Разрешённые типы
-const ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'heic', 'pdf'];
+const ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'heic', 'heif', 'webp', 'pdf'];
 const ALLOWED_MIMES = [
   'image/jpeg',
   'image/png',
   'image/heic',
   'image/heif',
+  'image/webp',
   'application/pdf',
 ];
+
+/**
+ * Фото с телефона — 3–8 МБ и 4000+ px; для CMR хватает 2400 px по длинной стороне.
+ * Не получилось декодировать (HEIC вне Safari) — отправляем как есть.
+ */
+async function shrinkImage(file: File): Promise<File> {
+  if (!file.type.startsWith('image/') || file.size < 1.5 * 1024 * 1024) return file;
+  try {
+    const bmp = await createImageBitmap(file);
+    const scale = Math.min(1, 2400 / Math.max(bmp.width, bmp.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(bmp.width * scale);
+    canvas.height = Math.round(bmp.height * scale);
+    canvas.getContext('2d')?.drawImage(bmp, 0, 0, canvas.width, canvas.height);
+    bmp.close();
+    const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, 'image/jpeg', 0.85));
+    if (!blob || blob.size >= file.size) return file;
+    return new File([blob], file.name.replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg' });
+  } catch {
+    return file;
+  }
+}
 
 export default function FileUpload({ tripId }: { tripId: string }) {
   const { t } = useT();
@@ -82,14 +105,17 @@ export default function FileUpload({ tripId }: { tripId: string }) {
     setStatusType('loading');
 
     try {
-      const base64Data = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = () => reject(new Error(t('shared.readFailed')));
-        reader.readAsDataURL(file);
-      });
+      const ready = await shrinkImage(file);
+      const prep = await prepareDocumentUpload(tripId, 'cmr', ready.name);
+      if (!prep.ok) throw new Error(prep.message);
+      // Как uploadToSignedUrl в supabase-js: PUT формы с файлом по одноразовой ссылке.
+      const body = new FormData();
+      body.append('cacheControl', '3600');
+      body.append('', ready);
+      const put = await fetch(prep.url, { method: 'PUT', body, headers: { 'x-upsert': 'false' } });
+      if (!put.ok) throw new Error(t('shared.uploadFailed', { code: put.status }));
 
-      const result = await uploadDocument(tripId, 'cmr', base64Data, file.name);
+      const result = await finishDocumentUpload(tripId, 'cmr', prep.path, file.name);
 
       if (result.success) {
         setStatus(result.message);
