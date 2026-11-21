@@ -43,9 +43,6 @@ export type ProfitMode = 'trip' | 'forwarding';
 /** Статусы, при которых заказ завершён и попадает в статистику. */
 export const COMPLETED_STATUSES = ['paid', 'invoiced'] as const;
 
-/** Статусы незавершённых заказов: в пути, запланирован. */
-export const OPEN_STATUSES = ['active', 'planned'] as const;
-
 /** Число, пригодное для арифметики. */
 export function num(v: unknown): number {
   const n = Number(v);
