@@ -64,7 +64,7 @@ export function UploadStatements() {
 }
 
 /** Решение по операции: принять подсказку, связать вручную, в общие расходы, пропустить; или отменить. */
-export function TxActions({ txId, status, outgoing, suggestion, picks, categories, amount, currency }: {
+export function TxActions({ txId, status, outgoing, suggestion, picks, categories, incomeCategories = [], amount, currency }: {
   txId: string;
   status: string;
   outgoing: boolean;
@@ -73,11 +73,14 @@ export function TxActions({ txId, status, outgoing, suggestion, picks, categorie
   suggestion: Suggestion;
   picks: PickOpt[];
   categories: Cat[];
+  /** прочие доходы — для прихода не от клиента по счёту */
+  incomeCategories?: Cat[];
 }) {
   const { t } = useT();
   const { isPending, msg, run } = useRun();
   const [pick, setPick] = useState('');
   const [cat, setCat] = useState(suggestion?.type === 'overhead' ? suggestion.category : '');
+  const [inc, setInc] = useState('');
   const btn = 'inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold border whitespace-nowrap disabled:opacity-50';
   const spin = <Loader2 className="w-3.5 h-3.5 animate-spin" />;
 
@@ -154,6 +157,17 @@ export function TxActions({ txId, status, outgoing, suggestion, picks, categorie
           </select>
           <button type="button" disabled={isPending || !cat} onClick={() => run(() => decideTransaction(txId, { type: 'overhead', category: cat }))} className={`${btn} text-slate-700 bg-white border-slate-200 hover:bg-slate-50`}>
             {t('bank.toOverheadBtn')}
+          </button>
+        </div>
+      )}
+      {!outgoing && incomeCategories.length > 0 && (
+        <div className="flex gap-1">
+          <select value={inc} onChange={(e) => setInc(e.target.value)} aria-label={t('income.pick')} className="input text-xs py-1 min-w-0 flex-1">
+            <option value="">{t('income.pick')}</option>
+            {incomeCategories.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+          </select>
+          <button type="button" disabled={isPending || !inc} onClick={() => run(() => decideTransaction(txId, { type: 'income', category: inc }))} className={`${btn} text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100`}>
+            {t('income.toIncome')}
           </button>
         </div>
       )}

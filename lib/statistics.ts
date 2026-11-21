@@ -1,3 +1,4 @@
+import { incomeEurByMonth, type IncomeRow } from './other-income';
 import { isOperatingCost } from './cost-class';
 import {
   COMPLETED_STATUSES,
@@ -22,6 +23,8 @@ export type MonthData = {
   forwardingExtraExpenses: number;
   forwardingMargin: number;
   fixedExpenses: number;
+  /** прочие доходы (компенсации, возвраты, проценты) — в доходе месяца */
+  otherIncome: number;
   totalIncome: number;
   totalExpenses: number;
   profit: number;
@@ -39,6 +42,8 @@ export type YearTotals = {
   forwardingExtraExpenses: number;
   forwardingMargin: number;
   fixedExpenses: number;
+  /** прочие доходы (компенсации, возвраты, проценты) — в доходе месяца */
+  otherIncome: number;
   totalIncome: number;
   totalExpenses: number;
   profit: number;
@@ -150,12 +155,14 @@ export function calculateStatistics({
   expensesByOrder,
   contractorByOrder,
   fixedCosts,
+  otherIncome,
   year,
 }: {
   orders: any[] | null;
   expensesByOrder: Record<string, number>;
   contractorByOrder: Record<string, number>;
   fixedCosts: any[] | null;
+  otherIncome?: IncomeRow[] | null;
   year: number;
 }): {
   months: MonthData[];
@@ -167,6 +174,7 @@ export function calculateStatistics({
   avgProfitPerTrip: number;
 } {
   const { byMonth: fixedByMonth, capexAll } = buildFixedCostsByMonth(fixedCosts, year);
+  const incomeByMonth = incomeEurByMonth(otherIncome);
 
   const completed = (orders || []).filter(isStatsCompleted);
 
@@ -222,7 +230,8 @@ export function calculateStatistics({
       forwardingClientSum - forwardingContractorSum - forwardingExtraExpenses;
     const fixedExpenses = fixedByMonth[monthKey] || 0;
 
-    const totalIncome = tripRevenue + forwardingClientSum;
+    const otherIncomeM = incomeByMonth[monthKey] || 0;
+    const totalIncome = tripRevenue + forwardingClientSum + otherIncomeM;
     const totalExpenses =
       directExpenses + forwardingContractorSum + forwardingExtraExpenses + fixedExpenses;
     const profit = totalIncome - totalExpenses;
@@ -235,7 +244,7 @@ export function calculateStatistics({
       ordersCount, tripsCount, tripRevenue, directExpenses,
       forwardingCount, forwardingClientSum, forwardingContractorSum,
       forwardingExtraExpenses, forwardingMargin,
-      fixedExpenses, totalIncome, totalExpenses, profit, margin,
+      fixedExpenses, otherIncome: otherIncomeM, totalIncome, totalExpenses, profit, margin,
     });
   }
 
@@ -251,6 +260,7 @@ export function calculateStatistics({
       forwardingExtraExpenses: acc.forwardingExtraExpenses + m.forwardingExtraExpenses,
       forwardingMargin: acc.forwardingMargin + m.forwardingMargin,
       fixedExpenses: acc.fixedExpenses + m.fixedExpenses,
+      otherIncome: acc.otherIncome + m.otherIncome,
       totalIncome: acc.totalIncome + m.totalIncome,
       totalExpenses: acc.totalExpenses + m.totalExpenses,
       profit: acc.profit + m.profit,
@@ -259,7 +269,7 @@ export function calculateStatistics({
       ordersCount: 0, tripsCount: 0, tripRevenue: 0, directExpenses: 0,
       forwardingCount: 0, forwardingClientSum: 0, forwardingContractorSum: 0,
       forwardingExtraExpenses: 0, forwardingMargin: 0,
-      fixedExpenses: 0, totalIncome: 0, totalExpenses: 0, profit: 0,
+      fixedExpenses: 0, otherIncome: 0, totalIncome: 0, totalExpenses: 0, profit: 0,
     }
   );
 

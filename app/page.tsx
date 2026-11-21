@@ -20,6 +20,7 @@ import { getT } from '../lib/i18n/server';
 import { INTL_LOCALE } from '../lib/i18n/config';
 import type { MessageKey } from '../lib/i18n/translate';
 import SetupChecklist from './components/SetupChecklist';
+import { incomeEurByMonth, type IncomeRow } from '../lib/other-income';
 
 export const dynamic = 'force-dynamic';
 
@@ -84,6 +85,10 @@ export default async function Home() {
   const fcFull = await supabase.from('fixed_costs').select(`${FC_COLS}, cost_class`);
   // До миграции 043 колонки cost_class нет — все расходы операционные.
   const { data: fixedCosts } = fcFull.error ? await supabase.from('fixed_costs').select(FC_COLS) : fcFull;
+  // Прочие доходы (компенсации, возвраты, проценты) — в доход месяца. До миграции 045 — пусто.
+  const { data: oiRows } = await supabase.from('other_income').select('month_key, amount_eur');
+  const otherIncomeByMonth = incomeEurByMonth((oiRows ?? []) as IncomeRow[]);
+  const otherIncomeTotal = Object.values(otherIncomeByMonth).reduce((s, v) => s + v, 0);
 
   // ============================================================
   // НАПОМИНАНИЯ — для блока «Требует внимания»
@@ -165,7 +170,7 @@ export default async function Home() {
     }
   });
 
-  const combinedIncome = totalTripRevenue + totalForwardingClient;
+  const combinedIncome = totalTripRevenue + totalForwardingClient + otherIncomeTotal;
   const combinedExpenses =
     totalTripExpenses +
     totalForwardingContractor +
@@ -227,7 +232,7 @@ export default async function Home() {
     }
   });
 
-  const monthTotalIncome = monthTripRevenue + monthForwardingClient;
+  const monthTotalIncome = monthTripRevenue + monthForwardingClient + (otherIncomeByMonth[currentMonthKey] ?? 0);
   const monthTotalExpenses =
     monthTripExpenses +
     monthForwardingContractor +
@@ -261,7 +266,7 @@ export default async function Home() {
     const key = `${y}-${String(m + 1).padStart(2, '0')}`;
     const label = monthNamesShort[m];
 
-    let income = 0;
+    let income = otherIncomeByMonth[key] ?? 0;
     let expenses = 0;
 
     allOrders.forEach((o) => {

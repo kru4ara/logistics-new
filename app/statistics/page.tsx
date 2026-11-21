@@ -12,6 +12,7 @@ import StatisticsLegend from './StatisticsLegend';
 import { getScope, applyTripScope } from '../../lib/scope';
 import { fetchAll } from '../../lib/fetch-all';
 import { deniedRedirect } from '../../lib/roles';
+import type { IncomeRow } from '../../lib/other-income';
 
 export const dynamic = 'force-dynamic';
 
@@ -72,6 +73,8 @@ export default async function StatisticsPage({ searchParams }: { searchParams: P
   const fcFull = await supabase.from('fixed_costs').select(`${FC_COLS}, cost_class`);
   // До миграции 043 колонки cost_class нет — все расходы операционные.
   const { data: fixedCosts } = fcFull.error ? await supabase.from('fixed_costs').select(FC_COLS) : fcFull;
+  // Прочие доходы — в доход месяца. До миграции 045 таблицы нет — пусто.
+  const { data: otherIncome } = await supabase.from('other_income').select('month_key, amount_eur');
 
   // ============================================================
   // РАСЧЁТЫ (вынесены в lib/statistics.ts)
@@ -89,6 +92,7 @@ export default async function StatisticsPage({ searchParams }: { searchParams: P
     expensesByOrder,
     contractorByOrder,
     fixedCosts,
+    otherIncome: (otherIncome ?? []) as IncomeRow[],
     year,
   });
 

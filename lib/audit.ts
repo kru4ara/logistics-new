@@ -22,6 +22,7 @@ export type AuditEntityType =
   | 'fixed_cost'
   | 'bank_statement'
   | 'bank_transaction'
+  | 'other_income'
   | 'user';
 
 type LogInput = {

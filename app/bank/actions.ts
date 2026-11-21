@@ -88,7 +88,9 @@ export async function decideTransaction(txId: string, decision: Decision): Promi
         ? { type: 'overhead', category: String(decision.category ?? '') }
         : decision.type === 'cash'
           ? { type: 'cash' }
-          : { type: 'ignore' };
+          : decision.type === 'income'
+            ? { type: 'income', category: String(decision.category ?? '') }
+            : { type: 'ignore' };
   const r = await applyDecision(supabase, txId, d, userId ?? null);
   if (!r.ok) return { ok: false, message: await errText(r.error, r.message) };
   await logAudit({

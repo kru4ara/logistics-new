@@ -13,6 +13,7 @@ import type { MessageKey } from '../../lib/i18n/translate';
 import { OVERHEAD_CATEGORIES } from '../../lib/payables/overhead-rules';
 import { loadPurchaseRefs, loadTripRefs } from '../../lib/bank/refs';
 import { UploadStatements, TxActions, AcceptAllButton, DeleteStatementButton, RematchButton, type PickOpt } from './BankControls';
+import { INCOME_CATEGORIES, incomeCategoryOf } from '../../lib/other-income';
 
 export const dynamic = 'force-dynamic';
 
@@ -134,6 +135,7 @@ async function BankView({ searchParams, role }: { searchParams: Promise<{ show?:
     return o ? `${o.emoji} ${t(`ohCat.${o.value}` as MessageKey)}` : '';
   };
   const ohOptions = OVERHEAD_CATEGORIES.map((c) => ({ value: c.value, label: ohLabel(c.value) }));
+  const incomeOptions = INCOME_CATEGORIES.map((c) => ({ value: c, label: t(`income.cat_${c}`) }));
 
   // Ручной выбор: ближайшие по сумме в той же валюте (до 40).
   const pickFor = (tx: any): PickOpt[] => {
@@ -177,6 +179,8 @@ async function BankView({ searchParams, role }: { searchParams: Promise<{ show?:
   const decided = (x: any): string => {
     if (x.status === 'ignored') return t('bank.skipped');
     if (x.overhead_category === 'cash') return t('bank.cashDecided');
+    const ic = incomeCategoryOf(x.overhead_category);
+    if (ic) return `${t('income.decided')}: ${t(`income.cat_${ic}`)}`;
     if (x.overhead_category) return `${t('bank.toOverhead')}: ${ohLabel(x.overhead_category)}`;
     if (x.purchase_invoice_ids?.length) return `${t('bank.paidInvoices')}: ${x.purchase_invoice_ids.map(invLabel).join('; ')}`;
     if (x.trip_ids?.length) {
@@ -281,6 +285,7 @@ async function BankView({ searchParams, role }: { searchParams: Promise<{ show?:
                           currency={x.currency}
                           picks={x.status === 'new' && x.kind !== 'internal' ? pickFor(x) : []}
                           categories={ohOptions}
+                          incomeCategories={incomeOptions}
                         />
                       </div>
                     )}
