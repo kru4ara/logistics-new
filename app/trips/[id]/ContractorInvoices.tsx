@@ -64,7 +64,7 @@ export default async function ContractorInvoices({
         .select('id, source, segment_id, invoice_number, invoice_type, issue_date, net_amount, gross_amount, currency, payment_due, paid_at, file_path, ksef_number')
         .in('segment_id', chunk),
   );
-  // До миграции 028/029 таблицы может не быть — блок просто не показываем.
+  // Не прочитали — блок не показываем, карточка рейса открывается.
   if (error) return null;
   const invoices = ((data ?? []) as any[]).map(
     (r): Inv => ({ ...r, net_amount: r.net_amount != null ? Number(r.net_amount) : null, gross_amount: r.gross_amount != null ? Number(r.gross_amount) : null }),

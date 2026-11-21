@@ -81,11 +81,10 @@ export default async function Home() {
   // ============================================================
   // ОБЩИЕ РАСХОДЫ — с флагом is_capex
   // ============================================================
-  const FC_COLS = 'amount_eur, month_key, cost_type, expense_date, is_capex, category';
-  const fcFull = await supabase.from('fixed_costs').select(`${FC_COLS}, cost_class`);
-  // До миграции 043 колонки cost_class нет — все расходы операционные.
-  const { data: fixedCosts } = fcFull.error ? await supabase.from('fixed_costs').select(FC_COLS) : fcFull;
-  // Прочие доходы (компенсации, возвраты, проценты) — в доход месяца. До миграции 045 — пусто.
+  const { data: fixedCosts } = await supabase
+    .from('fixed_costs')
+    .select('amount_eur, month_key, cost_type, expense_date, is_capex, category, cost_class');
+  // Прочие доходы (компенсации, возвраты, проценты) — в доход месяца.
   const { data: oiRows } = await supabase.from('other_income').select('month_key, amount_eur');
   const otherIncomeByMonth = incomeEurByMonth((oiRows ?? []) as IncomeRow[]);
   const otherIncomeTotal = Object.values(otherIncomeByMonth).reduce((s, v) => s + v, 0);

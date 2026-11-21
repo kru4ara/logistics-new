@@ -3,7 +3,7 @@ import { isOperatingCost, costClassOf, guessCostClass } from '../cost-class';
 
 describe('тип общего расхода', () => {
   it('в прибыль — только операционные, не инвестиции', () => {
-    expect(isOperatingCost({})).toBe(true); // до миграции 043 — операционный
+    expect(isOperatingCost({})).toBe(true); // пусто — операционный
     expect(isOperatingCost({ cost_class: 'operating' })).toBe(true);
     expect(isOperatingCost({ cost_class: 'dividends' })).toBe(false);
     expect(isOperatingCost({ cost_class: 'cash' })).toBe(false);

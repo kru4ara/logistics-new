@@ -9,7 +9,7 @@ export const tripMonth = (t: { start_date?: string | null; end_date?: string | n
   return d ? String(d).slice(0, 7) : null;
 };
 
-/** Закрыт ли месяц. До миграции 031 (таблицы нет) — открыт. */
+/** Закрыт ли месяц. */
 export async function isMonthClosed(supabase: Supabase, month: string | null): Promise<boolean> {
   if (!month) return false;
   const { data, error } = await supabase.from('closed_months').select('month').eq('month', month).maybeSingle();

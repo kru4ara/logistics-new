@@ -53,13 +53,13 @@ export async function updateClient(clientId: string, formData: FormData) {
 
   if (error) throw new Error(t('dir.updateError', { msg: error.message }));
 
-  // Язык писем клиенту — отдельно: до миграции 033 колонки нет, остальное сохраняем.
+  // Язык писем клиенту.
   if (formData.has('mail_locale')) {
     const { error: locErr } = await supabase
       .from('clients')
       .update({ mail_locale: mailLocaleOf(formData.get('mail_locale')) })
       .eq('id', clientId);
-    if (locErr && !/mail_locale/.test(locErr.message)) throw new Error(t('dir.updateError', { msg: locErr.message }));
+    if (locErr) throw new Error(t('dir.updateError', { msg: locErr.message }));
   }
 
   // Audit: логируем только изменённые поля
