@@ -152,7 +152,7 @@ async function finalizeUpload(supabase: Admin, tripId: string, documentType: str
         const text = readyToInvoice
           ? [
               officeT('toinv.tgCmr', { trip: tripNumber ?? tripLabel, client: clientName ? ` · ${clientName}` : '' }),
-              appUrl ? `${appUrl}/trips/${tripId}#invoice` : null,
+              appUrl ? `${appUrl}/trips/${tripId}?tab=money#invoice` : null,
             ]
               .filter(Boolean)
               .join('\n')
