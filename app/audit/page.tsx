@@ -33,6 +33,7 @@ const ENTITY_LABELS: Record<string, string> = {
   fixed_cost: 'payx.eFixedCost',
   bank_statement: 'bank.eStatement',
   bank_transaction: 'bank.eTransaction',
+  other_income: 'income.title',
 };
 
 const ACTION_META: Record<string, { text: string; badge: string; strip: string; Icon: LucideIcon }> = {

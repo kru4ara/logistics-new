@@ -275,6 +275,7 @@ export const PATH_CAPABILITIES: PathRule[] = [
   { prefix: '/statistics', capability: 'statistics.view' },
   { prefix: '/audit', capability: 'audit.view' },
   { prefix: '/fixed-costs', capability: 'fixedCosts.view', writeCapability: 'fixedCosts.edit' },
+  { prefix: '/income', capability: 'fixedCosts.view', writeCapability: 'fixedCosts.edit' },
   { prefix: '/trips', capability: 'trips.viewAll', writeCapability: 'trips.editAny' },
   { prefix: '/routes', capability: 'trips.viewAll' },
   { prefix: '/search', capability: 'search.view' },

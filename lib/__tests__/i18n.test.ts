@@ -276,6 +276,9 @@ const TRANSLATED_FILES = [
   'app/receivables/RedistributeButton.tsx',
   'app/payables/agency/page.tsx',
   'app/trips/[id]/TripPayments.tsx',
+  'app/income/page.tsx',
+  'app/income/IncomeControls.tsx',
+  'app/income/actions.ts',
   'lib/invoicing/sync-rules.ts',
   // payables
   'app/api/cron/ksef-purchases/route.ts',

@@ -6,6 +6,7 @@ import { providerById } from '../invoicing';
 import { isOverheadCategory } from '../payables/overhead-rules';
 import { allocatePayment, isSettled, type Allocation, type TripRef } from './match-rules';
 import { loadTripRefs } from './refs';
+import { isIncomeCategory, incomeDecision, incomeCategoryOf } from '../other-income';
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
 
@@ -15,6 +16,7 @@ export type Decision =
   | { type: 'trips'; ids: string[]; allocations?: Allocation[] } // оплата заказов клиентом: доли по заказам
   | { type: 'overhead'; category: string } // общий расход без счёта (ZUS, наличные, комиссии…)
   | { type: 'cash' } // наличные: снятие / выдача людям — не расход, в «Общие расходы» не идёт
+  | { type: 'income'; category: string } // прочий доход: компенсация, возврат, проценты (миграция 045)
   | { type: 'ignore' };
 
 export type ApplyError = 'notFound' | 'decided' | 'direction' | 'category' | 'closed' | 'empty' | 'db' | 'overAllocated' | 'badShare';
@@ -75,6 +77,27 @@ export async function applyDecision(
     await insertCashCost(supabase, { id: txId, amount, currency: tx.currency, booking_date: date, counterparty: tx.counterparty, title: tx.title, op_type: tx.op_type });
     const { error } = await done({ status: 'matched', overhead_category: 'cash' });
     return error ? { ok: false, error: 'db', message: error.message } : { ok: true };
+  }
+
+  if (d.type === 'income') {
+    if (amount <= 0) return { ok: false, error: 'direction' };
+    if (!isIncomeCategory(d.category)) return { ok: false, error: 'category' };
+    if (await isMonthClosed(supabase, date.slice(0, 7))) return { ok: false, error: 'closed' };
+    const label = [tx.counterparty || tx.op_type, tx.title].filter(Boolean).join(' · ').slice(0, 300);
+    const { error } = await supabase.from('other_income').insert({
+      income_date: date,
+      month_key: date.slice(0, 7),
+      category: d.category,
+      description: label || null,
+      original_amount: amount,
+      currency: tx.currency,
+      amount_eur: await toEur(supabase, amount, tx.currency, date),
+      bank_transaction_id: txId,
+      created_by: userId,
+    });
+    if (error) return { ok: false, error: 'db', message: error.message };
+    const { error: e2 } = await done({ status: 'matched', overhead_category: incomeDecision(d.category) });
+    return e2 ? { ok: false, error: 'db', message: e2.message } : { ok: true };
   }
 
   if (d.type === 'purchases') {
@@ -238,7 +261,8 @@ export async function undoDecision(supabase: Supabase, txId: string): Promise<{ 
     if (data.overhead_category !== 'cash' && (await isMonthClosed(supabase, String(data.booking_date).slice(0, 7)))) {
       return { ok: false, error: 'closed' };
     }
-    await supabase.from('fixed_costs').delete().eq('bank_transaction_id', txId);
+    if (incomeCategoryOf(data.overhead_category)) await supabase.from('other_income').delete().eq('bank_transaction_id', txId);
+    else await supabase.from('fixed_costs').delete().eq('bank_transaction_id', txId);
   }
   for (const p of undo.purchases ?? []) {
     await supabase.from('purchase_invoices').update({ paid_at: p.paid_at, bank_transaction_id: null, updated_at: now() }).eq('id', p.id).eq('bank_transaction_id', txId);

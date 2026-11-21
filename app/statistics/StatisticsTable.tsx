@@ -86,6 +86,12 @@ export default async function StatisticsTable({
               </div>
 
               <div className="pt-3 border-t border-slate-100 space-y-1.5 text-xs">
+                {m.otherIncome > 0 && (
+                  <div className="flex justify-between items-center gap-2">
+                    <span className="text-slate-500">{t('income.statRow')}</span>
+                    <span className="font-semibold text-green-600 tabular-nums">{m.otherIncome.toFixed(0)} €</span>
+                  </div>
+                )}
                 <div className="flex justify-between items-center gap-2">
                   <span className="text-slate-500">{t('stat.directFixed')}</span>
                   <span className="font-medium text-slate-600 break-words text-right tabular-nums">
@@ -257,7 +263,10 @@ export default async function StatisticsTable({
                       m.profit > 0 ? 'text-emerald-600' :
                       m.profit < 0 ? 'text-red-500' : 'text-slate-400'
                     }`}>
-                      {!isEmpty ? `${m.profit.toFixed(0)} €` : '—'}
+                      {!isEmpty || m.otherIncome > 0 ? `${m.profit.toFixed(0)} €` : '—'}
+                      {m.otherIncome > 0 && (
+                        <div className="text-[10px] font-normal text-green-600">{t('income.statRow')}: {m.otherIncome.toFixed(0)} €</div>
+                      )}
                     </td>
                     <td className={`px-4 py-4 text-right font-semibold tabular-nums ${
                       isFuture ? 'text-slate-400' :
