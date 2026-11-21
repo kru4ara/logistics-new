@@ -1,0 +1,49 @@
+# Удаление старых веток: только тех, у которых есть PR и все их PR закрыты (влиты или
+# закрыты без вливания). Ветка без PR, с открытым PR и основная ветка — не трогаются.
+# Запуск вручную: Actions → Cleanup branches → Run workflow. По умолчанию — пробный прогон
+# (только список); для удаления снимите галочку «dry_run». Удалённую ветку можно вернуть
+# кнопкой «Restore branch» на странице её PR.
+name: Cleanup branches
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Пробный прогон: только показать, что будет удалено'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Удалить ветки закрытых PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          default=$(gh api "repos/$REPO" --jq .default_branch)
+          deleted=0; kept=0
+          for b in $(gh api --paginate "repos/$REPO/branches?per_page=100" --jq '.[].name'); do
+            if [ "$b" = "$default" ]; then continue; fi
+            prs=$(gh api "repos/$REPO/pulls?state=all&head=${REPO%%/*}:$b&per_page=100" --jq '[.[] | .state]')
+            total=$(echo "$prs" | jq 'length')
+            open=$(echo "$prs" | jq '[.[] | select(. == "open")] | length')
+            if [ "$total" -eq 0 ] || [ "$open" -gt 0 ]; then
+              echo "оставлена: $b (PR: $total, открытых: $open)"; kept=$((kept+1)); continue
+            fi
+            if [ "$DRY_RUN" = "true" ]; then
+              echo "будет удалена: $b"
+            else
+              gh api -X DELETE "repos/$REPO/git/refs/heads/$b" >/dev/null && echo "удалена: $b"
+            fi
+            deleted=$((deleted+1))
+          done
+          echo "Итог: к удалению/удалено $deleted, оставлено $kept (dry_run=$DRY_RUN)"
+          echo "### Ветки: к удалению/удалено $deleted, оставлено $kept (пробный прогон: $DRY_RUN)" >> "$GITHUB_STEP_SUMMARY"
