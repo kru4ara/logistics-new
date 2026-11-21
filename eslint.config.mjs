@@ -19,7 +19,9 @@ const eslintConfig = [
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'warn',
       '@typescript-eslint/no-explicit-any': 'off',
-      '@typescript-eslint/no-unused-vars': 'warn',
+      // «_» в начале — переменная не нужна намеренно (отбрасываем поле при повторе
+      // запроса без новой колонки, параметр для совместимости сигнатуры).
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', ignoreRestSiblings: true }],
 
     },
   },

@@ -16,7 +16,7 @@ export const dynamic = 'force-dynamic';
 
 
 export default async function DriverBalancePage() {
-  const { t, t: tr, locale } = await getT();
+  const { t: tr, locale } = await getT();
   const { role, driverId } = await getSessionContext();
 
   if (!isDriverRole(role) || !driverId) {

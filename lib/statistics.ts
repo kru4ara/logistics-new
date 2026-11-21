@@ -93,7 +93,7 @@ export function isStatsCompleted(order: any): boolean {
  */
 export function buildFixedCostsByMonth(
   fixedCosts: any[] | null,
-  year: number
+  _year: number
 ): { byMonth: Record<string, number>; capexAll: CapexItem[] } {
   const byMonth: Record<string, number> = {};
   const capexAll: CapexItem[] = [];

@@ -2,7 +2,6 @@ import { getSessionContext } from '../../lib/session';
 import { getScope, applyTripScope } from '../../lib/scope';
 import { can } from '../../lib/roles';
 import { redirect } from 'next/navigation';
-import { createClient } from '../../lib/supabase/admin';
 import { scopedClient } from '../../lib/supabase/scoped';
 import { buildRouteMap, type SegmentRouteRow } from '../../lib/trip-route';
 import DownloadButton, { type RouteCardData } from './DownloadButton';
@@ -25,7 +24,6 @@ export default async function RoutesPage() {
   const { role } = await getSessionContext();
   if (!can(role, 'trips.viewAll')) redirect('/driver');
 
-  const supabase = await createClient();
   const scoped = await scopedClient();
 
   const scope = await getScope();

@@ -3,7 +3,6 @@ import 'server-only';
 import { getSessionContext } from './session';
 import { normalizeRole } from './roles';
 import { createClient as createRlsClient } from './supabase/server';
-import { createClient as createAdminClient } from './supabase/admin';
 import {
   evaluateTripAccess,
   evaluateExpenseAccess,
