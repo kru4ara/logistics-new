@@ -27,6 +27,8 @@ import { tripStatusKey, TRIP_STATUSES } from '../../../lib/i18n/labels';
 import { getDriverT } from '../../../lib/driver-locale';
 import PaymentBlock from './PaymentBlock';
 import TripPayments from './TripPayments';
+import TripSummary, { TripTabsNav, tripTabOf } from './TripSummary';
+import TripTodo from './TripTodo';
 import InvoiceBlock from './InvoiceBlock';
 import ContractorInvoices from './ContractorInvoices';
 import { isMonthClosed, tripMonth } from '../../../lib/closed-months';
@@ -56,7 +58,14 @@ function pickOne<T>(rel: unknown): T | null {
   return rel as T;
 }
 
-export default async function TripDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function TripDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ tab?: string }>;
+}) {
+  const tab = tripTabOf((await searchParams).tab);
   const { t } = await getT();
   const { role } = await getSessionContext();
   // Бухгалтер видит заказ, но не правит его (lib/roles.ts → ACCOUNTANT).
@@ -366,7 +375,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
         : null;
     // Ждём номер KSeF — спросим сервис фактур сразу при открытии (не дольше 5 с, сбой не мешает странице).
     const waiting = ['pending', 'processing'].includes(ksefStateOf(trip.ksef_status));
-    if (issued && provider && waiting) {
+    if (tab === 'money' && issued && provider && waiting) {
       const snap = await Promise.race([
         provider.refresh(trip.invoice_external_id as string).catch(() => null),
         new Promise<null>((r) => setTimeout(() => r(null), 5000)),
@@ -420,9 +429,21 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
     );
   }
 
+  // Сводка и вкладки (макет «Карточка рейса — новый макет»).
+  const docs = (documents || []) as any[];
+  const cmrCount = docs.filter((d) => d.document_type === 'cmr').length;
+  let received: number | null = null;
+  if (can(role, 'bank.view') && trip.invoice_amount != null) {
+    const { data: al, error: alErr } = await supabase.from('payment_allocations').select('amount, currency').eq('trip_id', tripId);
+    if (!alErr) {
+      const cur = (trip.invoice_currency || 'EUR').toUpperCase();
+      received = (al ?? []).filter((a: any) => String(a.currency).toUpperCase() === cur).reduce((s2: number, a: any) => s2 + Number(a.amount), 0);
+    }
+  }
+
   return (
     <main className="min-h-screen bg-slate-50">
-      <div className="max-w-[900px] mx-auto px-4 md:px-6 py-6 md:py-8 space-y-5 md:space-y-6">
+      <div className="max-w-6xl mx-auto px-4 md:px-6 py-6 md:py-8 space-y-5">
 
         <TripHeader
           tripId={tripId}
@@ -455,157 +476,204 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
           </div>
         )}
 
-        <TripInfo
+        <TripSummary
           tripId={tripId}
-          trip={trip}
-          driver={driver}
-          truck={truck}
-          trailerNumber={trailerNumber}
-          computedRoute={computedRoute}
-          managerName={managerName}
-        />
-
-        <TripCargoBlock
-          tripId={tripId}
-          cargoList={cargoList}
-          clients={(clientsList || []).map((c) => ({ id: c.id, label: c.name }))}
-          loadingLocations={(loadingLocations || []) as any}
-          unloadingLocations={(unloadingLocations || []) as any}
-          customsLocations={(customsLocations || []) as any}
-          defaultClientId={trip.client_id}
-          readOnly={readOnly}
-        />
-
-        <TripSegmentsBlock
-          tripId={tripId}
-          segments={segments as any}
-          contractors={(contractors || []).map((c) => ({ id: c.id, label: c.name }))}
-          trucks={(tractorsList || []).map((t) => ({ id: t.id, label: t.registration_number }))}
-          trailers={(trailersList || []).map((t) => ({ id: t.id, label: t.registration_number }))}
-          drivers={(driversList || []).map((d) => ({ id: d.id, label: `${d.first_name} ${d.last_name}` }))}
-          loadingLocations={(loadingLocations || []) as any}
-          unloadingLocations={(unloadingLocations || []) as any}
-          customsLocations={(customsLocations || []) as any}
-          cargoList={cargoList.map((c) => ({
-            id: c.id,
-            position: c.position,
-            label: c.label || '—',
-            from_country: c.from_country,
-            from_city: c.from_city,
-            from_company: c.from_company,
-            from_address: c.from_address,
-            from_postal_code: c.from_postal_code,
-            to_country: c.to_country,
-            to_city: c.to_city,
-            to_company: c.to_company,
-            to_address: c.to_address,
-            to_postal_code: c.to_postal_code,
-          }))}
-          readOnly={readOnly}
-        />
-
-        {!readOnly && (
-        <>
-        <div className="space-y-3">
-          <CopyBlock text={taskText} phone={driver?.phone_by || driver?.phone_pl} />
-          <div className="card p-5 md:p-6">
-            <SendTaskButton tripId={tripId} disabled={sendDisabled} disabledHint={sendHint} />
-          </div>
-        </div>
-
-        <div className="card p-5 md:p-6">
-          <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-            <Paperclip className="w-5 h-5 text-brand-600" strokeWidth={2} />
-            {t('trip.uploadDocs')}
-          </h2>
-          <FileUpload tripId={tripId} />
-        </div>
-
-        </>
-        )}
-
-        <div className="card p-5 md:p-6">
-          <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-            <FolderOpen className="w-5 h-5 text-brand-600" strokeWidth={2} />
-            {t('trip.uploadedFiles')}
-          </h2>
-          <DocumentList documents={documents || []} tripId={tripId} canDelete={!readOnly} />
-        </div>
-
-        <ExpensesList
-          expenses={expenses || []}
-          segments={segments}
-          tripId={tripId}
-          totalExpenses={totalExpenses}
-          readOnly={readOnly}
-        />
-
-        <TripEconomics
-          trip={trip}
-          contractorExpenses={contractorExpenses}
-          otherExpenses={otherExpenses}
+          revenue={Number(trip.revenue_eur || 0)}
+          expenses={totalExpenses}
           profit={profit}
+          isForwarding={trip.profit_mode === 'forwarding'}
+          status={trip.status}
+          invoiceNumber={trip.invoice_number ?? null}
+          invoiceAmount={trip.invoice_amount != null ? Number(trip.invoice_amount) : null}
+          invoiceCurrency={trip.invoice_currency ?? null}
+          paidAt={trip.paid_at ?? null}
+          received={received}
+          cmrCount={cmrCount}
+          docsCount={docs.length}
         />
 
-        {can(role, 'payables.view') && (
-          <ContractorInvoices
-            segments={segments
-              .filter((sg: any) => sg.executor_type === 'contractor')
-              .map((sg: any) => ({
-                id: sg.id,
-                position: sg.position,
-                contractorName: sg.contractor_name,
-                price: sg.price,
-                currency: sg.currency,
-                dateFrom: sg.date_from,
-              }))}
-            actualEurBySegment={Object.fromEntries(
-              (expenses || [])
-                .filter((e: any) => e.category === 'contractor' && e.segment_id)
-                .map((e: any) => [e.segment_id as string, Number(e.amount_eur) || 0]),
-            )}
-            canEdit={can(role, 'payables.edit')}
-            monthClosed={await isMonthClosed(supabase, tripMonth(trip))}
-          />
+        <TripTabsNav
+          tripId={tripId}
+          active={tab}
+          counts={{ route: segments.length, expenses: (expenses || []).length, docs: docs.length }}
+        />
+
+        {tab === 'overview' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
+            <div className="lg:col-span-2 space-y-5 min-w-0">
+            <TripInfo
+              tripId={tripId}
+              trip={trip}
+              driver={driver}
+              truck={truck}
+              trailerNumber={trailerNumber}
+              computedRoute={computedRoute}
+              managerName={managerName}
+            />
+            <TripEconomics
+              trip={trip}
+              contractorExpenses={contractorExpenses}
+              otherExpenses={otherExpenses}
+              profit={profit}
+            />
+            </div>
+            <div className="space-y-5 min-w-0">
+              <TripTodo
+                tripId={tripId}
+                status={trip.status}
+                cmrCount={cmrCount}
+                hasInvoice={Boolean(trip.invoice_number)}
+                hasContractor={segments.some((sg: any) => sg.executor_type === 'contractor')}
+              />
+            </div>
+          </div>
         )}
 
-        {invoiceBlock}
+        {tab === 'route' && (
+          <div className="space-y-5">
+            <TripCargoBlock
+              tripId={tripId}
+              cargoList={cargoList}
+              clients={(clientsList || []).map((c) => ({ id: c.id, label: c.name }))}
+              loadingLocations={(loadingLocations || []) as any}
+              unloadingLocations={(unloadingLocations || []) as any}
+              customsLocations={(customsLocations || []) as any}
+              defaultClientId={trip.client_id}
+              readOnly={readOnly}
+            />
+            <TripSegmentsBlock
+              tripId={tripId}
+              segments={segments as any}
+              contractors={(contractors || []).map((c) => ({ id: c.id, label: c.name }))}
+              trucks={(tractorsList || []).map((t) => ({ id: t.id, label: t.registration_number }))}
+              trailers={(trailersList || []).map((t) => ({ id: t.id, label: t.registration_number }))}
+              drivers={(driversList || []).map((d) => ({ id: d.id, label: `${d.first_name} ${d.last_name}` }))}
+              loadingLocations={(loadingLocations || []) as any}
+              unloadingLocations={(unloadingLocations || []) as any}
+              customsLocations={(customsLocations || []) as any}
+              cargoList={cargoList.map((c) => ({
+                id: c.id,
+                position: c.position,
+                label: c.label || '—',
+                from_country: c.from_country,
+                from_city: c.from_city,
+                from_company: c.from_company,
+                from_address: c.from_address,
+                from_postal_code: c.from_postal_code,
+                to_country: c.to_country,
+                to_city: c.to_city,
+                to_company: c.to_company,
+                to_address: c.to_address,
+                to_postal_code: c.to_postal_code,
+              }))}
+              readOnly={readOnly}
+            />
+            {!readOnly && (
+            <div className="space-y-3">
+              <CopyBlock text={taskText} phone={driver?.phone_by || driver?.phone_pl} />
+              <div className="card p-5 md:p-6">
+                <SendTaskButton tripId={tripId} disabled={sendDisabled} disabledHint={sendHint} />
+              </div>
+            </div>
 
-        {can(role, 'receivables.edit') && ['invoiced', 'paid'].includes(trip.status) && (
-          <PaymentBlock
-            tripId={tripId}
-            invoiceNumber={trip.invoice_number ?? null}
-            invoicedAt={trip.invoiced_at ?? null}
-            paymentDue={trip.payment_due ?? null}
-            paidAt={trip.paid_at ?? null}
-          >
-            {can(role, 'bank.view') && (
-              <TripPayments
+            )}
+          </div>
+        )}
+
+        {tab === 'expenses' && (
+          <div className="space-y-5">
+            <ExpensesList
+              expenses={expenses || []}
+              segments={segments}
+              tripId={tripId}
+              totalExpenses={totalExpenses}
+              readOnly={readOnly}
+            />
+            {!readOnly && (
+            <div className="card p-5 md:p-6">
+              <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                <PlusCircle className="w-5 h-5 text-brand-600" strokeWidth={2} />
+                {t('trip.addExpense')}
+              </h2>
+              <p className="text-xs text-slate-500 mb-4">
+                {t('trip.addExpenseHint')}
+              </p>
+              <AddExpenseForm
                 tripId={tripId}
-                invoiceAmount={trip.invoice_amount != null ? Number(trip.invoice_amount) : null}
-                invoiceCurrency={trip.invoice_currency ?? null}
+                hasDriver={Boolean(driver)}
+                driverName={driver ? `${driver.first_name} ${driver.last_name}` : null}
+                allowSalary={true}
+              />
+            </div>
+
+            )}
+          </div>
+        )}
+
+        {tab === 'docs' && (
+          <div className="space-y-5">
+            {!readOnly && (
+            <div id="upload-docs" className="card p-5 md:p-6 scroll-mt-4">
+              <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                <Paperclip className="w-5 h-5 text-brand-600" strokeWidth={2} />
+                {t('trip.uploadDocs')}
+              </h2>
+              <FileUpload tripId={tripId} />
+            </div>
+
+            )}
+            <div className="card p-5 md:p-6">
+              <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                <FolderOpen className="w-5 h-5 text-brand-600" strokeWidth={2} />
+                {t('trip.uploadedFiles')}
+              </h2>
+              <DocumentList documents={documents || []} tripId={tripId} canDelete={!readOnly} />
+            </div>
+          </div>
+        )}
+
+        {tab === 'money' && (
+          <div className="space-y-5">
+            {invoiceBlock}
+            {can(role, 'receivables.edit') && ['invoiced', 'paid'].includes(trip.status) && (
+              <PaymentBlock
+                tripId={tripId}
+                invoiceNumber={trip.invoice_number ?? null}
+                invoicedAt={trip.invoiced_at ?? null}
+                paymentDue={trip.payment_due ?? null}
+                paidAt={trip.paid_at ?? null}
+              >
+                {can(role, 'bank.view') && (
+                  <TripPayments
+                    tripId={tripId}
+                    invoiceAmount={trip.invoice_amount != null ? Number(trip.invoice_amount) : null}
+                    invoiceCurrency={trip.invoice_currency ?? null}
+                  />
+                )}
+              </PaymentBlock>
+            )}
+            {can(role, 'payables.view') && (
+              <ContractorInvoices
+                segments={segments
+                  .filter((sg: any) => sg.executor_type === 'contractor')
+                  .map((sg: any) => ({
+                    id: sg.id,
+                    position: sg.position,
+                    contractorName: sg.contractor_name,
+                    price: sg.price,
+                    currency: sg.currency,
+                    dateFrom: sg.date_from,
+                  }))}
+                actualEurBySegment={Object.fromEntries(
+                  (expenses || [])
+                    .filter((e: any) => e.category === 'contractor' && e.segment_id)
+                    .map((e: any) => [e.segment_id as string, Number(e.amount_eur) || 0]),
+                )}
+                canEdit={can(role, 'payables.edit')}
+                monthClosed={await isMonthClosed(supabase, tripMonth(trip))}
               />
             )}
-          </PaymentBlock>
-        )}
-
-        {!readOnly && (
-        <div className="card p-5 md:p-6">
-          <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-            <PlusCircle className="w-5 h-5 text-brand-600" strokeWidth={2} />
-            {t('trip.addExpense')}
-          </h2>
-          <p className="text-xs text-slate-500 mb-4">
-            {t('trip.addExpenseHint')}
-          </p>
-          <AddExpenseForm
-            tripId={tripId}
-            hasDriver={Boolean(driver)}
-            driverName={driver ? `${driver.first_name} ${driver.last_name}` : null}
-            allowSalary={true}
-          />
-        </div>
-
+          </div>
         )}
       </div>
     </main>

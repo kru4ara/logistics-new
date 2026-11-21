@@ -75,7 +75,7 @@ export default async function ToInvoiceSection({
                 {r.revenue_eur != null ? eur(Number(r.revenue_eur)) : '—'}
               </span>
               <Link
-                href={`/trips/${r.id}#invoice`}
+                href={`/trips/${r.id}?tab=money#invoice`}
                 className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-white bg-brand-600 hover:bg-brand-700 whitespace-nowrap"
               >
                 {t('toinv.issue')}

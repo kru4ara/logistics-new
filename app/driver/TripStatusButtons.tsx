@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Truck,
   CheckCircle2,
@@ -36,6 +37,7 @@ export default function TripStatusButtons({
 }) {
   const { t } = useT();
   const [isPending, startTransition] = useTransition();
+  const router = useRouter();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [error, setError] = useState<string | null>(null);
@@ -76,6 +78,9 @@ export default function TripStatusButtons({
         el.querySelector<HTMLElement>('textarea, input')?.focus({ preventScroll: true });
         return;
       }
+      // Форма фактуры — на вкладке «Счета и оплата» карточки рейса: туда, статус не трогаем.
+      router.push(`${window.location.pathname}?tab=money#invoice`);
+      return;
     }
 
     startTransition(async () => {
