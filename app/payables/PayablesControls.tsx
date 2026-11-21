@@ -47,7 +47,6 @@ export function SyncPurchasesButton() {
 
 export type PickOption = { id: string; label: string };
 /** @deprecated имя для совместимости */
-export type SegmentOption = PickOption;
 export type CategoryOption = { value: string; label: string };
 
 type Mode = 'segment' | 'trip' | 'none';

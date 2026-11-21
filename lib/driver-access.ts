@@ -54,25 +54,12 @@ function toActorState(actor: ActorContext): ActorState {
 }
 
 /**
- * Владеет ли водитель рейсом.
+ * Виден ли рейс водителю (RLS) и его статус — закрытый рейс водитель не меняет.
  *
- * Фаза 38: водитель читает рейс через RLS-клиент, поэтому сама БД решает,
- * виден ли рейс. Политика trips_select_own_or_office опирается на
- * public.driver_owns_trip(), которая считает владением и рейс целиком,
- * и назначение хотя бы на один сегмент.
- *
- * Прежняя проверка в коде смотрела только на trips.driver_id и не знала
- * про сегментный случай — из-за этого водитель, назначенный на один
- * сегмент чужого рейса, получал отказ, хотя по БД рейс ему виден.
+ * Владение решает БД: политика trips_select_own_or_office опирается на
+ * public.driver_owns_trip() — рейс целиком или назначение хотя бы на один
+ * сегмент. Не дублировать это правило в коде.
  */
-export async function driverOwnsTrip(
-  tripId: string,
-  driverId: string
-): Promise<boolean> {
-  return (await driverTripState(tripId, driverId)).visible;
-}
-
-/** Виден ли рейс водителю (RLS) и его статус — закрытый рейс водитель не меняет. */
 async function driverTripState(tripId: string, driverId: string): Promise<{ visible: boolean; status: string | null }> {
   if (!tripId || !driverId) return { visible: false, status: null };
 

@@ -14,7 +14,7 @@ import { getScope, applyTripScope } from '../lib/scope';
 import { CHART_PALETTE, CATEGORY_META } from '../lib/dashboard/category';
 import { splitReminders } from '../lib/dashboard/reminders';
 import { getOrderUnloadDate } from '../lib/orders-core';
-import { isStatsCompleted } from '../lib/statistics';
+import { isStatsCompleted, buildFixedCostsByMonth } from '../lib/statistics';
 import { fetchAll } from '../lib/fetch-all';
 import { getT } from '../lib/i18n/server';
 import { INTL_LOCALE } from '../lib/i18n/config';
@@ -207,30 +207,10 @@ export default async function Home() {
     0
   );
 
-  // Годовые затраты падают ЦЕЛИКОМ в месяц оплаты (не 1/12).
-  let monthFixedCosts = 0;
-  fixedCosts?.forEach((fc) => {
-    const amount = fc.amount_eur || 0;
-    if (amount === 0) return;
-    if (!isOperatingCost(fc)) return; // инвестиции, дивиденды, наличные — вне P&L
-
-    if (fc.cost_type === 'yearly') {
-      let startDate: Date | null = null;
-      if (fc.expense_date) startDate = new Date(fc.expense_date);
-      else if (fc.month_key) startDate = new Date(fc.month_key + '-01');
-      if (!startDate) return;
-
-      const mk =
-        startDate.getFullYear() + '-' + String(startDate.getMonth() + 1).padStart(2, '0');
-      if (mk === currentMonthKey) {
-        monthFixedCosts += amount;
-      }
-    } else {
-      if (fc.month_key === currentMonthKey) {
-        monthFixedCosts += amount;
-      }
-    }
-  });
+  // Общие затраты по месяцам — единый расчёт с отчётом (lib/statistics).
+  // Годовые падают целиком в месяц оплаты; инвестиции, дивиденды, наличные — вне P&L.
+  const { byMonth: fixedCostsByMonth } = buildFixedCostsByMonth(fixedCosts);
+  const monthFixedCosts = fixedCostsByMonth[currentMonthKey] ?? 0;
 
   const monthTotalIncome = monthTripRevenue + monthForwardingClient + (otherIncomeByMonth[currentMonthKey] ?? 0);
   const monthTotalExpenses =
@@ -275,30 +255,7 @@ export default async function Home() {
       expenses += orderAllExpenses(o);
     });
 
-    fixedCosts?.forEach((fc) => {
-      const amount = fc.amount_eur || 0;
-      if (amount === 0) return;
-      if (!isOperatingCost(fc)) return; // инвестиции, дивиденды, наличные — вне P&L
-
-      if (fc.cost_type === 'yearly') {
-        let startDate: Date | null = null;
-        if (fc.expense_date) startDate = new Date(fc.expense_date);
-        else if (fc.month_key) startDate = new Date(fc.month_key + '-01');
-        if (!startDate) return;
-
-        const startY = startDate.getFullYear();
-        const startM = startDate.getMonth();
-        const mk = `${startY}-${String(startM + 1).padStart(2, '0')}`;
-
-        if (mk === key) {
-          expenses += amount;
-        }
-      } else {
-        if (fc.month_key === key) {
-          expenses += amount;
-        }
-      }
-    });
+    expenses += fixedCostsByMonth[key] ?? 0;
 
     monthlyData.push({ key, label, profit: Math.round(income - expenses) });
   }

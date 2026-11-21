@@ -7,14 +7,14 @@ import { fetchAll, fetchAllByIds } from '../../lib/fetch-all';
 import { findManualDuplicates, FC_NOT_DOUBLE_KEY, findBankInvoiceDuplicates, type InvoiceAmounts } from '../../lib/fixed-costs-dup-rules';
 import { linkBankCostToInvoice } from '../bank/actions';
 import { OVERHEAD_CATEGORIES } from '../../lib/payables/overhead-rules';
-import { costClassOf, isOperatingCost } from '../../lib/cost-class';
+import { costClassOf } from '../../lib/cost-class';
+import { buildFixedCostsByMonth } from '../../lib/statistics';
 import ConfirmSubmit from '../components/ConfirmSubmit';
 import {
   Banknote,
   Plus,
   Calendar,
   TrendingDown,
-  BarChart3,
   Inbox,
   Briefcase,
   Pencil,
@@ -173,23 +173,14 @@ export default async function FixedCostsPage() {
   const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
   // Операционные vs инвестиции
-  const operationalCosts = costs?.filter((c) => isOperatingCost(c)) || [];
   const capexCosts = costs?.filter((c) => c.is_capex) || [];
   // Вне P&L, но на виду: вывод собственникам и снятые наличные.
   const dividendCosts = costs?.filter((c) => !c.is_capex && costClassOf(c) === 'dividends') || [];
   const cashCosts = costs?.filter((c) => !c.is_capex && costClassOf(c) === 'cash') || [];
   const sumEur = (xs: any[]) => xs.reduce((s, c) => s + (c.amount_eur || 0), 0);
 
-  const yearlyTotal = operationalCosts
-    .filter((c) => c.cost_type === 'yearly')
-    .reduce((sum, c) => sum + (c.amount_eur || 0), 0);
-
-  const currentMonthOperational = operationalCosts.filter((c) => c.month_key === currentMonthKey);
-  const currentMonthActual = currentMonthOperational.reduce((sum, c) => sum + (c.amount_eur || 0), 0);
-  const currentMonthYearlyPart = currentMonthOperational
-    .filter((c) => c.cost_type === 'yearly')
-    .reduce((sum, c) => sum + (c.amount_eur || 0), 0);
-  const effectiveMonthly = currentMonthActual - currentMonthYearlyPart + yearlyTotal / 12;
+  // Тот же расчёт, что на главной и в отчёте: годовые — в месяц оплаты.
+  const currentMonthActual = buildFixedCostsByMonth(costs).byMonth[currentMonthKey] ?? 0;
 
   const totalCapexAllTime = capexCosts.reduce((sum, c) => sum + (c.amount_eur || 0), 0);
 
@@ -257,7 +248,7 @@ export default async function FixedCostsPage() {
         </div>
 
         {/* Счётчики */}
-        <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-3">
+        <div className="grid gap-3 md:gap-4 grid-cols-1 sm:grid-cols-2">
           <div className="card p-4 md:p-5">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs md:text-sm font-medium text-slate-500">{t('fc.thisMonth')}</span>
@@ -270,21 +261,6 @@ export default async function FixedCostsPage() {
             </div>
             <div className="text-xs text-slate-400 mt-1">
               {t('fc.operational')}
-            </div>
-          </div>
-
-          <div className="card p-4 md:p-5">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs md:text-sm font-medium text-slate-500">{t('fc.effective')}</span>
-              <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center">
-                <BarChart3 className="w-4 h-4 text-emerald-600" strokeWidth={2.2} />
-              </div>
-            </div>
-            <div className="text-2xl md:text-3xl font-bold text-emerald-600 break-words tabular-nums">
-              {effectiveMonthly.toFixed(0)} €
-            </div>
-            <div className="text-xs text-slate-400 mt-1 break-words">
-              {t('fc.yearlyDiv', { n: yearlyTotal.toFixed(0) })}
             </div>
           </div>
 
