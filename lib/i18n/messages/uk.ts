@@ -512,6 +512,7 @@ export const uk: Messages = {
     editTitle: '✏️ Редагувати заявку №{n}',
   },
   shared: {
+    uploadFailed: 'Не вдалося завантажити файл (код {code}). Перевірте інтернет і спробуйте ще раз.',
     saving: 'Збереження…',
     taskForDriver: 'Завдання для водія',
     copied: 'Скопійовано',

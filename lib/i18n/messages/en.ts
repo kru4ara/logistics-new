@@ -512,6 +512,7 @@ export const en: Messages = {
     editTitle: '✏️ Edit order #{n}',
   },
   shared: {
+    uploadFailed: 'Upload failed (code {code}). Check your connection and try again.',
     saving: 'Saving…',
     taskForDriver: 'Driver task',
     copied: 'Copied',

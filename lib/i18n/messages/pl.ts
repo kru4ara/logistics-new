@@ -512,6 +512,7 @@ export const pl: Messages = {
     editTitle: '✏️ Edytuj zlecenie nr {n}',
   },
   shared: {
+    uploadFailed: 'Nie udało się przesłać pliku (kod {code}). Sprawdź internet i spróbuj ponownie.',
     saving: 'Zapisywanie…',
     taskForDriver: 'Zadanie dla kierowcy',
     copied: 'Skopiowano',
