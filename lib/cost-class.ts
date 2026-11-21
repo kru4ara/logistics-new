@@ -6,7 +6,7 @@ export type CostClass = (typeof COST_CLASSES)[number];
 
 export const isCostClass = (v: unknown): v is CostClass => COST_CLASSES.includes(v as CostClass);
 
-/** Строка из базы → тип; до миграции 043 колонки нет — операционный. */
+/** Строка из базы → тип; пусто или неизвестно — операционный. */
 export const costClassOf = (fc: { cost_class?: string | null }): CostClass => (isCostClass(fc.cost_class) ? fc.cost_class : 'operating');
 
 /** Идёт ли расход в прибыль: не инвестиция и не вне P&L. */

@@ -73,9 +73,7 @@ type StoredInvoice = PurchaseForMatch & { id: string; ksef_number: string; contr
 async function matchUnlinked(supabase: Supabase): Promise<number> {
   const COLS = 'id, ksef_number, seller_nip, invoice_number, issue_date, net_amount, gross_amount, currency, description, contractor_id';
   const base = () => supabase.from('purchase_invoices').select(COLS).is('segment_id', null).eq('match_status', 'none');
-  const first = await fetchAll(base().is('trip_id', null));
-  // До миграции 037 колонки trip_id нет — сопоставляем без неё.
-  const data = first.error ? (await fetchAll(base())).data : first.data;
+  const { data } = await fetchAll(base().is('trip_id', null));
   const invoices: StoredInvoice[] = ((data ?? []) as any[]).map((r) => ({
     id: r.id,
     ksef_number: r.ksef_number,

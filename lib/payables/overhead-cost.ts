@@ -8,7 +8,7 @@ type Supabase = Awaited<ReturnType<typeof createClient>>;
 /**
  * Строка «Общих расходов» из счёта (одна на счёт): есть — когда счёт «не относится к
  * рейсам» и у него выбрана категория накладных; иначе удаляется. Сумма — нетто (НДС
- * возвращается), месяц — по дате счёта. До миграции 038 — ничего не делает.
+ * возвращается), месяц — по дате счёта.
  */
 export async function syncInvoiceOverheadCost(supabase: Supabase, invoiceId: string): Promise<void> {
   const { data: inv, error } = await supabase

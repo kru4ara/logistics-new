@@ -221,8 +221,7 @@ export async function settleTrips(supabase: Supabase, tripIds: string[]): Promis
 }
 
 /**
- * Строка «снятие наличных» в «Общих расходах» (cost_class = 'cash', вне P&L). До миграции
- * 043 колонки нет — строку не создаём: иначе она посчиталась бы расходом.
+ * Строка «снятие наличных» в «Общих расходах» (cost_class = 'cash', вне P&L).
  */
 export async function insertCashCost(
   supabase: Supabase,

@@ -24,7 +24,7 @@ export type ManualConflict = { id: string; trip: string; text: string };
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
 
-/** Рейс, к которому счёт привязан как расход (до миграции 037 колонки нет — null). */
+/** Рейс, к которому счёт привязан как расход. */
 async function invoiceTripId(supabase: Supabase, invoiceId: string): Promise<string | null> {
   const { data, error } = await supabase.from('purchase_invoices').select('trip_id').eq('id', invoiceId).maybeSingle();
   return error ? null : ((data?.trip_id as string | null) ?? null);

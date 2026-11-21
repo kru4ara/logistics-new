@@ -17,7 +17,7 @@ export default async function TripPayments({ tripId, invoiceAmount, invoiceCurre
     .from('payment_allocations')
     .select('id, amount, currency, bank_transactions(id, booking_date, amount, currency, counterparty, title)')
     .eq('trip_id', tripId);
-  // До миграции 044 таблицы нет — блок просто не показываем.
+  // Не прочитали — блок не показываем, карточка рейса открывается.
   if (error) return null;
   const rows = ((data ?? []) as any[])
     .map((r) => {
