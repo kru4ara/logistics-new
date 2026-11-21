@@ -16,75 +16,8 @@ const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 // ============================================================
 // ЗАГРУЗКА
 // ============================================================
-export async function uploadDocument(
-  tripId: string,
-  documentType: string,
-  base64Data: string,
-  fileName: string
-) {
-  const { t } = await getT();
-  try {
-    // tripId приходит от клиента — проверяем владение рейсом до записи.
-    const access = await requireTripAccess(tripId, { allowLocked: true });
-    if (!access.ok) {
-      return { success: false, message: access.reason };
-    }
-
-    const supabase = await createClient();
-
-    const base64 = base64Data.split(',')[1];
-    if (!base64) {
-      return { success: false, message: t('drvApp.badFile') };
-    }
-
-    const binary = atob(base64);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) {
-      bytes[i] = binary.charCodeAt(i);
-    }
-
-    const fileExt = fileName.split('.').pop()?.toLowerCase() || 'bin';
-    const mimeType =
-      fileExt === 'pdf' ? 'application/pdf' :
-      fileExt === 'jpg' || fileExt === 'jpeg' ? 'image/jpeg' :
-      fileExt === 'png' ? 'image/png' :
-      fileExt === 'heic' ? 'image/heic' :
-      'application/octet-stream';
-
-    const filePath = `trips/${tripId}/${documentType}-${Date.now()}.${fileExt}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from('documents')
-      .upload(filePath, bytes, {
-        contentType: mimeType,
-        upsert: false,
-      });
-
-    if (uploadError) {
-      console.error('[uploadDocument] Storage error:', uploadError);
-      return {
-        success: false,
-        message: t('drvApp.uploadErr', { msg: uploadError.message || t('drvApp.unknownErr') }),
-      };
-    }
-
-    const done = await finalizeUpload(supabase, tripId, documentType, filePath, fileName);
-    if (!done.ok) return { success: false, message: done.message };
-
-    revalidatePath(`/driver/trips/${tripId}`);
-    revalidatePath(`/trips/${tripId}`);
-    return { success: true, message: t('drvApp.docUploaded') };
-  } catch (error) {
-    console.error('[uploadDocument] Unexpected error:', error);
-    const msg =
-      error instanceof Error
-        ? error.message
-        : typeof error === 'string'
-          ? error
-          : t('shared.unknownError');
-    return { success: false, message: msg };
-  }
-}
+// Загрузка файла — prepareDocumentUpload / finishDocumentUpload ниже: файл идёт прямо в
+// хранилище, минуя функцию Vercel (лимит тела 4,5 МБ).
 
 type Admin = Awaited<ReturnType<typeof createClient>>;
 
