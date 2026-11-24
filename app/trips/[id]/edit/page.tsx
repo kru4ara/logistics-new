@@ -45,6 +45,24 @@ export default async function EditTripPage({ params }: { params: Promise<{ id: s
 
   if (error) return <div className="p-8 text-red-500">{t('trip.loadError', { msg: error.message })}</div>;
 
+  // Цепочка машины (миграция 046): старт своего рейса ставит база — день после финиша
+  // предыдущего рейса этой машины. Есть предыдущий завершённый рейс — поле только для чтения.
+  let startLocked = false;
+  if (trip.truck_id && trip.profit_mode !== 'forwarding') {
+    // Через scopedClient, как и сам заказ: менеджеру база покажет только свои рейсы
+    // (тогда поле просто не замкнётся — правило всё равно держит база).
+    let q = scoped
+      .from('trips')
+      .select('id', { count: 'exact', head: true })
+      .eq('truck_id', trip.truck_id)
+      .neq('id', tripId)
+      .neq('profit_mode', 'forwarding')
+      .not('end_date', 'is', null);
+    if (trip.end_date) q = q.lte('end_date', trip.end_date);
+    const { count } = await q;
+    startLocked = (count ?? 0) > 0;
+  }
+
   // Переназначать заказ может только офис (фаза 39).
   const canChangeManager = can(role, 'managers.edit');
 
@@ -65,6 +83,7 @@ export default async function EditTripPage({ params }: { params: Promise<{ id: s
           clients={(clients || []).map((c) => ({ id: c.id, label: c.name }))}
           managers={(managers || []).map((m) => ({ id: m.id, label: m.full_name }))}
           canChangeManager={canChangeManager}
+          startLocked={startLocked}
         />  
       </div>
     </main>
