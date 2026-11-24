@@ -39,6 +39,8 @@ export type TripCardData = {
   driverName: string | null;
   /** Нет даты выгрузки — заказ в пути, в статистику не идёт. */
   missingUnloadDate?: boolean;
+  /** Сборный рейс: ведущий заказ или заказ в его машине. */
+  group?: { role: 'leader' | 'member'; n: number } | null;
 };
 
 export type MonthGroup = {
@@ -194,6 +196,11 @@ export default function TripsBulkList({
                   {trip.profit_mode === 'forwarding' && (
                     <span className="text-[10px] font-semibold rounded-full px-2 py-0.5 bg-violet-50 text-violet-700 border border-violet-200">
                       {t('trips.kindForwardingShort')}
+                    </span>
+                  )}
+                  {trip.group && (
+                    <span className="text-[10px] font-semibold rounded-full px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200">
+                      {trip.group.role === 'leader' ? t('group.badgeLeader', { n: trip.group.n }) : t('group.badgeMember')}
                     </span>
                   )}
                 </div>

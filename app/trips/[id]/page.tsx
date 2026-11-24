@@ -28,6 +28,8 @@ import { getDriverT } from '../../../lib/driver-locale';
 import PaymentBlock from './PaymentBlock';
 import TripPayments from './TripPayments';
 import TripSummary, { TripTabsNav, tripTabOf } from './TripSummary';
+import TripGroup, { type GroupOrder } from './TripGroup';
+import { groupRole, groupEconomics } from '../../../lib/trip-groups';
 import TripTodo from './TripTodo';
 import InvoiceBlock from './InvoiceBlock';
 import ContractorInvoices from './ContractorInvoices';
@@ -304,6 +306,62 @@ export default async function TripDetailPage({
   const totalExpenses = contractorExpenses + otherExpenses;
   const profit = (trip.revenue_eur || 0) - totalExpenses;
 
+  // Сборный рейс (миграция 048): до миграции колонки нет — блок просто не виден.
+  const gRole = groupRole({ id: tripId, group_id: (trip as any).group_id ?? null });
+  let groupLeader: { id: string; trip_number: number | string | null } | null = null;
+  let groupOrders: GroupOrder[] = [];
+  let groupEcon: ReturnType<typeof groupEconomics> | null = null;
+  let groupCandidates: { id: string; label: string }[] = [];
+  if (gRole === 'member') {
+    const { data: l } = await scoped.from('trips').select('id, trip_number').eq('id', trip.group_id).maybeSingle();
+    groupLeader = l || { id: trip.group_id, trip_number: null };
+  } else if (gRole === 'leader') {
+    const { data: rows } = await scoped
+      .from('trips')
+      .select('id, trip_number, revenue_eur, invoice_number, paid_at, status, clients(name)')
+      .eq('group_id', tripId)
+      .order('trip_number');
+    const ids = (rows || []).map((r: any) => r.id);
+    const { data: gExp } = ids.length
+      ? await scoped.from('trip_expenses').select('trip_id, amount_eur').in('trip_id', ids)
+      : { data: [] as any[] };
+    const byTrip: Record<string, number> = {};
+    (gExp || []).forEach((e: any) => { byTrip[e.trip_id] = (byTrip[e.trip_id] || 0) + Number(e.amount_eur || 0); });
+    groupOrders = (rows || []).map((r: any) => ({
+      id: r.id,
+      trip_number: r.trip_number,
+      client: pickName(r.clients) || null,
+      revenue: Number(r.revenue_eur || 0),
+      invoice_number: r.invoice_number ?? null,
+      paid: Boolean(r.paid_at) || r.status === 'paid',
+    }));
+    groupEcon = groupEconomics(rows || [], byTrip);
+  }
+  if (gRole !== 'member' && !readOnly && (gRole === 'leader' || segments.length > 0)) {
+    const { data: cand, error: candErr } = await scoped
+      .from('trips')
+      .select('id, trip_number, revenue_eur, clients(name)')
+      .is('truck_id', null)
+      .is('group_id', null)
+      .neq('status', 'cancelled')
+      .neq('id', tripId)
+      .order('created_at', { ascending: false })
+      .limit(40);
+    if (!candErr && cand?.length) {
+      const { data: withRoute } = await scoped
+        .from('trip_segments')
+        .select('trip_id')
+        .in('trip_id', cand.map((c: any) => c.id));
+      const busy = new Set((withRoute || []).map((r: any) => r.trip_id));
+      groupCandidates = cand
+        .filter((c: any) => !busy.has(c.id))
+        .map((c: any) => ({
+          id: c.id,
+          label: `№${c.trip_number ?? '—'} · ${pickName(c.clients) || '—'} · ${Math.round(Number(c.revenue_eur || 0))} €`,
+        }));
+    }
+  }
+
   const refuelLiters = expenses?.filter((e: any) => e.category === 'fuel' && e.liters).reduce((sum: number, e: any) => sum + e.liters, 0) || 0;
   const fuelLeft = (trip.start_fuel_level || 0) + refuelLiters - (trip.actual_liters || 0);
 
@@ -509,6 +567,15 @@ export default async function TripDetailPage({
               trailerNumber={trailerNumber}
               computedRoute={computedRoute}
               managerName={managerName}
+            />
+            <TripGroup
+              tripId={tripId}
+              role={gRole}
+              leader={groupLeader}
+              orders={groupOrders}
+              economics={groupEcon}
+              candidates={groupCandidates}
+              readOnly={readOnly}
             />
             <TripEconomics
               trip={trip}
