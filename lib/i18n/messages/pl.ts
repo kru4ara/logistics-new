@@ -2303,6 +2303,9 @@ export const pl: Messages = {
     unsortedBanner: '{n} faktur „nie dotyczy kursów” bez kategorii — nie trafiły do kosztów ogólnych. Rozdziel →',
   },
   chain: {
+    keep: 'Zostaw bez zmian',
+    keepConfirm: 'Zostawić start tego kursu bez zmian? Np. szedł równocześnie z innym kursem pojazdu (ładunek zbiorczy). CRM nie będzie go już zmieniać ani pokazywać na tej liście.',
+    needMigration: 'Potrzebna migracja 047 — zostanie zastosowana po wdrożeniu.',
     title: 'Przerwy między kursami pojazdów',
     hint: 'Kursy jednego naszego pojazdu idą łańcuchem: start — dzień po zakończeniu poprzedniego kursu. Nowe zmiany CRM pilnuje sama; tu — stare przerwy i nakładania. „Zamknij” ustawia start według reguły.',
     back: 'Wszystkie kursy',

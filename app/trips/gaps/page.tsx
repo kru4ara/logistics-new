@@ -8,7 +8,7 @@ import { can, deniedRedirect } from '../../../lib/roles';
 import { getT } from '../../../lib/i18n/server';
 import { formatDate } from '../../../lib/i18n/format';
 import { findChainIssues, type ChainTrip } from '../../../lib/truck-chain';
-import { CloseGapButton, CloseAllGapsButton } from './GapButtons';
+import { CloseGapButton, CloseAllGapsButton, KeepAsIsButton } from './GapButtons';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,13 +22,10 @@ export default async function TripGapsPage() {
   const { t, locale } = await getT();
   const supabase = await createClient();
 
-  const { data } = await fetchAll(
-    supabase
-      .from('trips')
-      .select('id, trip_number, client_request_number, truck_id, start_date, end_date, status, profit_mode, created_at, clients(name)')
-      .not('truck_id', 'is', null)
-      .order('id'),
-  );
+  const COLS = 'id, trip_number, client_request_number, truck_id, start_date, end_date, status, profit_mode, created_at, clients(name)';
+  const full = await fetchAll(supabase.from('trips').select(`${COLS}, chain_exempt`).not('truck_id', 'is', null).order('id'));
+  // До миграции 047 колонки нет — без исключений.
+  const { data } = full.error ? await fetchAll(supabase.from('trips').select(COLS).not('truck_id', 'is', null).order('id')) : full;
   const trips = (data ?? []) as (ChainTrip & { trip_number: string | null; client_request_number: string | null; clients: any })[];
   const issues = findChainIssues(trips);
   const byId = new Map(trips.map((x) => [x.id, x]));
@@ -87,7 +84,12 @@ export default async function TripGapsPage() {
                     <span className={`text-xs font-semibold rounded px-2 py-0.5 w-max ${badge[i.kind]}`}>
                       {i.kind === 'gap' ? t('chain.gapDays', { n: i.days }) : i.kind === 'overlap' ? t('chain.overlapDays', { n: -i.days }) : t('chain.noStart')}
                     </span>
-                    {canEdit && <CloseGapButton tripId={i.nextId} />}
+                    {canEdit && (
+                      <span className="flex items-start gap-2">
+                        <KeepAsIsButton tripId={i.nextId} />
+                        <CloseGapButton tripId={i.nextId} />
+                      </span>
+                    )}
                   </div>
                 ))}
               </div>

@@ -12,6 +12,8 @@ export type ChainTrip = {
   status: string | null;
   profit_mode: string | null;
   created_at?: string | null;
+  /** «оставить как есть» (миграция 047): старт не по правилу, в список не попадает */
+  chain_exempt?: boolean | null;
 };
 
 export type ChainIssue = {
@@ -50,7 +52,7 @@ export function findChainIssues(trips: ChainTrip[]): ChainIssue[] {
     for (let i = 1; i < sorted.length; i++) {
       const prev = sorted[i - 1];
       const next = sorted[i];
-      if (!prev.end_date) continue;
+      if (!prev.end_date || next.chain_exempt) continue;
       let expected = day(prev.end_date) + 1;
       if (next.end_date && expected > day(next.end_date)) expected = day(next.end_date);
       if (!next.start_date) {

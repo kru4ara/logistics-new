@@ -67,3 +67,24 @@ export async function closeAllTripGaps(tripIds: string[]): Promise<Result> {
   revalidatePath('/trips/gaps');
   return { ok: true, fixed, message: skipped ? t('chain.skipped', { n: skipped }) : undefined };
 }
+
+/** «Оставить как есть»: старт рейса не по цепочке (шёл одновременно с другим рейсом машины). */
+export async function keepTripAsIs(tripId: string): Promise<Result> {
+  await requireCapability('reports.viewAll');
+  await requireCapability('trips.editAny');
+  const { t } = await getT();
+  const supabase = await createClient();
+  const { data: trip } = await supabase.from('trips').select('trip_number').eq('id', tripId).maybeSingle();
+  if (!trip) return { ok: false, message: t('chain.errNotFound') };
+  const { error } = await supabase.from('trips').update({ chain_exempt: true }).eq('id', tripId);
+  if (error) return { ok: false, message: t('chain.needMigration') };
+  await logAudit({
+    entity_type: 'trip',
+    entity_id: tripId,
+    action: 'update',
+    changes: { chain_exempt: { before: false, after: true } },
+    summary: `Рейс №${trip.trip_number ?? '—'}: старт вне цепочки машины (оставлен как есть)`,
+  });
+  revalidatePath('/trips/gaps');
+  return { ok: true };
+}

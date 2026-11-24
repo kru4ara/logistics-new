@@ -26,4 +26,9 @@ describe('цепочка рейсов машины', () => {
     ]);
     expect(r.map((x) => [x.nextId, x.kind, x.expectedStart])).toEqual([['c', 'noStart', '2026-11-09']]);
   });
+
+  it('«оставить как есть» — не в списке (сборный груз до сборных заказов)', () => {
+    const r = findChainIssues([t('27', '2026-07-07', '2026-07-12'), t('28', '2026-07-07', '2026-07-12', { chain_exempt: true })]);
+    expect(r).toEqual([]);
+  });
 });
