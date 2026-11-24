@@ -155,6 +155,12 @@ export default async function TripsPage({
     return acc;
   }, {} as Record<string, number>) || {};
 
+  // Сборный рейс (миграция 048): сколько заказов в группе.
+  const groupSize: Record<string, number> = {};
+  (trips || []).forEach((t: any) => {
+    if (t.group_id) groupSize[t.group_id] = (groupSize[t.group_id] || 0) + 1;
+  });
+
   function getRoute(t: any): string {
     return routeMap.get(t.id)?.route || '—';
   }
@@ -351,6 +357,9 @@ export default async function TripsPage({
       clientName: pickName(t.clients) || tr('trips.clientUnknown'),
       driverName,
       missingUnloadDate: !hasUnloadDate(t),
+      group: t.group_id
+        ? { role: t.group_id === t.id ? 'leader' : 'member', n: groupSize[t.group_id] || 1 }
+        : null,
     };
   }
 
