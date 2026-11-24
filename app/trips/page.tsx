@@ -393,6 +393,14 @@ export default async function TripsPage({
             </p>
           </div>
           <div className="flex flex-wrap gap-2 md:gap-3">
+            {can(role, 'reports.viewAll') && (
+              <Link
+                href="/trips/gaps"
+                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-slate-600 border border-slate-200 bg-white hover:bg-slate-50"
+              >
+                {tr('chain.link')}
+              </Link>
+            )}
             {can(role, 'trips.editAny') && <RecalcAllCoordsButton tripIds={filteredTrips.map((t) => t.id)} />}
             <DownloadButton data={filteredTrips.map(prepareTrip)} />
             {can(role, 'trips.create') && (

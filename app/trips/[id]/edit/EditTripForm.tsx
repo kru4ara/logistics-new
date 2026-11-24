@@ -23,6 +23,8 @@ type Trip = {
 };
 
 type Props = {
+  /** старт ставит база по цепочке машины (миграция 046) */
+  startLocked?: boolean;
   trip: Trip;
   tripId: string;
   clients: Option[];
@@ -33,6 +35,7 @@ type Props = {
 };
 
 export default function EditTripForm({
+  startLocked = false,
   trip,
   tripId,
   clients,
@@ -96,8 +99,11 @@ export default function EditTripForm({
               type="date"
               name="start_date"
               defaultValue={trip.start_date || ''}
-              className={inputClass}
+              readOnly={startLocked}
+              aria-describedby={startLocked ? 'start-locked-hint' : undefined}
+              className={`${inputClass} ${startLocked ? 'bg-slate-100 text-slate-600 cursor-not-allowed' : ''}`}
             />
+            {startLocked && <p id="start-locked-hint" className="text-xs text-slate-500 mt-1">{t('chain.locked')}</p>}
           </div>
           <div>
             <label className={labelClass}>{t('trip.finish')}</label>
