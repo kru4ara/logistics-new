@@ -48,7 +48,7 @@ export default async function EditTripPage({ params }: { params: Promise<{ id: s
   // Цепочка машины (миграция 046): старт своего рейса ставит база — день после финиша
   // предыдущего рейса этой машины. Есть предыдущий завершённый рейс — поле только для чтения.
   let startLocked = false;
-  if (trip.truck_id && trip.profit_mode !== 'forwarding') {
+  if (trip.truck_id && trip.profit_mode !== 'forwarding' && !trip.chain_exempt) {
     // Через scopedClient, как и сам заказ: менеджеру база покажет только свои рейсы
     // (тогда поле просто не замкнётся — правило всё равно держит база).
     let q = scoped

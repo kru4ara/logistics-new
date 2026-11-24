@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, Link2 } from 'lucide-react';
 import { useT } from '../../components/I18nProvider';
-import { closeTripGap, closeAllTripGaps } from './actions';
+import { closeTripGap, closeAllTripGaps, keepTripAsIs } from './actions';
 
 export function CloseGapButton({ tripId }: { tripId: string }) {
   const { t } = useT();
@@ -57,6 +57,34 @@ export function CloseAllGapsButton({ tripIds }: { tripIds: string[] }) {
         {t('chain.closeAll', { n: tripIds.length })}
       </button>
       {msg && <span className="text-xs text-slate-600">{msg}</span>}
+    </span>
+  );
+}
+
+/** «Оставить как есть»: рейс шёл одновременно с другим (сборный груз) или простой — не трогать. */
+export function KeepAsIsButton({ tripId }: { tripId: string }) {
+  const { t } = useT();
+  const router = useRouter();
+  const [isPending, start] = useTransition();
+  const [err, setErr] = useState<string | null>(null);
+  return (
+    <span className="inline-flex flex-col items-end gap-0.5">
+      <button
+        type="button"
+        disabled={isPending}
+        onClick={() => {
+          if (!window.confirm(t('chain.keepConfirm'))) return;
+          start(async () => {
+            const r = await keepTripAsIs(tripId);
+            setErr(r.ok ? null : r.message ?? null);
+            router.refresh();
+          });
+        }}
+        className="inline-flex items-center h-9 px-3 rounded-lg text-xs font-semibold text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 whitespace-nowrap"
+      >
+        {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : t('chain.keep')}
+      </button>
+      {err && <span className="text-[11px] text-red-600 max-w-xs text-right">{err}</span>}
     </span>
   );
 }

@@ -2303,6 +2303,9 @@ export const en: Messages = {
     unsortedBanner: '{n} “not trip-related” invoices have no category yet, so they aren’t in overhead. Sort them →',
   },
   chain: {
+    keep: 'Keep as is',
+    keepConfirm: 'Keep this trip’s start as is? E.g. it ran at the same time as another trip of the truck (groupage). The CRM will no longer change it or show it here.',
+    needMigration: 'Migration 047 is needed — it is applied after deploy.',
     title: 'Gaps between truck trips',
     hint: 'Trips of one of our trucks form a chain: a trip starts the day after the previous one ends. The CRM keeps new changes in line itself; here are old gaps and overlaps. “Close” sets the start by the rule.',
     back: 'All trips',
