@@ -11,9 +11,9 @@ export function AddToGroup({ leaderId, candidates }: { leaderId: string; candida
   const [pick, setPick] = useState('');
   const [err, setErr] = useState<string | null>(null);
   const [pending, start] = useTransition();
-  if (!candidates.length) return <p className="text-xs text-slate-500">{t('group.noCandidates')}</p>;
   return (
     <div className="space-y-1">
+      <p className="text-xs text-slate-500">{t('group.pickExisting')}</p>
       <div className="flex gap-2">
         <select
           value={pick}
