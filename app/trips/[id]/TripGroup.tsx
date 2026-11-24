@@ -23,6 +23,7 @@ export default async function TripGroup({
   economics,
   candidates,
   readOnly,
+  canLead = true,
 }: {
   tripId: string;
   role: 'leader' | 'member' | null;
@@ -31,6 +32,8 @@ export default async function TripGroup({
   economics: { revenue: number; expenses: number; profit: number; orders: number } | null;
   candidates: { id: string; label: string }[];
   readOnly: boolean;
+  /** Рейс с исполнителем — может стать ведущим. */
+  canLead?: boolean;
 }) {
   const { t } = await getT();
 
@@ -54,8 +57,9 @@ export default async function TripGroup({
     );
   }
 
-  // Ведущий или обычный рейс: обычный без кандидатов — блок не нужен.
-  if (role !== 'leader' && (readOnly || !candidates.length)) return null;
+  // Обычный рейс: блок с подсказкой виден тому, кто может собрать группу
+  // (страница передаёт его только рейсам с исполнителем).
+  if (role !== 'leader' && (readOnly || !canLead)) return null;
 
   return (
     <section className="card p-5 space-y-3">

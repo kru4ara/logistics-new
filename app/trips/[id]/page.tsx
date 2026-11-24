@@ -576,6 +576,7 @@ export default async function TripDetailPage({
               economics={groupEcon}
               candidates={groupCandidates}
               readOnly={readOnly}
+              canLead={segments.length > 0}
             />
             <TripEconomics
               trip={trip}
