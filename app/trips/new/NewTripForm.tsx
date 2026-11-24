@@ -35,6 +35,8 @@ type Props = {
   loadingLocations: Location[];
   unloadingLocations: Location[];
   customsLocations: Location[];
+  /** Сборный рейс: заказ сразу встанет в машину этого рейса. */
+  groupLeader?: { id: string; label: string } | null;
 };
 
 const emptyAddr = {
@@ -64,6 +66,7 @@ export default function NewTripForm({
   loadingLocations,
   unloadingLocations,
   customsLocations,
+  groupLeader = null,
 }: Props) {
   const { t } = useT();
   const [from, setFrom] = useState<AddrState>({ ...emptyAddr });
@@ -122,6 +125,13 @@ export default function NewTripForm({
 
   return (
     <form action={createCargoWithTrip} className="space-y-4 md:space-y-6">
+      {groupLeader && (
+        <div className="card p-4 border-l-4 border-indigo-400 text-sm text-slate-700">
+          <input type="hidden" name="group_leader" value={groupLeader.id} />
+          <div className="font-semibold text-slate-900">{t('group.newOrderTitle', { trip: groupLeader.label })}</div>
+          <div>{t('group.newOrderHint')}</div>
+        </div>
+      )}
 
       {/* РЕЖИМ РАСЧЁТА И ОТМЕТКИ ЗАКАЗА */}
       <div className={sectionClass}>

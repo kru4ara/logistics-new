@@ -2562,6 +2562,10 @@ export const en: Messages = {
     confirmReplace: 'Replace invoice {old} with {new} on this order? After the next check the old one returns to the list — link it to the right order or mark it “not for an order”.',
   },
   group: {
+    newOrder: "+ Another client’s cargo in this truck",
+    newOrderTitle: "New order in groupage trip {trip}",
+    newOrderHint: "Enter the client and cargo as usual — the order gets its own invoice and payment, while truck, driver and dates come from the trip.",
+    pickExisting: "…or add an existing order without a truck:",
     title: 'Groupage trip',
     intro: 'This truck can carry other clients’ orders too: each has its own invoice and payment, while the truck, driver and costs stay here.',
     ordersBadge: '{n} orders',

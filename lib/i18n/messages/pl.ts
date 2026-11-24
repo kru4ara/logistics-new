@@ -2562,6 +2562,10 @@ export const pl: Messages = {
     confirmReplace: 'Zastąpić w zleceniu fakturę {old} fakturą {new}? Stara po uzgodnieniu wróci na listę — przypisz ją do właściwego zlecenia lub oznacz „nie do zlecenia”.',
   },
   group: {
+    newOrder: "+ Ładunek innego klienta w to auto",
+    newOrderTitle: "Nowe zlecenie w kursie zbiorczym {trip}",
+    newOrderHint: "Podaj klienta i ładunek jak zwykle — zlecenie będzie miało własną fakturę i płatność, a auto, kierowca i daty — z kursu.",
+    pickExisting: "…lub dodaj istniejące zlecenie bez auta:",
     title: 'Kurs zbiorczy',
     intro: 'Tym autem można wieźć też zlecenia innych klientów: każde ma własną fakturę i płatność, a auto, kierowca i koszty są tutaj.',
     ordersBadge: 'zleceń: {n}',

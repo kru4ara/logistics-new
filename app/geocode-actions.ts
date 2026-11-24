@@ -7,6 +7,7 @@ import { redirect } from 'next/navigation';
 import { logAudit } from '../lib/audit';
 import { geocode } from '../lib/geocode';
 import { getT } from '../lib/i18n/server';
+import { addToGroup } from './trips/[id]/group-actions';
 
 // ============================================================
 // Конвертация в EUR по курсу на дату (EUR / PLN / BYN)
@@ -221,6 +222,14 @@ export async function createCargoWithTrip(formData: FormData) {
     action: 'create',
     summary: `Создан заказ №${created.trip_number ?? '—'}${clientName ? ' · ' + clientName : ''}${route ? ' · ' + route : ''}`,
   });
+
+  // ---- 4. Сборный рейс: заказ сразу в машину ведущего ----
+  const groupLeader = ((formData.get('group_leader') as string) || '').trim();
+  if (groupLeader) {
+    const joined = await addToGroup(groupLeader, created.id);
+    if (joined.ok) redirect(`/trips/${groupLeader}`);
+    console.error('[groupage] join failed', groupLeader, created.id, joined.error);
+  }
 
   revalidatePath('/trips');
   redirect(`/trips/${created.id}?toast=cargo_created`);

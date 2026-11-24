@@ -9,7 +9,7 @@ import { getSessionContext } from '../../../lib/session';
 
 export const dynamic = 'force-dynamic';
 
-export default async function NewTripPage() {
+export default async function NewTripPage({ searchParams }: { searchParams: Promise<{ group?: string }> }) {
   const { role } = await getSessionContext();
   const denied = deniedRedirect(role, 'trips.create');
   if (denied) redirect(denied);
@@ -40,6 +40,24 @@ export default async function NewTripPage() {
     .select('*')
     .in('type', ['unloading', 'both'])
     .order('name');
+
+  // Сборный рейс: «Груз другого клиента в эту машину» из карточки рейса.
+  let groupLeader: { id: string; label: string } | null = null;
+  const groupId = (await searchParams).group;
+  if (groupId && /^[0-9a-f-]{36}$/i.test(groupId)) {
+    const { data: leader } = await supabase
+      .from('trips')
+      .select('id, trip_number, group_id, trucks!truck_id(registration_number)')
+      .eq('id', groupId)
+      .maybeSingle();
+    if (leader && (!leader.group_id || leader.group_id === leader.id)) {
+      const truck = (Array.isArray(leader.trucks) ? leader.trucks[0] : leader.trucks) as { registration_number?: string } | null;
+      groupLeader = {
+        id: leader.id,
+        label: `№${leader.trip_number ?? '—'}${truck?.registration_number ? ` · ${truck.registration_number}` : ''}`,
+      };
+    }
+  }
 
   const { data: customsLocations } = await supabase
     .from('locations')
@@ -75,6 +93,7 @@ export default async function NewTripPage() {
           loadingLocations={(loadingLocations || []) as any}
           unloadingLocations={(unloadingLocations || []) as any}
           customsLocations={(customsLocations || []) as any}
+          groupLeader={groupLeader}
         />
 
       </div>

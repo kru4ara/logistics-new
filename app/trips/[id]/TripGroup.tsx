@@ -118,7 +118,15 @@ export default async function TripGroup({
         <p className="text-sm text-slate-600">{t('group.intro')}</p>
       )}
 
-      {!readOnly && <AddToGroup leaderId={tripId} candidates={candidates} />}
+      {!readOnly && (
+        <Link
+          href={`/trips/new?group=${tripId}`}
+          className="btn btn-primary w-full justify-center text-sm"
+        >
+          {t('group.newOrder')}
+        </Link>
+      )}
+      {!readOnly && candidates.length > 0 && <AddToGroup leaderId={tripId} candidates={candidates} />}
     </section>
   );
 }
