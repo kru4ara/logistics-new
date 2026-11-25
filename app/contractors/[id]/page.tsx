@@ -3,6 +3,15 @@ import { getSessionContext } from '../../../lib/session';
 import { redirect } from 'next/navigation';
 import { createClient } from '../../../lib/supabase/admin';
 import { scopedClient } from '../../../lib/supabase/scoped';
+import { fetchAll, fetchAllByIds } from '../../../lib/fetch-all';
+import type { RateRow } from '../../../lib/plan-fact';
+import {
+  factBySegmentOf,
+  isCancelled,
+  segmentKind,
+  segmentPlanEur,
+  type ContractorSegmentRow,
+} from '../../../lib/contractor-stats';
 import CountryFlag from '../../components/CountryFlag';
 import {
   ArrowLeft,
@@ -45,11 +54,13 @@ type Contractor = {
 
 type WorkItem = {
   kind: 'trip' | 'forwarding';
+  segmentId: string;
   id: string;
   number: string;
   date: string | null;
   route: string;
-  price_eur: number;
+  plan_eur: number;
+  fact_eur: number | null;
   original_price: number;
   currency: string;
   payment_days: number | null;
@@ -126,107 +137,67 @@ export default async function ContractorCardPage({
 
   const c = contractor as Contractor;
 
-  // 2. Работы: комбинированные перевозки (trip_segments, executor_type='contractor')
-  //    Здесь route НЕ тянем из trips — маршрут участка берём из самого сегмента (from_*/to_*).
-  const { data: tripSubs } = await scoped
-    .from('trip_segments')
-    .select(`
-      id,
-      trip_id,
-      price,
-      currency,
-      date_from,
-      date_to,
-      from_country,
-      from_city,
-      to_country,
-      to_city,
-      trips(trip_number, client_request_number, profit_mode)
-    `)
-    .eq('contractor_id', id)
-    .eq('executor_type', 'contractor');
+  // 2. Работы — участки этого подрядчика. Каждый участок один раз: заказ в режиме
+  //    экспедирования → «экспедирование», иначе → «рейс». Отменённые заказы не считаем.
+  const SEG_COLS = `
+      id, trip_id, contractor_id, price, currency, contractor_payment_days,
+      date_from, date_to, from_country, from_city, to_country, to_city, stops,
+      trips!inner(trip_number, client_request_number, status, profit_mode, start_date, end_date)`;
+  const segRes = await fetchAll(
+    scoped.from('trip_segments').select(SEG_COLS).eq('contractor_id', id).eq('executor_type', 'contractor').order('id'),
+  );
+  const segRows = ((segRes.data ?? []) as any[]).filter((s) => !isCancelled(s as ContractorSegmentRow));
+  const segIds = segRows.map((s) => s.id as string);
 
-  // 3. Работы: экспедирование — заказы с profit_mode='forwarding',
-  //    где этот подрядчик выполняет сегмент.
-  //    Маршрут берём из stops сегмента (загрузка → выгрузка),
-  //    НЕ из route_from/route_to.
-  const { data: fwdSubs } = await scoped
-    .from('trip_segments')
-    .select(`
-      id,
-      trip_id,
-      price,
-      currency,
-      contractor_payment_days,
-      stops,
-      trips!inner(
-        trip_number,
-        client_request_number,
-        start_date,
-        end_date,
-        profit_mode
-      )
-    `)
-    .eq('contractor_id', id)
-    .eq('executor_type', 'contractor');
-
-  // 4. Объединяем в один список
-  const works: WorkItem[] = [];
-
-  for (const s of tripSubs || []) {
-    const trip: any = Array.isArray(s.trips) ? s.trips[0] : s.trips;
-    if (!trip) continue;
-    // Экспедирования учитываются отдельно (ниже), здесь только рейсы.
-    if (trip.profit_mode === 'forwarding') continue;
-
-    const numberBase = trip.client_request_number || (trip.trip_number ? `№${trip.trip_number}` : '—');
-    const routeFrom = [s.from_country, s.from_city].filter(Boolean).join(', ') || '—';
-    const routeTo = [s.to_country, s.to_city].filter(Boolean).join(', ') || '—';
-    const route = `${routeFrom} → ${routeTo}`;
-    const date = s.date_to || s.date_from;
-    const price = Number(s.price) || 0;
-
-    works.push({
-      kind: 'trip',
-      id: s.trip_id,
-      number: numberBase,
-      date,
-      route,
-      price_eur: price,
-      original_price: price,
-      currency: s.currency || 'EUR',
-      payment_days: null,
-      href: `/trips/${s.trip_id}`,
-    });
+  // 3. Факт — расходы рейса «Подрядчик» по участку (после счёта — сумма счёта), план — цена в EUR.
+  const [expRes, rateRes] = await Promise.all([
+    fetchAllByIds(segIds, (chunk) =>
+      scoped.from('trip_expenses').select('segment_id, amount_eur').eq('category', 'contractor').in('segment_id', chunk),
+    ),
+    fetchAll(supabase.from('rates').select('rate_date, pln_to_eur, byn_to_eur').order('rate_date', { ascending: true })),
+  ]);
+  const loadError = segRes.error ?? expRes.error ?? rateRes.error;
+  if (loadError) {
+    return <div className="p-8 text-red-500">{t('dir.loadError')}{' '}{loadError.message}</div>;
   }
+  const factBySeg = factBySegmentOf((expRes.data ?? []) as { segment_id: string | null; amount_eur: number | null }[]);
+  const rates = (rateRes.data ?? []) as RateRow[];
+  const today = new Date().toISOString().slice(0, 10);
 
-  for (const s of fwdSubs || []) {
-    const fwd: any = Array.isArray(s.trips) ? s.trips[0] : s.trips;
-    if (!fwd) continue;
-    // Экспедированием считаем только заказы в режиме forwarding.
-    if (fwd.profit_mode !== 'forwarding') continue;
-
-    const numberBase = fwd.client_request_number || (fwd.trip_number ? `№${fwd.trip_number}` : '—');
-
-    // Маршрут из stops сегмента: первая загрузка → последняя выгрузка
-    const { from: routeFrom, to: routeTo } = routeFromStops(s.stops);
-    const route = (routeFrom || routeTo) ? `${routeFrom || '—'} → ${routeTo || '—'}` : '—';
-
-    const date = fwd.end_date || fwd.start_date;
-
-    works.push({
-      kind: 'forwarding',
+  // 4. Список работ
+  const works: WorkItem[] = segRows.map((s) => {
+    const row = s as ContractorSegmentRow;
+    const trip: any = Array.isArray(s.trips) ? s.trips[0] : s.trips;
+    const kind = segmentKind(row);
+    const number = trip?.client_request_number || (trip?.trip_number ? `№${trip.trip_number}` : '—');
+    let route: string;
+    let date: string | null;
+    if (kind === 'trip') {
+      const routeFrom = [s.from_country, s.from_city].filter(Boolean).join(', ') || '—';
+      const routeTo = [s.to_country, s.to_city].filter(Boolean).join(', ') || '—';
+      route = `${routeFrom} → ${routeTo}`;
+      date = s.date_to || s.date_from || trip?.end_date || trip?.start_date || null;
+    } else {
+      // Маршрут экспедиции — из stops участка: первая загрузка → последняя выгрузка.
+      const { from, to } = routeFromStops(s.stops);
+      route = from || to ? `${from || '—'} → ${to || '—'}` : '—';
+      date = trip?.end_date || trip?.start_date || null;
+    }
+    return {
+      kind,
+      segmentId: s.id,
       id: s.trip_id,
-      number: numberBase,
+      number,
       date,
       route,
-      price_eur: Number(s.price) || 0,
+      plan_eur: segmentPlanEur(row, rates, today),
+      fact_eur: factBySeg.has(s.id) ? Math.round((factBySeg.get(s.id) ?? 0) * 100) / 100 : null,
       original_price: Number(s.price) || 0,
-      currency: s.currency || 'EUR',
+      currency: (s.currency || 'EUR').toUpperCase(),
       payment_days: s.contractor_payment_days || null,
       href: `/trips/${s.trip_id}`,
-    });
-  }
+    };
+  });
 
   // 5. Сортируем по дате desc
   works.sort((a, b) => {
@@ -236,7 +207,8 @@ export default async function ContractorCardPage({
   });
 
   // 6. Итоги
-  const totalSum = works.reduce((sum, w) => sum + w.price_eur, 0);
+  // Сумма — факт (как в прибыли и в отчёте по подрядчикам).
+  const totalSum = works.reduce((sum, w) => sum + (w.fact_eur ?? 0), 0);
   const totalCount = works.length;
   const lastWork = works[0] || null;
   const tripCount = works.filter((w) => w.kind === 'trip').length;
@@ -455,7 +427,7 @@ export default async function ContractorCardPage({
                 const KindIcon = w.kind === 'trip' ? Truck : Package;
                 return (
                   <Link
-                    key={`${w.kind}-${w.id}`}
+                    key={w.segmentId}
                     href={w.href}
                     className="block border border-slate-100 rounded-xl p-3 md:p-4 bg-slate-50/40
                                hover:bg-brand-50/40 hover:border-brand-200 transition-all"
@@ -488,9 +460,14 @@ export default async function ContractorCardPage({
                         <div className="text-base font-bold text-red-500 whitespace-nowrap tabular-nums">
                           {w.original_price} {w.currency}
                         </div>
-                        <div className="text-xs text-slate-400 tabular-nums">
-                          ≈ {w.price_eur.toFixed(0)} €
-                        </div>
+                        {w.currency !== 'EUR' && (
+                          <div className="text-xs text-slate-400 tabular-nums">≈ {fmtEur(w.plan_eur, locale)}</div>
+                        )}
+                        {w.fact_eur != null && Math.abs(w.fact_eur - w.plan_eur) >= 1 && (
+                          <div className="text-xs text-slate-600 tabular-nums">
+                            {t('rep.ctrFact')}: {fmtEur(w.fact_eur, locale)}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </Link>
