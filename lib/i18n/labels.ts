@@ -25,6 +25,7 @@ export const EXPENSE_CATEGORIES = [
   { value: 'epi', emoji: '📄' },
   { value: 'border', emoji: '🛂' },
   { value: 'salary', emoji: '💶' },
+  { value: 'manager_salary', emoji: '👔' },
   { value: 'permit', emoji: '📋' },
   { value: 'tlc', emoji: '🏭' },
   { value: 'waiting', emoji: '⏳' },

@@ -21,6 +21,7 @@ export const CATEGORY_META: Record<string, { label: string; emoji: string }> = {
   disinfection: { label: 'expenseCat.disinfection', emoji: '🧴' },
   ex1: { label: 'expenseCat.ex1', emoji: '🧾' },
   otkat: { label: 'expenseCat.otkat', emoji: '🔄' },
+  manager_salary: { label: 'expenseCat.manager_salary', emoji: '👔' },
   gps_seal: { label: 'expenseCat.gps_seal', emoji: '📡' },
   epi: { label: 'EPI', emoji: '📄' },
   etoll: { label: 'e-TOLL', emoji: '🛣' },

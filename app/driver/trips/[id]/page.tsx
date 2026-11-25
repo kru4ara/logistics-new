@@ -136,7 +136,9 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
   const { data: expenses } = await supabase
     .from('trip_expenses')
     .select('*')
-    .eq('trip_id', tripId);
+    .eq('trip_id', tripId)
+    // ЗП менеджера водителю не показываем.
+    .neq('category', 'manager_salary');
 
   const { data: documentRows } = await supabase
     .from('trip_documents')
