@@ -306,6 +306,7 @@ export const ru = {
     epi: 'EPI',
     border: 'Граница',
     salary: 'ЗП водителя',
+    manager_salary: 'ЗП менеджера',
     permit: 'Дозвол',
     tlc: 'ТЛЦ',
     waiting: 'Зона ожидания',

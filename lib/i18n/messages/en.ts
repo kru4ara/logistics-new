@@ -304,6 +304,7 @@ export const en: Messages = {
     epi: 'EPI',
     border: 'Border',
     salary: 'Driver pay',
+    manager_salary: 'Manager salary',
     permit: 'Permit',
     tlc: 'Logistics terminal',
     waiting: 'Waiting zone',

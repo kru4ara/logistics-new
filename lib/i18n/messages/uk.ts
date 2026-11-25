@@ -304,6 +304,7 @@ export const uk: Messages = {
     epi: 'EPI',
     border: 'Кордон',
     salary: 'ЗП водія',
+    manager_salary: 'ЗП менеджера',
     permit: 'Дозвіл',
     tlc: 'ТЛЦ',
     waiting: 'Зона очікування',

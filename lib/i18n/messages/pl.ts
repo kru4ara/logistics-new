@@ -304,6 +304,7 @@ export const pl: Messages = {
     epi: 'EPI',
     border: 'Granica',
     salary: 'Wynagrodzenie kierowcy',
+    manager_salary: 'Pensja menedżera',
     permit: 'Zezwolenie',
     tlc: 'Terminal (TLC)',
     waiting: 'Strefa oczekiwania',
