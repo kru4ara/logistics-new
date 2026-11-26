@@ -7,6 +7,7 @@ import { scopedClient } from '../../lib/supabase/scoped';
 import { buildRouteMap, type SegmentRouteRow, type TripRouteInfo } from '../../lib/trip-route';
 import { getOrderMonthKey, getOrderUnloadDate, compareOrderNumbers, hasUnloadDate } from '../../lib/orders-core';
 import DownloadButton from './DownloadButton';
+import MoreMenu, { menuItemClass } from '../components/MoreMenu';
 import SearchInput from './SearchInput';
 import TripFilters from './TripFilters';
 import RecalcAllCoordsButton from './RecalcAllCoordsButton';
@@ -20,6 +21,7 @@ import {
   Package,
   Plus,
   Inbox,
+  CalendarRange,
 } from 'lucide-react';
 import { formatEur } from '../../lib/i18n/format';
 
@@ -402,17 +404,7 @@ export default async function TripsPage({
               )}
             </p>
           </div>
-          <div className="flex flex-wrap gap-2 md:gap-3">
-            {can(role, 'reports.viewAll') && (
-              <Link
-                href="/trips/gaps"
-                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-slate-600 border border-slate-200 bg-white hover:bg-slate-50"
-              >
-                {tr('chain.link')}
-              </Link>
-            )}
-            {can(role, 'trips.editAny') && <RecalcAllCoordsButton tripIds={filteredTrips.map((t) => t.id)} />}
-            <DownloadButton data={filteredTrips.map(prepareTrip)} />
+          <div className="flex items-center gap-2">
             {can(role, 'trips.create') && (
               <Link
                 href="/trips/new"
@@ -422,6 +414,18 @@ export default async function TripsPage({
                 {tr('trips.create')}
               </Link>
             )}
+            <MoreMenu label={tr('trip.moreActions')}>
+              <DownloadButton data={filteredTrips.map(prepareTrip)} className={menuItemClass} />
+              {can(role, 'reports.viewAll') && (
+                <Link href="/trips/gaps" className={menuItemClass}>
+                  <CalendarRange className="w-4 h-4" />
+                  {tr('chain.link')}
+                </Link>
+              )}
+              {can(role, 'trips.editAny') && (
+                <RecalcAllCoordsButton tripIds={filteredTrips.map((t) => t.id)} className={menuItemClass} />
+              )}
+            </MoreMenu>
           </div>
         </div>
 

@@ -9,7 +9,7 @@ import { confirmDialog, notify } from '../components/Dialogs';
 
 const BATCH_SIZE = 20;
 
-export default function RecalcAllCoordsButton({ tripIds }: { tripIds: string[] }) {
+export default function RecalcAllCoordsButton({ tripIds, className }: { tripIds: string[]; className?: string }) {
   const { t } = useT();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -65,8 +65,8 @@ export default function RecalcAllCoordsButton({ tripIds }: { tripIds: string[] }
         type="button"
         onClick={handleClick}
         disabled={isPending}
-        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-300 text-slate-700 bg-white
-                   hover:bg-slate-50 font-medium text-sm transition-all disabled:opacity-50 active:scale-[0.98]"
+        className={className ?? `inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-300 text-slate-700 bg-white
+                   hover:bg-slate-50 font-medium text-sm transition-all disabled:opacity-50 active:scale-[0.98]`}
         title={t('trips.recalcTitle')}
       >
         {isRunning ? (
@@ -78,7 +78,7 @@ export default function RecalcAllCoordsButton({ tripIds }: { tripIds: string[] }
       </button>
 
       {progress && (
-        <div className="text-xs text-slate-500">
+        <div className="text-xs text-slate-500 px-3 pb-1">
           {error
             ? <span className="text-red-600">{error}</span>
             : progress.done < progress.total

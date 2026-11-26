@@ -157,7 +157,7 @@ function formatDate(iso: string): string {
 export default async function AuditPage({
   searchParams,
 }: {
-  searchParams: Promise<{ entity?: string }>;
+  searchParams: Promise<{ entity?: string; page?: string }>;
 }) {
   const { t } = await getT();
   const { role } = await getSessionContext();
@@ -166,6 +166,8 @@ export default async function AuditPage({
 
   const resolvedParams = await searchParams;
   const entityFilter = resolvedParams.entity || null;
+  const PAGE = 50;
+  const page = Math.max(1, Math.min(100, Number(resolvedParams.page) || 1));
 
   const supabase = await createClient();
 
@@ -173,13 +175,17 @@ export default async function AuditPage({
     .from('audit_log')
     .select('*')
     .order('created_at', { ascending: false })
-    .limit(200);
+    // одна лишняя строка — узнать, есть ли следующая страница
+    .range((page - 1) * PAGE, page * PAGE);
 
   if (entityFilter) {
     query = query.eq('entity_type', entityFilter);
   }
 
-  const { data: logs, error } = await query;
+  const { data: rows, error } = await query;
+  const hasNext = (rows?.length ?? 0) > PAGE;
+  const logs = rows?.slice(0, PAGE) ?? [];
+  const pageHref = (p: number) => `/audit?${new URLSearchParams({ ...(entityFilter ? { entity: entityFilter } : {}), ...(p > 1 ? { page: String(p) } : {}) })}`;
 
   if (error) {
     return (
@@ -241,7 +247,7 @@ export default async function AuditPage({
             </p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="card divide-y divide-slate-100 overflow-hidden">
             {logs.map((log) => {
               const meta = ACTION_META[log.action] || {
                 text: log.action,
@@ -253,70 +259,61 @@ export default async function AuditPage({
               const entityLabel = ENTITY_LABELS[log.entity_type] ? t(ENTITY_LABELS[log.entity_type] as MessageKey) : log.entity_type;
 
               const changes = log.changes as Record<string, { before: unknown; after: unknown }> | null;
+              const changeList = changes ? Object.entries(changes) : [];
 
               return (
-                <div key={log.id} className="card overflow-hidden">
-                  <div className="flex">
-                    <div className={`w-1 ${meta.strip} shrink-0`} />
-                    <div className="p-4 md:p-5 flex-1 min-w-0">
-                      <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border ${meta.badge}`}>
-                            <ActionIcon className="w-3 h-3" strokeWidth={2.5} />
-                            {ACTION_META[log.action] ? t(meta.text as MessageKey) : meta.text}
-                          </span>
-                          <span className="text-xs font-medium text-slate-500">
-                            {entityLabel}
-                          </span>
-                        </div>
-                        <span className="text-xs text-slate-400 whitespace-nowrap tabular-nums">
-                          {formatDate(log.created_at)}
-                        </span>
-                      </div>
-
-                      {log.summary && (
-                        <div className="text-sm text-slate-800 font-medium mb-2 break-words">
-                          {log.summary}
-                        </div>
-                      )}
-
-                      {changes && Object.keys(changes).length > 0 && (
-                        <div className="mt-3 pt-3 border-t border-slate-100 space-y-1.5">
-                          {Object.entries(changes).map(([field, { before, after }]) => (
-                            <div key={field} className="flex flex-wrap items-baseline gap-2 text-xs">
-                              <span className="text-slate-500 font-medium">
-                                {FIELD_LABELS[field] ? t(FIELD_LABELS[field] as MessageKey) : field}:
-                              </span>
-                              <span className="text-red-500 line-through tabular-nums">
-                                {formatFieldValue(field, before)}
-                              </span>
-                              <span className="text-slate-400">→</span>
-                              <span className="text-emerald-600 font-semibold tabular-nums">
-                                {formatFieldValue(field, after)}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      <div className="mt-3 text-xs text-slate-400 flex items-center gap-1.5 flex-wrap">
-                        <UserIcon className="w-3.5 h-3.5 shrink-0" strokeWidth={2} />
-                        <span className="font-medium text-slate-500">{log.user_name}</span>
-                        {log.user_role && (
-                          <>
-                            <span className="text-slate-300">·</span>
-                            <span>
-                              {roleLabel(log.user_role)}
-                            </span>
-                          </>
-                        )}
-                      </div>
-                    </div>
+                <div key={log.id} className="px-4 py-3 text-sm">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="text-xs text-slate-400 whitespace-nowrap tabular-nums w-28 shrink-0">
+                      {formatDate(log.created_at)}
+                    </span>
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${meta.badge}`}>
+                      <ActionIcon className="w-3 h-3" strokeWidth={2.5} />
+                      {ACTION_META[log.action] ? t(meta.text as MessageKey) : meta.text}
+                    </span>
+                    <span className="text-xs font-medium text-slate-500">{entityLabel}</span>
+                    <span className="ml-auto inline-flex items-center gap-1 text-xs text-slate-400">
+                      <UserIcon className="w-3.5 h-3.5 shrink-0" strokeWidth={2} />
+                      <span className="font-medium text-slate-500">{log.user_name}</span>
+                      {log.user_role && <span>· {roleLabel(log.user_role)}</span>}
+                    </span>
                   </div>
+                  {log.summary && <div className="mt-1 text-slate-800 break-words">{log.summary}</div>}
+                  {changeList.length > 0 && (
+                    <details className="mt-1 group">
+                      <summary className="cursor-pointer text-xs text-brand-700 hover:underline list-none">
+                        {t('aud.changes', { n: changeList.length })}
+                      </summary>
+                      <div className="mt-2 space-y-1.5 border-l-2 border-slate-100 pl-3">
+                        {changeList.map(([field, { before, after }]) => (
+                          <div key={field} className="flex flex-wrap items-baseline gap-2 text-xs">
+                            <span className="text-slate-500 font-medium">
+                              {FIELD_LABELS[field] ? t(FIELD_LABELS[field] as MessageKey) : field}:
+                            </span>
+                            <span className="text-red-500 line-through tabular-nums">{formatFieldValue(field, before)}</span>
+                            <span className="text-slate-400">→</span>
+                            <span className="text-emerald-600 font-semibold tabular-nums">{formatFieldValue(field, after)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </details>
+                  )}
                 </div>
               );
             })}
           </div>
+        )}
+
+        {(page > 1 || hasNext) && (
+          <nav className="flex items-center justify-between" aria-label={t('aud.pages')}>
+            {page > 1 ? (
+              <a href={pageHref(page - 1)} className="btn btn-secondary text-sm">← {t('aud.newer')}</a>
+            ) : <span />}
+            <span className="text-xs text-slate-500">{t('aud.page', { n: page })}</span>
+            {hasNext ? (
+              <a href={pageHref(page + 1)} className="btn btn-secondary text-sm">{t('aud.older')} →</a>
+            ) : <span />}
+          </nav>
         )}
 
       </div>

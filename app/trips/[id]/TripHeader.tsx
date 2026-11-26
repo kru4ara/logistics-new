@@ -4,8 +4,8 @@ import Link from 'next/link';
 import { Pencil, Trash2, FileText, ArrowLeft } from 'lucide-react';
 import TripStatusButtons from '../../driver/TripStatusButtons';
 import SyncLogisatButton from './SyncLogisatButton';
-import SubmitButton from '../../components/SubmitButton';
-import { handleSaveTelemetry } from '../../telemetry-actions';
+import MoreMenu, { menuItemClass } from '../../components/MoreMenu';
+import ConfirmSubmit from '../../components/ConfirmSubmit';
 import { deleteTrip } from '../../trip-actions';
 import { useT } from '../../components/I18nProvider';
 import { formatDate } from '../../../lib/i18n/format';
@@ -72,62 +72,32 @@ export default function TripHeader({
         </div>
 
         {!readOnly && (
-        <>
-        {/* ДЕЙСТВИЯ ПО РЕЙСУ (сжатые) */}
-        <div className="mb-4 pb-4 border-b border-slate-100">
-          <TripStatusButtons tripId={tripId} currentStatus={trip.status} showAdminStatuses={true} invoiceForm={invoiceForm} />
-        </div>
-
-        {/* КНОПКИ РЕДАКТИРОВАНИЯ */}
-        <div className="flex flex-wrap gap-2 mb-4">
-          <Link
-            href={`/trips/${tripId}/edit`}
-            className="btn btn-secondary text-sm flex-1 sm:flex-none"
-          >
-            <Pencil className="w-4 h-4" strokeWidth={2} />
-            {t('trip.edit')}
-          </Link>
-          <SyncLogisatButton
-            tripId={tripId}
-            disabled={!trip.trip_number}
-            disabledHint={t('trip.logisatNeedTruck')}
-          />
-          <form action={deleteTrip.bind(null, tripId)} className="flex-1 sm:flex-none">
-            <button type="submit" className="btn btn-danger text-sm w-full">
-              <Trash2 className="w-4 h-4" strokeWidth={2} />
-              {t('trip.delete')}
-            </button>
-          </form>
-        </div>
-
-        {/* ТЕЛЕМЕТРИЯ */}
-        <div className="bg-slate-50 rounded-xl p-3 md:p-4 mb-4">
-          <form action={handleSaveTelemetry.bind(null, tripId)} className="flex flex-wrap gap-3 items-end">
-            <div className="flex-1 min-w-[120px]">
-              <label className="block text-xs font-medium text-slate-500 mb-1">{t('trip.mileageKm')}</label>
-              <input type="number" name="km" step="0.01" placeholder={trip.actual_km?.toString() || '0'} className="input py-1.5 text-sm" />
+          <div className="flex flex-wrap items-center gap-2 pt-4 border-t border-slate-100">
+            <TripStatusButtons tripId={tripId} currentStatus={trip.status} showAdminStatuses={true} invoiceForm={invoiceForm} compact />
+            <div className="flex items-center gap-2 ml-auto">
+              <Link href={`/trips/${tripId}/edit`} className="btn btn-secondary text-sm">
+                <Pencil className="w-4 h-4" strokeWidth={2} />
+                {t('trip.edit')}
+              </Link>
+              <MoreMenu label={t('trip.moreActions')}>
+                <SyncLogisatButton
+                  tripId={tripId}
+                  disabled={!trip.trip_number}
+                  disabledHint={t('trip.logisatNeedTruck')}
+                  className={menuItemClass}
+                />
+                <form action={deleteTrip.bind(null, tripId)}>
+                  <ConfirmSubmit
+                    message={t('trip.deleteConfirm', { n: String(trip.trip_number ?? '—') })}
+                    className={`${menuItemClass} text-red-600 hover:bg-red-50`}
+                  >
+                    <Trash2 className="w-4 h-4" strokeWidth={2} />
+                    {t('trip.delete')}
+                  </ConfirmSubmit>
+                </form>
+              </MoreMenu>
             </div>
-            <div className="flex-1 min-w-[120px]">
-              <label className="block text-xs font-medium text-slate-500 mb-1">{t('trip.fuelL')}</label>
-              <input type="number" name="liters" step="0.01" placeholder={trip.actual_liters?.toString() || '0'} className="input py-1.5 text-sm" />
-            </div>
-            <SubmitButton
-              className="w-full sm:w-auto px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg transition-all"
-              pendingText="…"
-            >
-              {t('common.save')}
-            </SubmitButton>
-          </form>
-          {trip.actual_km && trip.actual_km > 0 && (
-            <div className="text-xs text-slate-500 mt-2 flex items-center gap-2">
-              <span>{t('trip.current')} <b className="tabular-nums">{trip.actual_km} {t('units.km')} / {trip.actual_liters} {t('units.l')}</b></span>
-              <span className={`font-bold ${fuelLeftIsCritical ? 'text-red-600' : fuelLeftIsNegative ? 'text-amber-600' : 'text-brand-600'}`}>
-                {t('trip.fuelLeft', { n: fuelLeft.toFixed(1) })}
-              </span>
-            </div>
-          )}
-        </div>
-        </>
+          </div>
         )}
       </div>
     </div>

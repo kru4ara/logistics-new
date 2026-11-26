@@ -12,6 +12,7 @@ import ExpensesList from '../ExpensesList';
 import { buildRouteMap, type SegmentRouteRow } from '../../../lib/trip-route';
 import { buildDriverTaskText } from '../../../lib/trip-task-text';
 import TripHeader from './TripHeader';
+import TripTelemetry from './TripTelemetry';
 import TripInfo from './TripInfo';
 import TripEconomics from './TripEconomics';
 import { getScope, applyTripScope } from '../../../lib/scope';
@@ -651,6 +652,16 @@ export default async function TripDetailPage({
 
         {tab === 'expenses' && (
           <div className="space-y-5">
+            {!readOnly && (
+              <TripTelemetry
+                tripId={tripId}
+                actualKm={trip.actual_km ?? null}
+                actualLiters={trip.actual_liters ?? null}
+                fuelLeft={fuelLeft}
+                fuelLeftIsNegative={fuelLeftIsNegative}
+                fuelLeftIsCritical={fuelLeftIsCritical}
+              />
+            )}
             <ExpensesList
               expenses={expenses || []}
               segments={segments}

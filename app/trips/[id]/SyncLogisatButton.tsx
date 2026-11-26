@@ -26,10 +26,13 @@ export default function SyncLogisatButton({
   tripId,
   disabled = false,
   disabledHint,
+  className,
 }: {
   tripId: string;
   disabled?: boolean;
   disabledHint?: string;
+  /** свой вид кнопки (пункт меню «…»); без него — прежняя зелёная кнопка */
+  className?: string;
 }) {
   const { t } = useT();
   const router = useRouter();
@@ -85,14 +88,14 @@ export default function SyncLogisatButton({
         onClick={handleSync}
         disabled={isPending || disabled}
         title={disabled ? disabledHint : undefined}
-        className={`flex-1 sm:flex-none px-4 py-2 rounded-lg border font-medium text-sm transition-all
+        className={className ?? `flex-1 sm:flex-none px-4 py-2 rounded-lg border font-medium text-sm transition-all
           flex items-center justify-center gap-1.5
           ${disabled
             ? 'border-slate-200 text-slate-400 bg-slate-50 cursor-not-allowed'
             : 'border-emerald-300 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 active:scale-[0.98] disabled:opacity-50'}`}
       >
         <RadioTower className="w-4 h-4" />
-        <span>GPS</span>
+        <span>{className ? t('trip.gpsSync') : 'GPS'}</span>
       </button>
 
       {isOpen && (
