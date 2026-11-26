@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Download, Loader2 } from 'lucide-react';
 import { useT } from '../../components/I18nProvider';
+import { notify } from '../../components/Dialogs';
 
 export default function SegmentDocxButton({
   tripId,
@@ -28,7 +29,7 @@ export default function SegmentDocxButton({
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: '' }));
-        alert(err.error || t('seg.genFailed'));
+        notify(err.error || t('seg.genFailed'), 'error');
         return;
       }
 
@@ -42,7 +43,7 @@ export default function SegmentDocxButton({
       document.body.removeChild(a);
       URL.revokeObjectURL(downloadUrl);
     } catch (e) {
-      alert(`${(e as Error).message}`);
+      notify((e as Error).message, 'error');
     } finally {
       setIsLoading(false);
     }

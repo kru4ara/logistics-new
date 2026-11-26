@@ -25,6 +25,7 @@ import { deleteSegment } from './segment-actions';
 import { useT } from '../../components/I18nProvider';
 import { formatDate } from '../../../lib/i18n/format';
 import type { MessageKey } from '../../../lib/i18n/translate';
+import { confirmDialog, notify } from '../../components/Dialogs';
  
 type Location = {
   id: string;
@@ -210,15 +211,15 @@ export default function TripSegmentsBlock({
     setEditingId(null);
   }
 
-  function handleDelete(id: string, position: number) {
-    if (!confirm(t('seg.deleteConfirm', { n: position }))) return;
+  async function handleDelete(id: string, position: number) {
+    if (!(await confirmDialog(t('seg.deleteConfirm', { n: position }), { danger: true }))) return;
     setIsDeletingId(id);
     startTransition(async () => {
       try {
         await deleteSegment(id, tripId);
         router.refresh();
       } catch (e) {
-        alert(t('trip.deleteError', { msg: (e as Error).message }));
+        notify(t('trip.deleteError', { msg: (e as Error).message }), 'error');
       } finally {
         setIsDeletingId(null);
       }

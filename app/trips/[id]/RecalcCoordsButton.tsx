@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { MapPin, Loader2 } from 'lucide-react';
 import { recalcTripCoords } from '../../trip-actions';
 import { useT } from '../../components/I18nProvider';
+import { notify } from '../../components/Dialogs';
 
 export default function RecalcCoordsButton({ tripId }: { tripId: string }) {
   const { t } = useT();
@@ -17,7 +18,7 @@ export default function RecalcCoordsButton({ tripId }: { tripId: string }) {
       if (res.success) {
         router.refresh();
       } else {
-        alert(t('trip.errorMsg', { msg: res.error ?? '' }));
+        notify(t('trip.errorMsg', { msg: res.error ?? '' }), 'error');
       }
     });
   }

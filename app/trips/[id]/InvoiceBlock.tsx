@@ -9,6 +9,7 @@ import { changeTripStatus } from '../../driver/trip-status-actions';
 import { TAX_RATES, type TaxRate, type NpKind } from '../../../lib/invoice-rules';
 import { ksefStateOf, type KsefState, type ProviderInfo } from '../../../lib/invoicing/types';
 import type { MessageKey } from '../../../lib/i18n/translate';
+import { confirmDialog } from '../../components/Dialogs';
 
 type Issued = {
   invoiceNumber: string | null;
@@ -144,8 +145,8 @@ export default function InvoiceBlock({ tripId, provider, issued, defaults, clien
             <button
               type="button"
               disabled={isPending}
-              onClick={() => {
-                if (window.confirm(t('inv.cancelConfirm', { number: issued.invoiceNumber ?? '—', provider: provider.name }))) {
+              onClick={async () => {
+                if (await confirmDialog(t('inv.cancelConfirm', { number: issued.invoiceNumber ?? '—', provider: provider.name }), { danger: true })) {
                   run(() => cancelInvoice(tripId));
                 }
               }}
@@ -272,8 +273,8 @@ export default function InvoiceBlock({ tripId, provider, issued, defaults, clien
       <button
         type="button"
         disabled={isPending}
-        onClick={() => {
-          if (window.confirm(t('inv.markOnlyConfirm'))) {
+        onClick={async () => {
+          if (await confirmDialog(t('inv.markOnlyConfirm'))) {
             startTransition(async () => {
               await changeTripStatus(tripId, 'invoiced');
             });

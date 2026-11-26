@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Mail, Loader2, X, Send } from 'lucide-react';
 import { useT } from '../components/I18nProvider';
 import { prepareReminder, sendReminder, type ReminderDraft } from './reminder-actions';
+import { notify } from '../components/Dialogs';
 
 export default function RemindButton({ clientId, clientName, lastSent }: { clientId: string; clientName: string; lastSent: string | null }) {
   const { t } = useT();
@@ -22,7 +23,7 @@ export default function RemindButton({ clientId, clientName, lastSent }: { clien
     startLoading(async () => {
       const d = await prepareReminder(clientId);
       if (!d.ok) {
-        alert(d.message);
+        notify(d.message, 'error');
         return;
       }
       setDraft(d);
@@ -42,7 +43,7 @@ export default function RemindButton({ clientId, clientName, lastSent }: { clien
         return;
       }
       setDraft(null);
-      alert([t('dun.sent', { to }), res.warning].filter(Boolean).join('\n'));
+      notify([t('dun.sent', { to }), res.warning].filter(Boolean).join('\n'), res.warning ? 'info' : 'success');
       router.refresh();
     });
 

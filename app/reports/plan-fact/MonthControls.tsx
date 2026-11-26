@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Lock, LockOpen, Loader2, Check } from 'lucide-react';
 import { useT } from '../../components/I18nProvider';
 import { closeMonth, reopenMonth, applyClosedCost } from './actions';
+import { confirmDialog } from '../../components/Dialogs';
 
 function useRun() {
   const router = useRouter();
@@ -28,8 +29,8 @@ export function CloseMonthButton({ month, closed, label }: { month: string; clos
       <button
         type="button"
         disabled={isPending}
-        onClick={() => {
-          if (!window.confirm(t(closed ? 'pf.reopenConfirm' : 'pf.closeConfirm', { month: label }))) return;
+        onClick={async () => {
+          if (!(await confirmDialog(t(closed ? 'pf.reopenConfirm' : 'pf.closeConfirm', { month: label })))) return;
           run(() => (closed ? reopenMonth(month) : closeMonth(month)));
         }}
         className={`btn text-sm disabled:opacity-50 ${closed ? 'btn-secondary' : 'btn-primary'}`}

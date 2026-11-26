@@ -6,6 +6,7 @@ import { Loader2, Link2, CheckCircle2, Undo2, DownloadCloud, Trash2 } from 'luci
 import { useT } from '../components/I18nProvider';
 import { syncPurchasesNow, linkPurchase, linkPurchaseToTrip, linkPurchaseToTrips, unlinkPurchase, setPurchasePaid, deleteManualPurchase, deleteManualTripExpense, dismissTripDouble } from './actions';
 import { matchesQuery, splitEvenly, validateAllocations, type Allocation } from '../../lib/payables/trip-rules';
+import { confirmDialog } from '../components/Dialogs';
 
 type Res = { ok: boolean; message?: string };
 
@@ -189,8 +190,8 @@ export function LinkPurchaseForm({ invoiceId, segments, suggestedSegments, trips
       if (!r.conflicts?.length) return r;
       // В рейсах уже есть ручные записи этого расхода — заменить долями счёта или оставить.
       const list = r.conflicts.map((c) => `№${c.trip}: ${c.text}`).join('\n');
-      if (window.confirm(t('payx5.replaceManual', { list }))) return toTrips('replace');
-      if (window.confirm(t('payx5.keepManual'))) return toTrips('keep');
+      if (await confirmDialog(t('payx5.replaceManual', { list }))) return toTrips('replace');
+      if (await confirmDialog(t('payx5.keepManual'))) return toTrips('keep');
       return { ok: true };
     });
   const tab = (m: Mode, label: string) => (
@@ -307,7 +308,7 @@ export function DeleteManualButton({ invoiceId }: { invoiceId: string }) {
   return (
     <span className="inline-flex flex-col items-end">
       <button type="button" disabled={isPending}
-        onClick={() => window.confirm(t('payx.confirmDelete')) && run(() => deleteManualPurchase(invoiceId))}
+        onClick={async () => (await confirmDialog(t('payx.confirmDelete'), { danger: true })) && run(() => deleteManualPurchase(invoiceId))}
         className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold text-red-600 border border-red-200 bg-red-50 hover:bg-red-100 disabled:opacity-50">
         {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
         {t('payx.deleteManual')}
@@ -327,8 +328,8 @@ export function TripDoubleActions({ manualId }: { manualId: string }) {
         <button
           type="button"
           disabled={isPending}
-          onClick={() => {
-            if (window.confirm(t('payx5.deleteManualConfirm'))) run(() => deleteManualTripExpense(manualId));
+          onClick={async () => {
+            if (await confirmDialog(t('payx5.deleteManualConfirm'), { danger: true })) run(() => deleteManualTripExpense(manualId));
           }}
           className="text-xs font-semibold text-red-600 hover:underline disabled:opacity-50 whitespace-nowrap"
         >

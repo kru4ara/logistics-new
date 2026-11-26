@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { MapPin, Loader2 } from 'lucide-react';
 import { recalcAllTripsCoords } from '../trip-actions';
 import { useT } from '../components/I18nProvider';
+import { confirmDialog, notify } from '../components/Dialogs';
 
 const BATCH_SIZE = 20;
 
@@ -15,13 +16,13 @@ export default function RecalcAllCoordsButton({ tripIds }: { tripIds: string[] }
   const [progress, setProgress] = useState<{ done: number; total: number; failed: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  function handleClick() {
+  async function handleClick() {
     if (tripIds.length === 0) {
-      alert(t('trips.recalcEmpty'));
+      notify(t('trips.recalcEmpty'));
       return;
     }
 
-    const confirmed = confirm(
+    const confirmed = await confirmDialog(
       t('trips.recalcConfirm', { n: tripIds.length, sec: Math.ceil(tripIds.length * 2), batch: BATCH_SIZE })
     );
     if (!confirmed) return;

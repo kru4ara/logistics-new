@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Loader2, Link2 } from 'lucide-react';
 import { useT } from '../../components/I18nProvider';
 import { closeTripGap, closeAllTripGaps, keepTripAsIs } from './actions';
+import { confirmDialog } from '../../components/Dialogs';
 
 export function CloseGapButton({ tripId }: { tripId: string }) {
   const { t } = useT();
@@ -43,8 +44,8 @@ export function CloseAllGapsButton({ tripIds }: { tripIds: string[] }) {
       <button
         type="button"
         disabled={isPending || tripIds.length === 0}
-        onClick={() => {
-          if (!window.confirm(t('chain.closeAllConfirm', { n: tripIds.length }))) return;
+        onClick={async () => {
+          if (!(await confirmDialog(t('chain.closeAllConfirm', { n: tripIds.length })))) return;
           start(async () => {
             const r = await closeAllTripGaps(tripIds);
             setMsg([t('chain.fixedN', { n: r.fixed ?? 0 }), r.message].filter(Boolean).join(' · '));
@@ -72,8 +73,8 @@ export function KeepAsIsButton({ tripId }: { tripId: string }) {
       <button
         type="button"
         disabled={isPending}
-        onClick={() => {
-          if (!window.confirm(t('chain.keepConfirm'))) return;
+        onClick={async () => {
+          if (!(await confirmDialog(t('chain.keepConfirm')))) return;
           start(async () => {
             const r = await keepTripAsIs(tripId);
             setErr(r.ok ? null : r.message ?? null);

@@ -18,6 +18,7 @@ import {
 import CargoForm from './CargoForm';
 import { deleteCargo } from './cargo-actions';
 import { useT } from '../../components/I18nProvider';
+import { confirmDialog, notify } from '../../components/Dialogs';
 
 type Location = {
   id: string;
@@ -122,15 +123,15 @@ export default function TripCargoBlock({
     setEditingId(null);
   }
 
-  function handleDelete(id: string, label: string) {
-    if (!confirm(t('trip.cargoDeleteConfirm', { label }))) return;
+  async function handleDelete(id: string, label: string) {
+    if (!(await confirmDialog(t('trip.cargoDeleteConfirm', { label }), { danger: true }))) return;
     setIsDeletingId(id);
     startTransition(async () => {
       try {
         await deleteCargo(id, tripId);
         router.refresh();
       } catch (e) {
-        alert(t('trip.deleteError', { msg: (e as Error).message }));
+        notify(t('trip.deleteError', { msg: (e as Error).message }), 'error');
       } finally {
         setIsDeletingId(null);
       }

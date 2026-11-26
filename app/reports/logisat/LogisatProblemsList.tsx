@@ -22,6 +22,7 @@ import { tripStatusKey } from '../../../lib/i18n/labels';
 import type { MessageKey } from '../../../lib/i18n/translate';
 import { tPlural } from '../../../lib/i18n/translate';
 import { INTL_LOCALE, type Locale } from '../../../lib/i18n/config';
+import { confirmDialog } from '../../components/Dialogs';
 
 export type TripRow = {
   id: string;
@@ -145,10 +146,10 @@ export default function LogisatProblemsList({
   const visibleItems = showAll ? items : items.slice(0, INITIAL_VISIBLE);
   const hiddenCount = Math.max(0, items.length - INITIAL_VISIBLE);
 
-  function handleBulkSync() {
+  async function handleBulkSync() {
     const activeIds = items.map((t) => t.id);
     if (activeIds.length === 0) return;
-    if (!confirm(tr('rep.lsConfirm', { what: tPlural(tr, locale, 'plural.trip', activeIds.length) }))) return;
+    if (!(await confirmDialog(tr('rep.lsConfirm', { what: tPlural(tr, locale, 'plural.trip', activeIds.length) })))) return;
 
     setBulkStatus(tr('rep.lsSyncing'));
     startTransition(async () => {
