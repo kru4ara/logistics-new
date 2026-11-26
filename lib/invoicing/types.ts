@@ -66,3 +66,10 @@ export class InvoicingError extends Error {
     super(message);
   }
 }
+
+/**
+ * Фактура уже в KSeF: сервис не даёт её менять, оплату там отмечают только
+ * вручную из списка документов. Для CRM это не ошибка — оплата в CRM стоит.
+ */
+export const KSEF_LOCKED = 'ksefLocked';
+export const isKsefLocked = (e: unknown): boolean => e instanceof InvoicingError && e.message === KSEF_LOCKED;

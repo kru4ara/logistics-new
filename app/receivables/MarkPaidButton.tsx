@@ -18,7 +18,7 @@ export default function MarkPaidButton({ tripId, tripNumber }: { tripId: string;
         if (!confirm(t('recv.markConfirm', { n: tripNumber }))) return;
         startTransition(async () => {
           const res = await markTripPaid(tripId);
-          if (!res.ok && res.message) alert(res.message);
+          if (res.message) alert(res.message);
           router.refresh();
         });
       }}

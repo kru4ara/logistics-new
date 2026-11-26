@@ -1774,6 +1774,7 @@ export const en: Messages = {
     help3: 'Records already in the system (by name, first and last name, or registration number) are not duplicated.',
   },
   recv: {
+    paidKsefManual: "Payment recorded in the CRM. The invoice is already in KSeF, so Fakturowo does not allow marking it paid via the API — if needed, mark it there manually: Dokumenty → Wszystkie → oznacz płatność.",
     payments: 'Payments on the invoice (from statements)',
     paymentsNone: 'No payments from bank statements yet.',
     ofPayment: 'of a {sum} payment',

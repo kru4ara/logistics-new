@@ -1774,6 +1774,7 @@ export const pl: Messages = {
     help3: 'Wpisy, które już są w systemie (po nazwie, imieniu i nazwisku lub numerze rejestracyjnym), nie są dublowane.',
   },
   recv: {
+    paidKsefManual: "Płatność oznaczona w CRM. Faktura jest już w KSeF, więc Fakturowo nie pozwala oznaczyć płatności przez API — w razie potrzeby oznacz ją ręcznie: Dokumenty → Wszystkie → oznacz płatność.",
     payments: 'Wpłaty na fakturę (z wyciągu)',
     paymentsNone: 'Brak wpłat z wyciągów bankowych.',
     ofPayment: 'z płatności {sum}',
