@@ -185,35 +185,35 @@ export default async function RemindersPage({
         </div>
 
         {/* Счётчики */}
-        <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-3">
-          <div className="card p-4 md:p-5">
+        <div className="grid gap-2 md:gap-4 grid-cols-3">
+          <div className="card p-3 md:p-5 min-w-0">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs md:text-sm font-medium text-slate-500">{tr('rem.expired')}</span>
-              <div className="w-9 h-9 rounded-xl bg-red-50 flex items-center justify-center">
+              <div className="hidden md:flex w-9 h-9 rounded-xl bg-red-50 items-center justify-center">
                 <AlertTriangle className="w-4 h-4 text-red-600" strokeWidth={2.2} />
               </div>
             </div>
-            <div className="text-2xl md:text-3xl font-bold text-red-600 tabular-nums">{expiredCount}</div>
+            <div className="text-xl md:text-3xl font-bold text-red-600 tabular-nums">{expiredCount}</div>
           </div>
 
-          <div className="card p-4 md:p-5">
+          <div className="card p-3 md:p-5 min-w-0">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs md:text-sm font-medium text-slate-500">{tr('rem.soon30')}</span>
-              <div className="w-9 h-9 rounded-xl bg-orange-50 flex items-center justify-center">
+              <div className="hidden md:flex w-9 h-9 rounded-xl bg-orange-50 items-center justify-center">
                 <Clock className="w-4 h-4 text-orange-600" strokeWidth={2.2} />
               </div>
             </div>
-            <div className="text-2xl md:text-3xl font-bold text-orange-500 tabular-nums">{soonCount}</div>
+            <div className="text-xl md:text-3xl font-bold text-orange-500 tabular-nums">{soonCount}</div>
           </div>
 
-          <div className="card p-4 md:p-5">
+          <div className="card p-3 md:p-5 min-w-0">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs md:text-sm font-medium text-slate-500">{tr('rem.ok')}</span>
-              <div className="w-9 h-9 rounded-xl bg-green-50 flex items-center justify-center">
+              <div className="hidden md:flex w-9 h-9 rounded-xl bg-green-50 items-center justify-center">
                 <CheckCircle2 className="w-4 h-4 text-green-600" strokeWidth={2.2} />
               </div>
             </div>
-            <div className="text-2xl md:text-3xl font-bold text-emerald-600 tabular-nums">{okCount}</div>
+            <div className="text-xl md:text-3xl font-bold text-emerald-600 tabular-nums">{okCount}</div>
           </div>
         </div>
 

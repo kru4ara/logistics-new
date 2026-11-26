@@ -731,6 +731,7 @@ export const pl: Messages = {
     address_other: '{n} zapisanego adresu',
   },
   dir: {
+    deleteClientConfirm: "Usunąć klienta „{name}”? Zlecenia klienta zostaną, ale bez powiązania.",
     loadError: 'Błąd ładowania:',
     error: 'Błąd:',
     mergeErrSelf: 'Nie można połączyć klienta z nim samym',

@@ -731,6 +731,7 @@ export const en: Messages = {
     address_other: '{n} saved addresses',
   },
   dir: {
+    deleteClientConfirm: "Delete client “{name}”? Their orders stay, but unlinked.",
     loadError: 'Loading error:',
     error: 'Error:',
     mergeErrSelf: 'A client cannot be merged with itself',

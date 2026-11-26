@@ -244,8 +244,8 @@ export default async function PayablesPage({ searchParams }: { searchParams: Pro
           </div>
         )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="card p-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div className="card p-4 col-span-2 sm:col-span-1">
             <div className="text-xs text-slate-500">{t('pay.kpiUnpaid')}</div>
             <div className="text-xl font-bold text-slate-900 tabular-nums">
               {sum.unpaidByCurrency.length ? sum.unpaidByCurrency.map((c) => money(c.amount, c.currency)).join(' · ') : '—'}

@@ -731,6 +731,7 @@ export const uk: Messages = {
     address_other: '{n} типової адреси',
   },
   dir: {
+    deleteClientConfirm: "Видалити клієнта «{name}»? Замовлення клієнта залишаться, але без прив’язки.",
     loadError: 'Помилка завантаження:',
     error: 'Помилка:',
     mergeErrSelf: 'Не можна об’єднати клієнта із самим собою',

@@ -205,8 +205,8 @@ export default async function ReceivablesPage() {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="card p-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div className="card p-4 col-span-2 sm:col-span-1">
                 <div className="text-xs text-slate-500">{t('recv.total')}</div>
                 <div className="text-2xl font-bold text-slate-900 tabular-nums">{eur(s.total)}</div>
                 <div className="text-xs text-slate-400">{t('recv.invoices', { n: s.count })}</div>
