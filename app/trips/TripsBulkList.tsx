@@ -344,8 +344,8 @@ export default function TripsBulkList({
                 <th className="px-3 py-2 font-medium">№</th>
                 <th className="px-3 py-2 font-medium">{t('trips.colClient')}</th>
                 <th className="px-3 py-2 font-medium">{t('trips.colRoute')}</th>
-                <th className="px-3 py-2 font-medium">{t('trips.start')}</th>
-                <th className="px-3 py-2 font-medium">{t('trips.finish')}</th>
+                <th className="px-3 py-2 font-medium">{t('trips.start').replace(/:\s*$/, '')}</th>
+                <th className="px-3 py-2 font-medium">{t('trips.finish').replace(/:\s*$/, '')}</th>
                 <th className="px-3 py-2 font-medium">{t('trips.status')}</th>
                 <th className="px-3 py-2 font-medium text-right">{t('trips.freight')}</th>
                 <th className="px-3 py-2 font-medium text-right">{t('trips.expenses')}</th>
