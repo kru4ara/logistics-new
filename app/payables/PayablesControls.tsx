@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, Link2, CheckCircle2, Undo2, DownloadCloud, Trash2 } from 'lucide-react';
+import { Loader2, Link2, CheckCircle2, Undo2, DownloadCloud, Trash2, X } from 'lucide-react';
 import { useT } from '../components/I18nProvider';
 import { syncPurchasesNow, linkPurchase, linkPurchaseToTrip, linkPurchaseToTrips, unlinkPurchase, setPurchasePaid, deleteManualPurchase, deleteManualTripExpense, dismissTripDouble } from './actions';
 import { matchesQuery, splitEvenly, validateAllocations, type Allocation } from '../../lib/payables/trip-rules';
@@ -34,14 +34,15 @@ export function SyncPurchasesButton() {
         {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <DownloadCloud className="w-4 h-4" />}
         {t('pay.sync')}
       </button>
-      <div className="flex items-center gap-1.5 text-xs text-slate-500">
-        <span>{t('pay.backfill')}</span>
-        <input type="date" value={since} onChange={(e) => setSince(e.target.value)} className="input text-xs py-1 px-2 w-36" />
-        <button type="button" disabled={isPending || !since} onClick={() => run(() => syncPurchasesNow(since))}
-          className="btn btn-secondary text-xs px-2 py-1 disabled:opacity-50">{t('pay.backfillGo')}</button>
-      </div>
+      <details className="text-xs text-slate-500">
+        <summary className="cursor-pointer list-none hover:text-slate-700">{t('pay.syncAuto')} · {t('pay.backfill')}…</summary>
+        <div className="mt-1 flex items-center gap-1.5">
+          <input type="date" value={since} onChange={(e) => setSince(e.target.value)} aria-label={t('pay.backfill')} className="input text-xs py-1 px-2 w-36" />
+          <button type="button" disabled={isPending || !since} onClick={() => run(() => syncPurchasesNow(since))}
+            className="btn btn-secondary text-xs px-2 py-1 disabled:opacity-50">{t('pay.backfillGo')}</button>
+        </div>
+      </details>
       {msg && <p className={`text-xs max-w-md ${msg.ok ? 'text-slate-600' : 'text-red-600'}`}>{msg.text}</p>}
-      <p className="text-[11px] text-slate-400">{t('pay.syncAuto')}</p>
     </div>
   );
 }
@@ -263,22 +264,34 @@ export function PurchasePaidButton({ invoiceId, paid }: { invoiceId: string; pai
   const { t } = useT();
   const { isPending, msg, run } = useAction();
   const [date, setDate] = useState(todayIso);
+  // Дата оплаты нужна только в момент отметки: в строке одна кнопка, поле — по нажатию.
+  const [picking, setPicking] = useState(false);
   const btn = `inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold border whitespace-nowrap disabled:opacity-50 ${
     paid ? 'text-slate-600 bg-white border-slate-200 hover:bg-slate-50' : 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border-emerald-200'
   }`;
   return (
     <div className="flex flex-col items-end gap-1">
-      <div className="flex items-center justify-end gap-1.5">
-        {!paid && (
-          <input type="date" value={date} max={todayIso()} onChange={(e) => setDate(e.target.value)}
+      {!paid && picking ? (
+        <div className="flex items-center justify-end gap-1.5">
+          <input type="date" value={date} max={todayIso()} onChange={(e) => setDate(e.target.value)} autoFocus
             aria-label={t('payx.paidDate')} className="input text-xs py-1 px-2 w-[8.5rem]" />
-        )}
-        <button type="button" disabled={isPending || (!paid && !date)}
-          onClick={() => run(() => setPurchasePaid(invoiceId, !paid, paid ? undefined : date))} className={btn}>
+          <button type="button" disabled={isPending || !date} className={btn}
+            onClick={() => run(() => setPurchasePaid(invoiceId, true, date))}>
+            {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+            {t('common.save')}
+          </button>
+          <button type="button" onClick={() => setPicking(false)} aria-label={t('common.cancel')}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      ) : (
+        <button type="button" disabled={isPending}
+          onClick={() => (paid ? run(() => setPurchasePaid(invoiceId, false)) : setPicking(true))} className={btn}>
           {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : paid ? <Undo2 className="w-3.5 h-3.5" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
           {paid ? t('pay.unpay') : t('pay.markPaid')}
         </button>
-      </div>
+      )}
       {msg && !msg.ok && <p className="text-xs text-red-600">{msg.text}</p>}
     </div>
   );
