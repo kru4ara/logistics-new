@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { bulkSetStatus, bulkDelete } from './bulk-actions';
 import { formatEur } from '../../lib/i18n/format';
+import { confirmDialog } from '../components/Dialogs';
 
 export type TripCardData = {
   id: string;
@@ -136,10 +137,10 @@ export default function TripsBulkList({
     });
   }
 
-  function handleDelete() {
+  async function handleDelete() {
     if (selected.size === 0) return;
     const count = tPlural(t, locale, 'plural.trip', selected.size);
-    if (!confirm(t('trips.confirmDelete', { count }))) return;
+    if (!(await confirmDialog(t('trips.confirmDelete', { count }), { danger: true }))) return;
     setError(null);
     const ids = Array.from(selected);
     startTransition(async () => {

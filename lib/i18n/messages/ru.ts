@@ -4,6 +4,9 @@
  */
 export const ru = {
   common: {
+    cancel: 'Отмена',
+    confirm: 'Подтвердить',
+    close: 'Закрыть',
     save: 'Сохранить',
     saved: 'Сохранено',
     language: 'Язык',

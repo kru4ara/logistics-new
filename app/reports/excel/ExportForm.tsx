@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useT } from '../../components/I18nProvider';
 import type { MessageKey } from '../../../lib/i18n/translate';
+import { notify } from '../../components/Dialogs';
 
 type ExportType = 'trips' | 'expenses' | 'forwarding' | 'clients';
 type ExportFormat = 'xlsx' | 'csv';
@@ -83,7 +84,7 @@ export default function ExportForm() {
     if (isPeriodless) return;
     if (from > to) {
       e.preventDefault();
-      alert(t('rep.xlBadRange'));
+      notify(t('rep.xlBadRange'), 'error');
     }
   }
 

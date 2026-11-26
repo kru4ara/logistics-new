@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Loader2, ShieldCheck, ShieldOff, ShieldPlus } from 'lucide-react';
 import { useT } from '../../components/I18nProvider';
 import { startTotpEnroll, confirmTotpEnroll, disableTotp, type EnrollStart } from './actions';
+import { confirmDialog } from '../../components/Dialogs';
 
 export default function SecurityPanel({ enabled, canDisable }: { enabled: boolean; canDisable: boolean }) {
   const { t } = useT();
@@ -38,7 +39,7 @@ export default function SecurityPanel({ enabled, canDisable }: { enabled: boolea
 
   const disable = () =>
     start(async () => {
-      if (!window.confirm(t('mfa.disableConfirm'))) return;
+      if (!(await confirmDialog(t('mfa.disableConfirm'), { danger: true }))) return;
       const r = await disableTotp();
       setMessage(r.ok ? null : { ok: false, text: r.message ?? '' });
       router.refresh();

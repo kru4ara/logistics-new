@@ -2,6 +2,9 @@ import type { Messages } from '../translate';
 
 export const pl: Messages = {
   common: {
+    cancel: 'Anuluj',
+    confirm: 'Potwierdź',
+    close: 'Zamknij',
     save: 'Zapisz',
     saved: 'Zapisano',
     language: 'Język',

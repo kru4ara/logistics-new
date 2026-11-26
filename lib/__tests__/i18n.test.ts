@@ -76,6 +76,7 @@ describe('словари', () => {
  * его файлы сюда, чтобы русский не вернулся.
  */
 const TRANSLATED_FILES = [
+  'app/components/Dialogs.tsx',
   'app/trips/[id]/TripGroup.tsx',
   'app/trips/[id]/TripGroupControls.tsx',
   'app/trips/[id]/group-actions.ts',

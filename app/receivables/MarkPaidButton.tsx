@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { CheckCircle2, Loader2 } from 'lucide-react';
 import { useT } from '../components/I18nProvider';
 import { markTripPaid } from './actions';
+import { confirmDialog, notify } from '../components/Dialogs';
 
 export default function MarkPaidButton({ tripId, tripNumber }: { tripId: string; tripNumber: string }) {
   const { t } = useT();
@@ -14,11 +15,11 @@ export default function MarkPaidButton({ tripId, tripNumber }: { tripId: string;
     <button
       type="button"
       disabled={isPending}
-      onClick={() => {
-        if (!confirm(t('recv.markConfirm', { n: tripNumber }))) return;
+      onClick={async () => {
+        if (!(await confirmDialog(t('recv.markConfirm', { n: tripNumber })))) return;
         startTransition(async () => {
           const res = await markTripPaid(tripId);
-          if (res.message) alert(res.message);
+          if (res.message) notify(res.message);
           router.refresh();
         });
       }}

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Plus, Loader2, Trash2 } from 'lucide-react';
 import { useT } from '../../components/I18nProvider';
 import { addManualPurchase, deleteManualPurchase } from '../../payables/actions';
+import { confirmDialog, notify } from '../../components/Dialogs';
 
 /** «Внести счёт» подрядчика к участку — для иностранцев (PDF по email) и всего, чего нет в KSeF. */
 export function AddManualInvoice({ segmentId, currency, currencies }: { segmentId: string | null; currency: string; currencies: string[] }) {
@@ -106,11 +107,11 @@ export function DeleteManualInvoice({ invoiceId, number }: { invoiceId: string; 
       type="button"
       disabled={isPending}
       title={t('pay.delete')}
-      onClick={() => {
-        if (!window.confirm(t('pay.deleteConfirm', { number }))) return;
+      onClick={async () => {
+        if (!(await confirmDialog(t('pay.deleteConfirm', { number }), { danger: true }))) return;
         start(async () => {
           const r = await deleteManualPurchase(invoiceId);
-          if (!r.ok && r.message) alert(r.message);
+          if (!r.ok && r.message) notify(r.message, 'error');
           router.refresh();
         });
       }}

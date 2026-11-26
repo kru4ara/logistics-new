@@ -3,6 +3,7 @@ import { Suspense } from 'react';
 import './globals.css';
 import AppShell from './components/AppShell';
 import Toaster from './components/Toaster';
+import DialogHost from './components/Dialogs';
 import ServiceWorkerRegister from './components/ServiceWorkerRegister';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import I18nProvider from './components/I18nProvider';
@@ -48,6 +49,7 @@ export default async function RootLayout({
           <Suspense fallback={null}>
             <Toaster />
           </Suspense>
+          <DialogHost />
           {isDemoMode() && <DemoBanner />}
           <AppShell>{children}</AppShell>
         </I18nProvider>

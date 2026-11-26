@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Globe, Copy, Loader2, Ban, RefreshCw, Check } from 'lucide-react';
 import { useT } from '../components/I18nProvider';
 import { createPortalLink, revokePortalLink } from './portal-actions';
+import { confirmDialog } from '../components/Dialogs';
 
 type Props = { clientId: string; active: { createdAt: string; lastSeen: string | null } | null };
 
@@ -57,16 +58,16 @@ export default function PortalLinkBlock({ clientId, active }: Props) {
       )}
 
       <div className="flex flex-wrap gap-2">
-        <button type="button" disabled={isPending} onClick={() => {
-          if (active && !window.confirm(t('portalAdm.reissueConfirm'))) return;
+        <button type="button" disabled={isPending} onClick={async () => {
+          if (active && !await confirmDialog(t('portalAdm.reissueConfirm'))) return;
           create();
         }} className="btn btn-primary text-xs px-3 py-1.5 disabled:opacity-50">
           {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : active ? <RefreshCw className="w-3.5 h-3.5" /> : <Globe className="w-3.5 h-3.5" />}
           {t(active ? 'portalAdm.reissue' : 'portalAdm.create')}
         </button>
         {active && (
-          <button type="button" disabled={isPending} onClick={() => {
-            if (!window.confirm(t('portalAdm.revokeConfirm'))) return;
+          <button type="button" disabled={isPending} onClick={async () => {
+            if (!(await confirmDialog(t('portalAdm.revokeConfirm'), { danger: true }))) return;
             start(async () => {
               const r = await revokePortalLink(clientId);
               if (!r.ok) setError(r.message ?? null);

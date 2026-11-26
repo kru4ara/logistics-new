@@ -2,6 +2,9 @@ import type { Messages } from '../translate';
 
 export const uk: Messages = {
   common: {
+    cancel: 'Скасувати',
+    confirm: 'Підтвердити',
+    close: 'Закрити',
     save: 'Зберегти',
     saved: 'Збережено',
     language: 'Мова',

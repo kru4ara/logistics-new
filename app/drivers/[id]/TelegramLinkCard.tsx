@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { MessageCircle, CheckCircle2, Copy, Check } from 'lucide-react';
 import { createDriverTelegramLink } from './telegram-link-actions';
 import { useT } from '../../components/I18nProvider';
+import { notify } from '../../components/Dialogs';
 
 export default function TelegramLinkCard({
   driverId,
@@ -40,7 +41,7 @@ export default function TelegramLinkCard({
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      alert(t('drvCard.copyFailed', { link: link ?? '' }));
+      notify(t('drvCard.copyFailed', { link: link ?? '' }), 'error');
     }
   }
 

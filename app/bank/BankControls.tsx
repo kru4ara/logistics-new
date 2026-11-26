@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Loader2, Upload, Check, Undo2, Ban, Trash2, Link2, CheckCheck, RefreshCw } from 'lucide-react';
 import { useT } from '../components/I18nProvider';
 import { uploadStatements, decideTransaction, acceptSuggestions, undoTransaction, deleteStatement, rematchTransactions } from './actions';
+import { confirmDialog } from '../components/Dialogs';
 
 export type PickOpt = { id: string; label: string; /** остаток к оплате заказа */ due?: number };
 type Cat = { value: string; label: string };
@@ -183,7 +184,7 @@ export function AcceptAllButton({ statementId, count }: { statementId: string | 
   return (
     <span className="inline-flex flex-col items-end gap-1">
       <button type="button" disabled={isPending}
-        onClick={() => window.confirm(t('bank.confirmAcceptAll', { n: count })) && run(() => acceptSuggestions(statementId))}
+        onClick={async () => (await confirmDialog(t('bank.confirmAcceptAll', { n: count }))) && run(() => acceptSuggestions(statementId))}
         className="btn btn-primary text-xs px-2.5 py-1.5 disabled:opacity-50">
         {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCheck className="w-3.5 h-3.5" />}
         {t('bank.acceptAll', { n: count })}
@@ -200,7 +201,7 @@ export function DeleteStatementButton({ statementId, label }: { statementId: str
   return (
     <>
       <button type="button" disabled={isPending} title={t('bank.deleteStatement')} aria-label={t('bank.deleteStatement')}
-        onClick={() => window.confirm(t('bank.confirmDelete', { label })) && run(() => deleteStatement(statementId))}
+        onClick={async () => (await confirmDialog(t('bank.confirmDelete', { label }), { danger: true })) && run(() => deleteStatement(statementId))}
         className="text-slate-400 hover:text-red-600 disabled:opacity-50">
         {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
       </button>

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
 import { useT } from '../components/I18nProvider';
 import { addOtherIncome, deleteOtherIncome } from './actions';
+import { confirmDialog } from '../components/Dialogs';
 
 type Opt = { value: string; label: string };
 
@@ -72,8 +73,8 @@ export function DeleteIncomeButton({ id, name }: { id: string; name: string }) {
         disabled={isPending}
         title={t('income.delete')}
         aria-label={t('income.delete')}
-        onClick={() => {
-          if (!window.confirm(t('income.confirmDelete', { name }))) return;
+        onClick={async () => {
+          if (!(await confirmDialog(t('income.confirmDelete', { name }), { danger: true }))) return;
           start(async () => {
             const r = await deleteOtherIncome(id);
             if (!r.ok) setErr(r.message ?? null);

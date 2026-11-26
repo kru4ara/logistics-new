@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Link2, Loader2, EyeOff } from 'lucide-react';
 import { useT } from '../components/I18nProvider';
 import { linkRemoteInvoice, ignoreRemoteInvoice, linkCorrection } from './actions';
+import { confirmDialog } from '../components/Dialogs';
 
 export type UnmatchedRow = {
   externalId: string;
@@ -62,10 +63,10 @@ function Row({ r, canEdit }: { r: UnmatchedRow; canEdit: boolean }) {
                   </optgroup>
                 )}
               </select>
-              <button type="button" disabled={isPending || !tripId} onClick={() => {
+              <button type="button" disabled={isPending || !tripId} onClick={async () => {
                   if (r.correction) { act(() => linkCorrection(r.externalId, tripId)); return; }
                   const rep = r.options.find((o) => o.id === tripId)?.replaces;
-                  if (rep && !window.confirm(t('recv2.confirmReplace', { old: rep, new: r.number }))) return;
+                  if (rep && !await confirmDialog(t('recv2.confirmReplace', { old: rep, new: r.number }))) return;
                   act(() => linkRemoteInvoice(r.externalId, tripId));
                 }}
                 className="btn btn-primary text-xs px-2.5 py-1.5 disabled:opacity-50">

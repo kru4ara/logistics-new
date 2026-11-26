@@ -27,6 +27,7 @@ import { sendReminderNotification } from './telegram-actions';
 import { useT } from '../components/I18nProvider';
 import { INTL_LOCALE } from '../../lib/i18n/config';
 import type { MessageKey } from '../../lib/i18n/translate';
+import { confirmDialog } from '../components/Dialogs';
 
 export type ReminderCardData = {
   id: string;
@@ -87,8 +88,8 @@ export default function ReminderCard({ r }: { r: ReminderCardData }) {
     daysLeft !== null && daysLeft < 30 ? t('drvCard.days', { n: daysLeft }) :
     daysLeft !== null ? t('drvCard.days', { n: daysLeft }) : '—';
 
-  function handleDelete() {
-    if (!confirm(t('rem.deleteConfirm', { title: r.title }))) return;
+  async function handleDelete() {
+    if (!(await confirmDialog(t('rem.deleteConfirm', { title: r.title }), { danger: true }))) return;
     startTransition(async () => {
       await deleteReminder(r.id);
     });
