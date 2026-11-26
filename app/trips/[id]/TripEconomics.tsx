@@ -1,5 +1,6 @@
 import { Wallet, Coins } from 'lucide-react';
 import { getT } from '../../../lib/i18n/server';
+import { formatEur } from '../../../lib/i18n/format';
 
 export default async function TripEconomics({
   trip,
@@ -25,7 +26,7 @@ export default async function TripEconomics({
         <div className="flex items-center justify-between gap-3 pb-3 border-b border-slate-100">
           <div className="text-sm font-medium text-slate-700">{t('trip.freight')}</div>
           <div className="text-lg font-bold text-green-600 tabular-nums">
-            {(trip.revenue_eur || 0).toFixed(2)} €
+            {formatEur(trip.revenue_eur || 0, 2)}
           </div>
         </div>
 
@@ -36,7 +37,7 @@ export default async function TripEconomics({
               {t('trip.contractors')}
             </div>
             <div className="text-lg font-bold text-red-600 tabular-nums">
-              −{contractorExpenses.toFixed(2)} €
+              −{formatEur(contractorExpenses, 2)}
             </div>
           </div>
         )}
@@ -45,7 +46,7 @@ export default async function TripEconomics({
           <div className="flex items-center justify-between gap-3 pb-3 border-b border-slate-100">
             <div className="text-sm font-medium text-slate-700">{t('trip.otherExpenses')}</div>
             <div className="text-lg font-bold text-red-600 tabular-nums">
-              −{otherExpenses.toFixed(2)} €
+              −{formatEur(otherExpenses, 2)}
             </div>
           </div>
         )}
@@ -53,7 +54,7 @@ export default async function TripEconomics({
         <div className="flex items-center justify-between gap-3 pt-2">
           <div className="text-base font-bold text-slate-900">{t('trip.profit')}</div>
           <div className={`text-2xl font-bold tabular-nums ${profit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-            {profit.toFixed(2)} €
+            {formatEur(profit, 2)}
           </div>
         </div>
       </div>

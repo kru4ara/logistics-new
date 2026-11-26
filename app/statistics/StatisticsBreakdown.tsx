@@ -1,6 +1,7 @@
 import { Truck, Package } from 'lucide-react';
 import type { YearTotals } from '../../lib/statistics';
 import { getT } from '../../lib/i18n/server';
+import { formatEur } from '../../lib/i18n/format';
 
 export default async function StatisticsBreakdown({
   yearTotals,
@@ -26,20 +27,20 @@ export default async function StatisticsBreakdown({
           </div>
           <div className="flex justify-between items-center gap-2">
             <span className="text-slate-600">{t('stat.freightIncome')}</span>
-            <span className="font-bold text-green-600 break-words text-right tabular-nums">{yearTotals.tripRevenue.toFixed(0)} €</span>
+            <span className="font-bold text-green-600 break-words text-right tabular-nums">{formatEur(yearTotals.tripRevenue)}</span>
           </div>
           <div className="flex justify-between items-center gap-2">
             <span className="text-slate-600">{t('stat.directExp')}</span>
-            <span className="font-bold text-red-500 break-words text-right tabular-nums">−{yearTotals.directExpenses.toFixed(0)} €</span>
+            <span className="font-bold text-red-500 break-words text-right tabular-nums">−{formatEur(yearTotals.directExpenses)}</span>
           </div>
           <div className="flex justify-between items-center gap-2 pt-3 border-t border-slate-100">
             <span className="text-slate-700 font-semibold">{t('stat.tripProfit')}</span>
             <span className={`font-bold break-words text-right tabular-nums ${tripProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-              {tripProfit.toFixed(0)} €
+              {formatEur(tripProfit)}
             </span>
           </div>
           <div className="text-xs text-slate-400">
-            {t('stat.avgTrip')}{' '}<b className="text-slate-600 tabular-nums">{avgProfitPerTrip.toFixed(0)} €</b>
+            {t('stat.avgTrip')}{' '}<b className="text-slate-600 tabular-nums">{formatEur(avgProfitPerTrip)}</b>
           </div>
         </div>
       </div>
@@ -56,22 +57,22 @@ export default async function StatisticsBreakdown({
           </div>
           <div className="flex justify-between items-center gap-2">
             <span className="text-slate-600">{t('stat.clientIncome')}</span>
-            <span className="font-bold text-green-600 break-words text-right tabular-nums">{yearTotals.forwardingClientSum.toFixed(0)} €</span>
+            <span className="font-bold text-green-600 break-words text-right tabular-nums">{formatEur(yearTotals.forwardingClientSum)}</span>
           </div>
           <div className="flex justify-between items-center gap-2">
             <span className="text-slate-600">{t('stat.toCarriers')}</span>
-            <span className="font-bold text-red-500 break-words text-right tabular-nums">−{yearTotals.forwardingContractorSum.toFixed(0)} €</span>
+            <span className="font-bold text-red-500 break-words text-right tabular-nums">−{formatEur(yearTotals.forwardingContractorSum)}</span>
           </div>
           {yearTotals.forwardingExtraExpenses > 0 && (
             <div className="flex justify-between items-center gap-2">
               <span className="text-slate-600">{t('stat.extraExp')}</span>
-              <span className="font-bold text-orange-600 break-words text-right tabular-nums">−{yearTotals.forwardingExtraExpenses.toFixed(0)} €</span>
+              <span className="font-bold text-orange-600 break-words text-right tabular-nums">−{formatEur(yearTotals.forwardingExtraExpenses)}</span>
             </div>
           )}
           <div className="flex justify-between items-center gap-2 pt-3 border-t border-slate-100">
             <span className="text-slate-700 font-semibold">{t('stat.fwdMarginF')}</span>
             <span className={`font-bold break-words text-right tabular-nums ${yearTotals.forwardingMargin >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-              {yearTotals.forwardingMargin.toFixed(0)} €
+              {formatEur(yearTotals.forwardingMargin)}
             </span>
           </div>
           <div className="text-xs text-slate-400">

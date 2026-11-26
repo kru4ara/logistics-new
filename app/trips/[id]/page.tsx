@@ -40,6 +40,7 @@ import { normalizeCountry, suggestVat, suggestLang, positionName, normalizeTaxId
 import type { MessageKey } from '../../../lib/i18n/translate';
 import { getSessionContext } from '../../../lib/session';
 import { can } from '../../../lib/roles';
+import { formatEur } from '../../../lib/i18n/format';
 
 export const dynamic = 'force-dynamic';
  
@@ -357,7 +358,7 @@ export default async function TripDetailPage({
         .filter((c: any) => !busy.has(c.id))
         .map((c: any) => ({
           id: c.id,
-          label: `№${c.trip_number ?? '—'} · ${pickName(c.clients) || '—'} · ${Math.round(Number(c.revenue_eur || 0))} €`,
+          label: `№${c.trip_number ?? '—'} · ${pickName(c.clients) || '—'} · ${formatEur(Number(c.revenue_eur || 0))}`,
         }));
     }
   }

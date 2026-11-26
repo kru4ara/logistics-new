@@ -25,6 +25,7 @@ import { fetchAll, fetchAllByIds } from '../../lib/fetch-all';
 import { deniedRedirect } from '../../lib/roles';
 import { getT } from '../../lib/i18n/server';
 import type { MessageKey } from '../../lib/i18n/translate';
+import { formatEur } from '../../lib/i18n/format';
 
 export const dynamic = 'force-dynamic';
 
@@ -344,7 +345,7 @@ export default async function ReportsPage({
               </div>
             </div>
             <div className="text-xl md:text-3xl font-bold text-green-600 break-words tabular-nums">
-              {totalRevenue.toFixed(2)} €
+              {formatEur(totalRevenue, 2)}
             </div>
           </div>
 
@@ -356,7 +357,7 @@ export default async function ReportsPage({
               </div>
             </div>
             <div className="text-xl md:text-3xl font-bold text-red-500 break-words tabular-nums">
-              {totalExpenses.toFixed(2)} €
+              {formatEur(totalExpenses, 2)}
             </div>
           </div>
 
@@ -369,7 +370,7 @@ export default async function ReportsPage({
               </div>
             </div>
             <div className={`text-xl md:text-3xl font-bold break-words tabular-nums ${profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-              {profit.toFixed(2)} €
+              {formatEur(profit, 2)}
             </div>
           </div>
         </div>
@@ -434,19 +435,19 @@ export default async function ReportsPage({
                         <div>
                           <div className="text-[10px] uppercase text-slate-400 font-medium">{tr('trips.freight')}</div>
                           <div className="text-sm font-bold text-green-600 break-words tabular-nums">
-                            {trip.revenue_eur.toFixed(0)} €
+                            {formatEur(trip.revenue_eur)}
                           </div>
                         </div>
                         <div>
                           <div className="text-[10px] uppercase text-slate-400 font-medium">{tr('trips.expenses')}</div>
                           <div className="text-sm font-bold text-red-500 break-words tabular-nums">
-                            {trip.expenses.toFixed(0)} €
+                            {formatEur(trip.expenses)}
                           </div>
                         </div>
                         <div>
                           <div className="text-[10px] uppercase text-slate-400 font-medium">{tr('trips.profit')}</div>
                           <div className={`text-sm font-bold break-words tabular-nums ${tripProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                            {tripProfit.toFixed(0)} €
+                            {formatEur(tripProfit)}
                           </div>
                         </div>
                       </div>
@@ -460,16 +461,16 @@ export default async function ReportsPage({
                   <div className="grid grid-cols-3 gap-2 text-xs">
                     <div>
                       <div className="text-[10px] uppercase text-slate-500 font-medium">{tr('trips.freight')}</div>
-                      <div className="text-base font-bold text-green-600 break-words tabular-nums">{totalRevenue.toFixed(0)} €</div>
+                      <div className="text-base font-bold text-green-600 break-words tabular-nums">{formatEur(totalRevenue)}</div>
                     </div>
                     <div>
                       <div className="text-[10px] uppercase text-slate-500 font-medium">{tr('trips.expenses')}</div>
-                      <div className="text-base font-bold text-red-500 break-words tabular-nums">{totalExpenses.toFixed(0)} €</div>
+                      <div className="text-base font-bold text-red-500 break-words tabular-nums">{formatEur(totalExpenses)}</div>
                     </div>
                     <div>
                       <div className="text-[10px] uppercase text-slate-500 font-medium">{tr('trips.profit')}</div>
                       <div className={`text-base font-bold break-words tabular-nums ${profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                        {profit.toFixed(0)} €
+                        {formatEur(profit)}
                       </div>
                     </div>
                   </div>
@@ -512,13 +513,13 @@ export default async function ReportsPage({
                             </span>
                           </td>
                           <td className="px-6 py-4 text-right font-semibold text-green-600 whitespace-nowrap tabular-nums">
-                            {trip.revenue_eur.toFixed(2)} €
+                            {formatEur(trip.revenue_eur, 2)}
                           </td>
                           <td className="px-6 py-4 text-right font-semibold text-red-500 whitespace-nowrap tabular-nums">
-                            {trip.expenses.toFixed(2)} €
+                            {formatEur(trip.expenses, 2)}
                           </td>
                           <td className={`px-6 py-4 text-right font-bold whitespace-nowrap tabular-nums ${tripProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                            {tripProfit.toFixed(2)} €
+                            {formatEur(tripProfit, 2)}
                           </td>
                         </tr>
                       );
@@ -530,13 +531,13 @@ export default async function ReportsPage({
                         {tr('trips.excelTotal')}
                       </td>
                       <td className="px-6 py-4 text-right font-bold text-green-600 tabular-nums">
-                        {totalRevenue.toFixed(2)} €
+                        {formatEur(totalRevenue, 2)}
                       </td>
                       <td className="px-6 py-4 text-right font-bold text-red-500 tabular-nums">
-                        {totalExpenses.toFixed(2)} €
+                        {formatEur(totalExpenses, 2)}
                       </td>
                       <td className={`px-6 py-4 text-right font-bold text-lg tabular-nums ${profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                        {profit.toFixed(2)} €
+                        {formatEur(profit, 2)}
                       </td>
                     </tr>
                   </tfoot>

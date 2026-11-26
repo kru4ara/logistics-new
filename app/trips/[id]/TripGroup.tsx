@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Layers } from 'lucide-react';
 import { getT } from '../../../lib/i18n/server';
 import { AddToGroup, RemoveFromGroup } from './TripGroupControls';
+import { formatEur } from '../../../lib/i18n/format';
 
 export type GroupOrder = {
   id: string;
@@ -12,7 +13,7 @@ export type GroupOrder = {
   paid: boolean;
 };
 
-const eur = (n: number) => `${Math.round(n).toLocaleString('ru-RU')} €`;
+const eur = (n: number) => `${formatEur(n)}`;
 
 /** Сборный рейс: заказы в этой машине и экономика рейса целиком. */
 export default async function TripGroup({

@@ -16,6 +16,7 @@ import {
 import { getT } from '../../../lib/i18n/server';
 import { INTL_LOCALE } from '../../../lib/i18n/config';
 import { tripStatusKey } from '../../../lib/i18n/labels';
+import { formatEur } from '../../../lib/i18n/format';
 
 export const dynamic = 'force-dynamic';
 
@@ -280,7 +281,7 @@ export default async function ManagerDetailPage({ params }: { params: Promise<{ 
                       <td className="py-2 pr-4 text-slate-600">{t.start_date || '—'}</td>
                       <td className="py-2 pr-4 text-slate-600">{t.end_date || '—'}</td>
                       <td className="py-2 text-right font-medium">
-                        {t.revenue_eur != null ? `${t.revenue_eur} €` : '—'}
+                        {t.revenue_eur != null ? `${formatEur(t.revenue_eur, 'auto')}` : '—'}
                       </td>
                     </tr>
                   ))}

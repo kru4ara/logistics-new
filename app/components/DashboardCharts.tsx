@@ -1,5 +1,6 @@
 import { TrendingUp, PieChart } from 'lucide-react';
 import { getT } from '../../lib/i18n/server';
+import { formatEur } from '../../lib/i18n/format';
 
 type MonthPoint = {
   key: string;
@@ -182,7 +183,7 @@ export async function MonthlyBars({ data }: { data: MonthPoint[] }) {
                 >
                   <title>
                     {m.label}: {val >= 0 ? '+' : ''}
-                    {val.toFixed(0)} €
+                    {formatEur(val)}
                   </title>
                 </rect>
 
@@ -261,7 +262,7 @@ export async function ExpenseDonut({
             {s.label}
           </span>
           <span className="font-semibold text-slate-800 whitespace-nowrap tabular-nums">
-            {s.amount.toFixed(0)} €
+            {formatEur(s.amount)}
           </span>
           <span className="text-xs text-slate-400 w-12 text-right whitespace-nowrap tabular-nums">
             {pct.toFixed(1)}%
@@ -324,7 +325,7 @@ export async function ExpenseDonut({
               {t('rep.total')}
             </div>
             <div className="text-lg md:text-xl font-bold text-slate-800 tabular-nums">
-              {total.toFixed(0)} €
+              {formatEur(total)}
             </div>
           </div>
         </div>

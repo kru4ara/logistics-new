@@ -8,6 +8,7 @@ import { useT } from '../components/I18nProvider';
 import { expenseCategoryKey, expenseCategoryEmoji } from '../../lib/i18n/labels';
 import { formatDate } from '../../lib/i18n/format';
 import type { T } from '../../lib/i18n/translate';
+import { formatEur } from '../../lib/i18n/format';
 
 function categoryLabel(cat: string, t: T): string {
   const key = expenseCategoryKey(cat);
@@ -40,7 +41,7 @@ export default function ExpensesList({
         </h2>
         {expenses && expenses.length > 0 && (
           <div className="text-sm text-slate-500">
-            {t('expense.total')} <b className="text-red-500 tabular-nums">{totalExpenses.toFixed(0)} €</b>
+            {t('expense.total')} <b className="text-red-500 tabular-nums">{formatEur(totalExpenses)}</b>
           </div>
         )}
       </div>
@@ -94,7 +95,7 @@ export default function ExpensesList({
                     </div>
                     <div>
                       <div className="text-slate-400">{t('expense.inEur')}</div>
-                      <div className="font-bold text-red-500 tabular-nums">{exp.amount_eur} €</div>
+                      <div className="font-bold text-red-500 tabular-nums">{formatEur(exp.amount_eur, 'auto')}</div>
                     </div>
                     {exp.description && (
                       <div className="col-span-2">
@@ -150,7 +151,7 @@ export default function ExpensesList({
                         {exp.original_amount} {exp.currency}
                       </td>
                       <td className="py-3 px-3 text-right text-sm font-bold text-red-500 tabular-nums whitespace-nowrap">
-                        {exp.amount_eur} €
+                        {formatEur(exp.amount_eur, 'auto')}
                       </td>
                       <td className="py-3 px-3 text-sm text-slate-500 max-w-[250px] truncate" title={exp.description}>
                         {exp.description || '—'}

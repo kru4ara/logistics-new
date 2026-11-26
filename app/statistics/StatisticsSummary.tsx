@@ -2,6 +2,7 @@ import { Trophy, Truck, Package, TrendingUp, TrendingDown, Wallet, Briefcase } f
 import type { YearTotals } from '../../lib/statistics';
 import { getT } from '../../lib/i18n/server';
 import { tPlural } from '../../lib/i18n/translate';
+import { formatEur } from '../../lib/i18n/format';
 
 export default async function StatisticsSummary({
   year,
@@ -55,7 +56,7 @@ export default async function StatisticsSummary({
             </div>
           </div>
           <div className="text-xl md:text-2xl font-bold text-green-600 break-words tabular-nums">
-            {yearTotals.totalIncome.toFixed(0)} €
+            {formatEur(yearTotals.totalIncome)}
           </div>
           <div className="text-[10px] md:text-xs text-slate-400 mt-1 break-words">
             {t('stat.revenue', { n: yearTotals.tripRevenue.toFixed(0) })}
@@ -70,7 +71,7 @@ export default async function StatisticsSummary({
             </div>
           </div>
           <div className="text-xl md:text-2xl font-bold text-red-500 break-words tabular-nums">
-            {yearTotals.totalExpenses.toFixed(0)} €
+            {formatEur(yearTotals.totalExpenses)}
           </div>
           <div className="text-[10px] md:text-xs text-slate-400 mt-1 break-words">
             {t('stat.expensesN', { n: (yearTotals.directExpenses + yearTotals.fixedExpenses + yearTotals.forwardingContractorSum + yearTotals.forwardingExtraExpenses).toFixed(0) })}
@@ -85,7 +86,7 @@ export default async function StatisticsSummary({
             </div>
           </div>
           <div className={`text-xl md:text-2xl font-bold break-words tabular-nums ${yearTotals.profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-            {yearTotals.profit.toFixed(0)} €
+            {formatEur(yearTotals.profit)}
           </div>
           <div className="text-[10px] md:text-xs text-slate-400 mt-1">
             {t('stat.marginLbl')}{' '}<b className={avgMargin >= 0 ? 'text-emerald-600' : 'text-red-500'}>{avgMargin.toFixed(1)}%</b>
@@ -100,7 +101,7 @@ export default async function StatisticsSummary({
             </div>
           </div>
           <div className="text-xl md:text-2xl font-bold text-amber-600 break-words tabular-nums">
-            {capexTotalForYear > 0 ? `${capexTotalForYear.toFixed(0)} €` : '—'}
+            {capexTotalForYear > 0 ? `${formatEur(capexTotalForYear)}` : '—'}
           </div>
           <div className="text-[10px] md:text-xs text-amber-600/70 mt-1">
             {t('fc.outsidePl', { ops: tPlural(t, locale, 'count2.op', capexCount) })}

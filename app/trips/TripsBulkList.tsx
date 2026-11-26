@@ -23,6 +23,7 @@ import {
   Truck as TruckIcon,
 } from 'lucide-react';
 import { bulkSetStatus, bulkDelete } from './bulk-actions';
+import { formatEur } from '../../lib/i18n/format';
 
 export type TripCardData = {
   id: string;
@@ -264,19 +265,19 @@ export default function TripsBulkList({
             <div>
               <div className="text-[10px] uppercase tracking-wide text-slate-400 font-medium">{t('trips.freight')}</div>
               <div className="text-sm font-bold text-slate-900 break-words tabular-nums">
-                {trip.revenue_eur ? `${trip.revenue_eur} €` : '—'}
+                {trip.revenue_eur ? `${formatEur(trip.revenue_eur, 'auto')}` : '—'}
               </div>
             </div>
             <div>
               <div className="text-[10px] uppercase tracking-wide text-slate-400 font-medium">{t('trips.expenses')}</div>
               <div className="text-sm font-bold text-red-500 break-words tabular-nums">
-                {trip.expenses.toFixed(0)} €
+                {formatEur(trip.expenses)}
               </div>
             </div>
             <div>
               <div className="text-[10px] uppercase tracking-wide text-slate-400 font-medium">{t('trips.profit')}</div>
               <div className={`text-sm font-bold break-words tabular-nums ${tripProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                {tripProfit.toFixed(0)} €
+                {formatEur(tripProfit)}
               </div>
             </div>
           </div>
@@ -446,19 +447,19 @@ export default function TripsBulkList({
                   <div>
                     <div className="text-[10px] md:text-xs uppercase text-slate-400 font-medium">{t('trips.freight')}</div>
                     <div className="text-sm md:text-base font-bold text-green-600 tabular-nums">
-                      {g.revenue.toFixed(0)} €
+                      {formatEur(g.revenue)}
                     </div>
                   </div>
                   <div>
                     <div className="text-[10px] md:text-xs uppercase text-slate-400 font-medium">{t('trips.expenses')}</div>
                     <div className="text-sm md:text-base font-bold text-red-500 tabular-nums">
-                      {g.expenses.toFixed(0)} €
+                      {formatEur(g.expenses)}
                     </div>
                   </div>
                   <div>
                     <div className="text-[10px] md:text-xs uppercase text-slate-400 font-medium">{t('trips.profit')}</div>
                     <div className={`text-sm md:text-base font-bold tabular-nums ${monthProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                      {monthProfit.toFixed(0)} €
+                      {formatEur(monthProfit)}
                     </div>
                   </div>
                 </div>

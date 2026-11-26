@@ -17,6 +17,7 @@ import { fetchAll } from '../../../lib/fetch-all';
 import { deniedRedirect } from '../../../lib/roles';
 import { getT } from '../../../lib/i18n/server';
 import { INTL_LOCALE } from '../../../lib/i18n/config';
+import { formatEur } from '../../../lib/i18n/format';
 
 export const dynamic = 'force-dynamic';
 
@@ -219,7 +220,7 @@ export default async function DriverKpiPage() {
                       <div className={`text-2xl font-bold tabular-nums ${
                         item.profit >= 0 ? 'text-emerald-700' : 'text-red-700'
                       }`}>
-                        {item.profit.toFixed(0)} €
+                        {formatEur(item.profit)}
                       </div>
                     </div>
 
@@ -240,15 +241,15 @@ export default async function DriverKpiPage() {
                     <div className="grid grid-cols-3 gap-2 text-xs">
                       <div className="bg-slate-50 rounded-lg p-2.5">
                         <div className="text-[10px] uppercase text-slate-400 font-medium mb-0.5">{tr('kpi.freight')}</div>
-                        <div className="font-bold text-slate-700 break-words tabular-nums">{item.totalRevenue.toFixed(0)} €</div>
+                        <div className="font-bold text-slate-700 break-words tabular-nums">{formatEur(item.totalRevenue)}</div>
                       </div>
                       <div className="bg-slate-50 rounded-lg p-2.5">
                         <div className="text-[10px] uppercase text-slate-400 font-medium mb-0.5">{tr('kpi.expenses')}</div>
-                        <div className="font-bold text-red-500 break-words tabular-nums">{item.totalExpenses.toFixed(0)} €</div>
+                        <div className="font-bold text-red-500 break-words tabular-nums">{formatEur(item.totalExpenses)}</div>
                       </div>
                       <div className="bg-slate-50 rounded-lg p-2.5">
                         <div className="text-[10px] uppercase text-slate-400 font-medium mb-0.5">{tr('kpi.pay')}</div>
-                        <div className="font-bold text-slate-600 break-words tabular-nums">{item.salaryTotal.toFixed(0)} €</div>
+                        <div className="font-bold text-slate-600 break-words tabular-nums">{formatEur(item.salaryTotal)}</div>
                       </div>
                     </div>
 
@@ -334,21 +335,21 @@ export default async function DriverKpiPage() {
                             </span>
                           </td>
                           <td className="px-4 py-4 text-right text-slate-700 whitespace-nowrap tabular-nums">
-                            {item.totalRevenue.toFixed(0)} €
+                            {formatEur(item.totalRevenue)}
                           </td>
                           <td className="px-4 py-4 text-right text-red-500 whitespace-nowrap tabular-nums">
-                            {item.totalExpenses.toFixed(0)} €
+                            {formatEur(item.totalExpenses)}
                           </td>
                           <td className={`px-4 py-4 text-right font-bold whitespace-nowrap tabular-nums ${
                             item.profit >= 0 ? 'text-emerald-600' : 'text-red-600'
                           }`}>
-                            {item.profit.toFixed(0)} €
+                            {formatEur(item.profit)}
                           </td>
                           <td className="px-4 py-4 text-right text-emerald-600 whitespace-nowrap tabular-nums">
-                            {item.salaryMonth.toFixed(0)} €
+                            {formatEur(item.salaryMonth)}
                           </td>
                           <td className="px-4 py-4 text-right text-slate-600 whitespace-nowrap tabular-nums">
-                            {item.salaryTotal.toFixed(0)} €
+                            {formatEur(item.salaryTotal)}
                           </td>
                           <td className="px-4 py-4 text-right text-slate-700 whitespace-nowrap tabular-nums">
                             {item.totalKm > 0 ? `${item.totalKm.toFixed(0)} ${tr('units.km')}` : '—'}

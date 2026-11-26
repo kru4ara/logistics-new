@@ -2,6 +2,7 @@ import { Briefcase, Calendar } from 'lucide-react';
 import type { CapexItem } from '../../lib/statistics';
 import { getT } from '../../lib/i18n/server';
 import { INTL_LOCALE } from '../../lib/i18n/config';
+import { formatEur } from '../../lib/i18n/format';
 
 export default async function StatisticsCapex({
   year,
@@ -46,7 +47,7 @@ export default async function StatisticsCapex({
             </div>
             <div className="shrink-0 text-right">
               <div className="text-base font-bold text-amber-600 whitespace-nowrap tabular-nums">
-                {c.amount_eur.toFixed(0)} €
+                {formatEur(c.amount_eur)}
               </div>
             </div>
           </div>
@@ -57,7 +58,7 @@ export default async function StatisticsCapex({
           {t('stat.opsTotal')}{' '}<b className="text-slate-700 tabular-nums">{capexForYear.length}</b>
         </span>
         <span className="text-sm text-slate-500">
-          {t('stat.capexSum')}{' '}<b className="text-amber-600 text-base tabular-nums">{capexTotalForYear.toFixed(0)} €</b>
+          {t('stat.capexSum')}{' '}<b className="text-amber-600 text-base tabular-nums">{formatEur(capexTotalForYear)}</b>
         </span>
       </div>
     </div>

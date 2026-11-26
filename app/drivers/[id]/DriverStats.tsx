@@ -1,6 +1,7 @@
 import { BarChart3, TrendingUp, Gauge, Fuel } from 'lucide-react';
 import { getT } from '../../../lib/i18n/server';
 import { INTL_LOCALE } from '../../../lib/i18n/config';
+import { formatEur } from '../../../lib/i18n/format';
 
 export default async function DriverStats({
   totalTrips,
@@ -38,7 +39,7 @@ export default async function DriverStats({
             <TrendingUp className="w-4 h-4 text-green-600" strokeWidth={2} />
           </div>
           <div className="text-xl md:text-2xl font-bold text-green-600 break-words tabular-nums">
-            {totalRevenue > 0 ? `${Math.round(totalRevenue).toLocaleString(INTL_LOCALE[locale])} €` : '—'}
+            {totalRevenue > 0 ? `${formatEur(totalRevenue)}` : '—'}
           </div>
         </div>
         <div className="card p-4 md:p-5">

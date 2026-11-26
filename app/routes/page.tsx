@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { fetchAll } from '../../lib/fetch-all';
 import { getT } from '../../lib/i18n/server';
+import { formatEur } from '../../lib/i18n/format';
 
 export const dynamic = 'force-dynamic';
 
@@ -148,7 +149,7 @@ export default async function RoutesPage() {
               </div>
             </div>
             <div className="text-xl md:text-2xl font-bold text-green-600 break-words tabular-nums">
-              {totalRevenue.toFixed(0)} €
+              {formatEur(totalRevenue)}
             </div>
           </div>
 
@@ -160,7 +161,7 @@ export default async function RoutesPage() {
               </div>
             </div>
             <div className="text-xl md:text-2xl font-bold text-red-500 break-words tabular-nums">
-              {totalExpenses.toFixed(0)} €
+              {formatEur(totalExpenses)}
             </div>
           </div>
 
@@ -172,7 +173,7 @@ export default async function RoutesPage() {
               </div>
             </div>
             <div className={`text-xl md:text-2xl font-bold break-words tabular-nums ${profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-              {profit.toFixed(0)} €
+              {formatEur(profit)}
             </div>
           </div>
         </div>
@@ -218,19 +219,19 @@ export default async function RoutesPage() {
                         <div>
                           <div className="text-[10px] uppercase text-slate-400 font-medium">{tr('trips.freight')}</div>
                           <div className="text-sm font-bold text-green-600 break-words tabular-nums">
-                            {r.revenue.toFixed(0)} €
+                            {formatEur(r.revenue)}
                           </div>
                         </div>
                         <div>
                           <div className="text-[10px] uppercase text-slate-400 font-medium">{tr('trips.expenses')}</div>
                           <div className="text-sm font-bold text-red-500 break-words tabular-nums">
-                            {r.expenses.toFixed(0)} €
+                            {formatEur(r.expenses)}
                           </div>
                         </div>
                         <div>
                           <div className="text-[10px] uppercase text-slate-400 font-medium">{tr('trips.profit')}</div>
                           <div className={`text-sm font-bold break-words tabular-nums ${rProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                            {rProfit.toFixed(0)} €
+                            {formatEur(rProfit)}
                           </div>
                         </div>
                       </div>
@@ -265,13 +266,13 @@ export default async function RoutesPage() {
                             </span>
                           </td>
                           <td className="px-6 py-4 text-right font-semibold text-green-600 whitespace-nowrap tabular-nums">
-                            {r.revenue.toFixed(0)} €
+                            {formatEur(r.revenue)}
                           </td>
                           <td className="px-6 py-4 text-right font-semibold text-red-500 whitespace-nowrap tabular-nums">
-                            {r.expenses.toFixed(0)} €
+                            {formatEur(r.expenses)}
                           </td>
                           <td className={`px-6 py-4 text-right font-bold whitespace-nowrap tabular-nums ${rProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                            {rProfit.toFixed(0)} €
+                            {formatEur(rProfit)}
                           </td>
                           <td className="px-6 py-4 text-right text-slate-600">
                             <span className="inline-flex items-center gap-1.5">

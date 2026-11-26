@@ -12,6 +12,7 @@ import { requireExpenseAccess, requireTripAccess } from '../lib/driver-access';
 import { getScope } from '../lib/scope';
 import { tripVisibleToScope } from '../lib/scope-rules';
 import { getT } from '../lib/i18n/server';
+import { formatEur } from '../lib/i18n/format';
 
 // ============================================================
 // Добавление расхода
@@ -86,7 +87,7 @@ export async function addExpense(formData: FormData) {
       entity_type: 'trip_expense',
       entity_id: created.id,
       action: 'create',
-      summary: `Добавлен расход по рейсу: ${category} · ${originalAmount} ${currency} (≈ ${Math.round(amountEur * 100) / 100} €)${segmentId ? ' · привязан к участку' : ''}${paidByDriver ? ' · оплатил водитель' : ''}`,
+      summary: `Добавлен расход по рейсу: ${category} · ${originalAmount} ${currency} (≈ ${formatEur(amountEur, 'auto')})${segmentId ? ' · привязан к участку' : ''}${paidByDriver ? ' · оплатил водитель' : ''}`,
     });
 
     const isSalary = category === 'salary';
@@ -133,8 +134,8 @@ export async function addExpense(formData: FormData) {
               entity_id: dt.id,
               action: 'create',
               summary: isSalary
-                ? `Начислена ЗП водителю: ${originalAmount} ${currency} (≈ ${Math.round(amountEur * 100) / 100} €)`
-                : `Начислен долг водителю за расход: ${originalAmount} ${currency} (≈ ${Math.round(amountEur * 100) / 100} €)`,
+                ? `Начислена ЗП водителю: ${originalAmount} ${currency} (≈ ${formatEur(amountEur, 'auto')})`
+                : `Начислен долг водителю за расход: ${originalAmount} ${currency} (≈ ${formatEur(amountEur, 'auto')})`,
             });
           }
         } else {
