@@ -129,6 +129,9 @@ export const pl: Messages = {
     trip_other: '{n} kursu',
   },
   trips: {
+    view: 'Widok listy',
+    viewCards: 'Karty',
+    viewTable: 'Tabela',
     loadError: 'Błąd wczytywania zleceń: {message}',
     clientUnknown: 'Nie podano',
     title: 'Zlecenia',
@@ -229,6 +232,10 @@ export const pl: Messages = {
     l100km: 'l/100 km',
   },
   trip: {
+    deleteConfirm: 'Usunąć zlecenie nr {n}? Zostaną usunięte jego ładunki, odcinki, koszty i dokumenty.',
+    gpsSync: 'Aktualizuj z GPS',
+    moreActions: 'Więcej akcji',
+    telemetryTitle: 'Przebieg i paliwo',
     noId: 'Błąd: brak ID kursu',
     loadError: 'Błąd ładowania: {msg}',
     sendNoDriver: 'Najpierw przypisz kierowcę do kursu',
@@ -511,6 +518,7 @@ export const pl: Messages = {
     editTitle: '✏️ Edytuj zlecenie nr {n}',
   },
   shared: {
+    otherStatus: 'Inny status…',
     uploadFailed: 'Nie udało się przesłać pliku (kod {code}). Sprawdź internet i spróbuj ponownie.',
     saving: 'Zapisywanie…',
     taskForDriver: 'Zadanie dla kierowcy',
@@ -1436,6 +1444,11 @@ export const pl: Messages = {
     unloadNo: 'Rozładunek · nr',
   },
   aud: {
+    changes: 'Zmian: {n}',
+    pages: 'Strony dziennika',
+    newer: 'Nowsze',
+    older: 'Starsze',
+    page: 'Strona {n}',
     loadError: 'Błąd ładowania dziennika:',
     title: 'Dziennik zmian',
     hint: 'Kto, co i kiedy zmieniał w systemie',

@@ -26,6 +26,7 @@ export default function TripStatusButtons({
   showAdminStatuses = false,
   invoiceForm = false,
   needCmr = false,
+  compact = false,
 }: {
   tripId: string;
   currentStatus: string;
@@ -34,6 +35,8 @@ export default function TripStatusButtons({
   invoiceForm?: boolean;
   /** водитель без CMR: «Завершить» ведёт к загрузке CMR (сервер тоже не даст) */
   needCmr?: boolean;
+  /** офис: одна кнопка следующего шага + выбор другого статуса */
+  compact?: boolean;
 }) {
   const { t } = useT();
   const [isPending, startTransition] = useTransition();
@@ -118,8 +121,46 @@ export default function TripStatusButtons({
     ? [...driverButtons, ...adminButtons]
     : driverButtons;
 
+  // Следующий шаг: первый статус после текущего по порядку жизни заказа.
+  const order = buttons.map((b) => b.value);
+  const curIdx = order.indexOf(currentStatus);
+  const next = buttons[curIdx + 1] ?? (curIdx === -1 ? buttons[0] : null);
+  const others = buttons.filter((b) => b.value !== currentStatus && b.value !== next?.value);
+
+  const statusBody = compact ? (
+    <div className="flex flex-wrap items-center gap-2">
+      {next && (
+        <button
+          type="button"
+          onClick={() => handleStatusChange(next.value)}
+          disabled={isPending}
+          className="btn btn-primary"
+        >
+          {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <next.Icon className="w-4 h-4" />}
+          {next.label}
+        </button>
+      )}
+      {others.length > 0 && (
+        <select
+          aria-label={t('shared.otherStatus')}
+          value=""
+          disabled={isPending}
+          onChange={(e) => e.target.value && handleStatusChange(e.target.value)}
+          className="input w-auto py-2 text-sm text-slate-600"
+        >
+          <option value="">{t('shared.otherStatus')}</option>
+          {others.map((b) => (
+            <option key={b.value} value={b.value}>{b.label}</option>
+          ))}
+        </select>
+      )}
+    </div>
+  ) : null;
+
   return (
     <>
+      {statusBody}
+      {!compact && (
       <div className="grid grid-cols-2 md:flex md:flex-wrap gap-2 md:gap-3">
         {buttons.map(({ value, label, Icon }) => {
           const isActive = currentStatus === value;
@@ -148,6 +189,7 @@ export default function TripStatusButtons({
           );
         })}
       </div>
+      )}
 
       {notice && (
         <div className="mt-3 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2.5 text-sm text-amber-900 flex flex-wrap items-center justify-between gap-2">

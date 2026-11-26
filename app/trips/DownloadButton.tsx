@@ -6,7 +6,7 @@ import type { TripCardData } from './TripsBulkList';
 import { tripStatusKey } from '../../lib/i18n/labels';
 import { useT } from '../components/I18nProvider';
 
-export default function DownloadButton({ data }: { data: TripCardData[] }) {
+export default function DownloadButton({ data, className }: { data: TripCardData[]; className?: string }) {
   const { t } = useT();
   async function handleDownload() {
     const ExcelJS = (await import('exceljs')).default;
@@ -68,9 +68,16 @@ export default function DownloadButton({ data }: { data: TripCardData[] }) {
   }
 
   return (
-    <Button onClick={handleDownload} variant="default">
-      <Download className="w-4 h-4 mr-2" />
-      {t('trips.downloadExcel')}
-    </Button>
+    className ? (
+      <button type="button" onClick={handleDownload} className={className}>
+        <Download className="w-4 h-4" />
+        {t('trips.downloadExcel')}
+      </button>
+    ) : (
+      <Button onClick={handleDownload} variant="default">
+        <Download className="w-4 h-4 mr-2" />
+        {t('trips.downloadExcel')}
+      </Button>
+    )
   );
 }

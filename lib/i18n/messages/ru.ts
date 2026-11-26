@@ -131,6 +131,9 @@ export const ru = {
     trip_other: '{n} рейса',
   },
   trips: {
+    view: 'Вид списка',
+    viewCards: 'Карточки',
+    viewTable: 'Таблица',
     loadError: 'Ошибка загрузки рейсов: {message}',
     clientUnknown: 'Не указан',
     title: 'Заказы',
@@ -231,6 +234,10 @@ export const ru = {
     l100km: 'л/100км',
   },
   trip: {
+    deleteConfirm: 'Удалить заказ №{n}? Удалятся его грузы, участки, расходы и документы.',
+    gpsSync: 'Обновить по GPS',
+    moreActions: 'Ещё действия',
+    telemetryTitle: 'Пробег и топливо',
     noId: 'Ошибка: ID рейса не передан',
     loadError: 'Ошибка загрузки: {msg}',
     sendNoDriver: 'Сначала назначьте водителя в рейсе',
@@ -513,6 +520,7 @@ export const ru = {
     editTitle: '✏️ Редактировать заявку №{n}',
   },
   shared: {
+    otherStatus: 'Другой статус…',
     uploadFailed: 'Не удалось загрузить файл (код {code}). Проверьте интернет и попробуйте ещё раз.',
     saving: 'Сохранение…',
     taskForDriver: 'Задание для водителя',
@@ -1438,6 +1446,11 @@ export const ru = {
     unloadNo: 'Выгрузка · №',
   },
   aud: {
+    changes: 'Изменений: {n}',
+    pages: 'Страницы журнала',
+    newer: 'Новее',
+    older: 'Старше',
+    page: 'Страница {n}',
     loadError: 'Ошибка загрузки журнала:',
     title: 'Журнал изменений',
     hint: 'Кто, что и когда менял в системе',

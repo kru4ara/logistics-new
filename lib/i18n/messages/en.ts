@@ -129,6 +129,9 @@ export const en: Messages = {
     trip_other: '{n} trips',
   },
   trips: {
+    view: 'List view',
+    viewCards: 'Cards',
+    viewTable: 'Table',
     loadError: 'Failed to load orders: {message}',
     clientUnknown: 'Not specified',
     title: 'Orders',
@@ -229,6 +232,10 @@ export const en: Messages = {
     l100km: 'L/100 km',
   },
   trip: {
+    deleteConfirm: 'Delete order #{n}? Its cargo, legs, expenses and documents will be deleted too.',
+    gpsSync: 'Update from GPS',
+    moreActions: 'More actions',
+    telemetryTitle: 'Mileage and fuel',
     noId: 'Error: trip ID missing',
     loadError: 'Loading error: {msg}',
     sendNoDriver: 'Assign a driver to the trip first',
@@ -511,6 +518,7 @@ export const en: Messages = {
     editTitle: '✏️ Edit order #{n}',
   },
   shared: {
+    otherStatus: 'Other status…',
     uploadFailed: 'Upload failed (code {code}). Check your connection and try again.',
     saving: 'Saving…',
     taskForDriver: 'Driver task',
@@ -1436,6 +1444,11 @@ export const en: Messages = {
     unloadNo: 'Unloading · #',
   },
   aud: {
+    changes: 'Changes: {n}',
+    pages: 'Log pages',
+    newer: 'Newer',
+    older: 'Older',
+    page: 'Page {n}',
     loadError: 'Failed to load the log:',
     title: 'Change log',
     hint: 'Who changed what and when',

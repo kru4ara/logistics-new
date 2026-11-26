@@ -129,6 +129,9 @@ export const uk: Messages = {
     trip_other: '{n} рейсу',
   },
   trips: {
+    view: 'Вигляд списку',
+    viewCards: 'Картки',
+    viewTable: 'Таблиця',
     loadError: 'Помилка завантаження рейсів: {message}',
     clientUnknown: 'Не вказано',
     title: 'Замовлення',
@@ -229,6 +232,10 @@ export const uk: Messages = {
     l100km: 'л/100км',
   },
   trip: {
+    deleteConfirm: 'Видалити замовлення №{n}? Видаляться його вантажі, ділянки, витрати й документи.',
+    gpsSync: 'Оновити з GPS',
+    moreActions: 'Ще дії',
+    telemetryTitle: 'Пробіг і пальне',
     noId: 'Помилка: ID рейсу не передано',
     loadError: 'Помилка завантаження: {msg}',
     sendNoDriver: 'Спершу призначте водія в рейсі',
@@ -511,6 +518,7 @@ export const uk: Messages = {
     editTitle: '✏️ Редагувати заявку №{n}',
   },
   shared: {
+    otherStatus: 'Інший статус…',
     uploadFailed: 'Не вдалося завантажити файл (код {code}). Перевірте інтернет і спробуйте ще раз.',
     saving: 'Збереження…',
     taskForDriver: 'Завдання для водія',
@@ -1436,6 +1444,11 @@ export const uk: Messages = {
     unloadNo: 'Вивантаження · №',
   },
   aud: {
+    changes: 'Змін: {n}',
+    pages: 'Сторінки журналу',
+    newer: 'Новіші',
+    older: 'Старші',
+    page: 'Сторінка {n}',
     loadError: 'Помилка завантаження журналу:',
     title: 'Журнал змін',
     hint: 'Хто, що й коли змінював у системі',

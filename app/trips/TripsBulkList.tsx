@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useSyncExternalStore, useTransition } from 'react';
 import { useT } from '../components/I18nProvider';
 import { formatDate } from '../../lib/i18n/format';
 import { tPlural } from '../../lib/i18n/translate';
@@ -21,6 +21,8 @@ import {
   X,
   Clock,
   Truck as TruckIcon,
+  LayoutGrid,
+  List,
 } from 'lucide-react';
 import { bulkSetStatus, bulkDelete } from './bulk-actions';
 import { formatEur } from '../../lib/i18n/format';
@@ -53,6 +55,25 @@ export type MonthGroup = {
   revenue: number;
   expenses: number;
 };
+
+
+const VIEW_KEY = 'trips.view';
+const VIEW_EVENT = 'trips-view';
+function readView(): 'cards' | 'table' {
+  try {
+    return window.localStorage.getItem(VIEW_KEY) === 'table' ? 'table' : 'cards';
+  } catch {
+    return 'cards';
+  }
+}
+function subscribeView(cb: () => void) {
+  window.addEventListener(VIEW_EVENT, cb);
+  window.addEventListener('storage', cb);
+  return () => {
+    window.removeEventListener(VIEW_EVENT, cb);
+    window.removeEventListener('storage', cb);
+  };
+}
 
 // «Завершён» массово не ставится: нужна дата финиша (bulk-actions.ts).
 const STATUS_OPTIONS = ['planned', 'active', 'invoiced', 'paid'] as const;
@@ -95,6 +116,22 @@ export default function TripsBulkList({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  // Вид списка: карточки (по умолчанию, телефон) или таблица (плотно, с компьютера).
+  // Вид списка: карточки (по умолчанию, телефон) или таблица (плотно, с компьютера).
+  // Хранится в localStorage; на сервере и до гидратации — карточки.
+  const view = useSyncExternalStore<'cards' | 'table'>(
+    subscribeView,
+    () => readView(),
+    () => 'cards',
+  );
+  const changeView = (v: 'cards' | 'table') => {
+    try {
+      window.localStorage.setItem(VIEW_KEY, v);
+    } catch {
+      /* приватный режим — вид просто не запомнится */
+    }
+    window.dispatchEvent(new Event(VIEW_EVENT));
+  };
 
   const allIds = [
     ...tripsInTransit.map((t) => t.id),
@@ -287,6 +324,91 @@ export default function TripsBulkList({
     );
   }
 
+  function renderGrid(trips: TripCardData[]) {
+    const cards = (
+      <div className={`grid gap-4 md:gap-5 md:grid-cols-2 lg:grid-cols-3 ${view === 'table' ? 'md:hidden' : ''}`}>
+        {trips.map((t) => (
+          <TripCard key={t.id} trip={t} />
+        ))}
+      </div>
+    );
+    if (view !== 'table') return cards;
+    return (
+      <>
+        {cards}
+        <div className="hidden md:block card overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs text-slate-500 border-b border-slate-100">
+                <th className="w-10 px-3 py-2" />
+                <th className="px-3 py-2 font-medium">№</th>
+                <th className="px-3 py-2 font-medium">{t('trips.colClient')}</th>
+                <th className="px-3 py-2 font-medium">{t('trips.colRoute')}</th>
+                <th className="px-3 py-2 font-medium">{t('trips.start')}</th>
+                <th className="px-3 py-2 font-medium">{t('trips.finish')}</th>
+                <th className="px-3 py-2 font-medium">{t('trips.status')}</th>
+                <th className="px-3 py-2 font-medium text-right">{t('trips.freight')}</th>
+                <th className="px-3 py-2 font-medium text-right">{t('trips.expenses')}</th>
+                <th className="px-3 py-2 font-medium text-right">{t('trips.profit')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {trips.map((trip) => {
+                const profit = (trip.revenue_eur || 0) - trip.expenses;
+                const isSel = selected.has(trip.id);
+                return (
+                  <tr
+                    key={trip.id}
+                    onClick={(e) => {
+                      if (!(e.target as HTMLElement).closest('button,a')) router.push(`/trips/${trip.id}`);
+                    }}
+                    className={`border-b border-slate-50 last:border-0 cursor-pointer hover:bg-slate-50 ${isSel ? 'bg-brand-50/60' : ''}`}
+                  >
+                    <td className="px-3 py-2">
+                      <button
+                        type="button"
+                        onClick={() => toggle(trip.id)}
+                        aria-label={isSel ? t('trips.deselect') : t('trips.select')}
+                        className={`w-5 h-5 rounded border-2 flex items-center justify-center ${isSel ? 'bg-brand-600 border-brand-600' : 'border-slate-300 hover:border-brand-400'}`}
+                      >
+                        {isSel && <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />}
+                      </button>
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      <Link href={`/trips/${trip.id}`} prefetch={false} className="font-semibold text-slate-900 hover:text-brand-700 tabular-nums">
+                        {trip.trip_number ?? '—'}
+                      </Link>
+                      {trip.profit_mode === 'forwarding' && (
+                        <span className="ml-1.5 text-[10px] font-semibold rounded-full px-1.5 py-0.5 bg-violet-50 text-violet-700">{t('trips.kindForwardingShort')}</span>
+                      )}
+                      {trip.group && (
+                        <span className="ml-1.5 text-[10px] font-semibold rounded-full px-1.5 py-0.5 bg-indigo-50 text-indigo-700">
+                          {trip.group.role === 'leader' ? t('group.badgeLeader', { n: trip.group.n }) : t('group.badgeMember')}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 max-w-[200px] truncate font-medium text-slate-800" title={trip.clientName}>{trip.clientName}</td>
+                    <td className="px-3 py-2 max-w-[280px] truncate text-slate-600" title={trip.route ?? ''}>{trip.route || '—'}</td>
+                    <td className="px-3 py-2 whitespace-nowrap tabular-nums text-slate-600">{formatDate(trip.start_date, locale)}</td>
+                    <td className="px-3 py-2 whitespace-nowrap tabular-nums text-slate-600">{trip.end_date ? formatDate(trip.end_date, locale) : '—'}</td>
+                    <td className="px-3 py-2">
+                      <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border whitespace-nowrap ${statusColors[trip.status] || 'bg-slate-100 text-slate-700 border-slate-200'}`}>
+                        {statusText(trip.status)}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums whitespace-nowrap">{trip.revenue_eur ? formatEur(trip.revenue_eur) : '—'}</td>
+                    <td className="px-3 py-2 text-right tabular-nums whitespace-nowrap text-slate-600">{formatEur(trip.expenses)}</td>
+                    <td className={`px-3 py-2 text-right tabular-nums whitespace-nowrap font-semibold ${profit >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>{formatEur(profit)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </>
+    );
+  }
+
   const sectionTitle = flatMode ? t('trips.recentlyCreated') : t('trips.noNumberNew');
   const sectionSubtitle = flatMode
     ? t('trips.records', { n: tripsWithoutDate.length })
@@ -294,6 +416,23 @@ export default function TripsBulkList({
 
   return (
     <>
+      <div className="hidden md:flex justify-end -mb-2">
+        <div className="inline-flex rounded-xl border border-slate-200 bg-white p-0.5" role="group" aria-label={t('trips.view')}>
+          {(['cards', 'table'] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              aria-pressed={view === v}
+              onClick={() => changeView(v)}
+              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold ${view === v ? 'bg-brand-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
+            >
+              {v === 'cards' ? <LayoutGrid className="w-3.5 h-3.5" /> : <List className="w-3.5 h-3.5" />}
+              {t(v === 'cards' ? 'trips.viewCards' : 'trips.viewTable')}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* STICKY TOOLBAR */}
       {selected.size > 0 && (
         <div className="sticky top-4 z-30 card border-brand-300 shadow-brand-lg p-3 md:p-4 animate-slide-down">
@@ -395,11 +534,7 @@ export default function TripsBulkList({
               </div>
             </div>
           </div>
-          <div className="grid gap-4 md:gap-5 md:grid-cols-2 lg:grid-cols-3">
-            {tripsInTransit.map((t) => (
-              <TripCard key={t.id} trip={t} />
-            ))}
-          </div>
+          {renderGrid(tripsInTransit)}
         </div>
       )}
 
@@ -420,11 +555,7 @@ export default function TripsBulkList({
               <div className="text-xs text-slate-400">{sectionSubtitle}</div>
             </div>
           </div>
-          <div className="grid gap-4 md:gap-5 md:grid-cols-2 lg:grid-cols-3">
-            {tripsWithoutDate.map((t) => (
-              <TripCard key={t.id} trip={t} />
-            ))}
-          </div>
+          {renderGrid(tripsWithoutDate)}
         </div>
       )}
 
@@ -465,11 +596,7 @@ export default function TripsBulkList({
                   </div>
                 </div>
               </div>
-              <div className="grid gap-4 md:gap-5 md:grid-cols-2 lg:grid-cols-3">
-                {g.trips.map((t) => (
-                  <TripCard key={t.id} trip={t} />
-                ))}
-              </div>
+              {renderGrid(g.trips)}
             </div>
           );
         })}
