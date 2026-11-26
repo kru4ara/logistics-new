@@ -277,8 +277,8 @@ export default async function ReportsPage({
           </div>
           <div className="grid gap-3 grid-cols-2 md:grid-cols-4 items-end">
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">{tr('rep.dateFrom')}</label>
-              <input
+              <label htmlFor="rp-from" className="block text-xs font-medium text-slate-600 mb-1">{tr('rep.dateFrom')}</label>
+              <input id="rp-from"
                 type="date"
                 name="from"
                 defaultValue={from}
@@ -286,8 +286,8 @@ export default async function ReportsPage({
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">{tr('rep.dateTo')}</label>
-              <input
+              <label htmlFor="rp-to" className="block text-xs font-medium text-slate-600 mb-1">{tr('rep.dateTo')}</label>
+              <input id="rp-to"
                 type="date"
                 name="to"
                 defaultValue={to}
@@ -295,16 +295,16 @@ export default async function ReportsPage({
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">{tr('trips.status')}</label>
-              <select name="status" defaultValue={statusKey} className="input">
+              <label htmlFor="rp-status" className="block text-xs font-medium text-slate-600 mb-1">{tr('trips.status')}</label>
+              <select id="rp-status" name="status" defaultValue={statusKey} className="input">
                 {STATUS_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>{tr(opt.label as MessageKey)}</option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">{tr('trips.filterClient')}</label>
-              <select name="client" defaultValue={clientId} className="input">
+              <label htmlFor="rp-client" className="block text-xs font-medium text-slate-600 mb-1">{tr('trips.filterClient')}</label>
+              <select id="rp-client" name="client" defaultValue={clientId} className="input">
                 <option value="">{tr('rep.allClients')}</option>
                 {(clientsList || []).map((c) => (
                   <option key={c.id} value={c.id}>{c.name}</option>

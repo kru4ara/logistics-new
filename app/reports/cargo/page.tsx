@@ -154,16 +154,16 @@ export default async function CargoReportPage({
         <form className="card p-4 md:p-5" method="GET">
           <div className="grid gap-3 grid-cols-2 md:grid-cols-4 items-end">
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">{t('rep.dateFrom')}</label>
-              <input type="date" name="from" defaultValue={from} className="input" />
+              <label htmlFor="rc-from" className="block text-xs font-medium text-slate-600 mb-1">{t('rep.dateFrom')}</label>
+              <input id="rc-from" type="date" name="from" defaultValue={from} className="input" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">{t('rep.dateTo')}</label>
-              <input type="date" name="to" defaultValue={to} className="input" />
+              <label htmlFor="rc-to" className="block text-xs font-medium text-slate-600 mb-1">{t('rep.dateTo')}</label>
+              <input id="rc-to" type="date" name="to" defaultValue={to} className="input" />
             </div>
             <div className="col-span-2 md:col-span-2">
-              <label className="block text-xs font-medium text-slate-600 mb-1">{t('trips.filterClient')}</label>
-              <select name="client" defaultValue={clientId} className="input">
+              <label htmlFor="rc-client" className="block text-xs font-medium text-slate-600 mb-1">{t('trips.filterClient')}</label>
+              <select id="rc-client" name="client" defaultValue={clientId} className="input">
                 <option value="">{t('rep.allClients')}</option>
                 {(clientsList || []).map((c) => (
                   <option key={c.id} value={c.id}>{c.name}</option>

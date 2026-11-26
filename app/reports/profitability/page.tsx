@@ -142,12 +142,12 @@ export default async function ProfitabilityPage({
         <form className="card p-4 md:p-5" method="GET">
           <div className="grid gap-3 grid-cols-2 md:grid-cols-4 items-end">
             <div>
-              <label className={labelClass}>{tr('rep.dateFrom')}</label>
-              <input type="date" name="from" defaultValue={from} className={inputClass} />
+              <label htmlFor="rpr-from" className={labelClass}>{tr('rep.dateFrom')}</label>
+              <input id="rpr-from" type="date" name="from" defaultValue={from} className={inputClass} />
             </div>
             <div>
-              <label className={labelClass}>{tr('rep.dateTo')}</label>
-              <input type="date" name="to" defaultValue={to} className={inputClass} />
+              <label htmlFor="rpr-to" className={labelClass}>{tr('rep.dateTo')}</label>
+              <input id="rpr-to" type="date" name="to" defaultValue={to} className={inputClass} />
             </div>
             <div className="col-span-2 md:col-span-2 flex gap-2">
               <button

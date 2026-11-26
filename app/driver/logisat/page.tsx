@@ -4,6 +4,7 @@ import { createClient as createAuthClient } from '../../../lib/supabase/server';
 import LogisatForm from './LogisatForm';
 import { isDriverRole } from '../../../lib/roles';
 import { getT } from '../../../lib/i18n/server';
+import { RadioTower, Inbox } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -47,7 +48,7 @@ export default async function DriverLogisatPage() {
         </a>
 
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">📡 GPS</h1>
+          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2"><RadioTower className="w-6 h-6 text-brand-600" aria-hidden="true" />GPS</h1>
           <p className="text-slate-500 text-sm mt-1">
             {tr('drvApp.lsPageHint')}
           </p>
@@ -55,7 +56,7 @@ export default async function DriverLogisatPage() {
 
         {trucks.length === 0 ? (
           <div className="bg-white rounded-2xl border border-slate-100 p-10 text-center">
-            <div className="text-5xl mb-3">📭</div>
+            <Inbox className="w-10 h-10 text-slate-300 mx-auto mb-3" aria-hidden="true" />
             <h2 className="text-lg font-bold text-slate-900 mb-1">{tr('drvApp.noLsTrucks')}</h2>
             <p className="text-slate-500 text-sm">
               {tr('drvApp.noLsTrucksHint')}

@@ -45,8 +45,8 @@ export default function AddExpenseForm({
 
       <div className="grid gap-4 md:grid-cols-2">
         <div>
-          <label className={labelClass}>{t('expense.category')}</label>
-          <select
+          <label htmlFor="ae-category" className={labelClass}>{t('expense.category')}</label>
+          <select id="ae-category"
             name="category"
             required
             className={inputClass}
@@ -60,8 +60,8 @@ export default function AddExpenseForm({
         </div>
 
         <div>
-          <label className={labelClass}>{t('expense.currency')}</label>
-          <select name="currency" className={inputClass}>
+          <label htmlFor="ae-currency" className={labelClass}>{t('expense.currency')}</label>
+          <select id="ae-currency" name="currency" className={inputClass}>
             <option value="EUR">EUR</option>
             <option value="PLN">PLN</option>
             <option value="BYN">BYN</option>
@@ -69,23 +69,23 @@ export default function AddExpenseForm({
         </div>
 
         <div>
-          <label className={labelClass}>{t('expense.amount')}</label>
-          <input type="number" name="amount" step="0.01" required className={inputClass} />
+          <label htmlFor="ae-amount" className={labelClass}>{t('expense.amount')}</label>
+          <input id="ae-amount" type="number" name="amount" step="0.01" required className={inputClass} />
         </div>
 
         <div>
-          <label className={labelClass}>{t('expense.liters')}</label>
-          <input type="number" name="liters" step="0.01" placeholder="150" className={inputClass} />
+          <label htmlFor="ae-liters" className={labelClass}>{t('expense.liters')}</label>
+          <input id="ae-liters" type="number" name="liters" step="0.01" placeholder="150" className={inputClass} />
         </div>
 
         <div className="md:col-span-2">
-          <label className={labelClass}>{t('expense.description')}</label>
-          <input type="text" name="description" placeholder={t('expense.comment')} className={inputClass} />
+          <label htmlFor="ae-description" className={labelClass}>{t('expense.description')}</label>
+          <input id="ae-description" type="text" name="description" placeholder={t('expense.comment')} className={inputClass} />
         </div>
 
         <div className="md:col-span-2">
-          <label className={labelClass}>{t('expense.date')}</label>
-          <input type="date" name="expense_date" className={inputClass} />
+          <label htmlFor="ae-expense_date" className={labelClass}>{t('expense.date')}</label>
+          <input id="ae-expense_date" type="date" name="expense_date" className={inputClass} />
         </div>
 
         {/* Чекбокс "оплатил водитель" — скрыт при salary */}

@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import Link from 'next/link';
 import { useT } from './components/I18nProvider';
 import { reportClientError } from '../lib/report-client-error';
+import { AlertTriangle } from 'lucide-react';
 
 export default function Error({
   error,
@@ -23,7 +24,9 @@ export default function Error({
   return (
     <main className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
       <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md border border-slate-100 text-center">
-        <div className="text-5xl mb-3">⚠️</div>
+        <div className="mx-auto mb-3 w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center">
+          <AlertTriangle className="w-6 h-6 text-red-600" aria-hidden="true" />
+        </div>
         <h1 className="text-xl font-bold text-slate-900 mb-2">
           {t('toast.error')}
         </h1>
