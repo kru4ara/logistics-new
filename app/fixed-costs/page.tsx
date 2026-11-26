@@ -477,7 +477,7 @@ export default async function FixedCostsPage() {
                             <div className="text-xs text-slate-400 tabular-nums">
                               {originalAmount} {currencySymbol[curr] || curr}
                             </div>
-                            <div className={`font-bold break-words tabular-nums ${isCapex ? 'text-amber-600' : 'text-red-500'}`}>
+                            <div className={`font-bold break-words tabular-nums ${isCapex ? 'text-amber-600' : Number(c.amount_eur) < 0 ? 'text-emerald-600' : 'text-slate-900'}`}>
                               {c.amount_eur ? `${formatEur(Number(c.amount_eur))}` : '—'}
                             </div>
                           </div>
@@ -572,7 +572,7 @@ export default async function FixedCostsPage() {
                             <td className="px-6 py-4 text-right text-slate-700 font-medium whitespace-nowrap tabular-nums">
                               {originalAmount} {currencySymbol[curr] || curr}
                             </td>
-                            <td className={`px-6 py-4 text-right font-semibold whitespace-nowrap tabular-nums ${isCapex ? 'text-amber-600' : 'text-red-500'}`}>
+                            <td className={`px-6 py-4 text-right font-semibold whitespace-nowrap tabular-nums ${isCapex ? 'text-amber-600' : Number(c.amount_eur) < 0 ? 'text-emerald-600' : 'text-slate-900'}`}>
                               {c.amount_eur ? `${formatEur(Number(c.amount_eur))}` : '—'}
                             </td>
                             <td className="px-6 py-4 text-right whitespace-nowrap">

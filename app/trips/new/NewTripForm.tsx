@@ -171,8 +171,8 @@ export default function NewTripForm({
         </h2>
         <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-3">
           <div>
-            <label className={labelClass}>{t('cargo.client')}</label>
-            <select name="client_id" className={inputClass}>
+            <label htmlFor="nt-client_id" className={labelClass}>{t('cargo.client')}</label>
+            <select id="nt-client_id" name="client_id" className={inputClass}>
               <option value="">{t('tripForm.pickClient')}</option>
               {clients.map((c) => (
                 <option key={c.id} value={c.id}>{c.label}</option>
@@ -180,22 +180,22 @@ export default function NewTripForm({
             </select>
           </div>
           <div>
-            <label className={labelClass}>{t('tripForm.requestNo')}</label>
-            <input type="text" name="client_request_number" placeholder="ZAM-2026-001" className={inputClass} />
+            <label htmlFor="nt-client_request_number" className={labelClass}>{t('tripForm.requestNo')}</label>
+            <input id="nt-client_request_number" type="text" name="client_request_number" placeholder="ZAM-2026-001" className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>{t('tripForm.requestDate')}</label>
-            <input type="date" name="client_request_date" className={inputClass} />
+            <label htmlFor="nt-client_request_date" className={labelClass}>{t('tripForm.requestDate')}</label>
+            <input id="nt-client_request_date" type="date" name="client_request_date" className={inputClass} />
           </div>
         </div>
         <div className="mt-3 md:mt-4">
-          <label className={labelClass}>
+          <label htmlFor="nt-manager_id" className={labelClass}>
             {t('tripForm.manager')}
             <span className="block text-xs text-slate-500 font-normal mt-0.5">
               {t('tripForm.managerHint')}
             </span>
           </label>
-          <select name="manager_id" className={inputClass}>
+          <select id="nt-manager_id" name="manager_id" className={inputClass}>
             <option value="">{t('tripForm.noManager')}</option>
             {managers.map((m) => (
               <option key={m.id} value={m.id}>{m.label}</option>
@@ -212,11 +212,11 @@ export default function NewTripForm({
         </h2>
 
         <div>
-          <label className={labelClass}>
+          <label htmlFor="nt-field" className={labelClass}>
             {t('tripForm.pickSaved')}
             <span className="text-xs text-slate-400 font-normal ml-2 hidden sm:inline">{t('tripForm.fillsBelow')}</span>
           </label>
-          <select onChange={(e) => fillFrom(e.target.value)} className={presetClass} defaultValue="">
+          <select id="nt-field" onChange={(e) => fillFrom(e.target.value)} className={presetClass} defaultValue="">
             <option value="">{t('addr.pickLocation')}</option>
             {loadingLocations.map((loc) => (
               <option key={loc.id} value={loc.id}>
@@ -228,38 +228,38 @@ export default function NewTripForm({
 
         <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2 pt-2 border-t border-slate-100">
           <div>
-            <label className={labelClass}>{t('addr.country')}</label>
-            <input type="text" name="from_country" value={from.country}
+            <label htmlFor="nt-from_country" className={labelClass}>{t('addr.country')}</label>
+            <input id="nt-from_country" type="text" name="from_country" value={from.country}
               onChange={(e) => setFrom({ ...from, country: e.target.value })}
               placeholder={t('cargo.phItaly')} className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>{t('tripForm.senderName')}</label>
-            <input type="text" name="from_name" value={from.name}
+            <label htmlFor="nt-from_name" className={labelClass}>{t('tripForm.senderName')}</label>
+            <input id="nt-from_name" type="text" name="from_name" value={from.name}
               onChange={(e) => setFrom({ ...from, name: e.target.value })}
               placeholder="Caffarel S.p.A." className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>{t('addr.postal')}</label>
-            <input type="text" name="from_postal_code" value={from.postal_code}
+            <label htmlFor="nt-from_postal_code" className={labelClass}>{t('addr.postal')}</label>
+            <input id="nt-from_postal_code" type="text" name="from_postal_code" value={from.postal_code}
               onChange={(e) => setFrom({ ...from, postal_code: e.target.value })}
               placeholder="20013" className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>{t('addr.city')}</label>
-            <input type="text" name="from_city" value={from.city}
+            <label htmlFor="nt-from_city" className={labelClass}>{t('addr.city')}</label>
+            <input id="nt-from_city" type="text" name="from_city" value={from.city}
               onChange={(e) => setFrom({ ...from, city: e.target.value })}
               placeholder="Magenta" className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>{t('addr.address')}</label>
-            <input type="text" name="from_address" value={from.address}
+            <label htmlFor="nt-from_address" className={labelClass}>{t('addr.address')}</label>
+            <input id="nt-from_address" type="text" name="from_address" value={from.address}
               onChange={(e) => setFrom({ ...from, address: e.target.value })}
               placeholder="Via Milano 10" className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>{t('tripForm.loadingNo')}</label>
-            <input type="text" name="from_loading_number" value={from.loading_number}
+            <label htmlFor="nt-from_loading_number" className={labelClass}>{t('tripForm.loadingNo')}</label>
+            <input id="nt-from_loading_number" type="text" name="from_loading_number" value={from.loading_number}
               onChange={(e) => setFrom({ ...from, loading_number: e.target.value })}
               placeholder="Ramp 4" className={inputClass} />
           </div>
@@ -277,11 +277,11 @@ export default function NewTripForm({
         </p>
 
         <div>
-          <label className={labelClass}>
+          <label htmlFor="nt-field-2" className={labelClass}>
             {t('tripForm.pickSaved')}
             <span className="text-xs text-slate-400 font-normal ml-2 hidden sm:inline">{t('tripForm.fillsBelow')}</span>
           </label>
-          <select onChange={(e) => fillCustoms(e.target.value)} className={presetClass} defaultValue="">
+          <select id="nt-field-2" onChange={(e) => fillCustoms(e.target.value)} className={presetClass} defaultValue="">
             <option value="">{t('addr.pickLocation')}</option>
             {customsLocations.map((loc) => (
               <option key={loc.id} value={loc.id}>
@@ -293,32 +293,32 @@ export default function NewTripForm({
 
         <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2 pt-2 border-t border-slate-100">
           <div className="md:col-span-2">
-            <label className={labelClass}>{t('cargo.customsName')}</label>
-            <input type="text" name="customs_place" value={customs.place}
+            <label htmlFor="nt-customs_place" className={labelClass}>{t('cargo.customsName')}</label>
+            <input id="nt-customs_place" type="text" name="customs_place" value={customs.place}
               onChange={(e) => setCustoms({ ...customs, place: e.target.value })}
               placeholder={t('cargo.phTerminal')} className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>{t('addr.country')}</label>
-            <input type="text" name="customs_country" value={customs.country}
+            <label htmlFor="nt-customs_country" className={labelClass}>{t('addr.country')}</label>
+            <input id="nt-customs_country" type="text" name="customs_country" value={customs.country}
               onChange={(e) => setCustoms({ ...customs, country: e.target.value })}
               placeholder={t('cargo.phBelarus')} className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>{t('addr.city')}</label>
-            <input type="text" name="customs_city" value={customs.city}
+            <label htmlFor="nt-customs_city" className={labelClass}>{t('addr.city')}</label>
+            <input id="nt-customs_city" type="text" name="customs_city" value={customs.city}
               onChange={(e) => setCustoms({ ...customs, city: e.target.value })}
               placeholder={t('cargo.phBrest')} className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>{t('addr.postal')}</label>
-            <input type="text" name="customs_postal_code" value={customs.postal_code}
+            <label htmlFor="nt-customs_postal_code" className={labelClass}>{t('addr.postal')}</label>
+            <input id="nt-customs_postal_code" type="text" name="customs_postal_code" value={customs.postal_code}
               onChange={(e) => setCustoms({ ...customs, postal_code: e.target.value })}
               placeholder="224000" className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>{t('addr.address')}</label>
-            <input type="text" name="customs_address" value={customs.address}
+            <label htmlFor="nt-customs_address" className={labelClass}>{t('addr.address')}</label>
+            <input id="nt-customs_address" type="text" name="customs_address" value={customs.address}
               onChange={(e) => setCustoms({ ...customs, address: e.target.value })}
               placeholder={t('cargo.phCustomsAddr')} className={inputClass} />
           </div>
@@ -333,11 +333,11 @@ export default function NewTripForm({
         </h2>
 
         <div>
-          <label className={labelClass}>
+          <label htmlFor="nt-field-3" className={labelClass}>
             {t('tripForm.pickSaved')}
             <span className="text-xs text-slate-400 font-normal ml-2 hidden sm:inline">{t('tripForm.fillsBelow')}</span>
           </label>
-          <select onChange={(e) => fillTo(e.target.value)} className={presetClass} defaultValue="">
+          <select id="nt-field-3" onChange={(e) => fillTo(e.target.value)} className={presetClass} defaultValue="">
             <option value="">{t('addr.pickLocation')}</option>
             {unloadingLocations.map((loc) => (
               <option key={loc.id} value={loc.id}>
@@ -349,38 +349,38 @@ export default function NewTripForm({
 
         <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2 pt-2 border-t border-slate-100">
           <div>
-            <label className={labelClass}>{t('addr.country')}</label>
-            <input type="text" name="to_country" value={to.country}
+            <label htmlFor="nt-to_country" className={labelClass}>{t('addr.country')}</label>
+            <input id="nt-to_country" type="text" name="to_country" value={to.country}
               onChange={(e) => setTo({ ...to, country: e.target.value })}
               placeholder={t('cargo.phBelarus')} className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>{t('tripForm.receiverName')}</label>
-            <input type="text" name="to_name" value={to.name}
+            <label htmlFor="nt-to_name" className={labelClass}>{t('tripForm.receiverName')}</label>
+            <input id="nt-to_name" type="text" name="to_name" value={to.name}
               onChange={(e) => setTo({ ...to, name: e.target.value })}
               placeholder={t('cargo.phTerminal')} className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>{t('addr.postal')}</label>
-            <input type="text" name="to_postal_code" value={to.postal_code}
+            <label htmlFor="nt-to_postal_code" className={labelClass}>{t('addr.postal')}</label>
+            <input id="nt-to_postal_code" type="text" name="to_postal_code" value={to.postal_code}
               onChange={(e) => setTo({ ...to, postal_code: e.target.value })}
               placeholder="224000" className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>{t('addr.city')}</label>
-            <input type="text" name="to_city" value={to.city}
+            <label htmlFor="nt-to_city" className={labelClass}>{t('addr.city')}</label>
+            <input id="nt-to_city" type="text" name="to_city" value={to.city}
               onChange={(e) => setTo({ ...to, city: e.target.value })}
               placeholder={t('cargo.phBrest')} className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>{t('addr.address')}</label>
-            <input type="text" name="to_address" value={to.address}
+            <label htmlFor="nt-to_address" className={labelClass}>{t('addr.address')}</label>
+            <input id="nt-to_address" type="text" name="to_address" value={to.address}
               onChange={(e) => setTo({ ...to, address: e.target.value })}
               placeholder={t('cargo.phUnloadAddr')} className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>{t('tripForm.loadingNo')}</label>
-            <input type="text" name="to_loading_number" value={to.loading_number}
+            <label htmlFor="nt-to_loading_number" className={labelClass}>{t('tripForm.loadingNo')}</label>
+            <input id="nt-to_loading_number" type="text" name="to_loading_number" value={to.loading_number}
               onChange={(e) => setTo({ ...to, loading_number: e.target.value })}
               placeholder="Ramp 1" className={inputClass} />
           </div>
@@ -395,25 +395,25 @@ export default function NewTripForm({
         </h2>
         <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
           <div className="md:col-span-2">
-            <label className={labelClass}>{t('cargo.name')}</label>
-            <input type="text" name="label" required
+            <label htmlFor="nt-label" className={labelClass}>{t('cargo.name')}</label>
+            <input id="nt-label" type="text" name="label" required
               placeholder={t('cargo.phName')} className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>{t('cargo.type')}</label>
-            <input type="text" name="cargo_type" placeholder={t('cargo.phType')} className={inputClass} />
+            <label htmlFor="nt-cargo_type" className={labelClass}>{t('cargo.type')}</label>
+            <input id="nt-cargo_type" type="text" name="cargo_type" placeholder={t('cargo.phType')} className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>{t('cargo.weight')}</label>
-            <input type="number" name="weight_kg" step="0.01" placeholder="22000" className={inputClass} />
+            <label htmlFor="nt-weight_kg" className={labelClass}>{t('cargo.weight')}</label>
+            <input id="nt-weight_kg" type="number" name="weight_kg" step="0.01" placeholder="22000" className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>{t('cargo.pallets')}</label>
-            <input type="number" name="pallets" step="1" min="0" placeholder="22" className={inputClass} />
+            <label htmlFor="nt-pallets" className={labelClass}>{t('cargo.pallets')}</label>
+            <input id="nt-pallets" type="number" name="pallets" step="1" min="0" placeholder="22" className={inputClass} />
           </div>
           <div className="md:col-span-2">
-            <label className={labelClass}>{t('tripForm.notes')}</label>
-            <textarea name="notes" rows={2} className={inputClass} placeholder={t('cargo.phNotes')} />
+            <label htmlFor="nt-notes" className={labelClass}>{t('tripForm.notes')}</label>
+            <textarea id="nt-notes" name="notes" rows={2} className={inputClass} placeholder={t('cargo.phNotes')} />
           </div>
         </div>
       </div>
@@ -426,12 +426,12 @@ export default function NewTripForm({
         </h2>
         <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-3">
           <div className="md:col-span-2">
-            <label className={labelClass}>{t('seg.amount')}</label>
-            <input type="number" name="freight_amount" step="0.01" min="0" placeholder="0.00" className={inputClass} />
+            <label htmlFor="nt-freight_amount" className={labelClass}>{t('seg.amount')}</label>
+            <input id="nt-freight_amount" type="number" name="freight_amount" step="0.01" min="0" placeholder="0.00" className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>{t('seg.currency')}</label>
-            <select name="freight_currency" className={inputClass} defaultValue="EUR">
+            <label htmlFor="nt-freight_currency" className={labelClass}>{t('seg.currency')}</label>
+            <select id="nt-freight_currency" name="freight_currency" className={inputClass} defaultValue="EUR">
               <option value="EUR">EUR €</option>
               <option value="PLN">PLN zł</option>
               <option value="BYN">BYN Br</option>

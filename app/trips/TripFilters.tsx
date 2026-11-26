@@ -47,16 +47,16 @@ export default function TripFilters({
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-7 gap-3">
       
-      {/* ЛЕВАЯ КОЛОНКА */}
-      <div className="space-y-4">
+      {/* Фильтры одной сеткой: на широком экране — в одну строку */}
+      <div className="contents">
         {clients.length > 0 && (
           <div>
-            <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2 flex items-center gap-1.5">
+            <div className="text-[11px] uppercase tracking-wide text-slate-400 font-semibold mb-1 flex items-center gap-1.5">
               <User className="w-3.5 h-3.5" /> {t('trips.filterClient')}
             </div>
-            <select
+            <select aria-label={t('trips.filterClient')}
               className="input text-sm py-2"
               value={currentClient || ''}
               onChange={(e) => updateParam('client', e.target.value || null)}
@@ -71,10 +71,10 @@ export default function TripFilters({
 
         {drivers.length > 0 && (
           <div>
-            <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2 flex items-center gap-1.5">
+            <div className="text-[11px] uppercase tracking-wide text-slate-400 font-semibold mb-1 flex items-center gap-1.5">
               <User className="w-3.5 h-3.5" /> {t('trips.filterDriver')}
             </div>
-            <select
+            <select aria-label={t('trips.filterDriver')}
               className="input text-sm py-2"
               value={currentDriver || ''}
               onChange={(e) => updateParam('driver', e.target.value || null)}
@@ -89,10 +89,10 @@ export default function TripFilters({
 
         {tractors.length > 0 && (
           <div>
-            <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2 flex items-center gap-1.5">
+            <div className="text-[11px] uppercase tracking-wide text-slate-400 font-semibold mb-1 flex items-center gap-1.5">
               <Truck className="w-3.5 h-3.5" /> {t('trips.filterTractor')}
             </div>
-            <select
+            <select aria-label={t('trips.filterTractor')}
               className="input text-sm py-2"
               value={currentTruck || ''}
               onChange={(e) => updateParam('truck', e.target.value || null)}
@@ -106,14 +106,13 @@ export default function TripFilters({
         )}
       </div>
 
-      {/* ПРАВАЯ КОЛОНКА */}
-      <div className="space-y-4">
-        <div>
-          <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2 flex items-center gap-1.5">
+      <div className="contents">
+        <div className="col-span-2 md:col-span-1 xl:col-span-2">
+          <div className="text-[11px] uppercase tracking-wide text-slate-400 font-semibold mb-1 flex items-center gap-1.5">
             <Calendar className="w-3.5 h-3.5" /> {t('trips.filterPeriod')}
           </div>
           <div className="flex gap-2">
-            <select
+            <select aria-label={t('trips.filterPeriod')}
               className="input text-sm py-2 flex-1"
               value={String(currentYear)}
               onChange={(e) => updateParam('year', e.target.value)}
@@ -122,7 +121,7 @@ export default function TripFilters({
                 <option key={y} value={y}>{y}</option>
               ))}
             </select>
-            <select
+            <select aria-label={t('trips.filterPeriod')}
               className="input text-sm py-2 flex-1"
               value={currentMonth || ''}
               onChange={(e) => updateParam('month', e.target.value || null)}
@@ -136,10 +135,10 @@ export default function TripFilters({
         </div>
 
         <div>
-          <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2 flex items-center gap-1.5">
+          <div className="text-[11px] uppercase tracking-wide text-slate-400 font-semibold mb-1 flex items-center gap-1.5">
             <Package className="w-3.5 h-3.5" /> {t('trips.filterMode')}
           </div>
-          <select
+          <select aria-label={t('trips.filterMode')}
             className="input text-sm py-2"
             value={currentMode || ''}
             onChange={(e) => updateParam('mode', e.target.value || null)}
@@ -151,10 +150,10 @@ export default function TripFilters({
         </div>
 
         <div>
-          <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2 flex items-center gap-1.5">
+          <div className="text-[11px] uppercase tracking-wide text-slate-400 font-semibold mb-1 flex items-center gap-1.5">
             <ArrowUpDown className="w-3.5 h-3.5" /> {t('trips.sort')}
           </div>
-          <select
+          <select aria-label={t('trips.sort')}
             className="input text-sm py-2"
             value={currentSort}
             onChange={(e) => updateParam('sort', e.target.value === 'created' ? 'created' : null)}

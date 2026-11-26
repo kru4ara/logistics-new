@@ -100,10 +100,10 @@ export default async function NewClientPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
+                <label htmlFor="nc-contact_person" className="block text-sm font-medium text-slate-700 mb-1">
                   {t('dir.contact')}
                 </label>
-                <input
+                <input id="nc-contact_person"
                   type="text"
                   name="contact_person"
                   placeholder={t('cli.phContact')}
@@ -111,10 +111,10 @@ export default async function NewClientPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
+                <label htmlFor="nc-phone" className="block text-sm font-medium text-slate-700 mb-1">
                   {t('drv.phone')}
                 </label>
-                <input
+                <input id="nc-phone"
                   type="text"
                   name="phone"
                   placeholder="+48 123 456 789"
@@ -122,10 +122,10 @@ export default async function NewClientPage() {
                 />
               </div>
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-slate-700 mb-1">
+                <label htmlFor="nc-email" className="block text-sm font-medium text-slate-700 mb-1">
                   Email
                 </label>
-                <input
+                <input id="nc-email"
                   type="email"
                   name="email"
                   placeholder="client@example.com"
@@ -133,8 +133,8 @@ export default async function NewClientPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">{t('recv.paymentDays')}</label>
-                <input type="number" name="payment_days" min={0} max={365} placeholder="30" className="input" />
+                <label htmlFor="nc-payment_days" className="block text-sm font-medium text-slate-700 mb-1">{t('recv.paymentDays')}</label>
+                <input id="nc-payment_days" type="number" name="payment_days" min={0} max={365} placeholder="30" className="input" />
                 <p className="text-xs text-slate-400 mt-1">{t('recv.paymentDaysHint')}</p>
               </div>
             </div>
