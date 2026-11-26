@@ -7,6 +7,7 @@ import { createClient } from '../../lib/supabase/admin';
 import { logAudit } from '../../lib/audit';
 import { getT } from '../../lib/i18n/server';
 import { providerById } from '../../lib/invoicing';
+import { isKsefLocked } from '../../lib/invoicing/types';
 import { runInvoiceSync, readUnmatched, dropUnmatched, readAppliedCorrections, writeAppliedCorrections } from '../../lib/invoicing/sync';
 import { patchFromRemote, type SyncTrip } from '../../lib/invoicing/sync-rules';
 import { getInvoiceProvider } from '../../lib/invoicing';
@@ -28,10 +29,12 @@ export async function markTripPaid(tripId: string): Promise<{ ok: boolean; messa
 
   // Оплату отмечаем и в сервисе фактур; сбой там не отменяет оплату в CRM.
   const provider = providerById(data.invoice_provider);
+  let notice: string | undefined;
   if (provider && data.invoice_external_id) {
-    await provider.markPaid(data.invoice_external_id as string).catch((e: unknown) =>
-      console.error('[receivables] invoice paid', provider.id, e instanceof Error ? e.message : e),
-    );
+    await provider.markPaid(data.invoice_external_id as string).catch((e: unknown) => {
+      if (isKsefLocked(e)) notice = t('recv.paidKsefManual');
+      else console.error('[receivables] invoice paid', provider.id, e instanceof Error ? e.message : e);
+    });
   }
 
   await logAudit({
@@ -43,7 +46,7 @@ export async function markTripPaid(tripId: string): Promise<{ ok: boolean; messa
   });
   revalidatePath('/receivables');
   revalidatePath(`/trips/${tripId}`);
-  return { ok: true };
+  return { ok: true, message: notice };
 }
 
 const date = (v: FormDataEntryValue | null) => {

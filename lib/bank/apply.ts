@@ -3,6 +3,7 @@ import type { createClient } from '../supabase/admin';
 import { toEur } from '../fx';
 import { isMonthClosed } from '../closed-months';
 import { providerById } from '../invoicing';
+import { isKsefLocked } from '../invoicing/types';
 import { isOverheadCategory } from '../payables/overhead-rules';
 import { allocatePayment, isSettled, type Allocation, type TripRef } from './match-rules';
 import { loadTripRefs } from './refs';
@@ -212,9 +213,10 @@ export async function settleTrips(supabase: Supabase, tripIds: string[]): Promis
     if (t.status === 'invoiced') {
       const provider = providerById(t.invoice_provider);
       if (provider && t.invoice_external_id) {
-        await provider.markPaid(t.invoice_external_id).catch((e: unknown) =>
-          console.error('[bank] invoice paid', provider.id, e instanceof Error ? e.message : e),
-        );
+        await provider.markPaid(t.invoice_external_id).catch((e: unknown) => {
+          // Фактура уже в KSeF — оплату в сервисе отмечают вручную, это не сбой.
+          if (!isKsefLocked(e)) console.error('[bank] invoice paid', provider.id, e instanceof Error ? e.message : e);
+        });
       }
     }
   }

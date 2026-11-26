@@ -1,7 +1,7 @@
 import 'server-only';
 import { addDaysIso, type InvoiceInput } from '../invoice-rules';
 import { buildFakturowoParams, parseReply, parseDocList, parseDocPage, isFakturowoCorrection, type FakturowoDoc } from './fakturowo-rules';
-import { InvoicingError, type InvoiceProvider, type InvoiceSnapshot, type RemoteInvoice } from './types';
+import { InvoicingError, KSEF_LOCKED, type InvoiceProvider, type InvoiceSnapshot, type RemoteInvoice } from './types';
 
 // Fakturowo.pl. Переменная: FAKTUROWO_API_ID — Konto → API (услуга API платная, разовая активация).
 // FAKTUROWO_API_URL — только для тестов (заглушка).
@@ -106,7 +106,16 @@ export const fakturowo: InvoiceProvider = {
   },
 
   async markPaid(externalId) {
-    await post({ api_zadanie: '1', api_numer: externalId, dokument_status: '1' });
+    try {
+      await post({ api_zadanie: '1', api_numer: externalId, dokument_status: '1' });
+    } catch (e) {
+      // «faktura została już przesłana do systemu ksef … nie można jej edytować»:
+      // у Fakturowo нет вызова API только для оплаты — её отмечают в списке документов.
+      if (e instanceof InvoicingError && /ksef/i.test(e.message) && /edytowa/i.test(e.message)) {
+        throw new InvoicingError(KSEF_LOCKED, 409);
+      }
+      throw e;
+    }
   },
 
   async cancel(externalId) {

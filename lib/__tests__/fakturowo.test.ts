@@ -107,6 +107,8 @@ beforeAll(async () => {
         if (!form.get('nabywca_nip')) return res.end('0\nBrak NIP nabywcy');
         return res.end('1\n818950\nhttps://www.fakturowo.pl/pobierz/abc\nhttps://www.fakturowo.pl/pokaz/abc\nfv.pdf');
       }
+      if (z === '1' && form.get('api_numer') === 'ksef1')
+        return res.end('0\nFaktura została już przesłana do systemu KSeF (29-10-2026 12:39:50) i nie można jej edytować, można jedynie zmienić parametry płatności');
       if (z === '1') return res.end('1\n818950');
       if (z === '2') return res.end(form.get('api_numer') === '818950' ? '1' : '0\nBrak dokumentu');
       if (z === '3') {
@@ -160,6 +162,10 @@ describe('fakturowo provider', () => {
     await fakturowo.markPaid('818950');
     expect(hits.at(-1)!.form.get('dokument_status')).toBe('1');
     expect(hits.at(-1)!.form.get('api_numer')).toBe('818950');
+    // Фактура уже в KSeF: не сбой, а «отметить вручную».
+    const { isKsefLocked } = await import('../invoicing/types');
+    const locked = await fakturowo.markPaid('ksef1').catch((e: unknown) => e);
+    expect(isKsefLocked(locked)).toBe(true);
     expect(Buffer.from(await fakturowo.pdf('818950')).toString()).toBe('%PDF-1.4');
     await fakturowo.cancel('818950');
     expect(hits.at(-1)!.form.get('api_zadanie')).toBe('2');
