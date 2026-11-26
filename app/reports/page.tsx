@@ -246,24 +246,19 @@ export default async function ReportsPage({
         </div>
 
         {/* Быстрые ссылки */}
-        <div className="grid gap-3 md:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-          {QUICK_LINKS.map(({ href, title: titleKey, hint: hintKey, Icon, gradient }) => { const title = tr(titleKey as MessageKey); const hint = tr(hintKey as MessageKey); return (
+        <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+          {QUICK_LINKS.map(({ href, title: titleKey, hint: hintKey, Icon }) => { const title = tr(titleKey as MessageKey); const hint = tr(hintKey as MessageKey); return (
             <Link
               key={href}
               href={href}
-              className={`block bg-gradient-to-br ${gradient} rounded-2xl shadow-lg p-5 md:p-6
-                         text-white hover:shadow-xl hover:brightness-110
-                         transition-all duration-200 active:scale-[0.99]`}
+              className="card card-hover flex items-start gap-3 p-4"
             >
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-white/15 backdrop-blur-sm
-                                flex items-center justify-center shrink-0">
-                  <Icon className="w-6 h-6 md:w-7 md:h-7" strokeWidth={2} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="text-lg md:text-xl font-bold">{title}</div>
-                  <div className="text-sm text-white/80 mt-1">{hint}</div>
-                </div>
+              <div className="w-10 h-10 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center shrink-0">
+                <Icon className="w-5 h-5" strokeWidth={2} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="font-bold text-slate-900">{title}</div>
+                <div className="text-sm text-slate-500 mt-0.5">{hint}</div>
               </div>
             </Link>
           ); })}

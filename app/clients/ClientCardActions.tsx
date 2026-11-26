@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Pencil, Trash2, GitMerge } from 'lucide-react';
 import MergeClientDialog from './MergeClientDialog';
 import { useT } from '../components/I18nProvider';
+import { confirmDialog } from '../components/Dialogs';
 
 type Option = { id: string; label: string };
 
@@ -35,20 +36,22 @@ export default function ClientCardActions({
         <button
           type="button"
           onClick={() => setIsMergeOpen(true)}
-          className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-brand-300 text-brand-700
-                     text-xs font-medium hover:bg-brand-50 transition-all"
+          title={t('dir.merge')}
+          aria-label={t('dir.merge')}
+          className="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-slate-300 text-slate-600 hover:bg-white hover:text-brand-700 transition-all"
         >
-          <GitMerge className="w-3.5 h-3.5" strokeWidth={2} />
-          {t('dir.merge')}
+          <GitMerge className="w-4 h-4" strokeWidth={2} />
         </button>
         <button
           type="button"
-          onClick={onDelete}
-          className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-red-500/10 text-red-600 border border-red-500/30
-                     text-xs font-medium hover:bg-red-500 hover:text-white transition-all"
+          onClick={async () => {
+            if (await confirmDialog(t('dir.deleteClientConfirm', { name: clientName }), { danger: true })) onDelete();
+          }}
+          title={t('trips.delete')}
+          aria-label={t('trips.delete')}
+          className="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-slate-300 text-slate-500 hover:bg-red-50 hover:text-red-600 hover:border-red-300 transition-all"
         >
-          <Trash2 className="w-3.5 h-3.5" strokeWidth={2} />
-          {t('trips.delete')}
+          <Trash2 className="w-4 h-4" strokeWidth={2} />
         </button>
       </div>
 

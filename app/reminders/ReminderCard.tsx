@@ -112,7 +112,7 @@ export default function ReminderCard({ r }: { r: ReminderCardData }) {
 
   return (
     <div
-      className={`card card-hover border-l-4 p-5 animate-fade-in ${statusBorder}
+      className={`card card-hover border-l-4 p-5 animate-fade-in min-w-0 overflow-hidden ${statusBorder}
                   ${isPending ? 'opacity-60' : ''}
                   ${isDone ? 'bg-slate-50/60' : ''}`}
     >

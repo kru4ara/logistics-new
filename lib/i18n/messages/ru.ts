@@ -733,6 +733,7 @@ export const ru = {
     address_other: '{n} типового адреса',
   },
   dir: {
+    deleteClientConfirm: "Удалить клиента «{name}»? Заказы клиента останутся, но без привязки.",
     loadError: 'Ошибка загрузки:',
     error: 'Ошибка:',
     mergeErrSelf: 'Нельзя объединить клиента с самим собой',

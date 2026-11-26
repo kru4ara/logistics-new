@@ -28,6 +28,7 @@ import {
   Copy,
   AlertTriangle,
   type LucideIcon,
+  ChevronRight,
 } from 'lucide-react';
 import { deniedRedirect } from '../../lib/roles';
 import { getT } from '../../lib/i18n/server';
@@ -402,10 +403,12 @@ export default async function FixedCostsPage() {
           </div>
         ) : (
           <div className="space-y-4 md:space-y-5">
-            {months.map((m) => (
-              <div key={m.month_key} className="card overflow-hidden">
-                <div className="p-4 md:p-5 border-b border-slate-100 bg-slate-50/50 flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-center">
+            {months.map((m, i) => (
+              // Два последних месяца открыты, старые свёрнуты до строки с итогами.
+              <details key={m.month_key} open={i < 2} className="card overflow-hidden group">
+                <summary className="p-4 md:p-5 border-b border-slate-100 bg-slate-50/50 flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-center cursor-pointer list-none [&::-webkit-details-marker]:hidden">
                   <div className="flex items-center gap-3">
+                    <ChevronRight className="w-4 h-4 text-slate-400 transition-transform group-open:rotate-90 shrink-0" aria-hidden="true" />
                     <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-brand-50 flex items-center justify-center shrink-0">
                       <Calendar className="w-4 h-4 md:w-5 md:h-5 text-brand-600" strokeWidth={2} />
                     </div>
@@ -437,7 +440,7 @@ export default async function FixedCostsPage() {
                       <div className="text-lg md:text-xl font-bold text-red-500 tabular-nums">{formatEur(m.operationalTotal)}</div>
                     </div>
                   </div>
-                </div>
+                </summary>
 
                 {/* Mobile */}
                 <div className="md:hidden divide-y divide-slate-100">
@@ -601,7 +604,7 @@ export default async function FixedCostsPage() {
                     </tbody>
                   </table>
                 </div>
-              </div>
+              </details>
             ))}
           </div>
         )}
