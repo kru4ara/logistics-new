@@ -1,6 +1,7 @@
 import { Calendar, Truck, Package, Briefcase } from 'lucide-react';
 import type { MonthData, YearTotals } from '../../lib/statistics';
 import { getT } from '../../lib/i18n/server';
+import { formatEur } from '../../lib/i18n/format';
 
 export default async function StatisticsTable({
   year,
@@ -61,7 +62,7 @@ export default async function StatisticsTable({
                 <div className="flex justify-between items-center gap-2">
                   <span className="text-slate-500">{t('trips.freight')}</span>
                   <span className="font-semibold text-green-600 break-words text-right tabular-nums">
-                    {m.tripRevenue > 0 ? `${m.tripRevenue.toFixed(0)} €` : '—'}
+                    {m.tripRevenue > 0 ? `${formatEur(m.tripRevenue)}` : '—'}
                   </span>
                 </div>
                 <div className="flex justify-between items-center gap-2">
@@ -74,13 +75,13 @@ export default async function StatisticsTable({
                 <div className="flex justify-between items-center gap-2">
                   <span className="text-slate-500">{t('stat.fwdIncome')}</span>
                   <span className="font-semibold text-green-600 break-words text-right tabular-nums">
-                    {m.forwardingClientSum > 0 ? `${m.forwardingClientSum.toFixed(0)} €` : '—'}
+                    {m.forwardingClientSum > 0 ? `${formatEur(m.forwardingClientSum)}` : '—'}
                   </span>
                 </div>
                 <div className="flex justify-between items-center gap-2">
                   <span className="text-slate-500">{t('stat.fwdMargin')}</span>
                   <span className="font-semibold text-emerald-600 break-words text-right tabular-nums">
-                    {m.forwardingMargin !== 0 ? `${m.forwardingMargin.toFixed(0)} €` : '—'}
+                    {m.forwardingMargin !== 0 ? `${formatEur(m.forwardingMargin)}` : '—'}
                   </span>
                 </div>
               </div>
@@ -89,19 +90,19 @@ export default async function StatisticsTable({
                 {m.otherIncome > 0 && (
                   <div className="flex justify-between items-center gap-2">
                     <span className="text-slate-500">{t('income.statRow')}</span>
-                    <span className="font-semibold text-green-600 tabular-nums">{m.otherIncome.toFixed(0)} €</span>
+                    <span className="font-semibold text-green-600 tabular-nums">{formatEur(m.otherIncome)}</span>
                   </div>
                 )}
                 <div className="flex justify-between items-center gap-2">
                   <span className="text-slate-500">{t('stat.directFixed')}</span>
                   <span className="font-medium text-slate-600 break-words text-right tabular-nums">
-                    {m.directExpenses.toFixed(0)} / {m.fixedExpenses.toFixed(0)} €
+                    {m.directExpenses.toFixed(0)} / {formatEur(m.fixedExpenses)}
                   </span>
                 </div>
                 <div className="flex justify-between items-center gap-2">
                   <span className="text-slate-500">{t('stat.totalExp')}</span>
                   <span className="font-semibold text-red-500 break-words text-right tabular-nums">
-                    {m.totalExpenses > 0 ? `${m.totalExpenses.toFixed(0)} €` : '—'}
+                    {m.totalExpenses > 0 ? `${formatEur(m.totalExpenses)}` : '—'}
                   </span>
                 </div>
                 <div className="flex justify-between items-center gap-2 pt-2 border-t border-slate-100">
@@ -111,7 +112,7 @@ export default async function StatisticsTable({
                     m.profit > 0 ? 'text-emerald-600' :
                     m.profit < 0 ? 'text-red-500' : 'text-slate-400'
                   }`}>
-                    {!isEmpty ? `${m.profit.toFixed(0)} €` : '—'}
+                    {!isEmpty ? `${formatEur(m.profit)}` : '—'}
                   </span>
                 </div>
                 <div className="flex justify-between items-center gap-2">
@@ -141,7 +142,7 @@ export default async function StatisticsTable({
             </div>
             <div className="flex justify-between items-center gap-2">
               <span className="text-slate-600">{t('trips.freight')}</span>
-              <span className="font-bold text-green-600 break-words text-right tabular-nums">{yearTotals.tripRevenue.toFixed(0)} €</span>
+              <span className="font-bold text-green-600 break-words text-right tabular-nums">{formatEur(yearTotals.tripRevenue)}</span>
             </div>
             <div className="flex justify-between items-center gap-2">
               <span className="text-slate-600 inline-flex items-center gap-1">
@@ -152,20 +153,20 @@ export default async function StatisticsTable({
             </div>
             <div className="flex justify-between items-center gap-2">
               <span className="text-slate-600">{t('stat.fwdIncome')}</span>
-              <span className="font-bold text-green-600 break-words text-right tabular-nums">{yearTotals.forwardingClientSum.toFixed(0)} €</span>
+              <span className="font-bold text-green-600 break-words text-right tabular-nums">{formatEur(yearTotals.forwardingClientSum)}</span>
             </div>
             <div className="flex justify-between items-center gap-2">
               <span className="text-slate-600">{t('stat.fwdMargin')}</span>
-              <span className="font-bold text-emerald-600 break-words text-right tabular-nums">{yearTotals.forwardingMargin.toFixed(0)} €</span>
+              <span className="font-bold text-emerald-600 break-words text-right tabular-nums">{formatEur(yearTotals.forwardingMargin)}</span>
             </div>
             <div className="flex justify-between items-center gap-2">
               <span className="text-slate-600">{t('stat.totalExp')}</span>
-              <span className="font-bold text-red-500 break-words text-right tabular-nums">{yearTotals.totalExpenses.toFixed(0)} €</span>
+              <span className="font-bold text-red-500 break-words text-right tabular-nums">{formatEur(yearTotals.totalExpenses)}</span>
             </div>
             <div className="flex justify-between items-center gap-2 pt-2 border-t border-slate-300">
               <span className="font-bold text-slate-800">{t('trips.profit')}</span>
               <span className={`font-bold text-lg break-words text-right tabular-nums ${yearTotals.profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                {yearTotals.profit.toFixed(0)} €
+                {formatEur(yearTotals.profit)}
               </span>
             </div>
             <div className="flex justify-between items-center gap-2">
@@ -181,7 +182,7 @@ export default async function StatisticsTable({
                   {t('stat.capexPl')}
                 </span>
                 <span className="font-bold text-amber-600 break-words text-right tabular-nums">
-                  {capexTotalForYear.toFixed(0)} €
+                  {formatEur(capexTotalForYear)}
                 </span>
               </div>
             )}
@@ -238,34 +239,34 @@ export default async function StatisticsTable({
                       {m.tripsCount > 0 ? m.tripsCount : '—'}
                     </td>
                     <td className={`px-4 py-4 text-right font-semibold tabular-nums ${isFuture ? 'text-slate-400' : 'text-green-600'}`}>
-                      {m.tripRevenue > 0 ? `${m.tripRevenue.toFixed(0)} €` : '—'}
+                      {m.tripRevenue > 0 ? `${formatEur(m.tripRevenue)}` : '—'}
                     </td>
                     <td className={`px-4 py-4 text-center font-semibold tabular-nums ${isFuture ? 'text-slate-400' : 'text-slate-700'}`}>
                       {m.forwardingCount > 0 ? m.forwardingCount : '—'}
                     </td>
                     <td className={`px-4 py-4 text-right font-semibold tabular-nums ${isFuture ? 'text-slate-400' : 'text-green-600'}`}>
-                      {m.forwardingClientSum > 0 ? `${m.forwardingClientSum.toFixed(0)} €` : '—'}
+                      {m.forwardingClientSum > 0 ? `${formatEur(m.forwardingClientSum)}` : '—'}
                     </td>
                     <td className={`px-4 py-4 text-right font-semibold tabular-nums ${isFuture ? 'text-slate-400' : 'text-emerald-600'}`}>
-                      {m.forwardingMargin !== 0 ? `${m.forwardingMargin.toFixed(0)} €` : '—'}
+                      {m.forwardingMargin !== 0 ? `${formatEur(m.forwardingMargin)}` : '—'}
                     </td>
                     <td className={`px-4 py-4 text-right tabular-nums ${isFuture ? 'text-slate-400' : 'text-slate-600'}`}>
-                      {m.directExpenses > 0 ? `${m.directExpenses.toFixed(0)} €` : '—'}
+                      {m.directExpenses > 0 ? `${formatEur(m.directExpenses)}` : '—'}
                     </td>
                     <td className={`px-4 py-4 text-right tabular-nums ${isFuture ? 'text-slate-400' : 'text-slate-600'}`}>
-                      {m.fixedExpenses > 0 ? `${m.fixedExpenses.toFixed(0)} €` : '—'}
+                      {m.fixedExpenses > 0 ? `${formatEur(m.fixedExpenses)}` : '—'}
                     </td>
                     <td className={`px-4 py-4 text-right font-medium tabular-nums ${isFuture ? 'text-slate-400' : 'text-red-500'}`}>
-                      {m.totalExpenses > 0 ? `${m.totalExpenses.toFixed(0)} €` : '—'}
+                      {m.totalExpenses > 0 ? `${formatEur(m.totalExpenses)}` : '—'}
                     </td>
                     <td className={`px-4 py-4 text-right font-bold tabular-nums ${
                       isFuture ? 'text-slate-400' :
                       m.profit > 0 ? 'text-emerald-600' :
                       m.profit < 0 ? 'text-red-500' : 'text-slate-400'
                     }`}>
-                      {!isEmpty || m.otherIncome > 0 ? `${m.profit.toFixed(0)} €` : '—'}
+                      {!isEmpty || m.otherIncome > 0 ? `${formatEur(m.profit)}` : '—'}
                       {m.otherIncome > 0 && (
-                        <div className="text-[10px] font-normal text-green-600">{t('income.statRow')}: {m.otherIncome.toFixed(0)} €</div>
+                        <div className="text-[10px] font-normal text-green-600">{t('income.statRow')}: {formatEur(m.otherIncome)}</div>
                       )}
                     </td>
                     <td className={`px-4 py-4 text-right font-semibold tabular-nums ${
@@ -283,15 +284,15 @@ export default async function StatisticsTable({
               <tr className="bg-slate-100 border-t-2 border-slate-200">
                 <td className="px-4 py-4 font-bold text-slate-900">{t('stat.totalFor', { year })}</td>
                 <td className="px-4 py-4 text-center font-bold text-slate-900 tabular-nums">{yearTotals.tripsCount}</td>
-                <td className="px-4 py-4 text-right font-bold text-green-600 tabular-nums">{yearTotals.tripRevenue.toFixed(0)} €</td>
+                <td className="px-4 py-4 text-right font-bold text-green-600 tabular-nums">{formatEur(yearTotals.tripRevenue)}</td>
                 <td className="px-4 py-4 text-center font-bold text-slate-900 tabular-nums">{yearTotals.forwardingCount}</td>
-                <td className="px-4 py-4 text-right font-bold text-green-600 tabular-nums">{yearTotals.forwardingClientSum.toFixed(0)} €</td>
-                <td className="px-4 py-4 text-right font-bold text-emerald-600 tabular-nums">{yearTotals.forwardingMargin.toFixed(0)} €</td>
-                <td className="px-4 py-4 text-right font-bold text-slate-700 tabular-nums">{yearTotals.directExpenses.toFixed(0)} €</td>
-                <td className="px-4 py-4 text-right font-bold text-slate-700 tabular-nums">{yearTotals.fixedExpenses.toFixed(0)} €</td>
-                <td className="px-4 py-4 text-right font-bold text-red-500 tabular-nums">{yearTotals.totalExpenses.toFixed(0)} €</td>
+                <td className="px-4 py-4 text-right font-bold text-green-600 tabular-nums">{formatEur(yearTotals.forwardingClientSum)}</td>
+                <td className="px-4 py-4 text-right font-bold text-emerald-600 tabular-nums">{formatEur(yearTotals.forwardingMargin)}</td>
+                <td className="px-4 py-4 text-right font-bold text-slate-700 tabular-nums">{formatEur(yearTotals.directExpenses)}</td>
+                <td className="px-4 py-4 text-right font-bold text-slate-700 tabular-nums">{formatEur(yearTotals.fixedExpenses)}</td>
+                <td className="px-4 py-4 text-right font-bold text-red-500 tabular-nums">{formatEur(yearTotals.totalExpenses)}</td>
                 <td className={`px-4 py-4 text-right font-bold text-lg tabular-nums ${yearTotals.profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                  {yearTotals.profit.toFixed(0)} €
+                  {formatEur(yearTotals.profit)}
                 </td>
                 <td className={`px-4 py-4 text-right font-bold tabular-nums ${avgMargin >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                   {avgMargin.toFixed(1)}%
@@ -304,7 +305,7 @@ export default async function StatisticsTable({
                     {t('stat.capexYear')}
                   </td>
                   <td colSpan={2} className="px-4 py-3 text-right font-bold text-amber-600 text-base tabular-nums">
-                    {capexTotalForYear.toFixed(0)} €
+                    {formatEur(capexTotalForYear)}
                   </td>
                 </tr>
               )}

@@ -7,6 +7,7 @@ import { fetchAll, fetchAllByIds } from '../../../lib/fetch-all';
 import { deniedRedirect } from '../../../lib/roles';
 import { getT } from '../../../lib/i18n/server';
 import { INTL_LOCALE } from '../../../lib/i18n/config';
+import { formatEur } from '../../../lib/i18n/format';
 
 export const dynamic = 'force-dynamic';
 
@@ -177,16 +178,16 @@ export default async function CargoReportPage({
         <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
           <div className="card p-4">
             <div className="text-xs text-slate-500 mb-1">{t('drvCard.totalFreight')}</div>
-            <div className="text-2xl font-bold text-green-600 tabular-nums">{totalFreight.toFixed(0)} €</div>
+            <div className="text-2xl font-bold text-green-600 tabular-nums">{formatEur(totalFreight)}</div>
           </div>
           <div className="card p-4">
             <div className="text-xs text-slate-500 mb-1">{t('rep.cgAlloc')}</div>
-            <div className="text-2xl font-bold text-red-500 tabular-nums">{totalExpenses.toFixed(0)} €</div>
+            <div className="text-2xl font-bold text-red-500 tabular-nums">{formatEur(totalExpenses)}</div>
           </div>
           <div className="card p-4">
             <div className="text-xs text-slate-500 mb-1">{t('trips.profit')}</div>
             <div className={`text-2xl font-bold tabular-nums ${totalProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-              {totalProfit.toFixed(0)} €
+              {formatEur(totalProfit)}
             </div>
           </div>
         </div>
@@ -233,13 +234,13 @@ export default async function CargoReportPage({
                         {r.weight ? `${r.weight} ${t('units.kg')}` : '—'} / {r.pallets ? `${r.pallets} ${t('units.pal')}` : '—'}
                       </td>
                       <td className="px-4 py-3 text-right font-semibold text-green-600 tabular-nums">
-                        {r.freight.toFixed(2)} €
+                        {formatEur(r.freight, 2)}
                       </td>
                       <td className="px-4 py-3 text-right text-red-500 tabular-nums">
-                        {r.expenses.toFixed(2)} €
+                        {formatEur(r.expenses, 2)}
                       </td>
                       <td className={`px-4 py-3 text-right font-bold tabular-nums ${r.profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                        {r.profit.toFixed(2)} €
+                        {formatEur(r.profit, 2)}
                       </td>
                     </tr>
                   ))}

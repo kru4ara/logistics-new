@@ -14,6 +14,7 @@ import { fetchAllByIds } from '../../lib/fetch-all';
 import { isDriverRole } from '../../lib/roles';
 import { getT } from '../../lib/i18n/server';
 import { INTL_LOCALE } from '../../lib/i18n/config';
+import { formatEur } from '../../lib/i18n/format';
 
 export const dynamic = 'force-dynamic';
 
@@ -365,7 +366,7 @@ export default async function DriverPage({
             </div>
             <div className="card p-4 sm:p-5">
               <div className="text-xs text-slate-400 font-medium mb-1">{tr('drvApp.monthPay')}</div>
-              <div className="text-2xl font-bold text-emerald-600 tabular-nums">{monthSalary.toFixed(0)} €</div>
+              <div className="text-2xl font-bold text-emerald-600 tabular-nums">{formatEur(monthSalary)}</div>
             </div>
             <div className="card p-4 sm:p-5">
               <div className="text-xs text-slate-400 font-medium mb-1">{tr('drvApp.km')}</div>
@@ -377,7 +378,7 @@ export default async function DriverPage({
             </div>
           </div>
           <div className="text-xs text-slate-400 mt-2 px-1">
-            {tr('drvApp.payAll')}{' '}<b className="text-slate-600 tabular-nums">{salaryTotal.toFixed(0)} €</b>
+            {tr('drvApp.payAll')}{' '}<b className="text-slate-600 tabular-nums">{formatEur(salaryTotal)}</b>
           </div>
         </div>
 

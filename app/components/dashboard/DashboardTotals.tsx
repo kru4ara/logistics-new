@@ -7,6 +7,7 @@ import {
   Briefcase,
 } from 'lucide-react';
 import { getT } from '../../../lib/i18n/server';
+import { formatEur } from '../../../lib/i18n/format';
 
 type Props = {
   combinedIncome: number;
@@ -42,7 +43,7 @@ export default async function DashboardTotals({
         <span className="text-xs md:text-sm text-green-100">{t('cmp.totalIncome')}</span>
         <TrendingUp className="w-4 h-4 md:w-5 md:h-5 text-green-100" strokeWidth={2} />
       </div>
-      <div className="text-xl md:text-2xl font-bold break-words tabular-nums">{combinedIncome.toFixed(0)} €</div>
+      <div className="text-xl md:text-2xl font-bold break-words tabular-nums">{formatEur(combinedIncome)}</div>
       <div className="text-[10px] md:text-xs text-green-200 mt-1">{t('cmp.obOrders')}</div>
     </div>
 
@@ -51,7 +52,7 @@ export default async function DashboardTotals({
         <span className="text-xs md:text-sm text-red-100">{t('stat.opex')}</span>
         <TrendingDown className="w-4 h-4 md:w-5 md:h-5 text-red-100" strokeWidth={2} />
       </div>
-      <div className="text-xl md:text-2xl font-bold break-words tabular-nums">{combinedExpenses.toFixed(0)} €</div>
+      <div className="text-xl md:text-2xl font-bold break-words tabular-nums">{formatEur(combinedExpenses)}</div>
       <div className="text-[10px] md:text-xs text-red-200 mt-1">{t('cmp.costsMix')}</div>
     </div>
 
@@ -60,7 +61,7 @@ export default async function DashboardTotals({
         <span className="text-xs md:text-sm text-violet-100">{t('aud.eForwarding')}</span>
         <Package className="w-4 h-4 md:w-5 md:h-5 text-violet-100" strokeWidth={2} />
       </div>
-      <div className="text-xl md:text-2xl font-bold break-words tabular-nums">{forwardingMarginTotal.toFixed(0)} €</div>
+      <div className="text-xl md:text-2xl font-bold break-words tabular-nums">{formatEur(forwardingMarginTotal)}</div>
       <div className="text-[10px] md:text-xs text-violet-200 mt-1">{t('cmp.marginAll')}</div>
     </div>
 
@@ -69,7 +70,7 @@ export default async function DashboardTotals({
         <span className={`text-xs md:text-sm ${combinedProfit >= 0 ? 'text-brand-100' : 'text-red-100'}`}>{t('rep.netProfit')}</span>
         <Wallet className="w-4 h-4 md:w-5 md:h-5" strokeWidth={2} />
       </div>
-      <div className="text-xl md:text-2xl font-bold break-words tabular-nums">{combinedProfit.toFixed(0)} €</div>
+      <div className="text-xl md:text-2xl font-bold break-words tabular-nums">{formatEur(combinedProfit)}</div>
       <div className={`text-[10px] md:text-xs ${combinedProfit >= 0 ? 'text-brand-200' : 'text-red-200'} mt-1 break-words inline-flex items-center flex-wrap gap-1`}>
         <span className="inline-flex items-center gap-0.5">
           <Truck className="w-3 h-3" strokeWidth={2} />
@@ -94,7 +95,7 @@ export default async function DashboardTotals({
           <span className="text-xs md:text-sm text-amber-100">{t('fc.capex')}</span>
           <Briefcase className="w-4 h-4 md:w-5 md:h-5 text-amber-100" strokeWidth={2} />
         </div>
-        <div className="text-xl md:text-2xl font-bold break-words tabular-nums">{totalCapex.toFixed(0)} €</div>
+        <div className="text-xl md:text-2xl font-bold break-words tabular-nums">{formatEur(totalCapex)}</div>
         <div className="text-[10px] md:text-xs text-amber-200 mt-1">{t('cmp.outsidePlDot')}{' '}{totalCapexCount}{' '}{t('cmp.ops')}</div>
       </div>
     )}

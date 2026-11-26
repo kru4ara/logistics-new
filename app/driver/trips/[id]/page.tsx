@@ -29,6 +29,7 @@ import { isDriverRole } from '../../../../lib/roles';
 import { withSignedUrls } from '../../../../lib/storage-urls';
 import { getT } from '../../../../lib/i18n/server';
 import { INTL_LOCALE } from '../../../../lib/i18n/config';
+import { formatEur } from '../../../../lib/i18n/format';
 
 export const dynamic = 'force-dynamic';
 
@@ -555,7 +556,7 @@ export default async function DriverTripDetailPage({ params }: { params: Promise
                         {exp.original_amount} {exp.currency}
                       </div>
                       <div className="font-bold text-red-500 text-sm tabular-nums">
-                        {exp.amount_eur} €
+                        {formatEur(exp.amount_eur, 'auto')}
                       </div>
                     </div>
                   </div>

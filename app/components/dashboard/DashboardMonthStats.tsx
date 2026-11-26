@@ -7,6 +7,7 @@ import {
   BarChart3,
 } from 'lucide-react';
 import { getT } from '../../../lib/i18n/server';
+import { formatEur } from '../../../lib/i18n/format';
 
 type Props = {
   monthName: string;
@@ -76,7 +77,7 @@ export default async function DashboardMonthStats({
         </div>
       </div>
       <div className="text-xl md:text-2xl font-bold text-green-600 break-words tabular-nums">
-        {totalIncome.toFixed(0)} €
+        {formatEur(totalIncome)}
       </div>
       <div className="text-[10px] md:text-xs text-slate-400 mt-1 break-words">
         {t('cmp.revenue')}{' '}{(tripRevenue + forwardingClient).toFixed(0)}
@@ -91,7 +92,7 @@ export default async function DashboardMonthStats({
         </div>
       </div>
       <div className="text-xl md:text-2xl font-bold text-red-500 break-words tabular-nums">
-        {totalExpenses.toFixed(0)} €
+        {formatEur(totalExpenses)}
       </div>
       <div className="text-[10px] md:text-xs text-slate-400 mt-1 break-words">
         {t('cmp.expenses')}{' '}{(tripExpenses + forwardingContractor + forwardingExpenses + fixedCosts).toFixed(0)}
@@ -106,7 +107,7 @@ export default async function DashboardMonthStats({
         </div>
       </div>
       <div className={`text-xl md:text-2xl font-bold break-words tabular-nums ${totalProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-        {totalProfit.toFixed(0)} €
+        {formatEur(totalProfit)}
       </div>
     </div>
   </div>

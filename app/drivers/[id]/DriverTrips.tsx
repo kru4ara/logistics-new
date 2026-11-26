@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Route as RouteIcon } from 'lucide-react';
 import { getT } from '../../../lib/i18n/server';
 import { formatDate } from '../../../lib/i18n/format';
+import { formatEur } from '../../../lib/i18n/format';
 
 export default async function DriverTrips({
   lastTrips,
@@ -70,7 +71,7 @@ export default async function DriverTrips({
                 </div>
                 <div className="shrink-0 text-right">
                   <div className="text-sm font-bold text-green-600 whitespace-nowrap tabular-nums">
-                    {t.revenue_eur ? `${t.revenue_eur} €` : '—'}
+                    {t.revenue_eur ? `${formatEur(t.revenue_eur, 'auto')}` : '—'}
                   </div>
                   {t.actual_km && (
                     <div className="text-xs text-slate-400 tabular-nums">

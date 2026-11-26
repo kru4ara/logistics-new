@@ -21,6 +21,7 @@ import {
   Plus,
   Inbox,
 } from 'lucide-react';
+import { formatEur } from '../../lib/i18n/format';
 
 export const dynamic = 'force-dynamic';
 
@@ -451,19 +452,19 @@ export default async function TripsPage({
             <div>
               <div className="text-xs text-slate-400 font-medium">{tr('trips.freight')}</div>
               <div className="text-base md:text-lg font-bold text-green-600 tabular-nums">
-                {filteredRevenue.toFixed(0)} €
+                {formatEur(filteredRevenue)}
               </div>
             </div>
             <div>
               <div className="text-xs text-slate-400 font-medium">{tr('trips.expenses')}</div>
               <div className="text-base md:text-lg font-bold text-red-500 tabular-nums">
-                {filteredExpenses.toFixed(0)} €
+                {formatEur(filteredExpenses)}
               </div>
             </div>
             <div>
               <div className="text-xs text-slate-400 font-medium">{tr('trips.profit')}</div>
               <div className={`text-base md:text-lg font-bold tabular-nums ${filteredProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                {filteredProfit.toFixed(0)} €
+                {formatEur(filteredProfit)}
               </div>
             </div>
           </div>

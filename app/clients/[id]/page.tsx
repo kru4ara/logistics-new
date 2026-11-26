@@ -15,6 +15,7 @@ import { buildRouteMap, type SegmentRouteRow } from '../../../lib/trip-route';
 import { fetchAllByIds } from '../../../lib/fetch-all';
 import { getT } from '../../../lib/i18n/server';
 import { INTL_LOCALE } from '../../../lib/i18n/config';
+import { formatEur } from '../../../lib/i18n/format';
 
 export const dynamic = 'force-dynamic';
 
@@ -167,16 +168,16 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
         <div className="grid gap-5 md:grid-cols-3">
           <div className="card p-5 md:p-6">
             <div className="text-sm font-medium text-slate-500 mb-2">{tr('drvCard.totalFreight')}</div>
-            <div className="text-2xl font-bold text-green-600">{totalRevenue.toFixed(2)} €</div>
+            <div className="text-2xl font-bold text-green-600">{formatEur(totalRevenue, 2)}</div>
           </div>
           <div className="card p-5 md:p-6">
             <div className="text-sm font-medium text-slate-500 mb-2">{tr('nav.fixedCosts')}</div>
-            <div className="text-2xl font-bold text-red-500">{totalExpenses.toFixed(2)} €</div>
+            <div className="text-2xl font-bold text-red-500">{formatEur(totalExpenses, 2)}</div>
           </div>
           <div className="card p-5 md:p-6">
             <div className="text-sm font-medium text-slate-500 mb-2">{tr('trips.profit')}</div>
             <div className={`text-2xl font-bold ${profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-              {profit.toFixed(2)} €
+              {formatEur(profit, 2)}
             </div>
           </div>
         </div>
@@ -228,7 +229,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
                           {statusLabels[trip.status] || trip.status}
                         </span>
                         <span className="text-sm font-bold text-green-600 whitespace-nowrap">
-                          {trip.revenue_eur ? `${trip.revenue_eur} €` : '—'}
+                          {trip.revenue_eur ? `${formatEur(trip.revenue_eur, 'auto')}` : '—'}
                         </span>
                       </div>
                     </div>

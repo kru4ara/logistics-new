@@ -4,6 +4,7 @@ import { buildRouteMap, type SegmentRouteRow } from '../../../lib/trip-route';
 import { ArrowLeft, Download } from 'lucide-react';
 import { fetchAll } from '../../../lib/fetch-all';
 import { getT } from '../../../lib/i18n/server';
+import { formatEur } from '../../../lib/i18n/format';
 
 export const dynamic = 'force-dynamic';
 
@@ -128,13 +129,13 @@ export default async function ExportPage() {
                           {r.route}
                         </td>
                         <td className="px-4 md:px-6 py-4 text-right font-semibold text-green-600 whitespace-nowrap tabular-nums">
-                          {r.revenue.toFixed(2)} €
+                          {formatEur(r.revenue, 2)}
                         </td>
                         <td className="px-4 md:px-6 py-4 text-right font-semibold text-red-500 whitespace-nowrap tabular-nums">
-                          {r.expenses.toFixed(2)} €
+                          {formatEur(r.expenses, 2)}
                         </td>
                         <td className={`px-4 md:px-6 py-4 text-right font-bold whitespace-nowrap tabular-nums ${rProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                          {rProfit.toFixed(2)} €
+                          {formatEur(rProfit, 2)}
                         </td>
                         <td className="px-4 md:px-6 py-4 text-right text-slate-600 tabular-nums">
                           {r.count}
@@ -145,13 +146,13 @@ export default async function ExportPage() {
                   <tr className="border-t-2 border-slate-200 bg-slate-50/50 font-bold">
                     <td className="px-4 md:px-6 py-4 text-slate-900">{t('rt.grandTotal')}</td>
                     <td className="px-4 md:px-6 py-4 text-right text-green-600 whitespace-nowrap tabular-nums">
-                      {totalRevenue.toFixed(2)} €
+                      {formatEur(totalRevenue, 2)}
                     </td>
                     <td className="px-4 md:px-6 py-4 text-right text-red-500 whitespace-nowrap tabular-nums">
-                      {totalExpenses.toFixed(2)} €
+                      {formatEur(totalExpenses, 2)}
                     </td>
                     <td className={`px-4 md:px-6 py-4 text-right whitespace-nowrap tabular-nums ${profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                      {profit.toFixed(2)} €
+                      {formatEur(profit, 2)}
                     </td>
                     <td className="px-4 md:px-6 py-4 text-right text-slate-600 tabular-nums">
                       {routes.reduce((sum, r) => sum + r.count, 0)}

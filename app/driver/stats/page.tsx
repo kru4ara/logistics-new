@@ -16,6 +16,7 @@ import { isDriverRole } from '../../../lib/roles';
 import { getT } from '../../../lib/i18n/server';
 import { INTL_LOCALE } from '../../../lib/i18n/config';
 import { tPlural } from '../../../lib/i18n/translate';
+import { formatEur } from '../../../lib/i18n/format';
 
 export const dynamic = 'force-dynamic';
 
@@ -246,7 +247,7 @@ export default async function DriverStatsPage() {
                         <div>
                           <div className="text-slate-400">{tr('drvApp.pay')}</div>
                           <div className="font-semibold text-emerald-600 tabular-nums">
-                            {r.salary > 0 ? `${r.salary.toLocaleString(INTL_LOCALE[locale])} €` : '—'}
+                            {r.salary > 0 ? `${formatEur(r.salary)}` : '—'}
                           </div>
                         </div>
                       </div>
@@ -277,7 +278,7 @@ export default async function DriverStatsPage() {
                     <div>
                       <div className="text-slate-500">{tr('drvApp.earned')}</div>
                       <div className="font-bold text-emerald-600 tabular-nums">
-                        {activeSalary.toLocaleString(INTL_LOCALE[locale])} €
+                        {formatEur(activeSalary)}
                       </div>
                     </div>
                   </div>
@@ -320,7 +321,7 @@ export default async function DriverStatsPage() {
                             {r.consumption > 0 ? `${r.consumption.toFixed(1)} ${t('drvCard.l100')}` : '—'}
                           </td>
                           <td className="px-5 py-3 text-right text-sm font-semibold text-emerald-600 tabular-nums">
-                            {r.salary > 0 ? `${r.salary.toLocaleString(INTL_LOCALE[locale])} €` : '—'}
+                            {r.salary > 0 ? `${formatEur(r.salary)}` : '—'}
                           </td>
                         </tr>
                       ))}
@@ -339,7 +340,7 @@ export default async function DriverStatsPage() {
                           {activeConsumption.toFixed(1)}{' '}{tr('drvCard.l100')}
                         </td>
                         <td className="px-5 py-4 text-right font-bold text-emerald-600 text-base tabular-nums">
-                          {activeSalary.toLocaleString(INTL_LOCALE[locale])} €
+                          {formatEur(activeSalary)}
                         </td>
                       </tr>
                     </tfoot>

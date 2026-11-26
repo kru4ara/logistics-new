@@ -5,6 +5,7 @@ import SubmitButton from '../../components/SubmitButton';
 import { accrueDriverDebt, payOutDriverDebt, deleteDriverTransaction } from '../../driver-debts-actions';
 import { useT } from '../../components/I18nProvider';
 import { formatDate } from '../../../lib/i18n/format';
+import { formatEur } from '../../../lib/i18n/format';
 
 export default function DriverFinance({
   driverId,
@@ -38,12 +39,12 @@ export default function DriverFinance({
           {balance > 0 ? tr('drvFin.companyOwes') : balance < 0 ? tr('drvFin.driverOwes') : tr('drvFin.closed')}
         </div>
         <div className="text-3xl font-bold mt-1 tabular-nums">
-          {Math.abs(balance).toFixed(2)} €
+          {formatEur(Math.abs(balance), 2)}
         </div>
         <div className="flex gap-x-4 gap-y-1 mt-3 text-xs text-white/80 flex-wrap">
-          <span>{tr('drvFin.accrued')} <b className="text-white tabular-nums">{accruedTotal.toFixed(2)} €</b></span>
+          <span>{tr('drvFin.accrued')} <b className="text-white tabular-nums">{formatEur(accruedTotal, 2)}</b></span>
           <span>·</span>
-          <span>{tr('drvFin.paidOut')} <b className="text-white tabular-nums">{paidOutTotal.toFixed(2)} €</b></span>
+          <span>{tr('drvFin.paidOut')} <b className="text-white tabular-nums">{formatEur(paidOutTotal, 2)}</b></span>
         </div>
       </div>
 
@@ -149,7 +150,7 @@ export default function DriverFinance({
                   <div className={`text-sm font-bold whitespace-nowrap tabular-nums ${
                     t.type === 'accrual' ? 'text-amber-600' : 'text-emerald-600'
                   }`}>
-                    {t.type === 'accrual' ? '+' : '−'}{Number(t.amount_eur).toFixed(2)} €
+                    {t.type === 'accrual' ? '+' : '−'}{formatEur(Number(t.amount_eur), 2)}
                   </div>
                   <form action={deleteDriverTransaction.bind(null, t.id, driverId)}>
                     <button

@@ -34,6 +34,7 @@ import { getT } from '../../lib/i18n/server';
 import { INTL_LOCALE } from '../../lib/i18n/config';
 import type { MessageKey } from '../../lib/i18n/translate';
 import { tPlural } from '../../lib/i18n/translate';
+import { formatEur } from '../../lib/i18n/format';
 
 export const dynamic = 'force-dynamic';
 
@@ -257,7 +258,7 @@ export default async function FixedCostsPage() {
               </div>
             </div>
             <div className="text-2xl md:text-3xl font-bold text-red-500 break-words tabular-nums">
-              {currentMonthActual.toFixed(0)} €
+              {formatEur(currentMonthActual)}
             </div>
             <div className="text-xs text-slate-400 mt-1">
               {t('fc.operational')}
@@ -272,7 +273,7 @@ export default async function FixedCostsPage() {
               </div>
             </div>
             <div className="text-2xl md:text-3xl font-bold text-amber-600 break-words tabular-nums">
-              {totalCapexAllTime > 0 ? `${totalCapexAllTime.toFixed(0)} €` : '—'}
+              {totalCapexAllTime > 0 ? `${formatEur(totalCapexAllTime)}` : '—'}
             </div>
             <div className="text-xs text-amber-600/70 mt-1">
               {t('fc.outsidePl', { ops: tPlural(t, locale, 'count2.op', capexCosts.length) })}
@@ -285,14 +286,14 @@ export default async function FixedCostsPage() {
             <div className="card p-4 md:p-5 border-violet-200">
               <span className="text-xs md:text-sm font-medium text-violet-700">{t('cclass.dividendsTotal')}</span>
               <div className="text-2xl md:text-3xl font-bold text-violet-600 tabular-nums mt-1">
-                {dividendCosts.length ? `${sumEur(dividendCosts).toFixed(0)} €` : '—'}
+                {dividendCosts.length ? `${formatEur(sumEur(dividendCosts))}` : '—'}
               </div>
               <div className="text-xs text-violet-600/70 mt-1">{t('fc.outsidePl', { ops: tPlural(t, locale, 'count2.op', dividendCosts.length) })}</div>
             </div>
             <div className="card p-4 md:p-5 border-slate-300">
               <span className="text-xs md:text-sm font-medium text-slate-600">{t('cclass.cashTotal')}</span>
               <div className="text-2xl md:text-3xl font-bold text-slate-700 tabular-nums mt-1">
-                {cashCosts.length ? `${sumEur(cashCosts).toFixed(0)} €` : '—'}
+                {cashCosts.length ? `${formatEur(sumEur(cashCosts))}` : '—'}
               </div>
               <div className="text-xs text-slate-500 mt-1">{t('fc.outsidePl', { ops: tPlural(t, locale, 'count2.op', cashCosts.length) })}</div>
             </div>
@@ -416,24 +417,24 @@ export default async function FixedCostsPage() {
                     {m.dividendsTotal > 0 && (
                       <div className="text-right">
                         <div className="text-[10px] md:text-xs uppercase tracking-wide text-violet-600 font-medium">{t('cclass.dividends')}</div>
-                        <div className="text-sm md:text-base font-bold text-violet-600 tabular-nums">{m.dividendsTotal.toFixed(0)} €</div>
+                        <div className="text-sm md:text-base font-bold text-violet-600 tabular-nums">{formatEur(m.dividendsTotal)}</div>
                       </div>
                     )}
                     {m.cashTotal > 0 && (
                       <div className="text-right">
                         <div className="text-[10px] md:text-xs uppercase tracking-wide text-slate-500 font-medium">{t('cclass.cash')}</div>
-                        <div className="text-sm md:text-base font-bold text-slate-600 tabular-nums">{m.cashTotal.toFixed(0)} €</div>
+                        <div className="text-sm md:text-base font-bold text-slate-600 tabular-nums">{formatEur(m.cashTotal)}</div>
                       </div>
                     )}
                     {m.capexTotal > 0 && (
                       <div className="text-right">
                         <div className="text-[10px] md:text-xs uppercase tracking-wide text-amber-600 font-medium">{t('fc.capex')}</div>
-                        <div className="text-sm md:text-base font-bold text-amber-600 tabular-nums">{m.capexTotal.toFixed(0)} €</div>
+                        <div className="text-sm md:text-base font-bold text-amber-600 tabular-nums">{formatEur(m.capexTotal)}</div>
                       </div>
                     )}
                     <div className="text-right">
                       <div className="text-[10px] md:text-xs uppercase tracking-wide text-slate-400 font-medium">{t('fc.opex')}</div>
-                      <div className="text-lg md:text-xl font-bold text-red-500 tabular-nums">{m.operationalTotal.toFixed(0)} €</div>
+                      <div className="text-lg md:text-xl font-bold text-red-500 tabular-nums">{formatEur(m.operationalTotal)}</div>
                     </div>
                   </div>
                 </div>
@@ -474,7 +475,7 @@ export default async function FixedCostsPage() {
                               {originalAmount} {currencySymbol[curr] || curr}
                             </div>
                             <div className={`font-bold break-words tabular-nums ${isCapex ? 'text-amber-600' : 'text-red-500'}`}>
-                              {c.amount_eur ? `${Number(c.amount_eur).toFixed(0)} €` : '—'}
+                              {c.amount_eur ? `${formatEur(Number(c.amount_eur))}` : '—'}
                             </div>
                           </div>
                         </div>
@@ -569,7 +570,7 @@ export default async function FixedCostsPage() {
                               {originalAmount} {currencySymbol[curr] || curr}
                             </td>
                             <td className={`px-6 py-4 text-right font-semibold whitespace-nowrap tabular-nums ${isCapex ? 'text-amber-600' : 'text-red-500'}`}>
-                              {c.amount_eur ? `${Number(c.amount_eur).toFixed(0)} €` : '—'}
+                              {c.amount_eur ? `${formatEur(Number(c.amount_eur))}` : '—'}
                             </td>
                             <td className="px-6 py-4 text-right whitespace-nowrap">
                               {c.purchase_invoice_id || c.bank_transaction_id ? invoiceBadge(c) : (<>

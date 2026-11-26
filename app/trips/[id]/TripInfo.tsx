@@ -8,6 +8,7 @@ import {
 import RecalcCoordsButton from './RecalcCoordsButton';
 import { getT } from '../../../lib/i18n/server';
 import { formatDate, formatDateTime } from '../../../lib/i18n/format';
+import { formatEur } from '../../../lib/i18n/format';
 
 export default async function TripInfo({
   tripId,
@@ -101,7 +102,7 @@ export default async function TripInfo({
         <div>
           <div className="text-xs uppercase tracking-wide text-slate-400 font-medium mb-1">{t('trip.freight')}</div>
           <div className="text-lg md:text-xl font-bold text-green-600 break-words tabular-nums">
-            {trip.revenue_eur ? `${trip.revenue_eur} €` : '—'}
+            {trip.revenue_eur ? `${formatEur(trip.revenue_eur, 'auto')}` : '—'}
           </div>
         </div>
         <div>
