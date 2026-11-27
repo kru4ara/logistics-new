@@ -2606,4 +2606,14 @@ export const pl: Messages = {
     err_memberHasRoute: 'Zlecenie ma już własną trasę lub wykonawcę',
     err_cancelled: 'Nie można dodać anulowanego zlecenia',
   },
+  mailTest: {
+    title: "Poczta do wiadomości dla klientów",
+    from: "Wiadomości wychodzą z:",
+    hint: "Wiadomość testowa trafi na tę samą skrzynkę — klienci jej nie zobaczą. Jeśli nie dotrze, pokażemy tu odpowiedź serwera poczty.",
+    send: "Wyślij wiadomość testową",
+    subject: "Test poczty CRM",
+    body: "To jest wiadomość testowa z CRM.\n\nJeśli ją widzisz, wysyłka wiadomości do klientów (przypomnienia o zaległościach) działa. Adres nadawcy: {from}.",
+    sent: "Wysłano na {to}. Sprawdź skrzynkę (i folder „Spam”).",
+    failed: "Nie wysłano. Odpowiedź serwera poczty: {msg}",
+  },
 };
