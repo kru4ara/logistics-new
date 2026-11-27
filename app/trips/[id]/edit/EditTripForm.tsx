@@ -82,7 +82,7 @@ export default function EditTripForm({
           </div>
           <div>
             <label className={labelClass}>{t('tripForm.requestDate')}</label>
-            <input type="date" name="client_request_date" defaultValue={trip.client_request_date || ''} className={inputClass} />
+            <input type="date" name="client_request_date" defaultValue={dateInput(trip.client_request_date)} className={inputClass} />
           </div>
         </div>
       </div>
@@ -98,7 +98,7 @@ export default function EditTripForm({
             <input
               type="date"
               name="start_date"
-              defaultValue={trip.start_date || ''}
+              defaultValue={dateInput(trip.start_date)}
               readOnly={startLocked}
               aria-describedby={startLocked ? 'start-locked-hint' : undefined}
               className={`${inputClass} ${startLocked ? 'bg-slate-100 text-slate-600 cursor-not-allowed' : ''}`}
@@ -110,7 +110,7 @@ export default function EditTripForm({
             <input
               type="date"
               name="end_date"
-              defaultValue={trip.end_date || ''}
+              defaultValue={dateInput(trip.end_date)}
               className={inputClass}
             />
           </div>
@@ -177,4 +177,13 @@ export default function EditTripForm({
 
     </form>
   );
+}
+
+/**
+ * trips.start_date / end_date в базе — timestamp: приходят как «2026-02-19T00:00:00».
+ * <input type="date"> такое значение не принимает и показывает пустое поле, а
+ * пустое поле при сохранении стирало даты заказа. Отдаём только «YYYY-MM-DD».
+ */
+function dateInput(v: string | null | undefined): string {
+  return v ? String(v).slice(0, 10) : '';
 }
