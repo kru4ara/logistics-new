@@ -27,7 +27,25 @@ export function __setTransportForTests(factory: () => Transporter) {
   cached = null;
 }
 
-const fromAddress = () => (process.env.SMTP_FROM || process.env.SMTP_USER || '').trim();
+/** Адрес ящика из строки «Имя <a@b.pl>» или «a@b.pl»; нет адреса — null. */
+export function emailOf(s: string | null | undefined): string | null {
+  const v = (s ?? '').trim();
+  const m = v.match(/<([^<>\s]+@[^<>\s]+)>/) ?? v.match(/^([^\s@<>"]+@[^\s@<>"]+)$/);
+  return m ? m[1] : null;
+}
+
+/**
+ * «От кого». SMTP_FROM — «Название <biuro@firma.pl>»; если там только название
+ * («Raibuilding Sp. z o.o.», без адреса), адрес берём из SMTP_USER — иначе письмо
+ * уходит без отправителя, а Gmail отвечает «No recipients defined» / подменяет поле.
+ */
+export function fromAddress(from = process.env.SMTP_FROM, user = process.env.SMTP_USER): string {
+  const f = (from ?? '').trim();
+  const u = (user ?? '').trim();
+  if (emailOf(f)) return f;
+  if (f && emailOf(u)) return `"${f.replace(/^"+|"+$/g, '').replace(/"/g, "'")}" <${u}>`;
+  return u;
+}
 
 export const smtp: MailProvider = {
   id: 'smtp',

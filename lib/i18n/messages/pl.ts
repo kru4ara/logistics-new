@@ -2607,6 +2607,7 @@ export const pl: Messages = {
     err_cancelled: 'Nie można dodać anulowanego zlecenia',
   },
   mailTest: {
+    noAddress: "W ustawieniach poczty brak adresu skrzynki: SMTP_USER musi być pełnym adresem (nazwa@domena).",
     title: "Poczta do wiadomości dla klientów",
     from: "Wiadomości wychodzą z:",
     hint: "Wiadomość testowa trafi na tę samą skrzynkę — klienci jej nie zobaczą. Jeśli nie dotrze, pokażemy tu odpowiedź serwera poczty.",

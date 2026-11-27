@@ -3,6 +3,7 @@
 import { requireCapability } from '../../lib/require-office';
 import { getMailProvider } from '../../lib/mail';
 import { MailError } from '../../lib/mail/types';
+import { emailOf } from '../../lib/mail/smtp';
 import { getT } from '../../lib/i18n/server';
 import { logAudit } from '../../lib/audit';
 
@@ -18,7 +19,8 @@ export async function sendTestMail(): Promise<{ ok: boolean; message: string }> 
   const { t } = await getT();
   const provider = getMailProvider();
   if (!provider) return { ok: false, message: t('dun.noMail') };
-  const to = provider.from.match(/<([^>]+)>/)?.[1] ?? provider.from;
+  const to = emailOf(provider.from) ?? emailOf(process.env.SMTP_USER);
+  if (!to) return { ok: false, message: t('mailTest.noAddress') };
   try {
     await provider.send({
       to: [to],

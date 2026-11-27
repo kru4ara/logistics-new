@@ -2607,6 +2607,7 @@ export const en: Messages = {
     err_cancelled: 'A cancelled order cannot be added',
   },
   mailTest: {
+    noAddress: "The mail settings have no mailbox address: SMTP_USER must be a full address (name@domain).",
     title: "Mail for client messages",
     from: "Messages are sent from:",
     hint: "The test message goes to this same mailbox — clients won’t see it. If it fails, the mail server’s reply is shown here.",
