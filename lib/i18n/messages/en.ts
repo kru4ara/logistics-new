@@ -2606,4 +2606,14 @@ export const en: Messages = {
     err_memberHasRoute: 'The order already has its own route or executor',
     err_cancelled: 'A cancelled order cannot be added',
   },
+  mailTest: {
+    title: "Mail for client messages",
+    from: "Messages are sent from:",
+    hint: "The test message goes to this same mailbox — clients won’t see it. If it fails, the mail server’s reply is shown here.",
+    send: "Send a test message",
+    subject: "CRM mail test",
+    body: "This is a test message from the CRM.\n\nIf you can see it, sending messages to clients (overdue reminders) works. Sender address: {from}.",
+    sent: "Sent to {to}. Check the mailbox (and the Spam folder).",
+    failed: "Not sent. Mail server reply: {msg}",
+  },
 };

@@ -9,6 +9,8 @@ import { signDocumentPaths } from '../../lib/storage-urls';
 import SubmitButton from '../components/SubmitButton';
 import { getT } from '../../lib/i18n/server';
 import { saveCompanySettings } from './actions';
+import MailTestCard from './MailTestCard';
+import { getMailProvider } from '../../lib/mail';
 import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
@@ -158,6 +160,8 @@ export default async function CompanySettingsPage({
             <SubmitButton>{t('common.save')}</SubmitButton>
           </fieldset>
         </form>
+
+        <MailTestCard from={getMailProvider()?.from || null} />
       </div>
     </main>
   );
