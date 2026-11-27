@@ -15,6 +15,22 @@ export default function Error({
 }) {
   const { t } = useT();
   useEffect(() => {
+    // После нового деплоя у открытой вкладки старые id server actions — Next
+    // отвечает «Server Action … was not found». Это не сбой: перезагружаем
+    // страницу один раз (метка в sessionStorage не даёт зациклиться).
+    if (/Server Action .* was not found/i.test(error.message)) {
+      try {
+        const key = 'stale-action-reload';
+        const last = Number(sessionStorage.getItem(key)) || 0;
+        if (Date.now() - last > 60_000) {
+          sessionStorage.setItem(key, String(Date.now()));
+          window.location.reload();
+          return;
+        }
+      } catch {
+        /* без sessionStorage — покажем обычный экран ошибки */
+      }
+    }
     // Логируем в Vercel → Functions → Runtime Logs
     console.error('[app/error]', error.message, error.digest);
     // С digest — ошибка сервера, её уже отправил instrumentation.ts; без digest — браузерная.
