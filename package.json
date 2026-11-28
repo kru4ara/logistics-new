@@ -35,7 +35,7 @@
     "server-only": "^0.0.1",
     "sharp": "^0.35.5",
     "tailwind-merge": "^2.5.0",
-    "unpdf": "^1.9.1"
+    "unpdf": "^2.2.2"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
