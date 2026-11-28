@@ -25,12 +25,18 @@ async function send(text: string): Promise<void> {
   const chatId = process.env.OPS_TELEGRAM_CHAT_ID;
   if (!token || !chatId) return;
   try {
-    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ chat_id: chatId, text, disable_web_page_preview: true }),
       signal: AbortSignal.timeout(3000),
     });
+    if (!res.ok) {
+      // Telegram отвечает {ok:false, description}: «chat not found» — неверный CHAT_ID
+      // или бот не получил /start; 401/404 — неверный токен. Токен в лог не пишем.
+      const body = (await res.json().catch(() => null)) as { description?: string } | null;
+      console.error(`[error-alerts] Telegram отказал: ${res.status} ${body?.description ?? ''}`);
+    }
   } catch (e) {
     console.error('[error-alerts] не удалось отправить в Telegram:', (e as Error).message);
   }
