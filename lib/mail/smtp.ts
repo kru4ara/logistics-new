@@ -10,7 +10,7 @@ import { MailError, type MailProvider } from './types';
 export const isSmtpConfigured = () => Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASSWORD);
 
 let cached: Transporter | null = null;
-let transportFactory = () =>
+let transportFactory: () => Transporter = () =>
   nodemailer.createTransport({
     host: process.env.SMTP_HOST,
     port: Number(process.env.SMTP_PORT) || 465,
